@@ -46,8 +46,17 @@ namespace Solstice
 
 		/** Water sheet, shallow -> deep. Saturated deep blue: the reference pond reads as water,
 			not as pale grey glass, and the dark sheet is what makes the lit land pop. */
-		FLinearColor Water = CelSrgb(0x3D, 0x78, 0x9E);
-		FLinearColor WaterDeep = CelSrgb(0x12, 0x30, 0x61);
+		FLinearColor Water = CelSrgb(0x4E, 0x9B, 0xC0);
+		/**
+		 * Deep water. Kept clearly lighter than the void (#0B1431) on purpose: at #123061 the sheet
+		 * and the empty field behind the realm were the same colour to within a few units, so the
+		 * sea read as "the disc ends here" rather than as water (2026-10-18).
+		 */
+		FLinearColor WaterDeep = CelSrgb(0x1E, 0x5B, 0x86);
+		/** Surf: the pale rim on the water side of a shoreline (art.md SS2.3). */
+		FLinearColor Surf = CelSrgb(0xDC, 0xF0, 0xF8);
+		/** Ripple strokes on open water. */
+		FLinearColor Ripple = CelSrgb(0xA9, 0xD8, 0xEA);
 
 		/** Terrain surface states. */
 		FLinearColor Moss = CelSrgb(0x66, 0x8A, 0x47);

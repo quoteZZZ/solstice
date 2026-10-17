@@ -81,15 +81,25 @@ namespace Solstice
 		const int32 IndividualBudgetSmall = 1200;
 
 		// ---- terrain shaping (docs/setting/WORLD.md SS2.2) ----
+		//
+		// The profile is distribution-driven, not absolute. The raw noise value of every tile is
+		// ranked, the lowest `TargetWaterFraction01` of the realm becomes sea bed, and the rest is
+		// remapped onto (water line .. peak). Two consequences matter:
+		//
+		//   - every algorithm produces water and a shoreline whatever its noise distribution is.
+		//     The old code cut water at an absolute H01 < 0.18, and the ridge profile all but never
+		//     goes that low: measured 0.0% water tiles, 0 shore tiles (2026-10-18). That is why the
+		//     realm read as one green pancake floating in the void.
+		//   - the height ramp in Gen::TileColour can divide by a peak the generator actually
+		//     reaches. Heights topped out at 23 m against a 64 m divisor, so the rock band and the
+		//     mountain read never appeared at all.
 		const float TerrainShapingExponent = 1.25f;
-		const float TerrainHeightFloorMeters = 2.0f;
-		// 6 m over a 128 m disc is a flat sheet, and the water line sat at 6 m too - the whole world was
-// at or below water, so there was no grassland, no mountain and no river bank to read. 42 m gives
-// real relief while keeping the world wider than it is tall (128 m across), which is what keeps it
-// reading as a landscape instead of a bowl.
-const float TerrainHeightRangeMeters = 42.0f;
-		const float ShorelineThreshold01 = 0.18f;
-		const float ShorelineMinHeightMeters = 1.0f;
+		/** Share of the realm that ends up under the water line. */
+		const float TargetWaterFraction01 = 0.14f;
+		/** Peak height. WORLD SS1.1 asks for 0.30-0.55 R; 26 m is 0.41 R at the 128 m realm. */
+		const float TerrainPeakMeters = 26.0f;
+		/** Deepest sea bed, in metres above the plinth. */
+		const float SeabedMinHeightMeters = 1.0f;
 		const float TerrainFertilityBase = 0.35f;
 		const float TerrainFertilityNoise = 0.6f;
 		const float TerrainFertilityMin = 0.05f;

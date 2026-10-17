@@ -260,12 +260,15 @@ namespace Solstice
 		// ---- terrain shaping (docs/setting/WORLD.md SS2.2) ----
 		/** Profile exponent applied to the normalised noise before scaling to metres. */
 		extern const float TerrainShapingExponent;		// 1.25
-		/** Land height = floor + shaped * (max - range); these two set the span. */
-		extern const float TerrainHeightFloorMeters;	// 2.0
-		extern const float TerrainHeightRangeMeters;	// 6.0
-		/** Below this normalised height the profile drops to the shoreline. */
-		extern const float ShorelineThreshold01;		// 0.18
-		extern const float ShorelineMinHeightMeters;	// 1.0
+		/**
+		 * Share of the realm that ends up under the water line. The sea line is the matching
+		 * *percentile* of this realm's own raw profile, so every algorithm gets a coast.
+		 */
+		extern const float TargetWaterFraction01;		// 0.14
+		/** Peak land height in metres (0.41 R at the 128 m realm; WORLD SS1.1 asks 0.30-0.55 R). */
+		extern const float TerrainPeakMeters;			// 26.0
+		/** Deepest sea bed in metres above the plinth. */
+		extern const float SeabedMinHeightMeters;		// 1.0
 		/** Fertility / moisture fields, each seeded from its own noise layer. */
 		extern const float TerrainFertilityBase;		// 0.35
 		extern const float TerrainFertilityNoise;		// 0.6

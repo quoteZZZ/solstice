@@ -334,9 +334,16 @@ namespace Solstice
 	void FSimKernel::GenerateTerrain()
 	{
 		const int32 Size = Config.Size;
+		const int32 Count = Size * Size;
 		const float InvSize = 1.0f / static_cast<float>(Size);
 		const uint32 Seed = Config.Seed;
 		const float WaterLevel = Config.BaseWaterLevel;
+
+		// Pass 1: the raw profile, kept so the sea line can be a percentile of *this* realm's own
+		// distribution instead of an absolute threshold. See TargetWaterFraction01: the ridge
+		// profile almost never fell below the old 0.18 cut, and the realm had no water at all.
+		TArray<float> Raw;
+		Raw.SetNumUninitialized(Count);
 
 		for (int32 Y = 0; Y < Size; ++Y)
 		{
@@ -403,24 +410,11 @@ namespace Solstice
 				}
 				}
 
-				// Bias the profile so plains / mid slopes / peaks all appear.
-				const float Shaped = FMath::Clamp(FMath::Pow(H01, Tuning::TerrainShapingExponent), 0.0f, 1.0f);
-				float Height = Tuning::TerrainHeightFloorMeters
-					+ Shaped * (Tuning::MaxHeightMeters - Tuning::TerrainHeightRangeMeters);
+				Raw[ToIndex(X, Y)] = H01;
 
-				// Open a shoreline: anything below the base water level becomes submerged.
-				if (H01 < Tuning::ShorelineThreshold01)
-				{
-					Height = FMath::Lerp(Tuning::ShorelineMinHeightMeters, WaterLevel - Tuning::ShorelineMinHeightMeters,
-						H01 / Tuning::ShorelineThreshold01);
-				}
-
-				Height = FMath::RoundToFloat(Height / Tuning::HeightQuantum) * Tuning::HeightQuantum;
-
-				const int32 Index = ToIndex(X, Y);
-				FTile& Tile = Tiles[Index];
+				// ---- fields that do not depend on the height mapping --------------
+				FTile& Tile = Tiles[ToIndex(X, Y)];
 				Tile = FTile();
-				Tile.Height = FMath::Clamp(Height, 0.0f, Tuning::MaxHeightMeters);
 				Tile.Fertility = FMath::Clamp(
 					Tuning::TerrainFertilityBase
 						+ Fbm(U * TerrainNoise::FertilityFreq, V * TerrainNoise::FertilityFreq,
@@ -437,6 +431,42 @@ namespace Solstice
 				// for the first forty minutes; colour the land now and let the seasons change it.
 				Tile.Painted = Config.bChaosStart ? 0.0f : 0.72f;
 			}
+		}
+
+		// ---- pass 2: rank the profile and pin the water line on a percentile ----
+		TArray<float> Ranked = Raw;
+		Ranked.Sort();
+		const int32 SeaIndex = FMath::Clamp(
+			FMath::FloorToInt(static_cast<float>(Count) * Tuning::TargetWaterFraction01), 0, Count - 1);
+		// The peak comes from the 99.5th percentile, not the maximum: one stray noise spike should
+		// not flatten every other hill by setting the top of the ramp.
+		const int32 PeakIndex = FMath::Clamp(FMath::FloorToInt(static_cast<float>(Count) * 0.995f), 0, Count - 1);
+		const float Floor = Ranked[0];
+		const float SeaCut = Ranked[SeaIndex];
+		const float PeakCut = Ranked[PeakIndex];
+		const float SeaSpan = FMath::Max(1.0e-3f, SeaCut - Floor);
+		const float LandSpan = FMath::Max(1.0e-3f, PeakCut - SeaCut);
+		const float Peak = Tuning::TerrainPeakMeters;
+
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			const float N = Raw[Index];
+			float Height;
+			if (N <= SeaCut)
+			{
+				// Sea bed, from the shelf floor up to just under the water line.
+				const float T = FMath::Clamp((N - Floor) / SeaSpan, 0.0f, 1.0f);
+				Height = FMath::Lerp(Tuning::SeabedMinHeightMeters, WaterLevel - 0.25f, T);
+			}
+			else
+			{
+				// Land: the exponent shapes the slope so plains, mid slopes and peaks all appear.
+				const float T = FMath::Pow(FMath::Clamp((N - SeaCut) / LandSpan, 0.0f, 1.0f), Tuning::TerrainShapingExponent);
+				Height = WaterLevel + T * (Peak - WaterLevel);
+			}
+
+			Height = FMath::RoundToFloat(Height / Tuning::HeightQuantum) * Tuning::HeightQuantum;
+			Tiles[Index].Height = FMath::Clamp(Height, 0.0f, Tuning::MaxHeightMeters);
 		}
 
 		RecomputeWaterBodies();

@@ -20,6 +20,9 @@ owner: both
 | 世界半径 `R` | 穹顶半径 = 土地圆盘半径 = **1.0 R** | `art/art.md` §2.3（外缘描边）、`ops/PLAYTEST.md` |
 | 土地厚度 | **0.03 R**（切口视厚 = `0.03R·cosθ`） | `art/art.md` §2.3、`plan/work.md` `D-03` |
 | 山高 / 分布 | **0.30–0.55 R**，沿半径 **0.64–0.97 R** 的弧 | `art/art.md` §2.3、`plan/work.md` `D-03` |
+| 峰高（现实现） | **26 m** = 0.41 R @ 128²（`Tuning::TerrainPeakMeters`） | `setting/WORLD.md` §3.1 |
+| 基准水位 | **7 m**（`world.json` `base_water_level`）；**水域占比 14%**，按本界噪声百分位切（`Tuning::TargetWaterFraction01`） | `setting/WORLD.md` §3.1 |
+| 海床最低 | **1 m**（`Tuning::SeabedMinHeightMeters`） | `setting/WORLD.md` §3.1 |
 | 树高 / 分布 | **0.10–0.22 R**，密铺半径 **0.55–1.0 R** 环 | `art/art.md` §2.3 |
 | 月 | 月心 **0.66 R**，视直径 **0.21 R** | `art/art.md` §2.2 |
 | 厚度 : 山高 | **≥ 1 : 10**（判据 5，防"地读成山"） | `setting/WORLD.md` §1.1 |

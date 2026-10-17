@@ -323,10 +323,10 @@ namespace Solstice
 		{
 			// Height above the plinth, normalised by the height the generator can actually reach.
 			// R-42: this divisor used to be a hardcoded 24 m from when the world topped out at 24,
-			// while the generator now spans Tuning::MaxHeightMeters (64). Nearly every tile clamped
-			// to 1.0 and the whole realm rendered as the rock band - one grey sheet, which is the
-			// other half of why "the palette never showed" (the exposure was the first half).
-			const float H = FMath::Clamp(Tile.Height / Tuning::MaxHeightMeters, 0.0f, 1.0f);
+			// and then Tuning::MaxHeightMeters (64) while the generator still capped at 24 - nearly
+			// every tile clamped into the grass band, which is why the realm rendered as one green
+			// sheet. Tuning::TerrainPeakMeters is the peak the profile is now built to.
+			const float H = FMath::Clamp(Tile.Height / Tuning::TerrainPeakMeters, 0.0f, 1.0f);
 			const FLinearColor Silt = CelSrgb(0xD9, 0xC2, 0x92);
 			const FLinearColor Grass = CelSrgb(0x6F, 0x9B, 0x4A);
 			const FLinearColor Meadow = CelSrgb(0x8A, 0xA9, 0x55);
@@ -501,6 +501,60 @@ namespace Solstice
 
 						Out.Tri(I00, I10, I11);
 						Out.Tri(I00, I11, I01);
+					}
+				}
+
+				// ---- water: the surf rim and the ripple strokes --------------------------
+				// art.md SS2.3: flat water colour + white ripple lines + a bright rim along the
+				// shore. The rim is the one that matters at the entry framing - without it the
+				// sheet is one flat blue area and reads as a hole in the terrain rather than as
+				// water. Both are drawn on the water surface, lifted a hair to beat z-fighting.
+				if (Tile->IsWater())
+				{
+					const float WaterZ = Surface * MeterUU;
+					constexpr float RimWidth = 35.0f;	// 35 cm of pale water along the shore
+					constexpr float RimLift = 2.0f;		// uu above the sheet
+					static const int32 RNX[4] = { 1, -1, 0, 0 };
+					static const int32 RNY[4] = { 0, 0, 1, -1 };
+
+					bool bOpenWater = true;
+					for (int32 Side = 0; Side < 4; ++Side)
+					{
+						const FTile* Neighbour = Kernel.TileAt(X + RNX[Side], Y + RNY[Side]);
+						if (Neighbour && Neighbour->IsWater())
+						{
+							continue;		// still water that way: no rim
+						}
+
+						bOpenWater = false;
+						if (!Neighbour)
+						{
+							continue;		// the realm rim has its own cut edge
+						}
+						const FVector EdgeCentre = Centre + FVector(
+							RNX[Side] * HalfTile, RNY[Side] * HalfTile, 0.0f) + FVector(0.0f, 0.0f, RimLift);
+						const FVector Along = (RNX[Side] != 0) ? FVector(0.0f, HalfTile, 0.0f) : FVector(HalfTile, 0.0f, 0.0f);
+						const FVector Inward(-RNX[Side] * RimWidth, -RNY[Side] * RimWidth, 0.0f);
+						Out.QuadP(EdgeCentre - Along, EdgeCentre + Along, EdgeCentre + Along + Inward,
+							EdgeCentre - Along + Inward, Palette.Surf, Palette.Surf,
+							Palette.Surf * 0.94f, Palette.Surf * 0.94f);
+					}
+
+					// Ripples: one short stroke on roughly one open-water tile in seven. Static for
+					// now - drifting them needs the sheet rebuilt every frame, and at M0 the sheet
+					// is 100k triangles; the strokes are here to give close-ups texture.
+					if (bOpenWater && CelGrain(X * 37 + 11, Y * 41 + 7) > 0.86f)
+					{
+						const float Angle = CelGrain(X * 13 + 2, Y * 29 + 5) * PI;
+						const float Length = (0.7f + 0.9f * CelGrain(X + 23, Y + 31)) * MeterUU * 0.5f;
+						const float Thickness = 9.0f;
+						const FVector Dir(FMath::Cos(Angle), FMath::Sin(Angle), 0.0f);
+						const FVector Side(-Dir.Y, Dir.X, 0.0f);
+						const FVector Head(Centre.X, Centre.Y, WaterZ + 1.0f);
+						const FLinearColor Ink = Palette.Ripple;
+						Out.QuadP(Head - Dir * Length, Head + Dir * Length,
+							Head + Dir * Length + Side * Thickness, Head - Dir * Length + Side * Thickness,
+							Ink, Ink, Ink, Ink);
 					}
 				}
 

@@ -39,6 +39,22 @@ namespace
 		}
 	};
 
+	/**
+	 * Terrain census. Tallies the things a picture cannot tell you apart: how much of the realm is
+	 * under water, how the heights are spread, and how long the shoreline is. Without it "there is
+	 * no water in the frame" is indistinguishable from "water is there and the palette hides it",
+	 * and the two have opposite fixes.
+	 */
+	struct FTerrainCensus
+	{
+		static constexpr int32 Bands = 8;		// 8 m per band, 0..64
+		int32 BandCounts[Bands] = {};
+		int32 WaterTiles = 0;
+		int32 ShoreTiles = 0;					// water tile with at least one land neighbour
+		float MinHeight = 0.0f;
+		float MaxHeight = 0.0f;
+	};
+
 	struct FBenchRun
 	{
 		FRealmDigest Digest;
@@ -51,6 +67,7 @@ namespace
 		float PaintedFraction = 0.0f;
 		int32 Echo = 0;
 		double Seconds = 0.0;
+		FTerrainCensus Census;
 	};
 
 	/** One full headless run. Nothing outside Sim/ is touched. */
@@ -111,6 +128,47 @@ namespace
 		Run.DeathMarks = Kernel.GetDeathMarks().Num();
 		Run.PaintedFraction = Kernel.GetPaintedFraction();
 		Run.Echo = Kernel.GetEcho();
+
+		// ---- terrain census ------------------------------------------------
+		{
+			const int32 Size = Config.Size;
+			Run.Census.MinHeight = TNumericLimits<float>::Max();
+			for (const Solstice::FTile& Tile : Kernel.GetTiles())
+			{
+				Run.Census.MinHeight = FMath::Min(Run.Census.MinHeight, Tile.Height);
+				Run.Census.MaxHeight = FMath::Max(Run.Census.MaxHeight, Tile.Height);
+				const int32 Band = FMath::Clamp(
+					FMath::FloorToInt(Tile.Height / 64.0f * static_cast<float>(FTerrainCensus::Bands)),
+					0, FTerrainCensus::Bands - 1);
+				++Run.Census.BandCounts[Band];
+				if (Tile.IsWater())
+				{
+					++Run.Census.WaterTiles;
+				}
+			}
+			for (int32 Y = 0; Y < Size; ++Y)
+			{
+				for (int32 X = 0; X < Size; ++X)
+				{
+					const Solstice::FTile* Tile = Kernel.TileAt(X, Y);
+					if (!Tile || !Tile->IsWater())
+					{
+						continue;
+					}
+					const Solstice::FTile* N = Kernel.TileAt(X + 1, Y);
+					const Solstice::FTile* S = Kernel.TileAt(X - 1, Y);
+					const Solstice::FTile* E = Kernel.TileAt(X, Y + 1);
+					const Solstice::FTile* W = Kernel.TileAt(X, Y - 1);
+					const bool bLandNextDoor =
+						(N && !N->IsWater()) || (S && !S->IsWater()) ||
+						(E && !E->IsWater()) || (W && !W->IsWater());
+					if (bLandNextDoor)
+					{
+						++Run.Census.ShoreTiles;
+					}
+				}
+			}
+		}
 
 		Run.Digest.Mix(static_cast<uint64>(Run.WorldMinutes));
 		Run.Digest.Mix(static_cast<uint64>(Run.PopulationTotal));
@@ -212,6 +270,23 @@ int32 USolsticeBenchCommandlet::Main(const FString& Params)
 		A.PopulationByKind[0], A.PopulationByKind[1], A.PopulationByKind[2], A.PopulationByKind[3], A.PopulationByKind[4]);
 	UE_LOG(LogSolstice, Display, TEXT("bench: digest A %016llX (%d mixed) / digest B %016llX (%d mixed)"),
 		A.Digest.Hash, A.Digest.Mixed, B.Digest.Hash, B.Digest.Mixed);
+
+	// Terrain census, run A. Percent is of all tiles; the bands are 8 m each from 0 to 64.
+	{
+		const float Total = static_cast<float>(FMath::Max(1, Tiles));
+		UE_LOG(LogSolstice, Display,
+			TEXT("bench: terrain height %.1f..%.1f m, water %.1f%% (%d tiles), shore %d tiles"),
+			A.Census.MinHeight, A.Census.MaxHeight,
+			static_cast<float>(A.Census.WaterTiles) / Total * 100.0f, A.Census.WaterTiles,
+			A.Census.ShoreTiles);
+		FString Bands;
+		for (int32 Band = 0; Band < FTerrainCensus::Bands; ++Band)
+		{
+			Bands += FString::Printf(TEXT("%s%d-%d:%.1f%%"), Band > 0 ? TEXT(" ") : TEXT(""),
+				Band * 8, Band * 8 + 8, static_cast<float>(A.Census.BandCounts[Band]) / Total * 100.0f);
+		}
+		UE_LOG(LogSolstice, Display, TEXT("bench: height bands %s"), *Bands);
+	}
 
 	if (A.Digest.Hash != B.Digest.Hash)
 	{
