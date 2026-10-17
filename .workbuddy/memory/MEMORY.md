@@ -4,9 +4,14 @@
 
 ## 硬性纪律
 - **任何文档增删改（含版本号、状态列）必须同次更新 `docs/INDEX.md`**，否则视为缺陷。
+- **改画面必须量，不许看图**：`& tools/run/shot.ps1 -Preset 0 -Delay 5` 无人值守抓一帧（写出
+  `tmp/review/shot.png`），日志里的 `[shot] box=` 是世界圆盘的屏幕包围盒，脚本自动喂给
+  `tools/checks/measure-frame.py` 判 PASS/FAIL。基线：修曝光前 0.095/0.910/0.597 三项全 FAIL，
+  修后 0.497/0.563/0.010 三项 PASS。**别自己 crop 全帧**（深蓝背景会把中位拉到 0.44 假通过）。
 - 提交前必跑两条自检（`tools/hooks/pre-commit` 与 CI 也会代跑）：
   - `python tools/checks/check-links.py` → 期望 `broken links : 0`
   - `python tools/checks/validate-contracts.py` → 期望 `errors : 0`
+- 改表现层后必跑 `& tools/run/bench.ps1 -Days 2` → 期望 `digest A == digest B`。
 - `docs/archive/**` 无约束力；不要把已作废形态（动态壁纸 / 场景引擎 / 卡牌收集 / 自走棋 / 2.5D / Tauri / WebGL）带回方案或文档。
 
 ## 本机构建（三条必踩坑，详见 `docs/ops/ENV.md` §2.4.1）
@@ -25,6 +30,12 @@
 
 ## 代码不变量
 - **`Sim/` 零渲染依赖**：不得 include UObject / Tick / 渲染 / 输入头——这是 `SolsticeBench` 能无头跑的前提。
+- **`Sim/` 里不许读真实时钟**：`FSimKernel::Initialize` 见 `Config.Seed == 0` 会摇新种子、开局
+  `WorldMinute` 取 `FDateTime::Now()`。这两处曾让 `bench` "永远 NON-DETERMINISTIC"（它在比两个随机世界）。
+  bench 侧必须钉 `Seed / StartingDayOfYear / StartingMinuteOfDay`（已钉：20261016 / 80 / 06:30，
+  digest `CE8B0D7BE6489900`）。新增任何 `FDateTime::Now()` 到 Sim 路径前，先想 bench 怎么钉住它。
+- **目视取色的常量一律走 `CelSrgb()`**（`Gen/SolsticeGenerators.h`）。把 sRGB 数值直接塞进
+  `FLinearColor` 等于 gamma 两次，草地 0.40 出屏 0.66——整界"发灰"的元凶就是它。
 - 分层 `Render → World → Sim`；新增能力落主模块子目录，**不新建模块**（`SolsticeSim` 模块已被实测否决）。
 - 跨 DLL 公共类型必须标 `SOLSTICE_API`（漏标 = `LNK2019`，已踩过 `FPaperMaterials` / `FSimKernel` / `FDataLoader`）。
 - `Build.cs` 依赖是**白名单**：只列真正被 include 的模块（`JsonUtilities` 曾空挂，2026-10-17 移除）。
