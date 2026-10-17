@@ -35,8 +35,11 @@ namespace Solstice
 	{
 		UMaterialInterface* Cel = nullptr;
 		UMaterialInterface* Ink = nullptr;
+		/** Pure vertex colour, no bands: the painted sky must arrive exactly as authored. */
+		UMaterialInterface* Sky = nullptr;
 		UMaterialInstanceDynamic* CelMID = nullptr;
 		UMaterialInstanceDynamic* InkMID = nullptr;
+		UMaterialInstanceDynamic* SkyMID = nullptr;
 		/** True when our own master material was found and generated, false when we fell back. */
 		bool bAuthored = false;
 	};
@@ -60,6 +63,9 @@ namespace Solstice
 
 		/** Attach the paper and ink materials to a procedural mesh as section 0 and section 1. */
 		static void ApplyToMesh(UProceduralMeshComponent* Mesh);
+
+		/** Attach the unlit sky material. Separate from ApplyToMesh: no bands, no ink card. */
+		static void ApplyToSky(UProceduralMeshComponent* Mesh);
 
 	private:
 		static FCelMaterialSet Set;

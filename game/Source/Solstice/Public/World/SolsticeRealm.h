@@ -54,12 +54,16 @@ public:
 	FVector GetRealmCentre() const;
 	float GetRealmRadiusUU() const;
 
-	void SetSkyVisible(bool bVisible);
-	bool IsSkyVisible() const { return bSkyVisible; }
-
 protected:
 	void BuildStatics();
 	void BuildSkyMesh();
+
+	/**
+	 * Where the sky card has to sit this frame: the plane the sky is painted on is
+	 * perpendicular to the view axis, `SkyDistance` in front of the camera, and the component's
+	 * basis is (right, up, forward) so card space and screen space are the same axes.
+	 */
+	void UpdateSkyView();
 	void RebuildDirtyChunks(int32 Budget);
 	void RebuildProps();
 	void UpdateSun();
@@ -82,8 +86,20 @@ protected:
 	float SkyAccumulator = 0.0f;
 	float PropAccumulator = 0.0f;
 	bool bStaticsBuilt = false;
-	bool bSkyVisible = true;
 	float LastSolarAltitude = -999.0f;
+
+	// Cached view, refreshed once a tick: the sky card is placed from these every frame and
+	// painted from them when its signature moves.
+	FVector SkyViewLocation = FVector::ZeroVector;
+	FRotator SkyViewRotation = FRotator::ZeroRotator;
+	FVector SkyViewForward = FVector::ForwardVector;
+	FVector SkyViewRight = FVector::RightVector;
+	FVector SkyViewUp = FVector::UpVector;
+	float SkyHalfTanH = 0.344f;
+	float SkyHalfTanV = 0.194f;
+	float SkyDistance = 40000.0f;
+	/** True once the card has been parented to the player camera. */
+	bool bSkyAttached = false;
 
 	// Change signatures. Both meshes used to be rebuilt on a timer whether or not anything had
 	// changed; they are now rebuilt only when what they are made of actually differs.

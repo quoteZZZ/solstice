@@ -32,6 +32,17 @@ void USolsticeGameInstance::Init()
 
 	// ---- world --------------------------------------------------------
 	Solstice::FWorldConfig Config = Loaded.DefaultWorld;
+
+	// Development override: `-SolsticeMinute=<0..1439>` pins the world clock at startup, so the
+	// sky can be checked at any hour without waiting for it to arrive (tools/run/shot.ps1 -Minute).
+	// Without it the realm opens at the real clock, which is what a player gets.
+	int32 PinnedMinute = INDEX_NONE;
+	if (FParse::Value(FCommandLine::Get(), TEXT("SolsticeMinute="), PinnedMinute))
+	{
+		Config.StartingMinuteOfDay = FMath::Clamp(PinnedMinute, 0, 24 * 60 - 1);
+		UE_LOG(LogSolstice, Log, TEXT("world clock pinned to minute %d of the day"), Config.StartingMinuteOfDay);
+	}
+
 	Sim.Initialize(Config, Loaded.Catalog);
 
 	// The reference pace from docs/setting/SPECIES.md SS2.1: a healthy small realm runs a full

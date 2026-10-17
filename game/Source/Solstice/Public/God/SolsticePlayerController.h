@@ -116,6 +116,7 @@ private:
 	/** Seconds since the unattended-capture harness armed (see Dev/SolsticeShot.h). */
 	float ShotAge = 0.0f;
 	bool bShotCaptured = false;
+	bool bShotPresetApplied = false;
 	static constexpr float AutoOrbitDegPerSecond = 3.5f;
 
 public:

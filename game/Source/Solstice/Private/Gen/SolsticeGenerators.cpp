@@ -881,77 +881,310 @@ namespace Solstice
 		}
 	}
 
-	void Gen::BuildSkyDome(const FVector& Centre, float RadiusUU, const FLinearColor& Zenith, const FLinearColor& Horizon, FMeshBuilder& Out)
+	namespace
 	{
-		// An open paper collar: the shell runs from 42 deg elevation to the zenith, so an orbit
-		// camera looks over the rim into the realm instead of into the outside of a closed dome.
-		constexpr int32 Rings = 8;
-		constexpr int32 Segments = 48;
-		constexpr float StartElevation = 0.0f;
+		// ---- sky card ---------------------------------------------------------
+		// Card space (docs/art/art.md SS2.2): X right, Y up, Z = distance from the camera. The
+		// gradient panel sits at Z = 1 and every layer above it has to sit at a *smaller* Z,
+		// because smaller Z is nearer the camera - at 1.0002 the clouds are behind the panel and
+		// the sky renders as a bare gradient. Each layer still gets its own hairline of depth, so
+		// no two surfaces share a plane.
+		constexpr float StarZ = 0.9994f;
+		constexpr float SunZ = 0.9990f;
+		constexpr float MoonZ = 0.9986f;
+		constexpr float CirrusZ = 0.9980f;
+		constexpr float CumulusZ = 0.9972f;
 
-		for (int32 Ring = 0; Ring < Rings; ++Ring)
+		/** How high the bright horizon band sits, in card-height units. */
+		constexpr float HorizonBand = 0.07f;
+
+		/**
+		 * The three-band gradient. Above the horizon band it walks Horizon -> Middle -> Zenith;
+		 * below it drops back a step so the frame has a bottom edge instead of fading to mush.
+		 * The stop at 0.58 is art.md's "middle band covers 55-70% of the sky height".
+		 */
+		FLinearColor SkyRamp(const Gen::FSkyPaint& Paint, float V)
 		{
-			const float T0 = static_cast<float>(Ring) / static_cast<float>(Rings);
-			const float T1 = static_cast<float>(Ring + 1) / static_cast<float>(Rings);
-			const float E0 = FMath::Lerp(StartElevation, 90.0f, T0);
-			const float E1 = FMath::Lerp(StartElevation, 90.0f, T1);
+			const float H = FMath::Clamp(Paint.HorizonV, -0.75f, 0.92f);
 
-			const float R0 = RadiusUU * FMath::Cos(FMath::DegreesToRadians(E0));
-			const float Z0 = RadiusUU * FMath::Sin(FMath::DegreesToRadians(E0));
-			const float R1 = RadiusUU * FMath::Cos(FMath::DegreesToRadians(E1));
-			const float Z1 = RadiusUU * FMath::Sin(FMath::DegreesToRadians(E1));
-
-			const FLinearColor C0 = FMath::Lerp(Horizon, Zenith, T0);
-			const FLinearColor C1 = FMath::Lerp(Horizon, Zenith, T1);
-
-			for (int32 Segment = 0; Segment < Segments; ++Segment)
+			if (V >= H - HorizonBand * 0.5f)
 			{
-				const float A0 = 2.0f * PI * static_cast<float>(Segment) / static_cast<float>(Segments);
-				const float A1 = 2.0f * PI * static_cast<float>(Segment + 1) / static_cast<float>(Segments);
-
-				const FVector P0 = Centre + FVector(FMath::Cos(A0) * R0, FMath::Sin(A0) * R0, Z0);
-				const FVector P1 = Centre + FVector(FMath::Cos(A1) * R0, FMath::Sin(A1) * R0, Z0);
-				const FVector P2 = Centre + FVector(FMath::Cos(A1) * R1, FMath::Sin(A1) * R1, Z1);
-				const FVector P3 = Centre + FVector(FMath::Cos(A0) * R1, FMath::Sin(A0) * R1, Z1);
-
-				Out.QuadP(P0, P1, P2, P3, C0, C0, C1, C1);
+				const float Span = FMath::Max(0.10f, 1.0f - H);
+				const float T = FMath::Clamp((V - H) / Span, 0.0f, 1.0f);
+				return (T < 0.58f)
+					? FMath::Lerp(Paint.Horizon, Paint.Middle, T / 0.58f)
+					: FMath::Lerp(Paint.Middle, Paint.Zenith, (T - 0.58f) / 0.42f);
 			}
+
+			const float Span = FMath::Max(0.10f, H + 1.0f);
+			const float T = FMath::Clamp((H - V) / Span, 0.0f, 1.0f);
+			return FMath::Lerp(Paint.Horizon, Paint.Under, FMath::Min(1.0f, T / 0.55f));
+		}
+
+		/**
+		 * A flat top and a round bottom: the cumulus silhouette in one shape. The top stays
+		 * nearly level (a 15% droop at the shoulders is all it takes to stop reading as a slab)
+		 * and the underside is a half ellipse, so a bank of three of these reads as one cloud.
+		 *
+		 * Colours run from the rim's top edge to its bottom edge, which is the cel recipe:
+		 * a white top, a cool base, no gradient in between.
+		 */
+		void SkyPuff(FMeshBuilder& Out, float Z, const FVector2D& Centre, float HalfWidth,
+			float Top, float Bottom, const FLinearColor& TopColour, const FLinearColor& BaseColour)
+		{
+			if (HalfWidth <= 0.0f || (Top <= 0.0f && Bottom <= 0.0f))
+			{
+				return;
+			}
+
+			constexpr int32 Steps = 9;
+			TArray<FVector2D> Rim;
+			Rim.Reserve(Steps * 2);
+
+			for (int32 Step = 0; Step <= Steps; ++Step)
+			{
+				const float T = static_cast<float>(Step) / static_cast<float>(Steps);
+				const float X = FMath::Lerp(-1.0f, 1.0f, T);
+				const float Droop = 1.0f - 0.15f * FMath::Pow(FMath::Abs(X), 6.0f);
+				Rim.Add(FVector2D(X * HalfWidth, Top * Droop));
+			}
+			for (int32 Step = Steps - 1; Step >= 1; --Step)
+			{
+				const float T = static_cast<float>(Step) / static_cast<float>(Steps);
+				const float X = FMath::Lerp(-1.0f, 1.0f, T);
+				const float Underside = FMath::Sqrt(FMath::Max(0.0f, 1.0f - X * X));
+				Rim.Add(FVector2D(X * HalfWidth, -Bottom * Underside));
+			}
+
+			const int32 CentreIndex = Out.Add(
+				FVector(Centre.X, Centre.Y, Z), FVector(0.0f, 0.0f, -1.0f), FVector2D(0.5f, 0.5f),
+				FMath::Lerp(BaseColour, TopColour, 0.5f));
+
+			TArray<int32> Indices;
+			Indices.Reserve(Rim.Num());
+			for (const FVector2D& Point : Rim)
+			{
+				const float Height01 = FMath::Clamp((Point.Y + Bottom) / FMath::Max(1.0f, Top + Bottom), 0.0f, 1.0f);
+				Indices.Add(Out.Add(FVector(Centre.X + Point.X, Centre.Y + Point.Y, Z), FVector(0.0f, 0.0f, -1.0f),
+					FVector2D(0.5f, Height01), FMath::Lerp(BaseColour, TopColour, Height01)));
+			}
+			for (int32 Index = 0; Index < Indices.Num(); ++Index)
+			{
+				const int32 Next = (Index + 1) % Indices.Num();
+				Out.Tri(CentreIndex, Indices[Index], Indices[Next]);
+			}
+		}
+
+		/** A flat ring, used for the two sun halos. */
+		void SkyRing(FMeshBuilder& Out, float Z, const FVector2D& Centre, float Inner, float Outer,
+			const FLinearColor& Colour, int32 Sides)
+		{
+			if (Outer <= Inner)
+			{
+				return;
+			}
+			TArray<int32> InnerRing;
+			TArray<int32> OuterRing;
+			InnerRing.Reserve(Sides);
+			OuterRing.Reserve(Sides);
+			for (int32 Side = 0; Side < Sides; ++Side)
+			{
+				const float Angle = 2.0f * PI * static_cast<float>(Side) / static_cast<float>(Sides);
+				const FVector2D Dir(FMath::Cos(Angle), FMath::Sin(Angle));
+				InnerRing.Add(Out.Add(FVector(Centre.X + Dir.X * Inner, Centre.Y + Dir.Y * Inner, Z),
+					FVector(0.0f, 0.0f, -1.0f), FVector2D(0.5f, 0.5f), Colour));
+				OuterRing.Add(Out.Add(FVector(Centre.X + Dir.X * Outer, Centre.Y + Dir.Y * Outer, Z),
+					FVector(0.0f, 0.0f, -1.0f), FVector2D(0.5f, 0.5f), Colour));
+			}
+			for (int32 Side = 0; Side < Sides; ++Side)
+			{
+				const int32 Next = (Side + 1) % Sides;
+				Out.Quad(InnerRing[Side], InnerRing[Next], OuterRing[Next], OuterRing[Side]);
+			}
+		}
+
+		/** A four-vertex diamond: at 2-4 px a star is a point, and a disc is a waste of geometry. */
+		void SkyDot(FMeshBuilder& Out, float Z, const FVector2D& Centre, float Size, const FLinearColor& Colour)
+		{
+			const int32 A = Out.Add(FVector(Centre.X, Centre.Y + Size, Z),
+				FVector(0.0f, 0.0f, -1.0f), FVector2D(0.5f, 1.0f), Colour);
+			const int32 B = Out.Add(FVector(Centre.X + Size, Centre.Y, Z),
+				FVector(0.0f, 0.0f, -1.0f), FVector2D(1.0f, 0.5f), Colour);
+			const int32 C = Out.Add(FVector(Centre.X, Centre.Y - Size, Z),
+				FVector(0.0f, 0.0f, -1.0f), FVector2D(0.5f, 0.0f), Colour);
+			const int32 D = Out.Add(FVector(Centre.X - Size, Centre.Y, Z),
+				FVector(0.0f, 0.0f, -1.0f), FVector2D(0.0f, 0.5f), Colour);
+			Out.Quad(A, B, C, D);
 		}
 	}
 
-	void Gen::BuildPetals(const FVector& Centre, float RadiusUU, int32 Count, const FLinearColor& Inner, const FLinearColor& Outer, FMeshBuilder& Out)
+	void Gen::BuildSkyCard(float HalfWidth, float HalfHeight, const FSkyPaint& Paint, FMeshBuilder& Out)
 	{
-		const int32 PetalCount = FMath::Clamp(Count, 12, 16);
-		constexpr int32 Along = 6;
-
-		for (int32 Petal = 0; Petal < PetalCount; ++Petal)
+		if (HalfWidth <= 0.0f || HalfHeight <= 0.0f)
 		{
-			const float Base = 2.0f * PI * static_cast<float>(Petal) / static_cast<float>(PetalCount);
-			const float Span = (2.0f * PI / static_cast<float>(PetalCount)) * 1.35f;
+			return;
+		}
 
-			for (int32 Step = 0; Step < Along; ++Step)
+		const float Cloud = FMath::Clamp(Paint.CloudCover, 0.0f, 1.0f);
+		const float Wet = FMath::Clamp(Paint.Rain, 0.0f, 1.0f);
+		const float H = FMath::Clamp(Paint.HorizonV, -0.75f, 0.92f);
+
+		// ---- 1. the gradient -------------------------------------------------
+		// 40 x 24 cells: the ramp is piecewise linear, so the only thing resolution buys here
+		// is a smooth edge where the two legs of the gradient meet. The panel is 8% wider than
+		// the frame so a rounding error in the viewport aspect can never leave a hairline of
+		// clear colour along the border.
+		{
+			constexpr int32 Cols = 40;
+			constexpr int32 Rows = 24;
+			constexpr float Panel = 1.08f;
+			for (int32 Row = 0; Row < Rows; ++Row)
 			{
-				const float T0 = static_cast<float>(Step) / static_cast<float>(Along);
-				const float T1 = static_cast<float>(Step + 1) / static_cast<float>(Along);
+				const float V0 = -1.0f + 2.0f * static_cast<float>(Row) / static_cast<float>(Rows);
+				const float V1 = -1.0f + 2.0f * static_cast<float>(Row + 1) / static_cast<float>(Rows);
+				const FLinearColor C0 = SkyRamp(Paint, V0);
+				const FLinearColor C1 = SkyRamp(Paint, V1);
+				for (int32 Col = 0; Col < Cols; ++Col)
+				{
+					const float U0 = -1.0f + 2.0f * static_cast<float>(Col) / static_cast<float>(Cols);
+					const float U1 = -1.0f + 2.0f * static_cast<float>(Col + 1) / static_cast<float>(Cols);
+					Out.QuadP(
+						FVector(U0 * Panel * HalfWidth, V0 * Panel * HalfHeight, 1.0f),
+						FVector(U1 * Panel * HalfWidth, V0 * Panel * HalfHeight, 1.0f),
+						FVector(U1 * Panel * HalfWidth, V1 * Panel * HalfHeight, 1.0f),
+						FVector(U0 * Panel * HalfWidth, V1 * Panel * HalfHeight, 1.0f),
+						C0, C0, C1, C1);
+				}
+			}
+		}
 
-				// Each petal curls out and up, the way a paper flower petal does.
-				const float R0 = RadiusUU * (0.92f + 0.30f * FMath::Sin(T0 * PI));
-				const float R1 = RadiusUU * (0.92f + 0.30f * FMath::Sin(T1 * PI));
-				const float Z0 = RadiusUU * (0.30f + 0.40f * T0 * T0);
-				const float Z1 = RadiusUU * (0.30f + 0.40f * T1 * T1);
+		// ---- 2. stars --------------------------------------------------------
+		// Above the horizon only, and only as much as the night is clear. They sit behind the
+		// clouds on purpose: a star through a cumulus reads as a rendering bug.
+		if (Paint.StarAlpha > 0.05f)
+		{
+			constexpr int32 StarCount = 90;
+			for (int32 Index = 0; Index < StarCount; ++Index)
+			{
+				const float Seed = static_cast<float>(Index) * 2.399963f;	// golden angle
+				const float U = FMath::Frac(Seed * 3.11f) * 2.0f - 1.0f;
+				const float V = FMath::Lerp(H + 0.06f, 0.98f, FMath::Frac(Seed * 0.717f));
+				const float Size = FMath::Lerp(0.0022f, 0.0048f, FMath::Frac(Seed * 1.93f));
+				SkyDot(Out, StarZ,
+					FVector2D(U * HalfWidth, V * HalfHeight), Size * HalfHeight,
+					Paint.Star * Paint.StarAlpha);
+			}
+		}
 
-				const float A0 = Base - Span * 0.5f + Span * T0;
-				const float A1 = Base - Span * 0.5f + Span * T1;
-				const float HalfWidth = Span * 0.5f * (1.0f - 0.55f * T0);
+		// ---- 3. the sun: a disc and two rings of halo ------------------------
+		if (Paint.bSunVisible && Paint.SunRadius > 0.0f)
+		{
+			// "Transparent" on an opaque card means mixing with the sky that is actually behind
+			// the ring - so the sample has to be clamped onto the card. It used to be
+			// SunPos.Y / HalfHeight with no clamp; once the disc was placed past the top edge the
+			// sample read a V above the ramp's range, came back as the deep zenith blue, and two
+			// rings of that read as a dark smudge around a white dot (2026-10-18).
+			//
+			// Two concentric rings with decreasing mix, per art.md SS2.2 - but *small and faint*.
+			// There is no alpha over an opaque card: "opacity" is the mix ratio against the sky
+			// sampled behind the ring, so a 3.2R ring at 0.34 stopped being a halo and became a
+			// 250 px cream annulus across the corner of the frame (2026-10-18).
+			const float SunV = FMath::Clamp(Paint.SunPos.Y / HalfHeight, -0.95f, 0.95f);
+			const FLinearColor Around = SkyRamp(Paint, SunV);
+			const FVector2D Centre = Paint.SunPos;
+			SkyRing(Out, SunZ, Centre, Paint.SunRadius * 1.40f, Paint.SunRadius * 2.00f,
+				FMath::Lerp(Around, Paint.SunHalo, 0.09f), 28);
+			SkyRing(Out, SunZ, Centre, Paint.SunRadius * 1.06f, Paint.SunRadius * 1.40f,
+				FMath::Lerp(Around, Paint.SunHalo, 0.26f), 28);
+			Gen::BuildDisc(FVector(Centre.X, Centre.Y, SunZ),
+				FVector(Paint.SunRadius, 0.0f, 0.0f), FVector(0.0f, Paint.SunRadius, 0.0f),
+				1.0f, Paint.SunCore, Out);
+		}
 
-				const FVector P0 = Centre + FVector(FMath::Cos(A0 - HalfWidth) * R0, FMath::Sin(A0 - HalfWidth) * R0, Z0);
-				const FVector P1 = Centre + FVector(FMath::Cos(A0 + HalfWidth) * R0, FMath::Sin(A0 + HalfWidth) * R0, Z0);
-				const FVector P2 = Centre + FVector(FMath::Cos(A1 + HalfWidth) * R1, FMath::Sin(A1 + HalfWidth) * R1, Z1);
-				const FVector P3 = Centre + FVector(FMath::Cos(A1 - HalfWidth) * R1, FMath::Sin(A1 - HalfWidth) * R1, Z1);
+		// ---- 4. the moon -----------------------------------------------------
+		if (Paint.bMoonVisible && Paint.MoonRadius > 0.0f)
+		{
+			Gen::BuildDisc(FVector(Paint.MoonPos.X, Paint.MoonPos.Y, MoonZ),
+				FVector(Paint.MoonRadius, 0.0f, 0.0f), FVector(0.0f, Paint.MoonRadius, 0.0f),
+				1.0f, Paint.MoonCore, Out);
+		}
 
-				const FLinearColor C0 = FMath::Lerp(Inner, Outer, T0);
-				const FLinearColor C1 = FMath::Lerp(Inner, Outer, T1);
-				Out.QuadP(P0, P1, P2, P3, C0, C0, C1, C1);
+		// ---- 5. cirrus: a high thin veil of long streaks ---------------------
+		// "半透明" without an alpha channel is a colour mixed most of the way into the sky
+		// behind it - which is also why the streaks have to be recomputed when the sky moves.
+		//
+		// The band is pinned to [horizon, frame top] rather than to fractions of the whole card:
+		// at the standard 35 degree framing the realm covers the bottom four fifths, so a deck
+		// placed at "half height" is behind the terrain and never seen. Everything the sky has to
+		// say has to fit in the strip above the silhouette.
+		// V runs on the *card*, and the card is SkyCardOverscan (1.12) times the viewport, so the
+		// visible top edge is at 1/1.12 = 0.893 - not at 1.0. Clamping clouds to the card edge
+		// drew them half outside the frame in every dusk shot (2026-10-18).
+		constexpr float CardVisibleTop = 0.88f;
+		if (Cloud > 0.05f)
+		{
+			const float Top = FMath::Min(CardVisibleTop, FMath::Max(H + 0.16f, 0.4f));
+			const int32 Streaks = FMath::RoundToInt(FMath::Lerp(4.0f, 10.0f, Cloud));
+			const FLinearColor Tone = FMath::Lerp(Paint.Cirrus, FLinearColor(0.72f, 0.76f, 0.80f), Wet * 0.6f);
+			for (int32 Index = 0; Index < Streaks; ++Index)
+			{
+				const float Seed = static_cast<float>(Index) * 2.399963f;
+				const float V = FMath::Lerp(H + 0.10f, Top, FMath::Frac(Seed * 0.417f));
+				// The deck loops horizontally; fading it out towards the sides means the wrap
+				// happens while the streak is invisible instead of popping at the frame edge.
+				const float U = FMath::Frac(FMath::Frac(Seed * 0.219f) + Paint.Drift) * 1.90f - 0.95f;
+				const float Fade = 1.0f - FMath::SmoothStep(0.58f, 0.94f, FMath::Abs(U));
+				if (Fade <= 0.01f)
+				{
+					continue;
+				}
+				const float Length = HalfWidth * FMath::Lerp(0.24f, 0.55f, FMath::Frac(Seed * 1.31f));
+				const FLinearColor Mixed = FMath::Lerp(SkyRamp(Paint, V), Tone, 0.70f * Fade);
+				SkyPuff(Out, CirrusZ, FVector2D(U * HalfWidth, V * HalfHeight),
+					Length, HalfHeight * 0.013f, HalfHeight * 0.010f, Mixed, Mixed);
+			}
+		}
+
+		// ---- 6. cumulus: a lower bank of flat-topped cushions ----------------
+		// One bank per 12% of coverage, so a clear sky still carries a couple of small ones: a
+		// completely empty gradient is the single most "not a sky" thing a frame can do.
+		if (Cloud > 0.08f)
+		{
+			const int32 Banks = FMath::RoundToInt(FMath::Lerp(2.0f, 8.0f, (Cloud - 0.08f) / 0.92f));
+			const FLinearColor Lit = FMath::Lerp(Paint.CumulusLit, FLinearColor(0.70f, 0.73f, 0.78f), Wet * 0.8f);
+			const FLinearColor Base = FMath::Lerp(Paint.CumulusBase, FLinearColor(0.48f, 0.52f, 0.58f), Wet * 0.8f);
+			const float Top = FMath::Min(CardVisibleTop, FMath::Max(H + 0.40f, 0.55f));
+			for (int32 Index = 0; Index < Banks; ++Index)
+			{
+				const float Seed = static_cast<float>(Index) * 2.399963f;
+				const float Width = HalfWidth * FMath::Lerp(0.07f, 0.16f, FMath::Frac(Seed * 1.07f));
+				const float Height = HalfHeight * FMath::Lerp(0.040f, 0.072f, FMath::Frac(Seed * 1.51f));
+				// Kept clear of the horizon band on purpose: a white cloud against the near-white
+				// horizon is invisible, which is how the first pass "had no clouds" while drawing
+				// ten of them. The top of the range leaves room for the bank's own height - a
+				// centre at 0.99 puts half a cloud outside the card, and drift moves it there.
+				const float Height01 = Height / HalfHeight;
+				const float VMax = FMath::Max(H + 0.20f, Top - Height01 * 1.15f);
+				const float V = FMath::Lerp(H + 0.16f, VMax, FMath::Frac(Seed * 0.613f));
+				const float U = FMath::Frac(FMath::Frac(Seed * 0.377f) + Paint.Drift * 0.8f) * 1.90f - 0.95f;
+				const float Fade = 1.0f - FMath::SmoothStep(0.56f, 0.93f, FMath::Abs(U));
+				if (Fade <= 0.01f)
+				{
+					continue;
+				}
+				const FLinearColor LitNow = FMath::Lerp(SkyRamp(Paint, V), Lit, Fade);
+				const FLinearColor BaseNow = FMath::Lerp(SkyRamp(Paint, V), Base, Fade);
+				const FVector2D Centre(U * HalfWidth, V * HalfHeight);
+
+				// Three cushions, not one: a single puff at a 3:1 width-to-height ratio with a
+				// dark underside reads as a flying saucer (it did, in every dusk frame). Staggering
+				// the side puffs upward and thinning the shaded base to a sliver gives a lumpy
+				// silhouette with the flat top the cel recipe asks for.
+				SkyPuff(Out, CumulusZ, Centre, Width, Height, Height * 0.34f, LitNow, BaseNow);
+				SkyPuff(Out, CumulusZ, Centre + FVector2D(Width * 0.70f, Height * 0.34f),
+					Width * 0.60f, Height * 0.80f, Height * 0.26f, LitNow, BaseNow);
+				SkyPuff(Out, CumulusZ, Centre - FVector2D(Width * 0.72f, Height * 0.10f),
+					Width * 0.52f, Height * 0.66f, Height * 0.22f, LitNow, BaseNow);
 			}
 		}
 	}

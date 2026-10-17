@@ -34,6 +34,7 @@ param(
     [string]$Out,
     [switch]$UI,
     [switch]$NoMeasure,
+    [int]$Minute = -1,
     [int]$TimeoutSeconds = 180,
     [string]$EngineRoot,
     [string]$Project
@@ -106,8 +107,12 @@ $shotArgs = @(
     ("-abslog={0}" -f $absLog)
 )
 if ($UI) { $shotArgs += '-SolsticeShotUI' }
+# Pin the world clock so the same frame can be taken at noon, at dusk and at night
+# (docs/art/art.md SS0.4 asks for exactly that trio).
+if ($Minute -ge 0) { $shotArgs += ("-SolsticeMinute={0}" -f $Minute) }
 
-Write-Host ("抓帧：preset={0} {1}x{2} -> {3}" -f $Preset, $Width, $Height, $Out) -ForegroundColor Green
+Write-Host ("抓帧：preset={0} {1}x{2} -> {3}{4}" -f $Preset, $Width, $Height, $Out,
+    $(if ($Minute -ge 0) { ("  (clock {0}:{1:D2})" -f [int][math]::Floor($Minute / 60), ($Minute % 60)) } else { '' })) -ForegroundColor Green
 
 $proc = Start-Process -FilePath $editorExe -ArgumentList $shotArgs -PassThru -WindowStyle Hidden
 $exited = $proc.WaitForExit($TimeoutSeconds * 1000)
@@ -119,7 +124,9 @@ if (-not $exited) {
 }
 
 if (Test-Path -LiteralPath $absLog) {
-    Select-String -LiteralPath $absLog -Pattern 'LogSolstice: (Display|Warning|Error): \[(shot|diag)\]' |
+    # `Log` verbosity is in here on purpose: the [diag] lines that report the sun and the fog
+    # are logged at Log, and leaving them out made "is the clock pinned at all?" unanswerable.
+    Select-String -LiteralPath $absLog -Pattern 'LogSolstice: (Display|Warning|Error|Log): \[(shot|diag)\]' |
         ForEach-Object { Write-Host ('  ' + $_.Line) }
 }
 
@@ -165,9 +172,17 @@ if (-not $py) {
 }
 
 $measureArgs = @($measure, $Out)
-if ($box) { $measureArgs += @('--box', $box) } else {
+if ($box) { $measureArgs += @('--box', $box, '--shape', 'ellipse') } else {
     Write-Host '! 日志里没有 [shot] box=，按整帧量化（含背景，结果仅供参考）。' -ForegroundColor Yellow
 }
+# The palette gate is per hour (art/art.md SS2.1): a dusk frame is meant to be darker than noon.
+# Inferred from -Minute when it is given, so the caller never has to pass the same fact twice.
+$hour = 'day'
+if ($Minute -ge 0) {
+    if ($Minute -lt 300 -or $Minute -ge 1260) { $hour = 'night' }
+    elseif ($Minute -lt 480 -or $Minute -ge 1020) { $hour = 'dusk' }
+}
+$measureArgs += @('--hour', $hour)
 
 Write-Host ("量化：box={0}（{1}）" -f $(if ($box) { $box } else { '全帧' }), (Split-Path -Leaf $py)) -ForegroundColor Green
 $measureOut = & $py @measureArgs 2>&1

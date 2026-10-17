@@ -2,6 +2,8 @@
 
 #include "World/SolsticeRealm.h"
 
+#include "Camera/CameraComponent.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Components/PostProcessComponent.h"
@@ -21,13 +23,57 @@ namespace
 	constexpr float PropInterval = 0.10f;
 	constexpr float SkyInterval = 0.20f;
 
-	// R-22: the shell has to contain the four camera presets, or there is no sky in them.
-	// The presets sit at 1.45-1.55 realm radii and the shell used to be at 1.34 - so every preset
-	// parked the camera *outside* the shell, the shell stepped aside (SetSkyVisible) and the frame
-	// had no sky at all behind the realm. At 1.62 the presets are inside the dome: the shell is the
-	// sky, the sun and moon sit under it, and the realm reads as being inside a world rather than
-	// floating in the clear colour.
-	constexpr float DomeRadiusFactor = 1.00f;
+	// ------------------------------------------------------------------
+	// The sky (docs/art/art.md SS2.2).
+	//
+	// There is no dome. A hemisphere around the realm only works when the camera is inside it,
+	// and the framing puts the camera at 5.6 realm radii - outside by a factor of five, which is
+	// why every "build the dome" attempt ended as either an invisible section or a white bowl
+	// over the whole frame. What the style actually asks for is a *painted backdrop*: flat
+	// layers at infinity, near-white at the horizon, deepening upward, with two cloud decks.
+	//
+	// So the sky is one card, perpendicular to the view axis, `card gap` behind the realm's far
+	// rim, re-placed every frame and repainted only when its content changes. The distance grows
+	// with the camera so the card is never in front of the terrain at any zoom, and the gap is
+	// chosen to keep it inside the sharp part of the depth-of-field band - a blurred sky is a
+	// smudge, not a matte.
+	// ------------------------------------------------------------------
+	constexpr float SkyCardGap = 1.35f;		// realm radii behind the realm centre
+	constexpr float SkyCardOverscan = 1.12f;
+
+	// Sun and moon are painted, not projected: at a 35 degree down-pitch a physically placed sun
+	// sits above the frame and is never seen. The azimuth still decides where on the card the
+	// disc lands (so the light and the sun agree), the elevation decides how high up the card,
+	// compressed into the part of the frame that is actually sky.
+	constexpr float SkyBodyYawLimitDeg = 75.0f;
+	// Angular *radius*. Both are deliberately larger than the real 0.26 deg - a cel sky wants a
+	// readable disc - but 2.4/3.1 filled an eighth of the frame and, at preset 0, the strip of
+	// sky above the peak is narrower than the disc.
+	constexpr float SunAngularRadiusDeg = 1.9f;
+	constexpr float MoonAngularRadiusDeg = 2.5f;
+	/** 0..1 of a full horizontal loop per second - art.md asks for 0.5-2 deg/s of drift. */
+	constexpr float SkyDriftRate = 0.02f;
+
+	/** sRGB tones of the three-band gradient, per time of day (art.md SS2.4). */
+	const FLinearColor DayZenith = Solstice::CelSrgb(0x2F, 0x63, 0xAE);
+	const FLinearColor DayMiddle = Solstice::CelSrgb(0x86, 0xB8, 0xE4);
+	// A shade under the art note's #EAF3FA: with no tone curve there is no shoulder, so the
+	// near-white has to be authored below the clip point or the band turns into flat paper.
+	const FLinearColor DayHorizon = Solstice::CelSrgb(0xE3, 0xEF, 0xF8);
+	const FLinearColor DayUnder = Solstice::CelSrgb(0x8A, 0xB4, 0xD6);
+
+	const FLinearColor DuskZenith = Solstice::CelSrgb(0x4A, 0x3F, 0x7A);
+	const FLinearColor DuskMiddle = Solstice::CelSrgb(0xE0, 0x8A, 0x5A);
+	const FLinearColor DuskHorizon = Solstice::CelSrgb(0xFF, 0xD0, 0x8A);
+	// The band below the horizon is a *plane*, not sky: it has to sit clearly darker than the
+	// realm's own shadow band or the two merge. Authored at #8C6A8E it was the same lightness as
+	// the dusk shadow tint, and the disc's cut edge dissolved into the ground plane (2026-10-18).
+	const FLinearColor DuskUnder = Solstice::CelSrgb(0x4A, 0x34, 0x54);
+
+	const FLinearColor NightZenith = Solstice::CelSrgb(0x10, 0x1C, 0x33);
+	const FLinearColor NightMiddle = Solstice::CelSrgb(0x1E, 0x35, 0x50);
+	const FLinearColor NightHorizon = Solstice::CelSrgb(0x3A, 0x5F, 0x80);
+	const FLinearColor NightUnder = Solstice::CelSrgb(0x16, 0x28, 0x3C);
 
 	// ------------------------------------------------------------------
 	// Scene rig (docs/art/ART-STYLE.md SS2).
@@ -48,7 +94,20 @@ namespace
 	 * display-referred colour and one gain maps mid albedo onto mid display. Calibrated against
 	 * `tools/run/shot.ps1 -Measure`.
 	 */
-	constexpr float ExposureStops = 1.0f;
+	// ------------------------------------------------------------------
+	// Display-referred pipeline (R-44).
+	//
+	// The palette and the painted sky are authored as *screen* colours, so the frame has to get
+	// out of their way: a filmic tone curve desaturates and rolls off every highlight, and one
+	// stop of exposure doubles every value before it does. Together they turned the near-white
+	// horizon the style asks for into a blown-out grey and pulled the blues toward cyan - the
+	// sky was authored correctly and arrived wrong.
+	//
+	// So: no tone curve, minimal exposure, a grade close to neutral. Every colour on screen is
+	// then the colour in the palette, which is the only way "tune the look" means "tune the
+	// palette" instead of "tune the pipeline until the palette reappears".
+	// ------------------------------------------------------------------
+	constexpr float ExposureStops = 0.60f;
 
 	// Fog depth (optical depth at one fit-camera-distance) for clear and fully overcast sky.
 	// Density is derived from these against the fit distance - see BuildStatics.
@@ -137,27 +196,33 @@ ASolsticeRealm::ASolsticeRealm()
 		PP.bOverride_AutoExposureApplyPhysicalCameraExposure = true;
 		PP.AutoExposureApplyPhysicalCameraExposure = false;
 
-		// Grade: warm gain, cool gamma, a touch more saturation and contrast than neutral.
+		// No filmic curve. A cel frame is drawn in display values; letting a shoulder roll off the
+		// top of the gradient is what turned the sky into a grey wash (R-44).
+		PP.bOverride_ToneCurveAmount = true;
+		PP.ToneCurveAmount = 0.0f;
+
+		// Grade: warm gain, a touch more saturation and contrast than neutral.
 		PP.bOverride_ColorSaturation = true;
-		// Reference frames for this game are saturated autumn: the old grade was almost neutral and
-		// the terrain ramp underneath it read as grey-green mud. Push saturation and contrast, keep
-		// the warm gain, and pull the vignette back so the edge is soft rather than theatrical.
-		PP.ColorSaturation = FVector4(1.18f, 1.14f, 1.06f, 1.0f);
+		// Mild on purpose. The old grade was written to undo the filmic curve's desaturation; with
+		// the curve gone it only has to add a little life, and a strong grade would clip the sky.
+		PP.ColorSaturation = FVector4(1.08f, 1.06f, 1.02f, 1.0f);
 		PP.bOverride_ColorContrast = true;
-		PP.ColorContrast = FVector4(1.16f, 1.13f, 1.08f, 1.0f);
+		PP.ColorContrast = FVector4(1.06f, 1.05f, 1.03f, 1.0f);
 		PP.bOverride_ColorGamma = true;
-		PP.ColorGamma = FVector4(0.97f, 0.99f, 1.05f, 1.0f);
+		PP.ColorGamma = FVector4(1.0f, 0.99f, 1.02f, 1.0f);
 		PP.bOverride_ColorGain = true;
-		PP.ColorGain = FVector4(1.06f, 1.01f, 0.92f, 1.0f);
+		PP.ColorGain = FVector4(1.05f, 1.00f, 0.94f, 1.0f);
 
 		PP.bOverride_VignetteIntensity = true;
-		PP.VignetteIntensity = 0.26f;
+		PP.VignetteIntensity = 0.22f;
+		// Bloom is for the sun disc and nothing else: with the threshold this high the sky's own
+		// near-white never interferes, where a low threshold washed the whole frame in R-44.
 		PP.bOverride_BloomIntensity = true;
-		PP.BloomIntensity = 0.65f;
+		PP.BloomIntensity = 0.35f;
 		PP.bOverride_BloomThreshold = true;
-		PP.BloomThreshold = 0.55f;
+		PP.BloomThreshold = 1.0f;
 		PP.bOverride_FilmGrainIntensity = true;
-		PP.FilmGrainIntensity = 0.10f;
+		PP.FilmGrainIntensity = 0.08f;
 
 		// Shallow band: the far rim and the near foreground go soft, the realm stays sharp. The
 		// focal distance itself is driven every tick from the actual camera distance (see Tick), so
@@ -217,7 +282,7 @@ void ASolsticeRealm::BeginPlay()
 	}
 
 	FCelMaterials::ApplyToMesh(BaseMesh);
-	FCelMaterials::ApplyToMesh(SkyMesh);
+	FCelMaterials::ApplyToSky(SkyMesh);
 	FCelMaterials::ApplyToMesh(PropMesh);
 
 	BuildStatics();
@@ -278,6 +343,89 @@ void ASolsticeRealm::BuildStatics()
 	bStaticsBuilt = true;
 }
 
+void ASolsticeRealm::UpdateSkyView()
+{
+	// The card's basis is (right, up, forward) rather than Unreal's (forward, right, up), so the
+	// painting can be authored in plain screen coordinates: X right, Y up, Z distance. The basis
+	// is orthonormal and right-handed, so its rotator is a plain rotation - no mirroring.
+	FVector ViewLocation = GetRealmCentre();
+	FRotator ViewRotation = FRotator(-35.0f, -45.0f, 0.0f);
+	float FovH = 38.0f;
+	float Aspect = 16.0f / 9.0f;
+
+	if (const UWorld* World = GetWorld())
+	{
+		if (const APlayerController* PlayerCtl = World->GetFirstPlayerController())
+		{
+			PlayerCtl->GetPlayerViewPoint(ViewLocation, ViewRotation);
+			if (PlayerCtl->PlayerCameraManager)
+			{
+				FovH = PlayerCtl->PlayerCameraManager->GetFOVAngle();
+			}
+			int32 SizeX = 0;
+			int32 SizeY = 0;
+			PlayerCtl->GetViewportSize(SizeX, SizeY);
+			if (SizeX > 0 && SizeY > 0)
+			{
+				Aspect = static_cast<float>(SizeX) / static_cast<float>(SizeY);
+			}
+		}
+	}
+
+	const FRotationMatrix Basis(ViewRotation);
+	SkyViewLocation = ViewLocation;
+	SkyViewRotation = ViewRotation;
+	SkyViewForward = ViewRotation.Vector();
+	SkyViewRight = Basis.GetUnitAxis(EAxis::Y);
+	SkyViewUp = Basis.GetUnitAxis(EAxis::Z);
+
+	SkyHalfTanH = FMath::Tan(FMath::DegreesToRadians(FMath::Clamp(FovH, 10.0f, 120.0f) * 0.5f));
+	SkyHalfTanV = SkyHalfTanH / FMath::Max(0.2f, Aspect);
+
+	// Behind the realm at every zoom: the far rim is one radius past the centre, and the extra
+	// gap keeps the card inside the sharp part of the depth-of-field band.
+	SkyDistance = FMath::Max(1000.0f,
+		FVector::Dist(ViewLocation, GetRealmCentre()) + GetRealmRadiusUU() * SkyCardGap);
+
+	// Parent the card to the camera rather than re-placing it from the view point every tick.
+	// The camera manager only publishes its POV on its own tick, so a card placed from it is
+	// always one frame behind - harmless while panning slowly, and a visible skew the moment the
+	// camera teleports to a preset (the card stays square to the old pitch and the sky renders as
+	// a trapezoid). As a child of the camera, the alignment is exact by construction.
+	if (!bSkyAttached)
+	{
+		const UWorld* World = GetWorld();
+		APlayerController* PlayerCtl = World ? World->GetFirstPlayerController() : nullptr;
+		APawn* Pawn = PlayerCtl ? PlayerCtl->GetPawn() : nullptr;
+		UCameraComponent* Camera = Pawn ? Pawn->FindComponentByClass<UCameraComponent>() : nullptr;
+		if (Camera)
+		{
+			SkyMesh->AttachToComponent(Camera, FAttachmentTransformRules::KeepRelativeTransform);
+			// Card space is (right, up, forward); camera-local space is (forward, right, up).
+			// The mapping is a cyclic permutation of the axes, which is a 120 degree rotation
+			// about (1,1,1).
+			SkyMesh->SetRelativeRotation(
+				FQuat(FVector(1.0f, 1.0f, 1.0f).GetSafeNormal(), FMath::DegreesToRadians(120.0f)));
+			bSkyAttached = true;
+		}
+	}
+
+	if (bSkyAttached)
+	{
+		// No location offset: the geometry already sits at Z = 1 in card space, and the uniform
+		// scale below turns that 1 into the real distance. Adding the distance *as well* placed
+		// the card at twice the range and halved it on screen.
+		SkyMesh->SetRelativeLocation(FVector::ZeroVector);
+		SkyMesh->SetRelativeScale3D(FVector(SkyDistance));
+	}
+	else
+	{
+		// No camera yet (headless bench, or the very first frame): place it the manual way.
+		SkyMesh->SetWorldLocationAndRotation(ViewLocation, FRotationMatrix::MakeFromXY(SkyViewRight, SkyViewUp).Rotator());
+		SkyMesh->SetWorldScale3D(FVector(SkyDistance));
+	}
+}
+
 void ASolsticeRealm::BuildSkyMesh()
 {
 	FSimKernel* Sim = Kernel();
@@ -286,152 +434,194 @@ void ASolsticeRealm::BuildSkyMesh()
 		return;
 	}
 
-	const FSkyState& Sky = Sim->GetSky();
-	const FVector Centre(0.0f, 0.0f, 0.0f);
-	const float Radius = GetRealmRadiusUU() * DomeRadiusFactor;
+	UpdateSkyView();
 
-	// Day/night decides the dome's two ends; cloud flattens the difference.
+	const FSkyState& Sky = Sim->GetSky();
+	const FVector Centre = GetRealmCentre();
+	const float Radius = GetRealmRadiusUU();
+
+	// ---- where the horizon band goes ------------------------------------
+	// Project the world's silhouette into card space and put the bright band on it. A fixed line
+	// in the frame would sit behind the terrain at one preset and above it at the next; anchored
+	// to the silhouette, the realm is backlit at every framing.
+	//
+	// Two numbers come out of this and they are *not* the same one:
+	//   RimV      - where the disc's cut edge lands. The horizon band sits here; the sky's
+	//               gradient must start at the edge of the world, not at the top of a mountain.
+	//   SkylineV  - the highest projected piece of terrain. Bodies must clear *this* or the moon
+	//               gets drawn with its bottom inside the ridge.
+	// Collapsing them into one number (adding the ridge samples to the rim) pushed the horizon
+	// band to the top of the card and left one strip of sky above a full-frame island.
+	float RimV = -1.0f;
+	float SkylineV = -1.0f;
+	const auto ProjectV = [&](const FVector& WorldPoint, bool bRim)
+	{
+		const FVector Rel = WorldPoint - SkyViewLocation;
+		const float Depth = FVector::DotProduct(Rel, SkyViewForward);
+		if (Depth < 1.0f)
+		{
+			return;
+		}
+		const float V = (FVector::DotProduct(Rel, SkyViewUp) / Depth) / FMath::Max(0.05f, SkyHalfTanV);
+		SkylineV = FMath::Max(SkylineV, V);
+		if (bRim)
+		{
+			RimV = FMath::Max(RimV, V);
+		}
+	};
+	for (int32 Index = 0; Index < 40; ++Index)
+	{
+		const float Angle = 2.0f * PI * static_cast<float>(Index) / 40.0f;
+		const FVector Radial(FMath::Cos(Angle), FMath::Sin(Angle), 0.0f);
+		ProjectV(Centre + Radial * Radius, true);											// the cut edge
+		// Three ridge heights at two radii. One height at one radius missed the peak between the
+		// samples, and the moon was drawn with its bottom edge inside the mountain (2026-10-18).
+		ProjectV(Centre + Radial * (Radius * 0.74f) + FVector(0.0f, 0.0f, Radius * 0.42f), false);
+		ProjectV(Centre + Radial * (Radius * 0.52f) + FVector(0.0f, 0.0f, Radius * 0.62f), false);
+		ProjectV(Centre + Radial * (Radius * 0.30f) + FVector(0.0f, 0.0f, Radius * 0.80f), false);
+	}
+	const float HorizonV = FMath::Clamp(RimV + 0.02f, -0.75f, 0.92f);
+	SkylineV = FMath::Max(SkylineV, HorizonV);
+
+	// ---- time of day ----------------------------------------------------
+	// Three states, blended: daylight, the golden window around the horizon, and night. art.md
+	// SS2.4 pins all three; nothing here reads the frame's own brightness (R-41).
 	const float Altitude = FMath::Clamp(Sky.SolarAltitudeDeg, -18.0f, 90.0f);
 	const float Daylight = FMath::Clamp((Altitude + 4.0f) / 10.0f, 0.0f, 1.0f);
+	const float Golden = FMath::Clamp(1.0f - FMath::Abs(Altitude) / 14.0f, 0.0f, 1.0f);
 	const float Cloud = FMath::Clamp(Sky.CloudCover, 0.0f, 1.0f);
+	const float Wet = FMath::Clamp(Sky.RainIntensity, 0.0f, 1.0f);
 
-	const FLinearColor DayZenith(0.34f, 0.52f, 0.78f);
-	const FLinearColor NightZenith(0.04f, 0.05f, 0.11f);
-	const FLinearColor WarmHorizon(0.94f, 0.72f, 0.50f);
+	Gen::FSkyPaint Paint;
+	Paint.HorizonV = HorizonV;
+	Paint.Zenith = FMath::Lerp(FMath::Lerp(NightZenith, DayZenith, Daylight), DuskZenith, Golden * 0.75f);
+	Paint.Middle = FMath::Lerp(FMath::Lerp(NightMiddle, DayMiddle, Daylight), DuskMiddle, Golden * 0.75f);
+	Paint.Horizon = FMath::Lerp(FMath::Lerp(NightHorizon, DayHorizon, Daylight), DuskHorizon, Golden * 0.70f);
+	Paint.Under = FMath::Lerp(FMath::Lerp(NightUnder, DayUnder, Daylight), DuskUnder, Golden * 0.60f);
 
-	FLinearColor Zenith = FMath::Lerp(NightZenith, DayZenith, Daylight);
-	FLinearColor Horizon = FMath::Lerp(FMath::Lerp(FLinearColor(0.10f, 0.11f, 0.16f), WarmHorizon, Daylight), FLinearColor(0.62f, 0.64f, 0.68f), Cloud * 0.75f);
+	// Clouds take the same hour: gold on top and violet underneath at dusk, white on white at
+	// noon, moonlit grey at night. Rain greys them without touching the sky above them.
+	Paint.Cirrus = FMath::Lerp(FMath::Lerp(NightMiddle, FLinearColor::White, Daylight), DuskHorizon, Golden * 0.50f);
+	Paint.CumulusLit = FMath::Lerp(FMath::Lerp(FLinearColor(0.42f, 0.46f, 0.54f), CelSrgb(0xFF, 0xFC, 0xF5), Daylight),
+		DuskHorizon, Golden * 0.60f);
+	Paint.CumulusBase = FMath::Lerp(FMath::Lerp(NightMiddle, CelSrgb(0xAE, 0xC2, 0xDA), Daylight),
+		DuskZenith, Golden * 0.55f);
+	Paint.SunCore = FMath::Lerp(FLinearColor(1.0f, 0.97f, 0.90f), CelSrgb(0xFF, 0xC8, 0x6E), Golden * 0.80f);
+	Paint.SunHalo = FMath::Lerp(CelSrgb(0xFF, 0xE6, 0x9E), DuskHorizon, Golden * 0.70f);
+	Paint.CloudCover = Cloud;
+	Paint.Rain = Wet;
+	Paint.StarAlpha = FMath::Clamp((1.0f - Daylight) * (1.0f - Cloud * 0.85f), 0.0f, 1.0f);
 
+	// Chaos: the sky turns to blank paper too. The first colour in a dead world should be the
+	// player's, so nothing in the frame may be more interesting than the ground.
 	if (Sim->IsChaos())
 	{
-		// Chaos: the sky is plain paper too. The first colour in the world should be the player's.
-		Zenith = FMath::Lerp(Zenith, FLinearColor(0.88f, 0.86f, 0.82f), 0.45f);
-		Horizon = FMath::Lerp(Horizon, FLinearColor(0.92f, 0.90f, 0.86f), 0.45f);
+		const FLinearColor Paper = CelSrgb(0xDF, 0xDB, 0xD2);
+		Paint.Zenith = FMath::Lerp(Paint.Zenith, Paper, 0.55f);
+		Paint.Middle = FMath::Lerp(Paint.Middle, Paper, 0.55f);
+		Paint.Horizon = FMath::Lerp(Paint.Horizon, Paper, 0.45f);
+		Paint.Under = FMath::Lerp(Paint.Under, Paper, 0.55f);
+		Paint.CloudCover *= 0.35f;
+		Paint.StarAlpha = 0.0f;
 	}
 
-	Scratch.Reset();
-	OutlineScratch.Reset();
-	// The dome is an opaque shell right now, and from anywhere that is not inside it, it fills the
-	// whole screen with pale grey - that is the "thick white bowl" in every screenshot. WORLD SS1.1
-	// wants it read as an *air volume* by a brightness difference, which needs a translucent
-	// material that does not exist yet, so it stays unbuilt until M_Sky lands.
-	// Gen::BuildSkyDome(Centre, Radius, Zenith, Horizon, Scratch);
-	// 第 38 轮：分瓣纸壳作废。穹顶是完整半球，没有瓣，也没有硬边。 (petals removed)
-
-	// The sun and the moon are paper discs pinned to the dome.
-	const float AltRad = FMath::DegreesToRadians(FMath::Clamp(Sky.SolarAltitudeDeg, -30.0f, 90.0f));
+	// ---- the two bodies --------------------------------------------------
+	// Azimuth decides where on the card a body lands, elevation decides how high up, compressed
+	// into the part of the frame that is actually sky. Both are held above the silhouette so a
+	// disc never hides behind the realm.
+	const float AltRad = FMath::DegreesToRadians(Altitude);
 	const float AzRad = FMath::DegreesToRadians(Sky.SunAzimuthDeg);
 	const FVector SunDir(FMath::Cos(AltRad) * FMath::Cos(AzRad), FMath::Cos(AltRad) * FMath::Sin(AzRad), FMath::Sin(AltRad));
-	FVector SunRight = FVector::CrossProduct(SunDir, FVector::UpVector).GetSafeNormal();
-	if (SunRight.IsNearlyZero())
+	const FVector FwdFlat = FVector(SkyViewForward.X, SkyViewForward.Y, 0.0f).GetSafeNormal();
+	const FVector RightFlat = FVector(SkyViewRight.X, SkyViewRight.Y, 0.0f).GetSafeNormal();
+
+	const float YawLimit = FMath::DegreesToRadians(SkyBodyYawLimitDeg);
+	// The card is overscanned past the viewport, so V = 1 is off screen: the visible top edge sits
+	// at 1 / SkyCardOverscan. Every "keep it in the frame" clamp below uses this, not 1.0.
+	const float VisibleTop = 1.0f / SkyCardOverscan;
+	// Radius is in the same tan units as the card, so it converts to a V/U offset directly.
+	const auto PlaceBody = [&](const FVector& Direction, float Radius, FVector2D& OutPos, bool& bVisible)
 	{
-		SunRight = FVector(1.0f, 0.0f, 0.0f);
-	}
-	const FVector SunUp = FVector::CrossProduct(SunRight, SunDir).GetSafeNormal();
+		const FVector Flat = FVector(Direction.X, Direction.Y, 0.0f).GetSafeNormal();
+		bVisible = false;
+		if (Flat.IsNearlyZero() || HorizonV >= VisibleTop - 0.06f)
+		{
+			return;
+		}
+		const float YawDelta = FMath::Atan2(FVector::DotProduct(Flat, RightFlat), FVector::DotProduct(Flat, FwdFlat));
+		if (FMath::Abs(YawDelta) >= YawLimit)
+		{
+			return;
+		}
+		// Leave room for the disc itself at both ends. The old clamp stopped the *centre* at 0.90
+		// and 0.10 above the silhouette, which cut bodies in half twice over: a moon high in the
+		// frame lost its top to the viewport edge, and one near the horizon lost its bottom to the
+		// ridge it was supposed to clear.
+		// Leave room for the disc itself at both ends, and never let "clear the terrain" push the
+		// centre *above* the frame: at preset 0 the peak projects to ~0.9 of the card, so a body
+		// that clears it entirely ends up entirely off screen (2026-10-18 - the sun was drawn past
+		// the top edge and all that showed was its cold halo ring).
+		const float RadiusV = Radius / FMath::Max(0.05f, SkyHalfTanV);
+		const float RadiusU = Radius / FMath::Max(0.05f, SkyHalfTanH);
+		const float VTop = VisibleTop - 0.02f - RadiusV;
+		const float VBot = FMath::Min(SkylineV + 0.04f + RadiusV, VTop);
+		const float U = FMath::Clamp(FMath::Tan(YawDelta) / FMath::Tan(YawLimit), -1.0f, 1.0f)
+			* FMath::Max(0.20f, 0.84f - RadiusU);
+		const float Alt01 = FMath::Clamp(Direction.Z / FMath::Sin(FMath::DegreesToRadians(70.0f)), 0.0f, 1.0f);
+		const float V = FMath::Clamp(FMath::Lerp(VBot, VTop, Alt01), VBot, FMath::Max(VBot, VTop));
+		OutPos = FVector2D(U * SkyHalfTanH, V * SkyHalfTanV);
+		bVisible = true;
+	};
 
-	// Celestial bodies go into their own builder - see the two-section note at the bottom.
-	const FLinearColor DiscColour = FMath::Lerp(FLinearColor(0.98f, 0.86f, 0.62f), FLinearColor(1.0f, 0.97f, 0.90f), Daylight);
-	Gen::BuildDisc(Centre + SunDir * (Radius * 0.80f), SunRight * (Radius * 0.09f), SunUp * (Radius * 0.09f), 1.0f, DiscColour * (0.35f + 0.65f * Daylight), OutlineScratch);
+	Paint.SunRadius = FMath::Tan(FMath::DegreesToRadians(SunAngularRadiusDeg));
+	PlaceBody(SunDir, Paint.SunRadius, Paint.SunPos, Paint.bSunVisible);
+	// A sun below the horizon is not painted; it survives civil twilight, which is when the
+	// frame is at its most orange.
+	Paint.bSunVisible = Paint.bSunVisible && Altitude > -6.0f;
 
-	const FVector MoonDir = -SunDir;
-	const FVector MoonRight = FVector::CrossProduct(MoonDir, FVector::UpVector).GetSafeNormal();
-	const FVector MoonUp = FVector::CrossProduct(MoonRight, MoonDir).GetSafeNormal();
-	// Lunar phase from the world clock. Masking a crescent needs a second coplanar card, which would
-	// z-fight, so the phase drives brightness and apparent size instead: a thin crescent reads as a
-	// small dim disc, a full moon as a large bright one. 29.53 days per cycle, new moon at phase 0.
-	const float LunarDay = static_cast<float>(Sim ? Sim->GetWorldMinute() : 0) / (60.0f * 24.0f);
+	// Lunar phase from the world clock: a crescent reads as a small dim disc, because masking it
+	// would need a second coplanar card and coplanar cards z-fight.
+	const float LunarDay = static_cast<float>(Sim->GetWorldMinute()) / (60.0f * 24.0f);
 	const float Phase01 = FMath::Frac(LunarDay / 29.53f);
 	const float MoonFull = 0.5f - 0.5f * FMath::Cos(2.0f * PI * Phase01);
-	const float MoonRadius = Radius * 0.105f * (0.6f + 0.4f * MoonFull);  // 视直径 0.21 R (WORLD SS1.1)
-	const FLinearColor MoonColour = FLinearColor(0.86f, 0.88f, 0.92f)
-		* ((0.25f + 0.75f * MoonFull) * (1.0f - Daylight * 0.75f));
-	Gen::BuildDisc(Centre + MoonDir * (Radius * 0.66f), MoonRight * MoonRadius, MoonUp * MoonRadius, 1.0f, MoonColour, OutlineScratch);
+	Paint.MoonRadius = FMath::Tan(FMath::DegreesToRadians(MoonAngularRadiusDeg)) * (0.72f + 0.28f * MoonFull);
+	PlaceBody(-SunDir, Paint.MoonRadius, Paint.MoonPos, Paint.bMoonVisible);
+	Paint.MoonCore = FMath::Lerp(FLinearColor(0.55f, 0.60f, 0.70f), CelSrgb(0xF2, 0xF6, 0xFF), 0.35f + 0.65f * MoonFull);
+	Paint.bMoonVisible = Paint.bMoonVisible && (Daylight < 0.65f) && Paint.StarAlpha > 0.05f;
 
-	// Two sections on purpose: 0 = the shell dome and its petals, 1 = the sun and the moon.
-	// The shell has to step aside when the camera is parked outside it (SetSkyVisible), and while
-	// the two shared one section, hiding the dome also erased the only celestial bodies the realm
-	// had - which is exactly what R-21 recorded as "there is no sun or moon".
-	Scratch.PushTo(SkyMesh, 0, false);
-	OutlineScratch.PushTo(SkyMesh, 1, false);
+	// Wind drift. Wall clock on purpose: the sky should breathe even while the sim is paused.
+	const float WindScale = 0.35f + Sky.WindSpeed * 0.9f;
+	Paint.Drift = static_cast<float>(FMath::Frac(FApp::GetCurrentTime() * SkyDriftRate * WindScale));
 
-	// ---- section 2: clouds and stars (REVIEW R-20 / R-21) --------------------
-	// Both are paper discs pinned just inside the shell, so they never sit between the camera and
-	// the realm: at every preset the camera is inside the shell too, and anything on the shell is
-	// overhead. Cloud count follows the sim's cloud_cover - the sky and the panel agree, which is
-	// the whole point of a weather readout. Stars appear only at night and only as much as the
-	// night is clear.
+	// Undo the frame's exposure gain for the sky only.
+	//
+	// The sky is authored in *display* values, so it must arrive on screen unchanged - but the
+	// whole frame is multiplied by the exposure before it is encoded, and the near-white horizon
+	// then clips: the gradient flattens into one white field and that field blooms over the blue
+	// above it (measured: #F4FFFF at 60% down the sky, against an authored #B8CDEE). Dividing the
+	// sky by the same gain puts every value back where it was authored, and nothing clips.
+	const float SkyDim = FMath::Pow(0.5f, ExposureStops);
+	Paint.Zenith *= SkyDim;
+	Paint.Middle *= SkyDim;
+	Paint.Horizon *= SkyDim;
+	Paint.Under *= SkyDim;
+	Paint.Cirrus *= SkyDim;
+	Paint.CumulusLit *= SkyDim;
+	Paint.CumulusBase *= SkyDim;
+	Paint.SunCore *= SkyDim;
+	Paint.SunHalo *= SkyDim;
+	Paint.MoonCore *= SkyDim;
+	Paint.Star *= SkyDim;
+
 	Scratch.Reset();
-	const int32 CloudCount = FMath::RoundToInt(Cloud * 16.0f);
-
-	// Wind drift and rain. The clouds were pinned to fixed azimuths, which made a "weather" readout
-	// sit under a sky that never moved; they now slide with wall-clock time, faster when the sim
-	// says the wind is strong, and go grey/wet when it rains. Wall clock rather than world time on
-	// purpose: the visual sky should breathe even while the sim is paused.
-	const float WindScale = 0.35f + Sim->GetSky().WindSpeed * 0.9f;
-	const float Drift = static_cast<float>(FMath::Fmod(FApp::GetCurrentTime(), 3600.0)) * 0.06f * WindScale;
-	const float Wet = FMath::Clamp(Sim->GetSky().RainIntensity, 0.0f, 1.0f);
-
-	for (int32 Index = 0; Index < CloudCount; ++Index)
-	{
-		const float Seed = static_cast<float>(Index) * 2.399963f;			// golden angle
-		const float Azimuth = Seed * 3.7f + Drift;
-		const float ElevationRad = FMath::DegreesToRadians(FMath::Lerp(18.0f, 78.0f, FMath::Frac(Seed * 0.517f)));
-		const FVector Dir(
-			FMath::Cos(ElevationRad) * FMath::Cos(Azimuth),
-			FMath::Cos(ElevationRad) * FMath::Sin(Azimuth),
-			FMath::Sin(ElevationRad));
-		FVector Right = FVector::CrossProduct(Dir, FVector::UpVector).GetSafeNormal();
-		if (Right.IsNearlyZero())
-		{
-			continue;
-		}
-		const FVector Up = FVector::CrossProduct(Right, Dir).GetSafeNormal();
-		const float Spread = Radius * (0.055f + 0.045f * FMath::Frac(Seed * 1.31f));
-		// Rain darkens and cools the cotton instead of merely adding more of it - an overcast sky has
-		// to lose brightness, or "it is raining" reads as "there are more clouds".
-		const FLinearColor DryTone = FMath::Lerp(
-			FLinearColor(0.98f, 0.97f, 0.94f), FLinearColor(0.70f, 0.72f, 0.77f), Cloud * 0.55f);
-		const FLinearColor Tone = FMath::Lerp(DryTone, FLinearColor(0.50f, 0.54f, 0.60f), Wet * 0.75f);
-		// A cloud is three overlapping cushions, not one flat disc: a flat card only reads from
-		// one side, while a puffed blob catches the light on its own shading from any angle.
-		const float Puff = Spread * 0.55f;
-		Gen::Cushion(Scratch, Centre + Dir * (Radius * 0.962f), 6, Spread, Spread * 0.42f,
-			Tone * 0.88f, Tone, Index * 17 + 3, Dir);
-		Gen::Cushion(Scratch, Centre + Dir * (Radius * 0.960f) + Right * Puff * 0.9f + Up * Puff * 0.2f, 6,
-			Spread * 0.72f, Spread * 0.34f, Tone * 0.92f, Tone, Index * 17 + 31, Dir);
-		Gen::Cushion(Scratch, Centre + Dir * (Radius * 0.960f) - Right * Puff * 0.85f - Up * Puff * 0.1f, 6,
-			Spread * 0.66f, Spread * 0.30f, Tone * 0.90f, Tone, Index * 17 + 67, Dir);
-	}
-
-	const float StarAlpha = (1.0f - Daylight) * (1.0f - Cloud * 0.85f);
-	if (StarAlpha > 0.06f)
-	{
-		constexpr int32 StarCount = 150;
-		for (int32 Index = 0; Index < StarCount; ++Index)
-		{
-			const float Seed = static_cast<float>(Index) * 2.399963f;
-			const float Azimuth = Seed * 7.13f;
-			const float ElevationRad = FMath::DegreesToRadians(FMath::Lerp(16.0f, 87.0f, FMath::Frac(Seed * 0.314f)));
-			const FVector Dir(
-				FMath::Cos(ElevationRad) * FMath::Cos(Azimuth),
-				FMath::Cos(ElevationRad) * FMath::Sin(Azimuth),
-				FMath::Sin(ElevationRad));
-			FVector Right = FVector::CrossProduct(Dir, FVector::UpVector).GetSafeNormal();
-			if (Right.IsNearlyZero())
-			{
-				continue;
-			}
-			const FVector Up = FVector::CrossProduct(Right, Dir).GetSafeNormal();
-			const float Size = Radius * (0.0035f + 0.0045f * FMath::Frac(Seed * 1.77f));
-			Gen::BuildDisc(Centre + Dir * (Radius * 0.985f), Right * Size, Up * Size, 1.0f,
-				FLinearColor(1.0f, 0.98f, 0.90f) * StarAlpha, Scratch);
-		}
-	}
-
-	Scratch.PushTo(SkyMesh, 2, false);
-	SkyMesh->SetMeshSectionVisible(2, true);
-	SkyMesh->SetMeshSectionVisible(0, bSkyVisible);
-	SkyMesh->SetMeshSectionVisible(1, true);
+	Gen::BuildSkyCard(SkyHalfTanH, SkyHalfTanV, Paint, Scratch);
+	Scratch.PushTo(SkyMesh, 0, false);
+	SkyMesh->SetMeshSectionVisible(0, true);
+	// Sections 1 and 2 held the world-space shell and its celestial bodies. The bodies are
+	// painted into the card now and there is no shell; stale sections would draw a dome that no
+	// longer matches anything.
+	SkyMesh->ClearMeshSection(1);
+	SkyMesh->ClearMeshSection(2);
 }
 
 void ASolsticeRealm::RebuildDirtyChunks(int32 Budget)
@@ -510,9 +700,13 @@ void ASolsticeRealm::UpdateSun()
 	SunLight->SetWorldRotation(LightRotation);
 	// Daylight ramp only - the *colour* and the band direction are pushed to the material by
 	// ApplySky, so this scalar never has to encode a look.
+	//
+	// Do not try to fix a dark hour by adding lights here. M_Cel is unlit (see its builder): the
+	// ground is shaded by LitTint/MidTint/ShadowTint plus a band threshold on dot(normal, sun),
+	// so light components cannot reach it at all. A fill light was added on 2026-10-18 for a dark
+	// dusk frame and changed exactly zero pixels - the dusk ramp lives in FCelMaterials::ApplySky.
 	SunLight->SetIntensity(
 		FMath::Lerp(0.15f, 1.0f, FMath::Clamp((Sky.SolarAltitudeDeg + 8.0f) / 18.0f, 0.0f, 1.0f)) * SunLightIntensity);
-
 	const float Wet = FMath::Clamp(Sky.RainIntensity * 0.7f + Sky.CloudCover * 0.3f, 0.0f, 1.0f);
 	// The void outside the realm is pinned deep blue (WORLD SS1.1, #0B1431) in every weather -
 	// weather only pushes it slightly towards grey-blue, it never returns to pale fog grey.
@@ -545,10 +739,10 @@ void ASolsticeRealm::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	// The shell is a container, not an obstruction. It is opaque paper, so whenever the camera is
-	// parked outside it the dome becomes the only thing on screen - which is exactly what the old
-	// default framing produced (arm = realm radius * 2.1 against a shell at radius * 1.34).
-	// Outside: step aside. Inside: it is the realm's wall again.
+	// The sky card is re-placed every frame - the camera moves continuously when the player
+	// zooms - but it is only *repainted* when its content changes (see the signature gate below).
+	UpdateSkyView();
+
 	if (const UWorld* World = GetWorld())
 	{
 		if (const APlayerController* PlayerCtl = World->GetFirstPlayerController())
@@ -556,9 +750,7 @@ void ASolsticeRealm::Tick(float DeltaSeconds)
 			FVector ViewLocation = FVector::ZeroVector;
 			FRotator ViewRotation = FRotator::ZeroRotator;
 			PlayerCtl->GetPlayerViewPoint(ViewLocation, ViewRotation);
-			const float ShellRadius = GetRealmRadiusUU() * DomeRadiusFactor;
 			const float ViewDistance = FVector::Dist(ViewLocation, GetRealmCentre());
-			SetSkyVisible(ViewDistance < ShellRadius);
 
 			// The focus band follows the camera, so the realm centre is always the sharp plane and
 			// the near foreground / far rim soften by the same proportion at any zoom. A fixed focal
@@ -650,6 +842,14 @@ void ASolsticeRealm::Tick(float DeltaSeconds)
 		Signature = Mix32(Signature, static_cast<uint32>(SkyState.CloudCover * 20.0f));
 		Signature = Mix32(Signature, static_cast<uint32>(SkyState.RainIntensity * 20.0f));
 		Signature = Mix32(Signature, Sim->IsChaos() ? 1u : 0u);
+		// The card is painted in screen space, so the camera is part of its content: half a degree
+		// of yaw or pitch repaints it. The drift term repaints about twice a second, which at the
+		// spec's 0.5-2 deg/s is a slide of a pixel or two per step.
+		Signature = Mix32(Signature, static_cast<uint32>(FMath::RoundToInt(SkyViewRotation.Yaw * 2.0) + 4096));
+		Signature = Mix32(Signature, static_cast<uint32>(FMath::RoundToInt(SkyViewRotation.Pitch * 2.0) + 4096));
+		Signature = Mix32(Signature, static_cast<uint32>(FMath::Frac(FApp::GetCurrentTime() * SkyDriftRate) * 96.0));
+		// The horizon band is anchored to where the realm projects, so a zoom step moves it.
+		Signature = Mix32(Signature, static_cast<uint32>(SkyDistance / 500.0f));
 
 		if (!bSkyBuilt || Signature != LastSkySignature)
 		{
@@ -748,14 +948,4 @@ int32 ASolsticeRealm::PickTile(APlayerController* Controller, FVector& OutHitLoc
 	OutHitLocation = Hit.ImpactPoint;
 	int32 Tile = INDEX_NONE;
 	return WorldToTile(Hit.ImpactPoint, Tile) ? Tile : INDEX_NONE;
-}
-
-void ASolsticeRealm::SetSkyVisible(bool bVisible)
-{
-	bSkyVisible = bVisible;
-
-	// Only the shell (section 0) steps aside. The sun and the moon live in section 1 and stay in
-	// the sky at every camera position - a realm whose sky can go empty reads as a prop rather
-	// than a world (REVIEW R-21).
-	SkyMesh->SetMeshSectionVisible(0, bVisible);
 }

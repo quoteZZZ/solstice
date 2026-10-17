@@ -286,6 +286,9 @@ namespace Solstice
 			? FMath::Clamp(Reality.Humidity01, 0.05f, 0.95f) : Tuning::DefaultHumidity01;
 		Sky.CloudCover = Reality.bValid
 			? FMath::Clamp(Reality.CloudCover01, 0.0f, 1.0f) : Tuning::DefaultCloudCover01;
+		// Paint the sky from the clock we just picked instead of leaving the sun at the struct
+		// default until the first world minute ticks (see UpdateSolar).
+		UpdateSolar();
 
 		// --- world -------------------------------------------------------
 		GenerateTerrain();
@@ -691,7 +694,21 @@ namespace Solstice
 		}
 	}
 
-	void FSimKernel::StepEnvironment()
+	int32 FSimKernel::SolarDayOfYear() const
+	{
+		return (StartDayOfYear + (GetWorldDay() - 1)) % 365;
+	}
+
+	float FSimKernel::SolarLatitudeDeg() const
+	{
+		return FMath::Clamp(Config.Latitude, -Tuning::LatitudeClampDeg, Tuning::LatitudeClampDeg);
+	}
+
+	// The sun's position, the light level and the light's colour temperature are a pure function
+	// of the world clock and the cloud cover - no drift, no history. That is why Init() can call
+	// this before the first world minute ever elapses: until it did, Sky sat at FSkyState's
+	// default 45-degree sun and every dusk/night test frame came out daylit (2026-10-18).
+	void FSimKernel::UpdateSolar()
 	{
 		const float MinutesOfDay = static_cast<float>(WorldMinute % 1440);	// 1440 world minutes per day
 		const float HourOfDay = MinutesOfDay / 60.0f;
@@ -699,10 +716,10 @@ namespace Solstice
 		Sky.DayFraction = DayFraction;
 
 		// ---- solar position (docs/setting/WORLD.md SS3.2, docs/gameplay/TIME.md SS3) ----
-		const int32 DayOfYear = (StartDayOfYear + (GetWorldDay() - 1)) % 365;
+		const int32 DayOfYear = SolarDayOfYear();
 		const float Declination = Tuning::EarthAxialTiltDeg
 			* FMath::Sin(2.0f * PI * (Tuning::DeclinationDayOffset + static_cast<float>(DayOfYear)) / 365.0f);
-		const float Latitude = FMath::Clamp(Config.Latitude, -Tuning::LatitudeClampDeg, Tuning::LatitudeClampDeg);
+		const float Latitude = SolarLatitudeDeg();
 		const float HourAngle = Tuning::SolarHourAngleDegPerHour * (HourOfDay - 12.0f);	// solar noon at 12:00
 		const float SinAlt = FMath::Sin(FMath::DegreesToRadians(Latitude)) * FMath::Sin(FMath::DegreesToRadians(Declination))
 			+ FMath::Cos(FMath::DegreesToRadians(Latitude)) * FMath::Cos(FMath::DegreesToRadians(Declination))
@@ -719,13 +736,20 @@ namespace Solstice
 		// Warmer at the horizon, cooler at zenith.
 		Sky.ColorTempK = FMath::Lerp(Tuning::ColorTempHorizonK, Tuning::ColorTempZenithK,
 			FMath::Pow(Elevation01, Tuning::ColorTempExponent));
+	}
+
+	void FSimKernel::StepEnvironment()
+	{
+		UpdateSolar();
+
+		const float HourOfDay = static_cast<float>(WorldMinute % 1440) / 60.0f;
 
 		// ---- air temperature ----
 		const float Seasonal = -FMath::Cos(
-			2.0f * PI * (static_cast<float>(DayOfYear) - Tuning::SeasonalDayOffset) / 365.0f);	// -1 winter .. +1 summer
-		const float Hemisphere = (Latitude >= 0.0f) ? 1.0f : -1.0f;
+			2.0f * PI * (static_cast<float>(SolarDayOfYear()) - Tuning::SeasonalDayOffset) / 365.0f);	// -1 winter .. +1 summer
+		const float Hemisphere = (SolarLatitudeDeg() >= 0.0f) ? 1.0f : -1.0f;
 		const float SeasonalC = Seasonal * Hemisphere
-			* (Tuning::SeasonalAmplitudeC + FMath::Abs(Latitude) * Tuning::SeasonalLatitudeGain);
+			* (Tuning::SeasonalAmplitudeC + FMath::Abs(SolarLatitudeDeg()) * Tuning::SeasonalLatitudeGain);
 		const float DiurnalC = FMath::Sin(2.0f * PI * (HourOfDay - Tuning::DiurnalPeakHour) / 24.0f)
 			* Tuning::DiurnalAmplitudeC;
 		Sky.AirTempC = Tuning::BaseAirTempC + SeasonalC + DiurnalC - Sky.CloudCover * Tuning::CloudCoolingC;

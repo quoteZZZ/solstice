@@ -196,6 +196,43 @@ namespace
 		return SaveAsset(Material, PackageName);
 	}
 
+	/**
+	 * M_Sky - the painted backdrop, and nothing else.
+	 *
+	 * The sky is the one surface in the frame whose colour must arrive *exactly* as authored: it
+	 * is a matte painting, not a lit object, so it gets no bands at all. Running it through M_Cel
+	 * would multiply the gradient by a shading band picked from the card's normal, which is how a
+	 * near-white horizon turns into a blue-grey stripe depending on which way the camera faces.
+	 */
+	bool BuildSky()
+	{
+		const FString PackageName = TEXT("/Game/Core/M_Sky");
+		UMaterial* Material = FindOrCreateMaterial(PackageName);
+		if (!Material)
+		{
+			return false;
+		}
+
+		Material->MaterialDomain = MD_Surface;
+		Material->BlendMode = BLEND_Opaque;
+		Material->SetShadingModel(MSM_Unlit);
+		// Two-sided: the card faces the camera, and a mirrored basis during the intro move should
+		// not punch a hole in the frame.
+		Material->TwoSided = true;
+
+		Material->GetExpressionCollection().Empty();
+
+		UMaterialExpressionVertexColor* VertexColour = AddExpr<UMaterialExpressionVertexColor>(Material, -400, 0);
+
+		if (UMaterialEditorOnlyData* EditorData = Material->GetEditorOnlyData())
+		{
+			EditorData->EmissiveColor.Expression = VertexColour;
+		}
+
+		Material->PostEditChange();
+		return SaveAsset(Material, PackageName);
+	}
+
 	bool BuildInk()
 	{
 		const FString PackageName = TEXT("/Game/Core/M_Ink");
@@ -232,8 +269,10 @@ bool FSolsticeCelMaterialBuilder::BuildAll()
 
 	const FString CelPath = FString(FPackageName::LongPackageNameToFilename(TEXT("/Game/Core/M_Cel"), FPackageName::GetAssetPackageExtension()));
 	const FString InkPath = FString(FPackageName::LongPackageNameToFilename(TEXT("/Game/Core/M_Ink"), FPackageName::GetAssetPackageExtension()));
+	const FString SkyPath = FString(FPackageName::LongPackageNameToFilename(TEXT("/Game/Core/M_Sky"), FPackageName::GetAssetPackageExtension()));
 
 	const bool bInkMissing = !FPaths::FileExists(InkPath);
+	const bool bSkyMissing = !FPaths::FileExists(SkyPath);
 
 	// Rebuild when the asset is absent or was authored by an older recipe. The stamp is a scalar
 	// parameter, so reading it needs no shader compile - just walk the expression list.
@@ -280,6 +319,19 @@ bool FSolsticeCelMaterialBuilder::BuildAll()
 		else
 		{
 			UE_LOG(LogSolstice, Error, TEXT("could not generate /Game/Core/M_Ink"));
+			bOk = false;
+		}
+	}
+
+	if (bSkyMissing)
+	{
+		if (BuildSky())
+		{
+			UE_LOG(LogSolstice, Display, TEXT("generated /Game/Core/M_Sky"));
+		}
+		else
+		{
+			UE_LOG(LogSolstice, Error, TEXT("could not generate /Game/Core/M_Sky"));
 			bOk = false;
 		}
 	}

@@ -129,11 +129,70 @@ namespace Solstice
 		/** Every living individual as a standee; printed outline cards land in OutOutline. */
 		void BuildLife(const FSimKernel& Kernel, const FCelPalette& Palette, FMeshBuilder& Out, FMeshBuilder& OutOutline);
 
-		/** Lower half of a paper dome, normals pointing inward. */
-		void BuildSkyDome(const FVector& Centre, float RadiusUU, const FLinearColor& Zenith, const FLinearColor& Horizon, FMeshBuilder& Out);
+		/**
+		 * One frame of painted sky (docs/art/art.md SS2.2).
+		 *
+		 * The sky is a *painting*, not a render of an atmosphere: a card perpendicular to the
+		 * view axis with the whole composition - gradient, cirrus, cumulus, sun, moon, stars -
+		 * baked into vertex colours. That is the only way a fixed-exposure cel frame gets the
+		 * near-white horizon the style needs, and it is the same "flat layers" call art.md makes
+		 * about clouds.
+		 *
+		 * Card space: X right, Y up, Z = distance from the camera. Both halves are given in the
+		 * canonical unit card (Z = 1), so the realm scales the whole painting with one component
+		 * scale and a zoom never has to rebuild it.
+		 */
+		struct FSkyPaint
+		{
+			/**
+			 * Height of the bright horizon band, as a fraction of the card half-height,
+			 * +1 = top of frame. The realm computes it from where the world's silhouette
+			 * actually projects, so the glow hugs the realm at every camera preset instead
+			 * of sitting on a fixed line in the frame.
+			 */
+			float HorizonV = 0.30f;
 
-		/** The 12-16 petals that ring the dome rim. */
-		void BuildPetals(const FVector& Centre, float RadiusUU, int32 Count, const FLinearColor& Inner, const FLinearColor& Outer, FMeshBuilder& Out);
+			/** Three-band gradient: zenith is the deepest, the horizon is nearly white. */
+			FLinearColor Zenith = CelSrgb(0x2F, 0x63, 0xAE);
+			FLinearColor Middle = CelSrgb(0x86, 0xB8, 0xE4);
+			FLinearColor Horizon = CelSrgb(0xEA, 0xF3, 0xFA);
+			/** Below the horizon band the sky goes back down a step, so the frame has an edge. */
+			FLinearColor Under = CelSrgb(0x8A, 0xB4, 0xD6);
+
+			/** Clouds: a high thin veil and a lower opaque bank with a lit top and a cool base. */
+			FLinearColor Cirrus = CelSrgb(0xFF, 0xFF, 0xFF);
+			FLinearColor CumulusLit = CelSrgb(0xFF, 0xFC, 0xF5);
+			FLinearColor CumulusBase = CelSrgb(0xAE, 0xC2, 0xDA);
+
+			FLinearColor SunCore = CelSrgb(0xFF, 0xF7, 0xDC);
+			FLinearColor SunHalo = CelSrgb(0xFF, 0xE6, 0x9E);
+			FLinearColor MoonCore = CelSrgb(0xF2, 0xF6, 0xFF);
+			FLinearColor Star = CelSrgb(0xFF, 0xFA, 0xE6);
+
+			/** 0..1. Clouds are *added* by coverage; the gradient itself never darkens. */
+			float CloudCover = 0.3f;
+			/** 0..1. Rain greys the clouds; it does not dim the sky (art.md SS2.2). */
+			float Rain = 0.0f;
+			/** 0..1, one full horizontal loop of the whole cloud deck. */
+			float Drift = 0.0f;
+
+			/** Night only: 0 hides the stars entirely. */
+			float StarAlpha = 0.0f;
+
+			bool bSunVisible = false;
+			FVector2D SunPos = FVector2D::ZeroVector;
+			float SunRadius = 0.0f;
+
+			bool bMoonVisible = false;
+			FVector2D MoonPos = FVector2D::ZeroVector;
+			float MoonRadius = 0.0f;
+		};
+
+		/**
+		 * Paint one sky card. All sizes are in the canonical unit card (Z = 1): half width and
+		 * half height are the tangents of the camera's half-FOV times the overscan.
+		 */
+		void BuildSkyCard(float HalfWidth, float HalfHeight, const FSkyPaint& Paint, FMeshBuilder& Out);
 
 		/** A flat paper disc, used for the sun and the moon. */
 		void BuildDisc(const FVector& Centre, const FVector& Right, const FVector& Up, float RadiusUU, const FLinearColor& Colour, FMeshBuilder& Out);

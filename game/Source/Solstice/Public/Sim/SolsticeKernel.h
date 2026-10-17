@@ -188,6 +188,11 @@ namespace Solstice
 		void ClassifyBiomes();
 		void MarkDirtyAt(int32 TileIndex);
 		void StepWorldMinute();
+		// Both are pure functions of the clock/config, and both the solar pass and the seasonal
+		// temperature pass need them - so they live in one place each instead of being rederived.
+		int32 SolarDayOfYear() const;
+		float SolarLatitudeDeg() const;
+		void UpdateSolar();
 		void StepEnvironment();
 		void StepWeather(float DeltaWorldMinutes);
 		void StepTiles(float DeltaWorldMinutes);

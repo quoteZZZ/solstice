@@ -587,24 +587,31 @@ void ASolsticePlayerController::ApplyCameraPreset(int32 Index)
 	float Distance = Fit;
 	float Yaw = -52.0f;
 	float Pitch = -50.0f;
+	// Aim height, in realm radii above the centre. Only the landscape framings lift the aim:
+	// survey, map and close-up want the realm centred, and lifting those just crops the base.
+	float AimLift = 0.0f;
 	switch (CameraPreset)
 	{
-	// 0 three-quarter isometric: the standard diorama read, whole world
-	case 0:		Distance = Fit * 1.00f; Yaw = -45.0f; Pitch = -35.0f; break;
+	// 0 three-quarter isometric: the standard diorama read, whole world plus its sky
+	case 0:		Distance = Fit * 1.00f; Yaw = -45.0f; Pitch = -35.0f; AimLift = 0.13f; break;
 	// 1 satellite survey: whole world from almost directly above
 	case 1:		Distance = Fit * 1.00f; Yaw = -52.0f; Pitch = -76.0f; break;
 	// 2 low ornament: whole world, camera just above the rim
-	case 2:		Distance = Fit * 0.94f; Yaw = -28.0f; Pitch = -14.0f; break;
+	case 2:		Distance = Fit * 0.94f; Yaw = -28.0f; Pitch = -14.0f; AimLift = 0.12f; break;
 	// 3 blueprint: whole world, straight down
 	case 3:		Distance = Fit * 1.00f; Yaw = -90.0f; Pitch = -87.0f; break;
-	// 4 far establishing: the realm plus its shell and the sky around it
-	case 4:		Distance = Fit * 1.45f; Yaw = -135.0f; Pitch = -32.0f; break;
+	// 4 far establishing: the realm plus the sky around it
+	case 4:		Distance = Fit * 1.45f; Yaw = -135.0f; Pitch = -32.0f; AimLift = 0.08f; break;
 	// 5 single-tile close-up: materials, standees, paper edges
 	default:	Distance = Fit * 0.30f; Yaw = -30.0f; Pitch = -22.0f; break;
 	}
 
 	ObserverPawn->SetDefaults(Distance, Yaw, Pitch);
-	ObserverPawn->SetFocus(RealmActor->GetRealmCentre());
+	// Aiming above the centre is what turns an aerial survey into a landscape: the world sits in
+	// the lower part of the frame and the sky gets a band above it. The prototype does the same
+	// thing (its camera target is `[0, 0.10R, 0]`); without the lift the realm fills the frame
+	// edge to edge and the sky is a two-pixel seam.
+	ObserverPawn->SetFocus(RealmActor->GetRealmCentre() + FVector(0.0f, 0.0f, Radius * AimLift));
 }
 
 void ASolsticePlayerController::CycleCameraPreset()
@@ -690,25 +697,39 @@ void ASolsticePlayerController::Tick(float DeltaSeconds)
 	if (Solstice::Shot::Enabled() && !bShotCaptured)
 	{
 		ShotAge += DeltaSeconds;
-		if (ShotAge >= Solstice::Shot::Delay())
+		// The preset is applied on the *first* shot frame, not on the capture frame: applying it
+		// and capturing in the same tick left every frame-relative thing (the sky card, the depth
+		// of field, the projected box) describing the previous camera pose.
+		if (!bShotPresetApplied)
 		{
-			bShotCaptured = true;
+			bShotPresetApplied = true;
 			if (ASolsticeObserver* ObserverPawn = Observer())
 			{
-				// ApplyCameraPreset only moves the arm; a running intro move would keep overwriting
-				// it on the following tick, so the move is cancelled first (it lands on its own end
-				// pose, then the preset takes over).
+				// A running intro move would keep overwriting the preset on the following tick,
+				// so the move is cancelled first (it lands on its own end pose, then the preset
+				// takes over).
 				ObserverPawn->CancelMove();
 			}
 			if (Solstice::Shot::Preset() != INDEX_NONE)
 			{
 				ApplyCameraPreset(Solstice::Shot::Preset());
 			}
+		}
+		if (ShotAge >= Solstice::Shot::Delay())
+		{
+			bShotCaptured = true;
 			// Force the lens to update this frame rather than at the next camera tick, so the PNG
 			// and the numbers in the log always describe the same picture.
 			if (ASolsticeObserver* ObserverPawn = Observer())
 			{
 				ObserverPawn->GetCamera()->MarkRenderStateDirty();
+			}
+			// The camera manager caches its POV and only rebuilds it on the next tick, so the
+			// screen-space box below used to be projected with the *previous* framing - it
+			// reported the same box for two different camera distances. Update it now.
+			if (PlayerCameraManager)
+			{
+				PlayerCameraManager->UpdateCamera(0.0f);
 			}
 			Solstice::Shot::Capture(this);
 			UE_LOG(LogSolstice, Warning, TEXT("[shot] framing: preset=%d dist=%.0f yaw=%.1f pitch=%.1f"),
@@ -719,14 +740,20 @@ void ASolsticePlayerController::Tick(float DeltaSeconds)
 
 			// State readback. Every "I changed it and nothing happened" in this project came from
 			// not knowing which of these three was true at capture time.
+			// The clock and the sun go in here too: a dusk frame that silently came out daylit
+			// because the sky still held FSkyState's default 45-degree sun looked like a shading
+			// problem from the outside, and nothing in the log contradicted it.
 			if (const USolsticeGameInstance* Instance = Game())
 			{
 				const FSimKernel& Sim = Instance->Kernel();
+				const FSkyState& Sky = Sim.GetSky();
 				UE_LOG(LogSolstice, Warning,
-					TEXT("[shot] state: painted=%.2f chaos=%d pop=%d material=%s authored=%d"),
+					TEXT("[shot] state: painted=%.2f chaos=%d pop=%d material=%s authored=%d clock=%02d:%02d alt=%.1f cloud=%.2f"),
 					Sim.GetPaintedFraction(), Sim.IsChaos() ? 1 : 0, Sim.GetPopulationTotal(),
 					*FCelMaterials::Get().Cel->GetPathName(),
-					FCelMaterials::Get().bAuthored ? 1 : 0);
+					FCelMaterials::Get().bAuthored ? 1 : 0,
+					Sim.GetWorldHour(), Sim.GetWorldMinuteOfHour(),
+					Sky.SolarAltitudeDeg, Sky.CloudCover);
 			}
 
 			// Screen-space box around the realm disc, so a measurement script knows which pixels

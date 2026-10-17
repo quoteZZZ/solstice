@@ -150,6 +150,17 @@
 | 描边色 | 深褐绿 | 深紫红 | 深蓝 |
 | 云 | 纯白 + 底面色 | 顶金 + 底紫 | 半透 + 月光镶边 |
 
+**量化判据按时段分档**（`tools/checks/measure-frame.py --hour day|dusk|night`，`shot.ps1` 按 `-Minute` 自动推断）。
+§2.1 的「中点 0.45–0.60」是**正午**口径：黄昏本来就该更暗，用同一把尺子量会把每一帧诚实的黄昏都判成 FAIL（2026-10-18 实测 0.375 被判失败）。
+
+| 时段 | saturation | midpoint | headroom |
+|---|---|---|---|
+| day | > 0.25 | 0.45 – 0.60 | < 0.10 |
+| dusk | > 0.25 | 0.33 – 0.55 | < 0.10 |
+| night | > 0.15 | 0.20 – 0.42 | < 0.10 |
+
+**M0 验收口径**：三帧（正午 / 黄昏 / 夜）**同机位**、天空**互可区分**、每帧能数出「天顶—中层—地平线」三段；白天至少一条云；夜里能看到月与星。
+
 | 天气 | 表现（全部是"画上去的"，不是模拟的） |
 |---|---|
 | 雨 | 斜向细线段（3–4 px）+ 水面涟漪环 + 地面降饱和 10% |
@@ -166,7 +177,7 @@
 | 色板（地表 / 水体 / 植被 / 描边 / 暗部） | `Gen/SolsticeGenerators.h` 的 `FCelPalette` → **`FCelPalette`**（**所有目视取色的常量必须走 `CelSrgb()`**：直接写 `FLinearColor(0.40f,0.54f,0.26f)` 等于把 sRGB 当线性，出屏会亮一档、饱和度掉一半——2026-10-17 整界发灰就是这么来的） |
 | 地形与植被几何（层数、坡面、草丛密度） | `Gen/SolsticeGenerators.cpp` 的 `BuildChunk` / `BuildLife`（去纸层叠） |
 | 主材质与 Cel 分带（段数、分段点、描边宽、天色） | `Render/SolsticePaperMaterial.cpp` → **`SolsticeCelMaterial.cpp`**（`M_Paper` → `M_Cel`） |
-| 灯光、雾、天空盒 | `World/SolsticeRealm.cpp` 顶部匿名 namespace + `BuildSkyDome()` |
+| 灯光、雾、天空 | `World/SolsticeRealm.cpp` 顶部匿名 namespace + **`BuildSkyMesh()` / `UpdateSkyView()`**（天空是一张**相机子挂的平面卡**，不是穹顶：世界空间半球永远装不住 5.6R 处的相机。卡片几何由 `Gen::BuildSkyCard()` 生成） |
 | 后期（移轴 DOF / 暗角 / 降饱和） | 后处理体积资产（`Content/`），参数化 |
 
 > 分层规则见 [`../tech/tech.md`](../tech/tech.md) §1.6：**表现层配方不得影响 Sim 的演化**——改完代跑 `bench`，digest 必须不变。
