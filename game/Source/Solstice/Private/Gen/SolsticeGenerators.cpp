@@ -1361,15 +1361,21 @@ namespace Solstice
 			for (int32 Index = 0; Index < Banks; ++Index)
 			{
 				const float Seed = static_cast<float>(Index) * 2.399963f;
-				const float Width = HalfWidth * FMath::Lerp(0.07f, 0.16f, FMath::Frac(Seed * 1.07f));
-				const float Height = HalfHeight * FMath::Lerp(0.040f, 0.072f, FMath::Frac(Seed * 1.51f));
+				// Wider than tall, but not by the 4:1 the first pass used: at that ratio a bank is
+				// a pale plate lying on the sky (every noon frame, 2026-10-18). 2.4:1 with a deeper
+				// shadow sliver reads as a cloud you could almost touch.
+				const float Width = HalfWidth * FMath::Lerp(0.065f, 0.125f, FMath::Frac(Seed * 1.07f));
+				const float Height = HalfHeight * FMath::Lerp(0.055f, 0.095f, FMath::Frac(Seed * 1.51f));
 				// Kept clear of the horizon band on purpose: a white cloud against the near-white
 				// horizon is invisible, which is how the first pass "had no clouds" while drawing
 				// ten of them. The top of the range leaves room for the bank's own height - a
 				// centre at 0.99 puts half a cloud outside the card, and drift moves it there.
 				const float Height01 = Height / HalfHeight;
 				const float VMax = FMath::Max(H + 0.20f, Top - Height01 * 1.15f);
-				const float V = FMath::Lerp(H + 0.16f, VMax, FMath::Frac(Seed * 0.613f));
+								// Further up the card than the horizon band: a white cloud against a near-white
+				// horizon has no contrast at all, and every noon frame's cloud bank sat exactly
+				// there (2026-10-18). Higher up the sky is bluer, so the same white reads.
+				const float V = FMath::Lerp(H + 0.28f, VMax, FMath::Frac(Seed * 0.613f));
 				const float U = FMath::Frac(FMath::Frac(Seed * 0.377f) + Paint.Drift * 0.8f) * 1.90f - 0.95f;
 				const float Fade = 1.0f - FMath::SmoothStep(0.56f, 0.93f, FMath::Abs(U));
 				if (Fade <= 0.01f)
@@ -1384,9 +1390,9 @@ namespace Solstice
 				// dark underside reads as a flying saucer (it did, in every dusk frame). Staggering
 				// the side puffs upward and thinning the shaded base to a sliver gives a lumpy
 				// silhouette with the flat top the cel recipe asks for.
-				SkyPuff(Out, CumulusZ, Centre, Width, Height, Height * 0.34f, LitNow, BaseNow);
+				SkyPuff(Out, CumulusZ, Centre, Width, Height, Height * 0.46f, LitNow, BaseNow);
 				SkyPuff(Out, CumulusZ, Centre + FVector2D(Width * 0.70f, Height * 0.34f),
-					Width * 0.60f, Height * 0.80f, Height * 0.26f, LitNow, BaseNow);
+					Width * 0.60f, Height * 0.80f, Height * 0.36f, LitNow, BaseNow);
 				SkyPuff(Out, CumulusZ, Centre - FVector2D(Width * 0.72f, Height * 0.10f),
 					Width * 0.52f, Height * 0.66f, Height * 0.22f, LitNow, BaseNow);
 			}
