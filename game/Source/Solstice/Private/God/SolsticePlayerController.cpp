@@ -2,20 +2,44 @@
 
 #include "God/SolsticePlayerController.h"
 
+#include "Camera/CameraComponent.h"
 #include "Core/SolsticeGameInstance.h"
 #include "Engine/World.h"
 #include "God/SolsticeObserver.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sim/SolsticeKernel.h"
-#include "World/SolsticeRealmActor.h"
+#include "Solstice.h"
+#include "World/SolsticeRealm.h"
 
 using namespace Solstice;
 
 namespace
 {
 	constexpr float OrbitSensitivity = 0.55f;
-	constexpr float ZoomStep = 1400.0f;
-	constexpr float PanSpeed = 5200.0f;
+	/** One wheel notch moves this fraction of the current distance (proportional zoom). */
+	constexpr float ZoomPerNotch = 0.12f;
+	/** WASD covers this fraction of the current view per second (proportional pan). */
+	constexpr float PanPerSecond = 0.35f;
+
+	/**
+		Distance at which a disc of RealmRadius exactly fills the camera's vertical field.
+
+		The lens is deliberately long - ASolsticeObserver sets 28 degrees for the tilt-shift
+		diorama read - and that makes every "radius * N" framing wrong: at 2.1 radii a 28 degree
+		lens covers about 6.7k of height against a 12.8k wide realm, so the entry shot showed the
+		middle half of the world. Solving the field instead keeps the shot correct whatever lens
+		and world size the project ends up with.
+	*/
+	float FitDistance(const ASolsticeObserver* Observer, float RealmRadius)
+	{
+		// UCameraComponent::FieldOfView is the *horizontal* angle, and a 16:9 viewport runs out of
+		// vertical field long before it runs out of horizontal - that mismatch is exactly why the
+		// old framing showed a slice of the world instead of the whole disc. Solve the vertical.
+		const float FovH = (Observer && Observer->GetCamera()) ? Observer->GetCamera()->FieldOfView : 38.0f;
+		const float HalfH = FMath::DegreesToRadians(FMath::Max(10.0f, FovH) * 0.5f);
+		const float HalfV = FMath::Atan(FMath::Tan(HalfH) / (16.0f / 9.0f));
+		return RealmRadius * 1.09f / FMath::Max(0.03f, FMath::Tan(HalfV));
+	}
 }
 
 ASolsticePlayerController::ASolsticePlayerController()
@@ -39,7 +63,9 @@ void ASolsticePlayerController::BeginPlay()
 		if (ASolsticeRealm* RealmActor = Realm())
 		{
 			const float Radius = RealmActor->GetRealmRadiusUU();
-			ObserverPawn->SetDefaults(Radius * 2.1f, -52.0f, -34.0f);
+			// Whole realm in frame on entry. The old "radius * 2.1" was written against the square
+			// board and cropped the world in half once the lens was fixed at 28 degrees.
+			ObserverPawn->SetDefaults(FitDistance(ObserverPawn, Radius), -52.0f, -50.0f);
 			ObserverPawn->SetFocus(RealmActor->GetRealmCentre());
 		}
 	}
@@ -216,25 +242,6 @@ void ASolsticePlayerController::RerollHand()
 	Instance->Kernel().RerollHand();
 	SelectSlot(0);
 	SetStatus(TEXT("换了一手"), TEXT("Hand rerolled"));
-}
-
-void ASolsticePlayerController::UndoRelease()
-{
-	USolsticeGameInstance* Instance = Game();
-	if (!Instance)
-	{
-		return;
-	}
-	FString ReasonZh;
-	FString ReasonEn;
-	if (Instance->Kernel().UndoPendingSettle(ReasonZh, ReasonEn))
-	{
-		SetStatus(TEXT("纸还湿着 · 已撤回"), TEXT("Paper was still wet - taken back"));
-	}
-	else
-	{
-		SetStatus(ReasonZh, ReasonEn);
-	}
 }
 
 void ASolsticePlayerController::OpenPack(EPackKind Kind)
@@ -432,14 +439,35 @@ void ASolsticePlayerController::PollInput(float DeltaSeconds)
 		ObserverPawn->Orbit(MouseX * OrbitSensitivity, -MouseY * OrbitSensitivity);
 	}
 
+	// Satellite mode: the camera keeps circling what it looks at, slowly, until you take over.
+	if (bAutoOrbit)
+	{
+		ObserverPawn->Orbit(AutoOrbitDegPerSecond * DeltaSeconds, 0.0f);
+	}
+
 	const float Wheel = GetInputAnalogKeyState(EKeys::MouseWheelAxis);
 	if (!FMath::IsNearlyZero(Wheel))
 	{
-		ObserverPawn->Zoom(-Wheel * ZoomStep);
+		// Proportional: a notch is 12% of wherever you are, so framing the whole diorama (29k) and
+		// reading the paper edge (3k) feel the same. A fixed 1400 step needed twenty-one notches to
+		// get from the entry shot to a close-up.
+		ObserverPawn->Zoom(-Wheel * ObserverPawn->GetDistance() * ZoomPerNotch);
+	}
+
+	// Any deliberate camera input hands control back instantly. An intro that keeps fighting the
+	// player is worse than no intro at all.
+	const bool bPlayerTookOver =
+		IsInputKeyDown(EKeys::LeftMouseButton) || IsInputKeyDown(EKeys::RightMouseButton) ||
+		IsInputKeyDown(EKeys::MiddleMouseButton) || !FMath::IsNearlyZero(Wheel) ||
+		IsInputKeyDown(EKeys::W) || IsInputKeyDown(EKeys::A) ||
+		IsInputKeyDown(EKeys::S) || IsInputKeyDown(EKeys::D);
+	if (ObserverPawn->IsMoving() && bPlayerTookOver)
+	{
+		ObserverPawn->CancelMove();
 	}
 
 	FVector Focus = ObserverPawn->GetFocus();
-	const float Pan = PanSpeed * DeltaSeconds;
+	const float Pan = ObserverPawn->GetDistance() * PanPerSecond * DeltaSeconds;
 	const float YawRad = FMath::DegreesToRadians(ObserverPawn->GetYaw());
 	const FVector Forward(FMath::Cos(YawRad), FMath::Sin(YawRad), 0.0f);
 	const FVector Right = FVector::CrossProduct(FVector::UpVector, Forward);
@@ -462,7 +490,12 @@ void ASolsticePlayerController::PollInput(float DeltaSeconds)
 	if (WasInputKeyJustPressed(EKeys::SpaceBar)) { ReleaseSelectedAtCursor(); }
 	if (WasInputKeyJustPressed(EKeys::X)) { RecycleSelected(); }
 	if (WasInputKeyJustPressed(EKeys::R)) { RerollHand(); }
-	if (WasInputKeyJustPressed(EKeys::Z)) { UndoRelease(); }
+	// Z (undo) is gone, by decision A-02: "there is no undo." INTERVENTION's no-undo red line is
+	// the hard constraint - the three-second window is "the paper is still wet", not a take-back.
+	// The binding, the button and the function itself are all gone now (structure cleanup), so
+	// nothing can quietly re-expose an undo path.
+	// V walks the six framings (F1-F4 still jump straight to the four core ones).
+	if (WasInputKeyJustPressed(EKeys::V)) { CycleCameraPreset(); }
 	if (WasInputKeyJustPressed(EKeys::Q)) { CycleSlot(-1); }
 	if (WasInputKeyJustPressed(EKeys::E)) { CycleSlot(1); }
 
@@ -477,26 +510,106 @@ void ASolsticePlayerController::PollInput(float DeltaSeconds)
 	if (WasInputKeyJustPressed(EKeys::Nine)) { SelectSlot(8); }
 	if (WasInputKeyJustPressed(EKeys::Zero)) { SelectSlot(9); }
 
+	// ---- panels (A-01 重排) --------------------------------------------------
+	// One scheme, three places: this block, the help.* strings and UI-UX SS2. The card library
+	// moves from P to L (Library) so P is free for the ornament / screenshot mode that UI-UX
+	// SS2.2 always specified on P - it was simply occupied by the library.
 	if (WasInputKeyJustPressed(EKeys::C)) { ToggleChronicle(); }
-	if (WasInputKeyJustPressed(EKeys::P)) { TogglePool(); }
 	if (WasInputKeyJustPressed(EKeys::B)) { TogglePacks(); }
 	if (WasInputKeyJustPressed(EKeys::G)) { ToggleCreator(); }
 	if (WasInputKeyJustPressed(EKeys::H)) { ToggleHelp(); }
+	if (WasInputKeyJustPressed(EKeys::L)) { TogglePool(); }
+	if (WasInputKeyJustPressed(EKeys::P)) { bShowUI = false; }	// 摆件模式第一步：隐藏界面，Tab 复原
 
-	if (WasInputKeyJustPressed(EKeys::F1)) { ToggleTimeMode(); }
-	if (WasInputKeyJustPressed(EKeys::F2)) { TogglePause(); }
-	if (WasInputKeyJustPressed(EKeys::F3)) { CycleSpeed(); }
-	if (WasInputKeyJustPressed(EKeys::F4)) { ToggleLanguage(); }
+	// ---- camera --------------------------------------------------------------
+	if (WasInputKeyJustPressed(EKeys::F1)) { ApplyCameraPreset(0); }
+	if (WasInputKeyJustPressed(EKeys::F2)) { ApplyCameraPreset(1); }
+	if (WasInputKeyJustPressed(EKeys::F3)) { ApplyCameraPreset(2); }
+	if (WasInputKeyJustPressed(EKeys::F4)) { ApplyCameraPreset(3); }
+	if (WasInputKeyJustPressed(EKeys::Y)) { ToggleAutoOrbit(); }
+
+	// ---- time & language ------------------------------------------------------
+	if (WasInputKeyJustPressed(EKeys::T)) { ToggleTimeMode(); }
+	if (WasInputKeyJustPressed(EKeys::K)) { TogglePause(); }
+	if (WasInputKeyJustPressed(EKeys::J)) { CycleSpeed(); }
+	if (WasInputKeyJustPressed(EKeys::O)) { ToggleLanguage(); }
+
+	// ---- debug / creator ------------------------------------------------------
 	if (WasInputKeyJustPressed(EKeys::F5)) { CycleRealPace(); }
 	if (WasInputKeyJustPressed(EKeys::F6)) { OpenPack(EPackKind::RandomElement); }
 	if (WasInputKeyJustPressed(EKeys::F7)) { OpenPack(EPackKind::Special); }
 	if (WasInputKeyJustPressed(EKeys::F8)) { CyclePreset(); }
-	if (WasInputKeyJustPressed(EKeys::L)) { SowLifeSeed(); }
+	if (WasInputKeyJustPressed(EKeys::N)) { SowLifeSeed(); }	// 播种生命：L 让给卡库
 
 	if (WasInputKeyJustPressed(EKeys::Escape))
 	{
-		ConsoleCommand(TEXT("quit"));
+		// Quit through the exit move instead of cutting to black: the same 1.8 s pull-back the
+		// preview shows, and the process ends when it has played out.
+		ASolsticeRealm* EscapeRealm = Realm();
+		if (ObserverPawn && EscapeRealm)
+		{
+			ObserverPawn->PlayOutro(FitDistance(ObserverPawn, EscapeRealm->GetRealmRadiusUU()));
+			QuitCountdown = 1.9f;
+		}
+		else
+		{
+			ConsoleCommand(TEXT("quit"));
+		}
 	}
+}
+
+void ASolsticePlayerController::ApplyCameraPreset(int32 Index)
+{
+	ASolsticeObserver* ObserverPawn = Observer();
+	ASolsticeRealm* RealmActor = Realm();
+	if (!ObserverPawn || !RealmActor)
+	{
+		return;
+	}
+
+	// Four framings for a diorama, all of them inside the shell: wide three-quarter, satellite
+	// survey, low tilt-shift close-up, and a straight map view. Distance is expressed in realm
+	// radii, so a world of any size frames the same way.
+	const float Radius = RealmActor->GetRealmRadiusUU();
+	CameraPreset = FMath::Clamp(Index, 0, 5);
+
+	// All four framings are fractions of the fitting distance, so they stay correct when the lens
+	// or the world size changes - the old radius multiples cropped the realm badly under the 28
+	// degree lens. F1 is the whole diorama, F2 surveys, F3 gets close for the paper edge, F4 is
+	// the map view.
+	// Framings are fractions of the *fitting* distance, never multiples of the realm radius: a
+	// radius multiple cannot know the lens, and at 38 degrees a disc needs roughly 5.6 radii to
+	// fit, so every radius-based preset cropped the world. Fit already means "the whole realm in
+	// frame", so 1.00 is literally the full world at that pitch.
+	const float Fit = FitDistance(ObserverPawn, Radius);
+	float Distance = Fit;
+	float Yaw = -52.0f;
+	float Pitch = -50.0f;
+	switch (CameraPreset)
+	{
+	// 0 three-quarter isometric: the standard diorama read, whole world
+	case 0:		Distance = Fit * 1.00f; Yaw = -45.0f; Pitch = -35.0f; break;
+	// 1 satellite survey: whole world from almost directly above
+	case 1:		Distance = Fit * 1.00f; Yaw = -52.0f; Pitch = -76.0f; break;
+	// 2 low ornament: whole world, camera just above the rim
+	case 2:		Distance = Fit * 0.94f; Yaw = -28.0f; Pitch = -14.0f; break;
+	// 3 blueprint: whole world, straight down
+	case 3:		Distance = Fit * 1.00f; Yaw = -90.0f; Pitch = -87.0f; break;
+	// 4 far establishing: the realm plus its shell and the sky around it
+	case 4:		Distance = Fit * 1.45f; Yaw = -135.0f; Pitch = -32.0f; break;
+	// 5 single-tile close-up: materials, standees, paper edges
+	default:	Distance = Fit * 0.30f; Yaw = -30.0f; Pitch = -22.0f; break;
+	}
+
+	ObserverPawn->SetDefaults(Distance, Yaw, Pitch);
+	ObserverPawn->SetFocus(RealmActor->GetRealmCentre());
+}
+
+void ASolsticePlayerController::CycleCameraPreset()
+{
+	// V walks the six framings so one key is enough to find "the whole world" without remembering
+	// which function key it lives on. F1-F4 still jump straight to the four core ones.
+	ApplyCameraPreset((CameraPreset + 1) % 6);
 }
 
 void ASolsticePlayerController::Tick(float DeltaSeconds)
@@ -504,6 +617,69 @@ void ASolsticePlayerController::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 
 	StatusAge += DeltaSeconds;
+
+	// ---- entry framing and the intro move --------------------------------------
+	// Applied on the first frame where the realm actually exists. Doing it in BeginPlay looked
+	// right but silently did nothing whenever the GameMode had not spawned the realm yet, and the
+	// camera then stayed at the pawn's constructor distance (17000) - which is the "I only see a
+	// slice of the world" the framing was supposed to fix in the first place.
+	// The framing is handed over as the *end* of the intro move, so entering the realm is one
+	// gesture: sweep in, settle, then the player owns the camera.
+	if (!bCameraFramed)
+	{
+		if (ASolsticeObserver* ObserverPawn = Observer())
+		{
+			if (ASolsticeRealm* RealmActor = Realm())
+			{
+				const float Fit = FitDistance(ObserverPawn, RealmActor->GetRealmRadiusUU());
+				ObserverPawn->SetFocus(RealmActor->GetRealmCentre());
+				ObserverPawn->PlayIntro(Fit);
+				bCameraFramed = true;
+
+				// Diagnostics, not decoration: every framing bug in this loop came from a number
+				// nobody had printed - a radius that was 4x the assumed one, a distance clamp below
+				// the required distance, a lens read as vertical when it is horizontal.
+				UE_LOG(LogSolstice, Warning,
+					TEXT("[diag] camera: realmRadius=%.0f uu, fov=%.1f deg (horizontal), fit=%.0f, introFrom=%.0f, clamp now=%.0f"),
+					RealmActor->GetRealmRadiusUU(),
+					ObserverPawn->GetCamera() ? ObserverPawn->GetCamera()->FieldOfView : -1.0f,
+					Fit, Fit * 2.35f, 600000.0f);
+			}
+		}
+	}
+
+	if (ASolsticeObserver* ObserverPawn = Observer())
+	{
+		ObserverPawn->TickMove(DeltaSeconds);
+
+		// Where the camera actually is, every two seconds. Every framing bug so far came down to a
+		// number nobody had printed: the arm length, the world location and the angles together say
+		// immediately whether the camera is outside the shell, inside it, or under the ground.
+		static int32 DiagFrames = 0;
+		if ((++DiagFrames % 120) == 0)
+		{
+			FVector CamLoc = FVector::ZeroVector;
+			if (const UCameraComponent* Cam = ObserverPawn->GetCamera())
+			{
+				CamLoc = Cam->GetComponentLocation();
+			}
+			UE_LOG(LogSolstice, Warning,
+				TEXT("[diag] cam: dist=%.0f pitch=%.1f yaw=%.1f loc=(%.0f,%.0f,%.0f) focus=(%.0f,%.0f,%.0f)"),
+				ObserverPawn->GetDistance(), ObserverPawn->GetPitch(), ObserverPawn->GetYaw(),
+				CamLoc.X, CamLoc.Y, CamLoc.Z,
+				ObserverPawn->GetFocus().X, ObserverPawn->GetFocus().Y, ObserverPawn->GetFocus().Z);
+		}
+	}
+
+	// Quitting is two beats now: Esc starts the exit move, the quit lands when it finishes.
+	if (QuitCountdown >= 0.0f)
+	{
+		QuitCountdown -= DeltaSeconds;
+		if (QuitCountdown < 0.0f)
+		{
+			ConsoleCommand(TEXT("quit"));
+		}
+	}
 
 	// Tab lives outside the bShowUI gate: a hidden HUD must still be able to unhide itself.
 	if (WasInputKeyJustPressed(EKeys::Tab)) { ToggleUI(); }

@@ -28,7 +28,7 @@ public:
 
 	Solstice::FSimKernel& Kernel() { return Sim; }
 	const Solstice::FSimKernel& Kernel() const { return Sim; }
-	Solstice::FSolsticeRealityAnchor& Anchor() { return Reality; }
+	Solstice::FRealityAnchor& Anchor() { return Reality; }
 	const Solstice::FLoadedContent& Content() const { return Loaded; }
 
 	bool IsReady() const { return bReady; }
@@ -58,7 +58,7 @@ public:
 
 private:
 	Solstice::FSimKernel Sim;
-	Solstice::FSolsticeRealityAnchor Reality;
+	Solstice::FRealityAnchor Reality;
 	Solstice::FLoadedContent Loaded;
 	bool bReady = false;
 };

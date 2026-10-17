@@ -109,7 +109,9 @@ namespace Solstice
 	/** Material dictionary (docs/setting/PHYSICS.md SS2.1 table A/B). */
 	enum class EMaterial : uint8
 	{
-		Paper = 0,
+		/* 首项是「裸地」（未上色的地表）。D-01 之前它叫 Paper，
+		   那是纸雕时期的命名；Sim 侧它从来不是「纸」，是材质档位。 */
+		Bare = 0,
 		Soil,
 		Clay,
 		Mud,
@@ -254,6 +256,124 @@ namespace Solstice
 		extern const float BiomeDesertFertility;	// 0.15
 		extern const float LapseRatePer100m;	// -0.6
 		extern const int32 IndividualBudgetSmall;	// 1200 (docs WORLD SS2.1)
+
+		// ---- terrain shaping (docs/setting/WORLD.md SS2.2) ----
+		/** Profile exponent applied to the normalised noise before scaling to metres. */
+		extern const float TerrainShapingExponent;		// 1.25
+		/** Land height = floor + shaped * (max - range); these two set the span. */
+		extern const float TerrainHeightFloorMeters;	// 2.0
+		extern const float TerrainHeightRangeMeters;	// 6.0
+		/** Below this normalised height the profile drops to the shoreline. */
+		extern const float ShorelineThreshold01;		// 0.18
+		extern const float ShorelineMinHeightMeters;	// 1.0
+		/** Fertility / moisture fields, each seeded from its own noise layer. */
+		extern const float TerrainFertilityBase;		// 0.35
+		extern const float TerrainFertilityNoise;		// 0.6
+		extern const float TerrainFertilityMin;			// 0.05
+		extern const float TerrainMoistureBase;			// 0.30
+		extern const float TerrainMoistureNoise;		// 0.5
+
+		// ---- water bodies (docs/setting/WORLD.md SS3.1) ----
+		/** Depth below the water level still counted as water; sea / lake / wetland split. */
+		extern const float WaterDepthEpsilonMeters;		// 0.01
+		extern const float SeaDepthMeters;				// 1.0
+		extern const float LakeDepthMeters;				// 0.5
+
+		// ---- biome classification (docs/setting/WORLD.md SS2.2) ----
+		/** One biome's admissible window; every bound is inclusive. */
+		struct FBiomeRange
+		{
+			float TempMinC;
+			float TempMaxC;
+			float MoistureMin;
+			float MoistureMax;
+			float HeightMaxM;
+			float FertilityMin;
+		};
+		extern const FBiomeRange BiomeWoodland;
+		extern const FBiomeRange BiomeGrass;
+		/** Rock slope is a "too dry / too high / too poor" test, not a window. */
+		extern const float BiomeRockSlopeMoistureMax;	// 0.40
+		extern const float BiomeRockSlopeHeightMinM;	// 25.0
+		extern const float BiomeRockSlopeFertilityMax;	// 0.20
+		/** Fallback when nothing above matched: above this height it reads as rock, else grass. */
+		extern const float BiomeHighlandHeightM;		// 25.0
+
+		// ---- cadence (docs/tech/ARCHITECTURE.md SS1.3) ----
+		/** World minutes between weather steps (SimLOD: cheap always, expensive rarely). */
+		extern const float WeatherStepWorldMinutes;		// 10.0
+		/** Ecology step period in world minutes, by SimLOD level 0 / 1 / 2. */
+		extern const float EcoPeriodLod0WorldMinutes;	// 4.0
+		extern const float EcoPeriodLod1WorldMinutes;	// 8.0
+		extern const float EcoPeriodLod2WorldMinutes;	// 12.0
+		/** Biome drift is a threshold crossing, so it is only rechecked every Nth eco step. */
+		extern const int32 BiomeRecheckEveryEcoSteps;	// 15
+		/** One coarse visual refresh per this many world minutes. */
+		extern const int32 MarkAllDirtyEveryWorldMinutes;	// 360
+
+		// ---- solar geometry (docs/setting/WORLD.md SS3.2, docs/gameplay/TIME.md SS3) ----
+		extern const float EarthAxialTiltDeg;			// 23.44
+		extern const float DeclinationDayOffset;		// 284.0
+		extern const float SolarHourAngleDegPerHour;	// 15.0
+		extern const float SolarAzimuthOffsetDeg;		// 180.0
+		extern const float LatitudeClampDeg;			// 66.0
+		/** Light intensity ramps over altitude: (altitude + floor) / span. */
+		extern const float LightAltitudeFloorDeg;		// -6.0
+		extern const float LightAltitudeSpanDeg;		// 70.0
+		extern const float CloudOcclusionFactor;		// 0.7
+		/** Colour temperature sweeps horizon -> zenith as the sun rises. */
+		extern const float ColorTempHorizonK;			// 2100.0
+		extern const float ColorTempZenithK;			// 6800.0
+		extern const float ColorTempExponent;			// 0.6
+		/** Air temperature = base + seasonal + diurnal - cloud cooling. */
+		extern const float BaseAirTempC;				// 14.0
+		extern const float SeasonalAmplitudeC;			// 8.0
+		extern const float SeasonalLatitudeGain;		// 0.08
+		extern const float SeasonalDayOffset;			// 15.0
+		extern const float DiurnalAmplitudeC;			// 5.0
+		extern const float DiurnalPeakHour;				// 9.0
+		extern const float CloudCoolingC;				// 1.5
+
+		// ---- slow drift rates (docs/setting/PHYSICS.md SS5) ----
+		extern const float HumidityRainGain;			// 0.02
+		extern const float HumidityEvaporateBaseC;		// 10.0
+		extern const float HumidityEvaporateRate;		// 0.0004
+		extern const float HumidityWaterGain;			// 0.002
+		extern const float OxygenTargetVegetation;		// 0.35
+		extern const float OxygenDriftRate;				// 0.00005
+		extern const float OxygenMin;					// 0.85
+		extern const float OxygenMax;					// 1.20
+		extern const float WaterLevelLerpRate;			// 0.08
+		extern const float PrecipitationToRainDivisor;	// 4.0
+		extern const float TileTempLerpRate;			// 0.25
+		extern const float WaterTempOffsetC;			// -0.8
+		extern const float BurnRatePerMinute;			// 0.05
+		extern const float BurnVegetationLossPerMinute;	// 0.03
+		extern const float BurnAshGainPerMinute;		// 0.01
+		extern const float BurnMoistureLossPerMinute;	// 0.01
+		extern const float AshToFertility;				// 0.15
+
+		// ---- presentation-facing sim readouts ----
+		/** Depth span that normalises the water sheet shading (matches the base water level). */
+		extern const float WaterSheetShadingDepthMeters;	// 6.0
+		/** Fallback sky readings when the real-weather bridge is unavailable (docs/gameplay/TIME.md SS4.2). */
+		extern const float DefaultHumidity01;			// 0.45
+		extern const float DefaultCloudCover01;			// 0.15
+		/** Real-weather bridge thresholds (docs/gameplay/TIME.md SS4.2). */
+		extern const float RainToStormThreshold01;		// 0.5
+		extern const float CloudToOvercastThreshold01;	// 0.6
+
+		// ---- tile moisture / snow / ice (docs/setting/PHYSICS.md SS5) ----
+		extern const float TileMoistureRainGain;		// 0.004
+		extern const float TileMoistureEvaporateBaseC;	// 5.0
+		extern const float TileMoistureEvaporateRate;	// 0.00002
+		extern const float TileWaterMoisture;			// 0.95
+		extern const float TileWaterMoistureLerpRate;	// 0.05
+		/** Ice forms at or below 0 C, and melts once it warms past this again. */
+		extern const float IceMeltTempC;				// 0.5
+		extern const float SnowMinRainIntensity;		// 0.2
+		extern const float SnowMeltTempC;				// 1.0
+		extern const float SnowMeltMoistureGain;		// 0.08
 	}
 
 	// ------------------------------------------------------------------
@@ -271,7 +391,7 @@ namespace Solstice
 		float Burning = 0.0f;			// 0 = unlit, 0..1 = 明燃 intensity
 		float Painted = 0.0f;			// 0 = raw paper (chaos), 1 = fully coloured
 		float Ash = 0.0f;				// 0..1 burnt layer, feeds fertility
-		uint8 Mat = static_cast<uint8>(EMaterial::Paper);
+		uint8 Mat = static_cast<uint8>(EMaterial::Bare);
 		uint8 Biome = static_cast<uint8>(EBiome::Chaos);
 		uint8 WaterBody = static_cast<uint8>(EWaterBody::None);
 
@@ -287,12 +407,12 @@ namespace Solstice
 		int32 ChunkSize = 64;				// 分块 64 x 64
 		int32 Algo = 0;						// 0 ridges / 1 islands / 2 canyon / 3 plateau / 4 basin / 5 archipelago
 		uint32 Seed = 20261016u;
-		float BaseWaterLevel = 6.0f;
+		float BaseWaterLevel = 18.0f;	// ~mid height of the 0-42 m terrain: low ground becomes a lake, not a puddle
 		float Latitude = 31.23f;			// real-world anchor (docs/gameplay/TIME.md SS4.2)
 		float TidalAmplitude = 1.0f;
 		bool bTides = false;
-		bool bChaosStart = true;			// 混沌初态: no life, uncoloured paper (WORLD SS3.3 step 5)
-		bool bWithLifeSeed = false;			// creator step 8 "life seed"
+		bool bChaosStart = false;			// the realm opens already painted (WORLD SS3.3 step 5)
+		bool bWithLifeSeed = true;			// creator step 8 "life seed"
 		int32 StartingDayOfYear = -1;		// -1 = derive from the real clock
 		FString RealmId = TEXT("realm.valley-20261016");
 		FString RealmNameZh = TEXT("无名之界");
@@ -313,7 +433,7 @@ namespace Solstice
 		float WindSpeed = 1.0f;
 		float WindDirDeg = 270.0f;
 		float OxygenLevel = 1.0f;
-		float WaterLevel = 6.0f;
+		float WaterLevel = 18.0f;
 		uint8 Weather = static_cast<uint8>(EWeather::Clear);
 		bool bSnowing = false;				// rain replaced by snow below 0 degC
 		bool bRealityOffline = false;		// weather API degraded (docs/gameplay/TIME.md SS4.2)
@@ -506,9 +626,9 @@ namespace Solstice
 	FLinearColor CardClassColor(ECardClass Class);
 	FLinearColor MaterialColor(EMaterial Material);
 
-	/** Paper base tones used by the chaos (uncoloured) state, docs/setting/WORLD.md SS3.3. */
-	FLinearColor RawPaperColor();
-	FLinearColor KraftPaperColor();
+	/** Cel base tones used by the chaos (uncoloured) state, docs/setting/WORLD.md SS3.3. */
+	FLinearColor RawBareColor();
+	FLinearColor KraftCelColor();
 
 	/** Tier display: 0..9 numeric, "over" for the over-tier, "ban" for forbidden. */
 	FString TierLabel(int32 Tier);

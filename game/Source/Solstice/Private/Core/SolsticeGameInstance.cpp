@@ -3,7 +3,7 @@
 #include "Core/SolsticeGameInstance.h"
 
 #include "Core/SolsticeLocalization.h"
-#include "Render/SolsticePaperMaterial.h"
+#include "Render/SolsticeCelMaterial.h"
 #include "Solstice.h"
 
 USolsticeGameInstance::USolsticeGameInstance()
@@ -49,9 +49,9 @@ void USolsticeGameInstance::Init()
 
 	// The master material is generated on first launch. This runs before the SolsticeEditor
 	// module (PostEngineInit) has necessarily installed its builder, so this is only a first
-	// attempt - FPaperMaterials::Ensure re-attempts once the builder arrives.
+	// attempt - FCelMaterials::Ensure re-attempts once the builder arrives.
 	UE_LOG(LogSolstice, Log, TEXT("paper materials at Init: %s"),
-		Solstice::FPaperMaterials::Ensure() ? TEXT("authored") : TEXT("pending"));
+		Solstice::FCelMaterials::Ensure() ? TEXT("authored") : TEXT("pending"));
 }
 
 void USolsticeGameInstance::Shutdown()

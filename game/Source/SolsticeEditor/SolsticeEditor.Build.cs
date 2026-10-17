@@ -26,9 +26,7 @@ public class SolsticeEditor : ModuleRules
 			"AssetTools",
 			"AssetRegistry",
 			"RenderCore",
-			"RHI",
-			"Json",
-			"JsonUtilities"
+			"RHI"
 		});
 	}
 }

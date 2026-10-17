@@ -123,7 +123,7 @@ namespace Solstice
 			if (In.Equals(TEXT("sand"), ESearchCase::IgnoreCase)) { return EMaterial::Sand; }
 			if (In.Equals(TEXT("ash"), ESearchCase::IgnoreCase)) { return EMaterial::Ash; }
 			if (In.Equals(TEXT("tissue"), ESearchCase::IgnoreCase)) { return EMaterial::Tissue; }
-			return EMaterial::Paper;
+			return EMaterial::Bare;
 		}
 
 		int32 ParseAlgo(const FString& In)

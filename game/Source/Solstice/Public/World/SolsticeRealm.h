@@ -13,10 +13,11 @@
 #include "GameFramework/Actor.h"
 #include "Gen/SolsticeGenerators.h"
 #include "Sim/SolsticeKernel.h"
-#include "SolsticeRealmActor.generated.h"
+#include "SolsticeRealm.generated.h"
 
 class UDirectionalLightComponent;
 class UExponentialHeightFogComponent;
+class UPostProcessComponent;
 class UProceduralMeshComponent;
 class USceneComponent;
 class USkyLightComponent;
@@ -71,8 +72,10 @@ protected:
 	UPROPERTY() TObjectPtr<UDirectionalLightComponent> SunLight;
 	UPROPERTY() TObjectPtr<USkyLightComponent> SkyLight;
 	UPROPERTY() TObjectPtr<UExponentialHeightFogComponent> Fog;
+	/** Unbound colour grade that gives the whole realm its warm-paper cast (see the constructor). */
+	UPROPERTY() TObjectPtr<UPostProcessComponent> PostProcess;
 
-	Solstice::FPaperPalette Palette;
+	Solstice::FCelPalette Palette;
 	Solstice::FMeshBuilder Scratch;
 	Solstice::FMeshBuilder OutlineScratch;
 	int32 ChunksPerAxis = 2;
@@ -81,4 +84,11 @@ protected:
 	bool bStaticsBuilt = false;
 	bool bSkyVisible = true;
 	float LastSolarAltitude = -999.0f;
+
+	// Change signatures. Both meshes used to be rebuilt on a timer whether or not anything had
+	// changed; they are now rebuilt only when what they are made of actually differs.
+	uint32 LastPropSignature = 0;
+	uint32 LastSkySignature = 0;
+	bool bPropsBuilt = false;
+	bool bSkyBuilt = false;
 };

@@ -20,8 +20,8 @@ public:
 	virtual void ShutdownModule() override;
 };
 
-/** Builds /Game/Core/M_Paper and /Game/Core/M_Ink if they are missing. */
-class FSolsticePaperMaterialBuilder
+/** Builds /Game/Core/M_Cel and /Game/Core/M_Ink if they are missing. */
+class FSolsticeCelMaterialBuilder
 {
 public:
 	/** Returns true when both masters exist afterwards. Skips any package already on disk. */

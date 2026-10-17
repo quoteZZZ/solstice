@@ -2,7 +2,7 @@
 //
 // The look is cel-shaded paper, not PBR (docs/art/ART-STYLE.md SS1): a handful of hard light
 // bands, no specular, no Lumen, no Nanite. The master material is generated into
-// /Game/Core/M_Paper by the editor module on first launch, so a fresh checkout rebuilds its
+// /Game/Core/M_Cel by the editor module on first launch, so a fresh checkout rebuilds its
 // own content. If generation is unavailable the renderer degrades to the engine's vertex
 // colour material, which is unlit - the realm still reads as paper, it just loses the sun.
 //
@@ -26,19 +26,19 @@ namespace Solstice
 	 * Set by SolsticeEditor at startup. The runtime module only ever calls it; it never links
 	 * against UnrealEd, which keeps the headless target free of editor dependencies.
 	 */
-	extern SOLSTICE_API TFunction<bool()> GBuildPaperMaterials;
+	extern SOLSTICE_API TFunction<bool()> GBuildCelMaterials;
 
-	struct SOLSTICE_API FPaperMaterialSet
+	struct SOLSTICE_API FCelMaterialSet
 	{
-		UMaterialInterface* Paper = nullptr;
+		UMaterialInterface* Cel = nullptr;
 		UMaterialInterface* Ink = nullptr;
-		UMaterialInstanceDynamic* PaperMID = nullptr;
+		UMaterialInstanceDynamic* CelMID = nullptr;
 		UMaterialInstanceDynamic* InkMID = nullptr;
 		/** True when our own master material was found and generated, false when we fell back. */
 		bool bAuthored = false;
 	};
 
-	class SOLSTICE_API FPaperMaterials
+	class SOLSTICE_API FCelMaterials
 	{
 	public:
 		/**
@@ -50,7 +50,7 @@ namespace Solstice
 		/** Resolve (and, on a fresh checkout, generate) the materials. Safe to call repeatedly. */
 		static bool Ensure();
 
-		static const FPaperMaterialSet& Get() { return Set; }
+		static const FCelMaterialSet& Get() { return Set; }
 
 		/** Push the current sky into the material parameters. Cheap; call once per frame. */
 		static void ApplySky(const FSkyState& Sky, bool bChaos);
@@ -59,7 +59,7 @@ namespace Solstice
 		static void ApplyToMesh(UProceduralMeshComponent* Mesh);
 
 	private:
-		static FPaperMaterialSet Set;
+		static FCelMaterialSet Set;
 		static bool bResolved;
 		/** True once the builder has been invoked, so we never retry it every frame. */
 		static bool bBuildAttempted;

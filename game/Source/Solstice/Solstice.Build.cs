@@ -20,7 +20,6 @@ public class Solstice : ModuleRules
 			"Engine",
 			"InputCore",
 			"Json",
-			"JsonUtilities",
 			"ProceduralMeshComponent"
 		});
 

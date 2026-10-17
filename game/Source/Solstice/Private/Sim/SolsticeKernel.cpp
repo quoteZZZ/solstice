@@ -64,6 +64,72 @@ namespace Solstice
 			return Norm > 0.0f ? Sum / Norm : 0.0f;
 		}
 
+		// ------------------------------------------------------------------
+		// Terrain noise parameters (docs/setting/WORLD.md SS2.2)
+		// One group per generator branch in GenerateTerrain(). These are implementation
+		// constants of the noise itself - they live here, named, instead of inline in the
+		// switch, so a shape tune is a single-file read.
+		// ------------------------------------------------------------------
+		namespace TerrainNoise
+		{
+			/** Seed offsets that keep each derived field independent of the base field. */
+			constexpr uint32 RidgeDetailSeed = 31u;
+			constexpr uint32 FertilitySeed = 77u;
+			constexpr uint32 MoistureSeed = 131u;
+
+			// ridges: 山脊
+			constexpr float RidgeFreq = 3.0f;
+			constexpr int32 RidgeOctaves = 5;
+			constexpr float RidgeDetailFreq = 9.0f;
+			constexpr int32 RidgeDetailOctaves = 3;
+			constexpr float RidgeMainWeight = 0.85f;
+			constexpr float RidgeDetailWeight = 0.15f;
+
+			// islands: 岛屿
+			constexpr float IslandFreq = 2.6f;
+			constexpr int32 IslandOctaves = 4;
+			constexpr float IslandFalloffExponent = 2.2f;
+			constexpr float IslandScale = 1.35f;
+
+			// canyon: 峡谷
+			constexpr float CanyonFreq = 2.2f;
+			constexpr int32 CanyonOctaves = 4;
+			constexpr float CanyonCutScale = 2.0f;
+			constexpr float CanyonScale = 0.9f;
+			constexpr float CanyonBias = 0.35f;
+			constexpr float CanyonCutWeight = 0.55f;
+
+			// plateau: 台地
+			constexpr float PlateauFreq = 1.8f;
+			constexpr int32 PlateauOctaves = 3;
+			constexpr float PlateauThreshold = 0.48f;
+			constexpr float PlateauHighBase = 0.78f;
+			constexpr float PlateauHighGain = 0.4f;
+			constexpr float PlateauLowBase = 0.18f;
+			constexpr float PlateauLowGain = 0.3f;
+
+			// basin: 盆地
+			constexpr float BasinFreq = 2.4f;
+			constexpr int32 BasinOctaves = 4;
+			constexpr float BasinScale = 0.75f;
+			constexpr float BasinRadialWeight = 0.55f;
+			constexpr float BasinBias = 0.12f;
+
+			// archipelago: 群岛
+			constexpr float ArchipelagoFreq = 4.2f;
+			constexpr int32 ArchipelagoOctaves = 5;
+			constexpr float ArchipelagoRadialWeight = 0.75f;
+			constexpr float ArchipelagoScale = 1.5f;
+			constexpr float ArchipelagoBias = 0.45f;
+			constexpr float ArchipelagoFalloffScale = 1.6f;
+
+			// shared derived fields
+			constexpr float FertilityFreq = 5.0f;
+			constexpr int32 FertilityOctaves = 3;
+			constexpr float MoistureFreq = 4.0f;
+			constexpr int32 MoistureOctaves = 3;
+		}
+
 		/** Material dictionary, docs/setting/PHYSICS.md SS2.1 table A + table B albedo. */
 		struct FMaterialProps
 		{
@@ -79,7 +145,7 @@ namespace Solstice
 
 		const FMaterialProps GMaterialProps[static_cast<int32>(EMaterial::Count)] =
 		{
-			/* Paper     */ { 700.0f, 0.20f, 0.90f, 230.0f, 4.0f, 0.10f, 0.10f, 0.70f },
+			/* Cel     */ { 700.0f, 0.20f, 0.90f, 230.0f, 4.0f, 0.10f, 0.10f, 0.70f },
 			/* Soil      */ { 1600.0f, 0.30f, 0.00f, 9999.0f, 3.0f, 0.20f, 0.50f, 0.30f },
 			/* Clay      */ { 1800.0f, 0.40f, 0.00f, 9999.0f, 3.0f, 0.20f, 0.20f, 0.35f },
 			/* Mud       */ { 1700.0f, 0.10f, 0.00f, 9999.0f, 4.0f, 0.20f, 0.90f, 0.12f },
@@ -146,7 +212,18 @@ namespace Solstice
 		Config.ChunkSize = FMath::Clamp(Config.ChunkSize, 8, Config.Size);
 		ChunksPerAxis = FMath::Max(1, (Config.Size + Config.ChunkSize - 1) / Config.ChunkSize);
 
-		Rng.SeedFrom(Config.Seed != 0u ? Config.Seed : 1u);
+		// Seed 0 means "no fixed seed": draw one per realm, the way a new world in a sandbox game
+		// does. world.json ships 0, so every fresh realm is a different place; pin a number there
+		// (or in Config.Seed) when a specific world has to be reproduced.
+		if (Config.Seed == 0u)
+		{
+			Config.Seed = static_cast<uint32>(FDateTime::Now().GetTicks() & 0xFFFFFFFFull);
+			if (Config.Seed == 0u)
+			{
+				Config.Seed = 1u;
+			}
+		}
+		Rng.SeedFrom(Config.Seed);
 
 		const int32 TileCount = Config.Size * Config.Size;
 		Tiles.SetNum(TileCount);
@@ -171,14 +248,36 @@ namespace Solstice
 			}
 			StartDayOfYear = DayOfYear;
 		}
-		WorldMinute = 0;
+
+		// Start at the real clock's time of day, not at midnight. WorldMinute drives the sun, the
+		// sky and every solar term, and the world runs 1:1 with the system clock - so starting it
+		// at zero meant every new realm opened at 00:00, sun below the horizon, the whole sheet
+		// multiplied down into night tints. That was the single largest reason a fresh world read
+		// as grey. The date was already taken from the real calendar above; take the hour too.
+		{
+			const FDateTime RealNow = FDateTime::Now();
+			int32 MinuteOfDay = RealNow.GetHour() * 60 + RealNow.GetMinute();
+
+			// ...but a fresh realm should not open in the dark. Between 22:00 and 05:00 the real
+			// clock would drop you into the night tints, so the world starts at dawn instead and
+			// runs forward from there; the date is still the real one and the clock catches up.
+			constexpr int32 DawnMinute = 6 * 60 + 30;
+			constexpr int32 DuskMinute = 20 * 60 + 30;
+			if (MinuteOfDay < DawnMinute || MinuteOfDay > DuskMinute)
+			{
+				MinuteOfDay = DawnMinute;
+			}
+			WorldMinute = static_cast<int64>(MinuteOfDay);
+		}
 		DayReleaseCount.Init(0, Catalog.Cards.Num());
 
 		// --- sky initial values -----------------------------------------
 		Sky.WaterLevel = Config.BaseWaterLevel;
-		Sky.AirTempC = Reality.bValid ? Reality.TemperatureC : 14.0f;
-		Sky.Humidity = Reality.bValid ? FMath::Clamp(Reality.Humidity01, 0.05f, 0.95f) : 0.45f;
-		Sky.CloudCover = Reality.bValid ? FMath::Clamp(Reality.CloudCover01, 0.0f, 1.0f) : 0.15f;
+		Sky.AirTempC = Reality.bValid ? Reality.TemperatureC : Tuning::BaseAirTempC;
+		Sky.Humidity = Reality.bValid
+			? FMath::Clamp(Reality.Humidity01, 0.05f, 0.95f) : Tuning::DefaultHumidity01;
+		Sky.CloudCover = Reality.bValid
+			? FMath::Clamp(Reality.CloudCover01, 0.0f, 1.0f) : Tuning::DefaultCloudCover01;
 
 		// --- world -------------------------------------------------------
 		GenerateTerrain();
@@ -243,55 +342,66 @@ namespace Solstice
 				{
 				case 0:	// ridges: 山脊
 				{
-					const float N = Fbm(U * 3.0f, V * 3.0f, Seed, 5);
+					const float N = Fbm(U * TerrainNoise::RidgeFreq, V * TerrainNoise::RidgeFreq, Seed, TerrainNoise::RidgeOctaves);
 					const float Ridge = 1.0f - FMath::Abs(N * 2.0f - 1.0f);
-					H01 = FMath::Clamp(Ridge * 0.85f + Fbm(U * 9.0f, V * 9.0f, Seed + 31u, 3) * 0.15f, 0.0f, 1.0f);
+					H01 = FMath::Clamp(Ridge * TerrainNoise::RidgeMainWeight
+						+ Fbm(U * TerrainNoise::RidgeDetailFreq, V * TerrainNoise::RidgeDetailFreq,
+							Seed + TerrainNoise::RidgeDetailSeed, TerrainNoise::RidgeDetailOctaves) * TerrainNoise::RidgeDetailWeight,
+						0.0f, 1.0f);
 					break;
 				}
 				case 1:	// islands: 岛屿
 				{
-					const float N = Fbm(U * 2.6f, V * 2.6f, Seed, 4);
-					const float Falloff = FMath::Clamp(1.0f - FMath::Pow(FMath::Clamp(Radial, 0.0f, 1.0f), 2.2f), 0.0f, 1.0f);
-					H01 = FMath::Clamp(N * Falloff * 1.35f, 0.0f, 1.0f);
+					const float N = Fbm(U * TerrainNoise::IslandFreq, V * TerrainNoise::IslandFreq, Seed, TerrainNoise::IslandOctaves);
+					const float Falloff = FMath::Clamp(
+						1.0f - FMath::Pow(FMath::Clamp(Radial, 0.0f, 1.0f), TerrainNoise::IslandFalloffExponent), 0.0f, 1.0f);
+					H01 = FMath::Clamp(N * Falloff * TerrainNoise::IslandScale, 0.0f, 1.0f);
 					break;
 				}
 				case 2:	// canyon: 峡谷
 				{
-					const float N = Fbm(U * 2.2f, V * 2.2f, Seed, 4);
-					const float Cut = FMath::Abs(U - 0.5f) * 2.0f;
-					H01 = FMath::Clamp(N * 0.9f + 0.35f - Cut * 0.55f, 0.0f, 1.0f);
+					const float N = Fbm(U * TerrainNoise::CanyonFreq, V * TerrainNoise::CanyonFreq, Seed, TerrainNoise::CanyonOctaves);
+					const float Cut = FMath::Abs(U - 0.5f) * TerrainNoise::CanyonCutScale;
+					H01 = FMath::Clamp(N * TerrainNoise::CanyonScale + TerrainNoise::CanyonBias
+						- Cut * TerrainNoise::CanyonCutWeight, 0.0f, 1.0f);
 					break;
 				}
 				case 3:	// plateau: 台地
 				{
-					const float N = Fbm(U * 1.8f, V * 1.8f, Seed, 3);
-					H01 = N > 0.48f ? 0.78f + (N - 0.48f) * 0.4f : 0.18f + N * 0.3f;
+					const float N = Fbm(U * TerrainNoise::PlateauFreq, V * TerrainNoise::PlateauFreq, Seed, TerrainNoise::PlateauOctaves);
+					H01 = N > TerrainNoise::PlateauThreshold
+						? TerrainNoise::PlateauHighBase + (N - TerrainNoise::PlateauThreshold) * TerrainNoise::PlateauHighGain
+						: TerrainNoise::PlateauLowBase + N * TerrainNoise::PlateauLowGain;
 					H01 = FMath::Clamp(H01, 0.0f, 1.0f);
 					break;
 				}
 				case 4:	// basin: 盆地
 				{
-					const float N = Fbm(U * 2.4f, V * 2.4f, Seed, 4);
-					H01 = FMath::Clamp(N * 0.75f + Radial * 0.55f - 0.12f, 0.0f, 1.0f);
+					const float N = Fbm(U * TerrainNoise::BasinFreq, V * TerrainNoise::BasinFreq, Seed, TerrainNoise::BasinOctaves);
+					H01 = FMath::Clamp(N * TerrainNoise::BasinScale + Radial * TerrainNoise::BasinRadialWeight
+						- TerrainNoise::BasinBias, 0.0f, 1.0f);
 					break;
 				}
 				default:	// archipelago: 群岛
 				{
-					const float N = Fbm(U * 4.2f, V * 4.2f, Seed, 5);
-					const float Falloff = FMath::Clamp(1.0f - Radial * 0.75f, 0.0f, 1.0f);
-					H01 = FMath::Clamp((N * 1.5f - 0.45f) * Falloff * 1.6f, 0.0f, 1.0f);
+					const float N = Fbm(U * TerrainNoise::ArchipelagoFreq, V * TerrainNoise::ArchipelagoFreq, Seed, TerrainNoise::ArchipelagoOctaves);
+					const float Falloff = FMath::Clamp(1.0f - Radial * TerrainNoise::ArchipelagoRadialWeight, 0.0f, 1.0f);
+					H01 = FMath::Clamp((N * TerrainNoise::ArchipelagoScale - TerrainNoise::ArchipelagoBias)
+						* Falloff * TerrainNoise::ArchipelagoFalloffScale, 0.0f, 1.0f);
 					break;
 				}
 				}
 
 				// Bias the profile so plains / mid slopes / peaks all appear.
-				const float Shaped = FMath::Clamp(FMath::Pow(H01, 1.25f), 0.0f, 1.0f);
-				float Height = 2.0f + Shaped * (Tuning::MaxHeightMeters - 6.0f);
+				const float Shaped = FMath::Clamp(FMath::Pow(H01, Tuning::TerrainShapingExponent), 0.0f, 1.0f);
+				float Height = Tuning::TerrainHeightFloorMeters
+					+ Shaped * (Tuning::MaxHeightMeters - Tuning::TerrainHeightRangeMeters);
 
 				// Open a shoreline: anything below the base water level becomes submerged.
-				if (H01 < 0.18f)
+				if (H01 < Tuning::ShorelineThreshold01)
 				{
-					Height = FMath::Lerp(1.0f, WaterLevel - 1.0f, H01 / 0.18f);
+					Height = FMath::Lerp(Tuning::ShorelineMinHeightMeters, WaterLevel - Tuning::ShorelineMinHeightMeters,
+						H01 / Tuning::ShorelineThreshold01);
 				}
 
 				Height = FMath::RoundToFloat(Height / Tuning::HeightQuantum) * Tuning::HeightQuantum;
@@ -300,10 +410,21 @@ namespace Solstice
 				FTile& Tile = Tiles[Index];
 				Tile = FTile();
 				Tile.Height = FMath::Clamp(Height, 0.0f, Tuning::MaxHeightMeters);
-				Tile.Fertility = FMath::Clamp(0.35f + Fbm(U * 5.0f, V * 5.0f, Seed + 77u, 3) * 0.6f, 0.05f, 1.0f);
-				Tile.Moisture = FMath::Clamp(0.30f + Fbm(U * 4.0f, V * 4.0f, Seed + 131u, 3) * 0.5f, 0.0f, 1.0f);
-				Tile.Mat = static_cast<uint8>(EMaterial::Paper);
-				Tile.Painted = 0.0f;
+				Tile.Fertility = FMath::Clamp(
+					Tuning::TerrainFertilityBase
+						+ Fbm(U * TerrainNoise::FertilityFreq, V * TerrainNoise::FertilityFreq,
+							Seed + TerrainNoise::FertilitySeed, TerrainNoise::FertilityOctaves) * Tuning::TerrainFertilityNoise,
+					Tuning::TerrainFertilityMin, 1.0f);
+				Tile.Moisture = FMath::Clamp(
+					Tuning::TerrainMoistureBase
+						+ Fbm(U * TerrainNoise::MoistureFreq, V * TerrainNoise::MoistureFreq,
+							Seed + TerrainNoise::MoistureSeed, TerrainNoise::MoistureOctaves) * Tuning::TerrainMoistureNoise,
+					0.0f, 1.0f);
+				Tile.Mat = static_cast<uint8>(EMaterial::Bare);
+				// A realm that does not open in chaos opens already painted. The self-paint rate is
+				// 0.012 per world minute, so waiting for it meant staring at an unbroken grey sheet
+				// for the first forty minutes; colour the land now and let the seasons change it.
+				Tile.Painted = Config.bChaosStart ? 0.0f : 0.72f;
 			}
 		}
 
@@ -322,15 +443,15 @@ namespace Solstice
 			const int32 X = Index % Size;
 			const int32 Y = Index / Size;
 
-			if (Tile.Height < WaterLevel - 0.01f)
+			if (Tile.Height < WaterLevel - Tuning::WaterDepthEpsilonMeters)
 			{
 				const bool bAtEdge = (X == 0 || Y == 0 || X == Size - 1 || Y == Size - 1);
 				const float Depth = WaterLevel - Tile.Height;
-				if (bAtEdge && Depth > 1.0f)
+				if (bAtEdge && Depth > Tuning::SeaDepthMeters)
 				{
 					Tile.WaterBody = static_cast<uint8>(EWaterBody::Sea);
 				}
-				else if (Depth > 0.5f)
+				else if (Depth > Tuning::LakeDepthMeters)
 				{
 					Tile.WaterBody = static_cast<uint8>(EWaterBody::Lake);
 				}
@@ -360,17 +481,23 @@ namespace Solstice
 				continue;
 			}
 			const float Temp = Tile.LocalTempC;
-			if (Tile.Moisture < 0.40f && Tile.Height > 25.0f && Tile.Fertility < 0.20f)
+			const Tuning::FBiomeRange& Woodland = Tuning::BiomeWoodland;
+			const Tuning::FBiomeRange& Grass = Tuning::BiomeGrass;
+			if (Tile.Moisture < Tuning::BiomeRockSlopeMoistureMax
+				&& Tile.Height > Tuning::BiomeRockSlopeHeightMinM
+				&& Tile.Fertility < Tuning::BiomeRockSlopeFertilityMax)
 			{
 				Tile.Biome = static_cast<uint8>(EBiome::RockSlope);
 			}
-			else if (Temp >= 5.0f && Temp <= 28.0f && Tile.Moisture >= 0.50f && Tile.Moisture <= 0.80f
-				&& Tile.Height < 30.0f && Tile.Fertility > 0.60f)
+			else if (Temp >= Woodland.TempMinC && Temp <= Woodland.TempMaxC
+				&& Tile.Moisture >= Woodland.MoistureMin && Tile.Moisture <= Woodland.MoistureMax
+				&& Tile.Height < Woodland.HeightMaxM && Tile.Fertility > Woodland.FertilityMin)
 			{
 				Tile.Biome = static_cast<uint8>(EBiome::Woodland);
 			}
-			else if (Temp >= 5.0f && Temp <= 30.0f && Tile.Moisture >= 0.30f && Tile.Moisture <= 0.60f
-				&& Tile.Height < 20.0f && Tile.Fertility > 0.40f)
+			else if (Temp >= Grass.TempMinC && Temp <= Grass.TempMaxC
+				&& Tile.Moisture >= Grass.MoistureMin && Tile.Moisture <= Grass.MoistureMax
+				&& Tile.Height < Grass.HeightMaxM && Tile.Fertility > Grass.FertilityMin)
 			{
 				Tile.Biome = static_cast<uint8>(EBiome::Grass);
 			}
@@ -380,7 +507,8 @@ namespace Solstice
 			}
 			else
 			{
-				Tile.Biome = (Tile.Height > 25.0f) ? static_cast<uint8>(EBiome::RockSlope) : static_cast<uint8>(EBiome::Grass);
+				Tile.Biome = (Tile.Height > Tuning::BiomeHighlandHeightM)
+					? static_cast<uint8>(EBiome::RockSlope) : static_cast<uint8>(EBiome::Grass);
 			}
 		}
 	}
@@ -525,20 +653,21 @@ namespace Solstice
 		StepTiles(1.0f);
 
 		WeatherAccumulator += 1.0f;
-		if (WeatherAccumulator >= 10.0f)
+		if (WeatherAccumulator >= Tuning::WeatherStepWorldMinutes)
 		{
 			StepWeather(WeatherAccumulator);
 			WeatherAccumulator = 0.0f;
 		}
 
 		const int32 LOD = GetSimLodLevel();
-		const float EcoPeriod = (LOD >= 2) ? 12.0f : ((LOD == 1) ? 8.0f : 4.0f);
+		const float EcoPeriod = (LOD >= 2) ? Tuning::EcoPeriodLod2WorldMinutes
+			: ((LOD == 1) ? Tuning::EcoPeriodLod1WorldMinutes : Tuning::EcoPeriodLod0WorldMinutes);
 		EcoAccumulator += 1.0f;
 		if (EcoAccumulator >= EcoPeriod)
 		{
 			StepEcology();
 			// Reclassify occasionally: biome drift is a threshold crossing, not a script.
-			if ((++EcoStepCounter % 15) == 0)
+			if ((++EcoStepCounter % Tuning::BiomeRecheckEveryEcoSteps) == 0)
 			{
 				ClassifyBiomes();
 			}
@@ -548,7 +677,7 @@ namespace Solstice
 		StepDisturbance(1.0f);
 
 		// One coarse visual refresh every six world hours (see MarkRegionBuilt contract).
-		if ((WorldMinute % 360) == 0)
+		if ((WorldMinute % Tuning::MarkAllDirtyEveryWorldMinutes) == 0)
 		{
 			MarkAllDirty();
 		}
@@ -556,35 +685,42 @@ namespace Solstice
 
 	void FSimKernel::StepEnvironment()
 	{
-		const float MinutesOfDay = static_cast<float>(WorldMinute % 1440);
+		const float MinutesOfDay = static_cast<float>(WorldMinute % 1440);	// 1440 world minutes per day
 		const float HourOfDay = MinutesOfDay / 60.0f;
 		const float DayFraction = MinutesOfDay / 1440.0f;
 		Sky.DayFraction = DayFraction;
 
 		// ---- solar position (docs/setting/WORLD.md SS3.2, docs/gameplay/TIME.md SS3) ----
 		const int32 DayOfYear = (StartDayOfYear + (GetWorldDay() - 1)) % 365;
-		const float Declination = 23.44f * FMath::Sin(2.0f * PI * (284.0f + static_cast<float>(DayOfYear)) / 365.0f);
-		const float Latitude = FMath::Clamp(Config.Latitude, -66.0f, 66.0f);
-		const float HourAngle = 15.0f * (HourOfDay - 12.0f);
+		const float Declination = Tuning::EarthAxialTiltDeg
+			* FMath::Sin(2.0f * PI * (Tuning::DeclinationDayOffset + static_cast<float>(DayOfYear)) / 365.0f);
+		const float Latitude = FMath::Clamp(Config.Latitude, -Tuning::LatitudeClampDeg, Tuning::LatitudeClampDeg);
+		const float HourAngle = Tuning::SolarHourAngleDegPerHour * (HourOfDay - 12.0f);	// solar noon at 12:00
 		const float SinAlt = FMath::Sin(FMath::DegreesToRadians(Latitude)) * FMath::Sin(FMath::DegreesToRadians(Declination))
 			+ FMath::Cos(FMath::DegreesToRadians(Latitude)) * FMath::Cos(FMath::DegreesToRadians(Declination))
 			* FMath::Cos(FMath::DegreesToRadians(HourAngle));
 		const float Altitude = FMath::RadiansToDegrees(FMath::Asin(FMath::Clamp(SinAlt, -1.0f, 1.0f)));
 		Sky.SolarAltitudeDeg = Altitude;
-		Sky.SunAzimuthDeg = FMath::Fmod(HourOfDay * 15.0f + 180.0f, 360.0f);
+		Sky.SunAzimuthDeg = FMath::Fmod(
+			HourOfDay * Tuning::SolarHourAngleDegPerHour + Tuning::SolarAzimuthOffsetDeg, 360.0f);
 
-		const float Elevation01 = FMath::Clamp((Altitude + 6.0f) / 70.0f, 0.0f, 1.0f);
-		Sky.LightIntensity = Elevation01 * (1.0f - Sky.CloudCover * 0.7f);
+		const float Elevation01 = FMath::Clamp(
+			(Altitude - Tuning::LightAltitudeFloorDeg) / Tuning::LightAltitudeSpanDeg, 0.0f, 1.0f);
+		Sky.LightIntensity = Elevation01 * (1.0f - Sky.CloudCover * Tuning::CloudOcclusionFactor);
 
 		// Warmer at the horizon, cooler at zenith.
-		Sky.ColorTempK = FMath::Lerp(2100.0f, 6800.0f, FMath::Pow(Elevation01, 0.6f));
+		Sky.ColorTempK = FMath::Lerp(Tuning::ColorTempHorizonK, Tuning::ColorTempZenithK,
+			FMath::Pow(Elevation01, Tuning::ColorTempExponent));
 
 		// ---- air temperature ----
-		const float Seasonal = -FMath::Cos(2.0f * PI * (static_cast<float>(DayOfYear) - 15.0f) / 365.0f);	// -1 winter .. +1 summer
+		const float Seasonal = -FMath::Cos(
+			2.0f * PI * (static_cast<float>(DayOfYear) - Tuning::SeasonalDayOffset) / 365.0f);	// -1 winter .. +1 summer
 		const float Hemisphere = (Latitude >= 0.0f) ? 1.0f : -1.0f;
-		const float SeasonalC = Seasonal * Hemisphere * (8.0f + FMath::Abs(Latitude) * 0.08f);
-		const float DiurnalC = FMath::Sin(2.0f * PI * (HourOfDay - 9.0f) / 24.0f) * 5.0f;
-		Sky.AirTempC = 14.0f + SeasonalC + DiurnalC - Sky.CloudCover * 1.5f;
+		const float SeasonalC = Seasonal * Hemisphere
+			* (Tuning::SeasonalAmplitudeC + FMath::Abs(Latitude) * Tuning::SeasonalLatitudeGain);
+		const float DiurnalC = FMath::Sin(2.0f * PI * (HourOfDay - Tuning::DiurnalPeakHour) / 24.0f)
+			* Tuning::DiurnalAmplitudeC;
+		Sky.AirTempC = Tuning::BaseAirTempC + SeasonalC + DiurnalC - Sky.CloudCover * Tuning::CloudCoolingC;
 
 		if (TimeMode == ETimeMode::Real && Reality.bValid)
 		{
@@ -626,7 +762,7 @@ namespace Solstice
 		if (!FMath::IsNearlyEqual(Sky.WaterLevel, TargetWaterLevel, 0.02f))
 		{
 			const float Previous = Sky.WaterLevel;
-			Sky.WaterLevel = FMath::Lerp(Sky.WaterLevel, TargetWaterLevel, 0.08f);
+			Sky.WaterLevel = FMath::Lerp(Sky.WaterLevel, TargetWaterLevel, Tuning::WaterLevelLerpRate);
 			if (!FMath::IsNearlyEqual(Previous, Sky.WaterLevel, Tuning::HeightQuantum))
 			{
 				RecomputeWaterBodies();
@@ -635,24 +771,29 @@ namespace Solstice
 		}
 
 		// Net humidity drift.
-		const float RainIn = Sky.RainIntensity * 0.02f;
-		const float Evaporate = FMath::Max(0.0f, Sky.AirTempC - 10.0f) * 0.0004f;
-		Sky.Humidity = FMath::Clamp(Sky.Humidity + RainIn - Evaporate + WaterFraction * 0.002f, 0.02f, 0.99f);
+		const float RainIn = Sky.RainIntensity * Tuning::HumidityRainGain;
+		const float Evaporate = FMath::Max(0.0f, Sky.AirTempC - Tuning::HumidityEvaporateBaseC)
+			* Tuning::HumidityEvaporateRate;
+		Sky.Humidity = FMath::Clamp(
+			Sky.Humidity + RainIn - Evaporate + WaterFraction * Tuning::HumidityWaterGain, 0.02f, 0.99f);
 
 		// Slow variable: oxygen tracks total vegetation.
 		const float VegMean = GetVegetationMean();
-		Sky.OxygenLevel = FMath::Clamp(Sky.OxygenLevel + (VegMean - 0.35f) * 0.00005f, 0.85f, 1.20f);
+		Sky.OxygenLevel = FMath::Clamp(
+			Sky.OxygenLevel + (VegMean - Tuning::OxygenTargetVegetation) * Tuning::OxygenDriftRate,
+			Tuning::OxygenMin, Tuning::OxygenMax);
 
 		// Weather may follow the real reading in real mode.
 		if (TimeMode == ETimeMode::Real && Reality.bValid && Reality.bWeatherFromNetwork)
 		{
-			Sky.RainIntensity = FMath::Clamp(Reality.PrecipitationMm / 4.0f, 0.0f, 1.0f);
+			Sky.RainIntensity = FMath::Clamp(Reality.PrecipitationMm / Tuning::PrecipitationToRainDivisor, 0.0f, 1.0f);
 			if (Sky.RainIntensity > 0.0f)
 			{
 				// The real reading only says "water is falling"; the state machine picks the label.
-				Sky.Weather = static_cast<uint8>((Sky.RainIntensity > 0.5f) ? EWeather::Storm : EWeather::LightRain);
+				Sky.Weather = static_cast<uint8>(
+					(Sky.RainIntensity > Tuning::RainToStormThreshold01) ? EWeather::Storm : EWeather::LightRain);
 			}
-			else if (Sky.CloudCover > 0.6f)
+			else if (Sky.CloudCover > Tuning::CloudToOvercastThreshold01)
 			{
 				Sky.Weather = static_cast<uint8>(EWeather::Cloudy);
 			}
@@ -672,9 +813,9 @@ namespace Solstice
 			float Target = BaseTemp + Lapse;
 			if (Tile.IsWater())
 			{
-				Target -= 0.8f;
+				Target += Tuning::WaterTempOffsetC;
 			}
-			Tile.LocalTempC = FMath::Lerp(Tile.LocalTempC, Target, 0.25f);
+			Tile.LocalTempC = FMath::Lerp(Tile.LocalTempC, Target, Tuning::TileTempLerpRate);
 		}
 	}
 
@@ -691,12 +832,13 @@ namespace Solstice
 			float Moisture = Tile.Moisture;
 			if (bWet)
 			{
-				Moisture += Sky.RainIntensity * 0.004f * DeltaWorldMinutes;
+				Moisture += Sky.RainIntensity * Tuning::TileMoistureRainGain * DeltaWorldMinutes;
 			}
-			Moisture -= FMath::Max(0.0f, Tile.LocalTempC - 5.0f) * 0.00002f * DeltaWorldMinutes;
+			Moisture -= FMath::Max(0.0f, Tile.LocalTempC - Tuning::TileMoistureEvaporateBaseC)
+				* Tuning::TileMoistureEvaporateRate * DeltaWorldMinutes;
 			if (Tile.IsWater())
 			{
-				Moisture = FMath::Lerp(Moisture, 0.95f, 0.05f);
+				Moisture = FMath::Lerp(Moisture, Tuning::TileWaterMoisture, Tuning::TileWaterMoistureLerpRate);
 			}
 			Tile.Moisture = FMath::Clamp(Moisture, 0.0f, 1.0f);
 
@@ -705,34 +847,36 @@ namespace Solstice
 			{
 				Tile.Mat = static_cast<uint8>(EMaterial::Ice);
 			}
-			else if (Tile.GetMat() == EMaterial::Ice && Tile.LocalTempC >= 0.5f)
+			else if (Tile.GetMat() == EMaterial::Ice && Tile.LocalTempC >= Tuning::IceMeltTempC)
 			{
 				Tile.Mat = Tile.IsWater() ? static_cast<uint8>(EMaterial::Water) : static_cast<uint8>(EMaterial::Mud);
 			}
-			else if (!Tile.IsWater() && Sky.bSnowing && Sky.RainIntensity > 0.2f && Tile.LocalTempC < 0.0f
-				&& Tile.GetMat() != EMaterial::Snow)
+			else if (!Tile.IsWater() && Sky.bSnowing && Sky.RainIntensity > Tuning::SnowMinRainIntensity
+				&& Tile.LocalTempC < 0.0f && Tile.GetMat() != EMaterial::Snow)
 			{
 				Tile.Mat = static_cast<uint8>(EMaterial::Snow);
 			}
-			else if (Tile.GetMat() == EMaterial::Snow && Tile.LocalTempC > 1.0f && !Sky.bSnowing)
+			else if (Tile.GetMat() == EMaterial::Snow && Tile.LocalTempC > Tuning::SnowMeltTempC && !Sky.bSnowing)
 			{
 				Tile.Mat = static_cast<uint8>(EMaterial::Mud);
-				Tile.Moisture = FMath::Clamp(Tile.Moisture + 0.08f, 0.0f, 1.0f);
+				Tile.Moisture = FMath::Clamp(Tile.Moisture + Tuning::SnowMeltMoistureGain, 0.0f, 1.0f);
 			}
 
 			// ---- fire: spread needs heat, fuel and dryness (PHYSICS SS5) ----
 			const FMaterialProps& Props = PropsOf(Tile.GetMat());
 			if (Tile.Burning > 0.0f)
 			{
-				const float BurnRate = 0.05f * DeltaWorldMinutes * Sky.OxygenLevel;
+				const float BurnRate = Tuning::BurnRatePerMinute * DeltaWorldMinutes * Sky.OxygenLevel;
 				Tile.Burning = FMath::Max(0.0f, Tile.Burning - BurnRate);
-				Tile.Vegetation = FMath::Max(0.0f, Tile.Vegetation - 0.03f * DeltaWorldMinutes);
-				Tile.Ash = FMath::Clamp(Tile.Ash + 0.01f * DeltaWorldMinutes, 0.0f, 1.0f);
-				Tile.Moisture = FMath::Max(0.0f, Tile.Moisture - 0.01f * DeltaWorldMinutes);
+				Tile.Vegetation = FMath::Max(0.0f,
+					Tile.Vegetation - Tuning::BurnVegetationLossPerMinute * DeltaWorldMinutes);
+				Tile.Ash = FMath::Clamp(Tile.Ash + Tuning::BurnAshGainPerMinute * DeltaWorldMinutes, 0.0f, 1.0f);
+				Tile.Moisture = FMath::Max(0.0f,
+					Tile.Moisture - Tuning::BurnMoistureLossPerMinute * DeltaWorldMinutes);
 				if (Tile.Burning <= 0.0f)
 				{
 					Tile.Mat = static_cast<uint8>(EMaterial::Ash);
-					Tile.Fertility = FMath::Clamp(Tile.Fertility + Tile.Ash * 0.15f, 0.0f, 1.0f);
+					Tile.Fertility = FMath::Clamp(Tile.Fertility + Tile.Ash * Tuning::AshToFertility, 0.0f, 1.0f);
 					MarkDirtyAt(Index);
 				}
 				else
@@ -775,7 +919,7 @@ namespace Solstice
 				{
 					Tile.Painted = FMath::Min(1.0f, Tile.Painted + 0.012f * DeltaWorldMinutes);
 				}
-				if (Tile.Painted >= 0.5f && Tile.GetMat() == EMaterial::Paper)
+				if (Tile.Painted >= 0.5f && Tile.GetMat() == EMaterial::Bare)
 				{
 					// First visible colouring of this tile: switch to its biome material.
 					EMaterial Painted2 = EMaterial::Soil;
@@ -2041,7 +2185,7 @@ namespace Solstice
 				if (Props.Combustibility > 0.0f || Tile.Vegetation > 0.05f)
 				{
 					Tile.Burning = 1.0f;
-					if (Tile.GetMat() == EMaterial::Paper || Tile.GetMat() == EMaterial::LivePlant)
+					if (Tile.GetMat() == EMaterial::Bare || Tile.GetMat() == EMaterial::LivePlant)
 					{
 						Tile.Mat = static_cast<uint8>(EMaterial::DeadWood);
 					}

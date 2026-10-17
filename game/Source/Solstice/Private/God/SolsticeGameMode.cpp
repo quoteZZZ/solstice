@@ -5,8 +5,8 @@
 #include "Engine/World.h"
 #include "God/SolsticeObserver.h"
 #include "God/SolsticePlayerController.h"
-#include "UI/SolsticeHUDActor.h"
-#include "World/SolsticeRealmActor.h"
+#include "UI/SolsticeHUD.h"
+#include "World/SolsticeRealm.h"
 
 ASolsticeGameMode::ASolsticeGameMode()
 {

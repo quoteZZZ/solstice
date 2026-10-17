@@ -36,6 +36,17 @@ public:
 
 	UCameraComponent* GetCamera() const { return Camera; }
 
+	// ---- entry / exit move ---------------------------------------------------
+	// The approved v3 move. It lives here because this class owns distance / yaw / pitch, and the
+	// tween is nothing but those three numbers interpolated; whoever ticks the game just calls
+	// TickMove. Any player input cancels it (see the controller), because stealing the camera back
+	// from someone who has started dragging is the one thing a camera animation must never do.
+	void PlayIntro(float TargetDistance);
+	void PlayOutro(float TargetDistance);
+	void CancelMove();
+	void TickMove(float DeltaSeconds);
+	bool IsMoving() const { return bMoving; }
+
 protected:
 	UPROPERTY() TObjectPtr<USceneComponent> Root;
 	UPROPERTY() TObjectPtr<USpringArmComponent> Boom;
@@ -45,6 +56,14 @@ protected:
 	float Yaw = -52.0f;
 	float Pitch = -34.0f;
 	FVector Focus = FVector::ZeroVector;
+
+	bool bMoving = false;
+	bool bOutro = false;
+	float MoveTime = 0.0f;
+	float MoveDuration = 2.6f;
+	float FromDistance = 0.0f, ToDistance = 0.0f;
+	float FromYaw = 0.0f, ToYaw = 0.0f;
+	float FromPitch = 0.0f, ToPitch = 0.0f;
 
 	void Apply();
 };

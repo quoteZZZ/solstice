@@ -48,7 +48,8 @@ public:
 	void ReleaseSelectedAt(int32 TileIndex);
 	void RecycleSelected();
 	void RerollHand();
-	void UndoRelease();
+	/** Step through the fixed framings (V). Nothing here takes the camera back from the player. */
+	void CycleCameraPreset();
 
 	void OpenPack(Solstice::EPackKind Kind);
 	void OpenPackForElement(Solstice::EElement Element);
@@ -99,11 +100,29 @@ private:
 	bool bShowPool = false;
 	bool bShowPacks = false;
 	bool bShowCreator = false;
-	bool bShowHelp = true;
+	bool bShowHelp = false;
 	bool bShowUI = true;
 
 	bool bWasLeftDown = false;
 	bool bWasMiddleDown = false;
+
+	// ---- camera ----------------------------------------------------------
+	bool bAutoOrbit = false;
+	int32 CameraPreset = 0;
+	/** Set once the entry framing has been applied; the realm may not exist on the first frames. */
+	bool bCameraFramed = false;
+	/** Seconds left before the quit lands; negative means "not quitting". */
+	float QuitCountdown = -1.0f;
+	static constexpr float AutoOrbitDegPerSecond = 3.5f;
+
+public:
+	/** Jump to one of the fixed diorama framings (0 全景 / 1 卫星 / 2 低角摆件 / 3 正顶视). */
+	void ApplyCameraPreset(int32 Index);
+	/** Slow automatic orbit, the way a satellite circles what it photographs. */
+	void ToggleAutoOrbit() { bAutoOrbit = !bAutoOrbit; }
+	bool IsAutoOrbitOn() const { return bAutoOrbit; }
+
+private:
 
 	Solstice::FReleaseResult LastRelease;
 	Solstice::FPackResult LastPack;

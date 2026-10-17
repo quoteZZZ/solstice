@@ -15,7 +15,7 @@ namespace Solstice
 {
 
 /** Built-in city table; lat/long is all the simulation needs (docs/gameplay/TIME.md SS4.2). */
-struct FSolsticeCity
+struct FRealityCity
 {
 	const TCHAR* Key;
 	const TCHAR* NameZh;
@@ -24,17 +24,17 @@ struct FSolsticeCity
 	float Longitude;
 };
 
-class FSolsticeRealityAnchor
+class FRealityAnchor
 {
 public:
-	FSolsticeRealityAnchor();
-	~FSolsticeRealityAnchor();
+	FRealityAnchor();
+	~FRealityAnchor();
 
 	void Initialize(const FString& CityKey);
 	void Tick(double RealDeltaSeconds, bool bAllowNetwork);
 
 	/** The sample the world clock and the sky read from. */
-	Solstice::FRealitySample GetSample() const { return Sample; }
+	FRealitySample GetSample() const { return Sample; }
 
 	void SetLatitude(float InLatitude) { Latitude = InLatitude; }
 	float GetLatitude() const { return Latitude; }
@@ -46,14 +46,14 @@ public:
 	FString GetStatusEn() const;
 	FString GetLastError() const { return LastError; }
 
-	static const TArray<FSolsticeCity>& GetCities();
+	static const TArray<FRealityCity>& GetCities();
 
 private:
 	void RefreshClock();
 	void BeginWeatherRequest();
 	void OnWeatherResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bConnectedOk);
 
-	Solstice::FRealitySample Sample;
+	FRealitySample Sample;
 	FString CityKey = TEXT("shanghai");
 	float Latitude = 31.23f;
 	float Longitude = 121.47f;

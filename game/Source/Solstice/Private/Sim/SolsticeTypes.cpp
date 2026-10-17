@@ -79,6 +79,100 @@ namespace Solstice
 
 		// docs/setting/WORLD.md SS2.1
 		const int32 IndividualBudgetSmall = 1200;
+
+		// ---- terrain shaping (docs/setting/WORLD.md SS2.2) ----
+		const float TerrainShapingExponent = 1.25f;
+		const float TerrainHeightFloorMeters = 2.0f;
+		// 6 m over a 128 m disc is a flat sheet, and the water line sat at 6 m too - the whole world was
+// at or below water, so there was no grassland, no mountain and no river bank to read. 42 m gives
+// real relief while keeping the world wider than it is tall (128 m across), which is what keeps it
+// reading as a landscape instead of a bowl.
+const float TerrainHeightRangeMeters = 42.0f;
+		const float ShorelineThreshold01 = 0.18f;
+		const float ShorelineMinHeightMeters = 1.0f;
+		const float TerrainFertilityBase = 0.35f;
+		const float TerrainFertilityNoise = 0.6f;
+		const float TerrainFertilityMin = 0.05f;
+		const float TerrainMoistureBase = 0.30f;
+		const float TerrainMoistureNoise = 0.5f;
+
+		// ---- water bodies (docs/setting/WORLD.md SS3.1) ----
+		const float WaterDepthEpsilonMeters = 0.01f;
+		const float SeaDepthMeters = 1.0f;
+		const float LakeDepthMeters = 0.5f;
+
+		// ---- biome classification (docs/setting/WORLD.md SS2.2) ----
+		const FBiomeRange BiomeWoodland = { 5.0f, 28.0f, 0.50f, 0.80f, 30.0f, 0.60f };
+		const FBiomeRange BiomeGrass = { 5.0f, 30.0f, 0.30f, 0.60f, 20.0f, 0.40f };
+		const float BiomeRockSlopeMoistureMax = 0.40f;
+		const float BiomeRockSlopeHeightMinM = 25.0f;
+		const float BiomeRockSlopeFertilityMax = 0.20f;
+		const float BiomeHighlandHeightM = 25.0f;
+
+		// ---- cadence (docs/tech/ARCHITECTURE.md SS1.3) ----
+		const float WeatherStepWorldMinutes = 10.0f;
+		const float EcoPeriodLod0WorldMinutes = 4.0f;
+		const float EcoPeriodLod1WorldMinutes = 8.0f;
+		const float EcoPeriodLod2WorldMinutes = 12.0f;
+		const int32 BiomeRecheckEveryEcoSteps = 15;
+		const int32 MarkAllDirtyEveryWorldMinutes = 360;
+
+		// ---- solar geometry (docs/setting/WORLD.md SS3.2, docs/gameplay/TIME.md SS3) ----
+		const float EarthAxialTiltDeg = 23.44f;
+		const float DeclinationDayOffset = 284.0f;
+		const float SolarHourAngleDegPerHour = 15.0f;
+		const float SolarAzimuthOffsetDeg = 180.0f;
+		const float LatitudeClampDeg = 66.0f;
+		const float LightAltitudeFloorDeg = -6.0f;
+		const float LightAltitudeSpanDeg = 70.0f;
+		const float CloudOcclusionFactor = 0.7f;
+		const float ColorTempHorizonK = 2100.0f;
+		const float ColorTempZenithK = 6800.0f;
+		const float ColorTempExponent = 0.6f;
+		const float BaseAirTempC = 14.0f;
+		const float SeasonalAmplitudeC = 8.0f;
+		const float SeasonalLatitudeGain = 0.08f;
+		const float SeasonalDayOffset = 15.0f;
+		const float DiurnalAmplitudeC = 5.0f;
+		const float DiurnalPeakHour = 9.0f;
+		const float CloudCoolingC = 1.5f;
+
+		// ---- slow drift rates (docs/setting/PHYSICS.md SS5) ----
+		const float HumidityRainGain = 0.02f;
+		const float HumidityEvaporateBaseC = 10.0f;
+		const float HumidityEvaporateRate = 0.0004f;
+		const float HumidityWaterGain = 0.002f;
+		const float OxygenTargetVegetation = 0.35f;
+		const float OxygenDriftRate = 0.00005f;
+		const float OxygenMin = 0.85f;
+		const float OxygenMax = 1.20f;
+		const float WaterLevelLerpRate = 0.08f;
+		const float PrecipitationToRainDivisor = 4.0f;
+		const float TileTempLerpRate = 0.25f;
+		const float WaterTempOffsetC = -0.8f;
+		const float BurnRatePerMinute = 0.05f;
+		const float BurnVegetationLossPerMinute = 0.03f;
+		const float BurnAshGainPerMinute = 0.01f;
+		const float BurnMoistureLossPerMinute = 0.01f;
+		const float AshToFertility = 0.15f;
+
+		// ---- presentation-facing sim readouts ----
+		const float WaterSheetShadingDepthMeters = 6.0f;
+		const float DefaultHumidity01 = 0.45f;
+		const float DefaultCloudCover01 = 0.15f;
+		const float RainToStormThreshold01 = 0.5f;
+		const float CloudToOvercastThreshold01 = 0.6f;
+
+		// ---- tile moisture / snow / ice (docs/setting/PHYSICS.md SS5) ----
+		const float TileMoistureRainGain = 0.004f;
+		const float TileMoistureEvaporateBaseC = 5.0f;
+		const float TileMoistureEvaporateRate = 0.00002f;
+		const float TileWaterMoisture = 0.95f;
+		const float TileWaterMoistureLerpRate = 0.05f;
+		const float IceMeltTempC = 0.5f;
+		const float SnowMinRainIntensity = 0.2f;
+		const float SnowMeltTempC = 1.0f;
+		const float SnowMeltMoistureGain = 0.08f;
 	}
 
 	// ------------------------------------------------------------------
@@ -194,7 +288,7 @@ namespace Solstice
 	{
 		switch (Material)
 		{
-		case EMaterial::Paper:     return TEXT("纸板");
+		case EMaterial::Bare:     return TEXT("纸板");
 		case EMaterial::Soil:      return TEXT("土");
 		case EMaterial::Clay:      return TEXT("黏土");
 		case EMaterial::Mud:       return TEXT("泥");
@@ -287,7 +381,7 @@ namespace Solstice
 	{
 		switch (Material)
 		{
-		case EMaterial::Paper:     return RawPaperColor();
+		case EMaterial::Bare:     return RawBareColor();
 		case EMaterial::Soil:      return FLinearColor::FromSRGBColor(FColor(0x6B, 0x4E, 0x33));
 		case EMaterial::Clay:      return FLinearColor::FromSRGBColor(FColor(0x8A, 0x6A, 0x4B));
 		case EMaterial::Mud:       return FLinearColor::FromSRGBColor(FColor(0x4A, 0x3B, 0x2A));
@@ -302,17 +396,17 @@ namespace Solstice
 		case EMaterial::Sand:      return FLinearColor::FromSRGBColor(FColor(0xD8, 0xC0, 0x8A));
 		case EMaterial::Ash:       return FLinearColor::FromSRGBColor(FColor(0x4A, 0x47, 0x44));
 		case EMaterial::Tissue:    return FLinearColor::FromSRGBColor(FColor(0xB5, 0x95, 0x7A));
-		default: return RawPaperColor();
+		default: return RawBareColor();
 		}
 	}
 
-	FLinearColor RawPaperColor()
+	FLinearColor RawBareColor()
 	{
 		// 灰白纸板原色 - the "uncoloured paper" of the chaos state.
 		return FLinearColor::FromSRGBColor(FColor(0xED, 0xE6, 0xD6));
 	}
 
-	FLinearColor KraftPaperColor()
+	FLinearColor KraftCelColor()
 	{
 		// 牛皮纸色 - the second paper tone, used for plate sides and the dome shell.
 		return FLinearColor::FromSRGBColor(FColor(0xC9, 0xA9, 0x7C));

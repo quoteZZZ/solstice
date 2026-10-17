@@ -14,9 +14,9 @@ namespace Solstice
 
 namespace
 {
-	const TArray<FSolsticeCity>& CityTable()
+	const TArray<FRealityCity>& CityTable()
 	{
-		static const TArray<FSolsticeCity> Cities = {
+		static const TArray<FRealityCity> Cities = {
 			{ TEXT("shanghai"),  TEXT("上海"),   TEXT("Shanghai"),  31.23f, 121.47f },
 			{ TEXT("beijing"),   TEXT("北京"),   TEXT("Beijing"),   39.90f, 116.41f },
 			{ TEXT("guangzhou"), TEXT("广州"),   TEXT("Guangzhou"), 23.13f, 113.26f },
@@ -47,19 +47,19 @@ namespace
 	}
 }
 
-FSolsticeRealityAnchor::FSolsticeRealityAnchor() = default;
-FSolsticeRealityAnchor::~FSolsticeRealityAnchor() = default;
+FRealityAnchor::FRealityAnchor() = default;
+FRealityAnchor::~FRealityAnchor() = default;
 
-const TArray<FSolsticeCity>& FSolsticeRealityAnchor::GetCities()
+const TArray<FRealityCity>& FRealityAnchor::GetCities()
 {
 	return CityTable();
 }
 
-void FSolsticeRealityAnchor::Initialize(const FString& InCityKey)
+void FRealityAnchor::Initialize(const FString& InCityKey)
 {
 	CityKey = InCityKey;
-	const TArray<FSolsticeCity>& Cities = CityTable();
-	for (const FSolsticeCity& City : Cities)
+	const TArray<FRealityCity>& Cities = CityTable();
+	for (const FRealityCity& City : Cities)
 	{
 		if (CityKey.Equals(City.Key, ESearchCase::IgnoreCase))
 		{
@@ -71,10 +71,10 @@ void FSolsticeRealityAnchor::Initialize(const FString& InCityKey)
 	RefreshClock();
 }
 
-FString FSolsticeRealityAnchor::GetCityName() const
+FString FRealityAnchor::GetCityName() const
 {
 	const bool bChinese = Solstice::LocIsChinese();
-	for (const FSolsticeCity& City : CityTable())
+	for (const FRealityCity& City : CityTable())
 	{
 		if (CityKey.Equals(City.Key, ESearchCase::IgnoreCase))
 		{
@@ -84,7 +84,7 @@ FString FSolsticeRealityAnchor::GetCityName() const
 	return CityKey;
 }
 
-void FSolsticeRealityAnchor::Tick(double RealDeltaSeconds, bool bAllowNetwork)
+void FRealityAnchor::Tick(double RealDeltaSeconds, bool bAllowNetwork)
 {
 	RefreshClock();
 
@@ -102,7 +102,7 @@ void FSolsticeRealityAnchor::Tick(double RealDeltaSeconds, bool bAllowNetwork)
 	}
 }
 
-void FSolsticeRealityAnchor::RefreshClock()
+void FRealityAnchor::RefreshClock()
 {
 	const FDateTime Now = FDateTime::Now();
 	const FTimespan SinceMidnight = Now.GetTimeOfDay();
@@ -115,7 +115,7 @@ void FSolsticeRealityAnchor::RefreshClock()
 	Sample.DayOfYearFraction = static_cast<float>(DayOfYear) / 365.0f;
 }
 
-void FSolsticeRealityAnchor::BeginWeatherRequest()
+void FRealityAnchor::BeginWeatherRequest()
 {
 	if (bRequestInFlight)
 	{
@@ -133,11 +133,11 @@ void FSolsticeRealityAnchor::BeginWeatherRequest()
 	Request->SetURL(Url);
 	Request->SetVerb(TEXT("GET"));
 	Request->SetTimeout(5.0f);
-	Request->OnProcessRequestComplete().BindRaw(this, &FSolsticeRealityAnchor::OnWeatherResponse);
+	Request->OnProcessRequestComplete().BindRaw(this, &FRealityAnchor::OnWeatherResponse);
 	Request->ProcessRequest();
 }
 
-void FSolsticeRealityAnchor::OnWeatherResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bConnectedOk)
+void FRealityAnchor::OnWeatherResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bConnectedOk)
 {
 	bRequestInFlight = false;
 
@@ -182,7 +182,7 @@ void FSolsticeRealityAnchor::OnWeatherResponse(FHttpRequestPtr Request, FHttpRes
 	LastError.Empty();
 }
 
-FString FSolsticeRealityAnchor::GetStatusZh() const
+FString FRealityAnchor::GetStatusZh() const
 {
 	if (bWeatherFromNetwork)
 	{
@@ -195,7 +195,7 @@ FString FSolsticeRealityAnchor::GetStatusZh() const
 	return FString::Printf(TEXT("等待天气 · %s"), *GetCityName());
 }
 
-FString FSolsticeRealityAnchor::GetStatusEn() const
+FString FRealityAnchor::GetStatusEn() const
 {
 	if (bWeatherFromNetwork)
 	{

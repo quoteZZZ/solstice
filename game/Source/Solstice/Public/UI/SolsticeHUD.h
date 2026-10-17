@@ -1,50 +1,26 @@
-// Solstice - UI layer: the Slate HUD.
+// Solstice - UI layer: the HUD actor (ASolsticeHUD).
 //
-// Plain C++ Slate, no UMG assets, no blueprint: the HUD has to rebuild itself from nothing on a
-// fresh checkout like everything else. Every number on screen is an attribute lambda, so the
-// panel repaints from the kernel each frame and language switching is instant.
-//
-// Only buttons hit-test. Panels and text are HitTestInvisible on purpose, so a left click that
-// is not on a button still lands on the paper.
+// This class owns nothing but the widget's lifetime; every pixel is drawn by SSolsticeHUDView in
+// SolsticeHUDView.h. There is no UMG asset and no widget blueprint, so the entire interface
+// rebuilds from code.
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/SCompoundWidget.h"
+#include "GameFramework/HUD.h"
+#include "SolsticeHUD.generated.h"
 
-class ASolsticePlayerController;
-class USolsticeGameInstance;
-namespace Solstice { class FSimKernel; }
+class SSolsticeHUDView;
 
-class SSolsticeHUD : public SCompoundWidget
+UCLASS()
+class SOLSTICE_API ASolsticeHUD : public AHUD
 {
+	GENERATED_BODY()
+
 public:
-	SLATE_BEGIN_ARGS(SSolsticeHUD) {}
-		SLATE_ARGUMENT(TWeakObjectPtr<ASolsticePlayerController>, Controller)
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs);
-
-	virtual bool SupportsKeyboardFocus() const override { return false; }
-	virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
-	ASolsticePlayerController* PC() const { return Controller.Get(); }
-	USolsticeGameInstance* GI() const;
-	Solstice::FSimKernel* Sim() const;
-
-	TSharedRef<SWidget> BuildClockPanel();
-	TSharedRef<SWidget> BuildRealmPanel();
-	TSharedRef<SWidget> BuildEchoPanel();
-	TSharedRef<SWidget> BuildStatusLine();
-	TSharedRef<SWidget> BuildHandBar();
-	TSharedRef<SWidget> BuildActionBar();
-	TSharedRef<SWidget> BuildHelpPanel();
-	TSharedRef<SWidget> BuildPackPanel();
-	TSharedRef<SWidget> BuildChroniclePanel();
-	TSharedRef<SWidget> BuildPoolPanel();
-	TSharedRef<SWidget> BuildCreatorPanel();
-	TSharedRef<SWidget> CardChip(int32 Slot);
-
-	TWeakObjectPtr<ASolsticePlayerController> Controller;
+	TSharedPtr<SSolsticeHUDView> Widget;
 };
