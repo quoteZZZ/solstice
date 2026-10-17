@@ -107,7 +107,7 @@ namespace
 	// then the colour in the palette, which is the only way "tune the look" means "tune the
 	// palette" instead of "tune the pipeline until the palette reappears".
 	// ------------------------------------------------------------------
-	constexpr float ExposureStops = 0.60f;
+	constexpr float ExposureStops = 0.75f;
 
 	// Fog depth (optical depth at one fit-camera-distance) for clear and fully overcast sky.
 	// Density is derived from these against the fit distance - see BuildStatics.

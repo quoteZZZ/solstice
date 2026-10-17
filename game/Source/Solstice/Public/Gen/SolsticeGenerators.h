@@ -126,6 +126,20 @@ namespace Solstice
 		/** World-space position of a tile's surface, in Unreal units, relative to the realm actor. */
 		FVector TileToLocal(const FSimKernel& Kernel, int32 TileX, int32 TileY, float HeightMeters);
 
+		/**
+		 * The realm edge, as a radius for a given direction.
+		 *
+		 * One curve decides where the world ends, and *everything* reads it: the sheet clip, the
+		 * cut edge, and which standees are allowed to exist. Before this was shared, the sheet was
+		 * culled per tile centre (a one-metre staircase), the plinth was a machined circle of a
+		 * different radius (a beige ring peeking out from under the terrain), and the standees were
+		 * not culled at all (specks hanging in the void past the edge).
+		 *
+		 * Low harmonics of the azimuth, so the cut is an arc rather than a perfect circle, and so
+		 * it reads as "a piece of land lifted out" (docs/setting/WORLD.md SS1.1).
+		 */
+		float TornRadius(float BaseRadius, float X, float Y);
+
 		/** Cel colour of one tile: material tone pulled toward raw paper by the chaos state. */
 		FLinearColor TileColour(const FTile& Tile, const FCelPalette& Palette);
 

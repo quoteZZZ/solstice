@@ -465,6 +465,18 @@ namespace Solstice
 				Height = WaterLevel + T * (Peak - WaterLevel);
 			}
 
+			// Rim taper. The world is a *slice*, so the edge is a thin cut rather than the
+			// cross-section of a mountain; the ground eases down to just under the water line over
+			// the outer 16% of the radius. See TerrainRimDropBelowWaterMeters.
+			const int32 TileX = Index % Size;
+			const int32 TileY = Index / Size;
+			const float CX = static_cast<float>(TileX) - 0.5f * static_cast<float>(Size);
+			const float CY = static_cast<float>(TileY) - 0.5f * static_cast<float>(Size);
+			const float RadiusTiles = FMath::Max(1.0f, 0.5f * static_cast<float>(Size));
+			const float Radial01 = FMath::Sqrt(CX * CX + CY * CY) / RadiusTiles;
+			const float RimBlend = FMath::SmoothStep(0.84f, 1.0f, Radial01);
+			Height = FMath::Lerp(Height, WaterLevel - Tuning::TerrainRimDropBelowWaterMeters, RimBlend);
+
 			Height = FMath::RoundToFloat(Height / Tuning::HeightQuantum) * Tuning::HeightQuantum;
 			Tiles[Index].Height = FMath::Clamp(Height, 0.0f, Tuning::MaxHeightMeters);
 		}

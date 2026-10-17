@@ -110,15 +110,103 @@ namespace Solstice
 			return SurfaceHeight(*Tile, WaterLevel);
 		}
 
-		/**
-			The realm edge is a torn paper cut, not a machined circle (WORLD SS1.1).
+		/** Terrain surface height of one tile, with a fallback for tiles outside the grid. */
+		float TileSurface(const FSimKernel& Kernel, int32 X, int32 Y, float WaterLevel, float Fallback)
+		{
+			const FTile* Tile = Kernel.TileAt(X, Y);
+			return Tile ? SurfaceHeight(*Tile, WaterLevel) : Fallback;
+		}
 
-			The cull radius carries low-frequency harmonics of the azimuth, so the boundary breaks in
-			irregular arcs instead of stepping around a perfect circle - the axis-aligned stair the
-			review saw at R-19. The mesh cull and the rim cliff both call this, so the sheet and its
-			edge always agree.
-		*/
-		float TornRadius(float BaseRadius, float X, float Y)
+		/**
+		 * Height of the *rendered* sheet at an arbitrary local point.
+		 *
+		 * This repeats BuildChunk's bilinear patch on purpose: the cut edge has to start exactly
+		 * where the sheet ends, and the only way to guarantee that is to evaluate the same
+		 * function. Sampling the tile height instead leaves a hairline between ground and wall
+		 * wherever a hillside is cut by the boundary.
+		 */
+		float SheetHeightAt(const FSimKernel& Kernel, float LocalX, float LocalY, float WaterLevel)
+		{
+			const float Half = static_cast<float>(Kernel.GetSize()) * 0.5f;
+			const float GX = LocalX / MeterUU + Half;
+			const float GY = LocalY / MeterUU + Half;
+			const int32 X = FMath::FloorToInt(GX);
+			const int32 Y = FMath::FloorToInt(GY);
+			const float U = FMath::Clamp(GX - static_cast<float>(X), 0.0f, 1.0f);
+			const float V = FMath::Clamp(GY - static_cast<float>(Y), 0.0f, 1.0f);
+
+			const FTile* Tile = Kernel.TileAt(X, Y);
+			const float Fallback = Tile ? SurfaceHeight(*Tile, WaterLevel) : WaterLevel;
+			const auto S = [&Kernel, WaterLevel, Fallback](int32 NX, int32 NY)
+			{
+				return TileSurface(Kernel, NX, NY, WaterLevel, Fallback);
+			};
+
+			const float H00 = 0.25f * (S(X - 1, Y - 1) + S(X, Y - 1) + S(X - 1, Y) + S(X, Y));
+			const float H10 = 0.25f * (S(X, Y - 1) + S(X + 1, Y - 1) + S(X, Y) + S(X + 1, Y));
+			const float H11 = 0.25f * (S(X, Y) + S(X + 1, Y) + S(X, Y + 1) + S(X + 1, Y + 1));
+			const float H01 = 0.25f * (S(X - 1, Y) + S(X, Y) + S(X - 1, Y + 1) + S(X, Y + 1));
+
+			const float West = FMath::Lerp(H00, H10, U);
+			const float East = FMath::Lerp(H01, H11, U);
+			return FMath::Lerp(West, East, V) * MeterUU;
+		}
+
+		/** One vertex of the terrain sheet while it is being clipped. */
+		struct FSheetCorner
+		{
+			FVector P;
+			FVector N;
+			FVector2D UV;
+		};
+
+		/**
+		 * Sutherland-Hodgman against the circle |P.xy| = Radius.
+		 *
+		 * The distance is evaluated per vertex and the crossing point interpolated linearly along
+		 * the edge. Edges here are at most one tile long against a radius of sixty-four metres, so
+		 * the chord error is a centimetre - invisible, and far cheaper than an exact circle solve.
+		 */
+		void ClipPolyToDisc(const FSheetCorner* Poly, int32 Count, float Radius, TArray<FSheetCorner>& Out)
+		{
+			Out.Reset();
+			if (Count < 3)
+			{
+				return;
+			}
+			Out.Reserve(Count + 2);
+			for (int32 Index = 0; Index < Count; ++Index)
+			{
+				const FSheetCorner& A = Poly[Index];
+				const FSheetCorner& B = Poly[(Index + 1) % Count];
+				const float DA = FVector2D(A.P.X, A.P.Y).Size() - Radius;
+				const float DB = FVector2D(B.P.X, B.P.Y).Size() - Radius;
+
+				if (DA <= 0.0f)
+				{
+					Out.Add(A);
+				}
+				if ((DA < 0.0f) != (DB < 0.0f))
+				{
+					const float T = DA / (DA - DB);
+					FSheetCorner Mid;
+					Mid.P = FMath::Lerp(A.P, B.P, T);
+					Mid.N = FMath::Lerp(A.N, B.N, T).GetSafeNormal();
+					Mid.UV = FMath::Lerp(A.UV, B.UV, T);
+					Out.Add(Mid);
+				}
+			}
+		}
+
+		/**
+		 * The realm edge is a torn paper cut, not a machined circle (WORLD SS1.1).
+		 *
+		 * The cull radius carries low-frequency harmonics of the azimuth, so the boundary breaks in
+		 * irregular arcs instead of stepping around a perfect circle - the axis-aligned stair the
+		 * review saw at R-19. Defined once in Gen::TornRadius (declared in the header) so the sheet
+		 * clip, the cut edge and the standee cull can never disagree.
+		 */
+		float TornRadiusLocal(float BaseRadius, float X, float Y)
 		{
 			const float Angle = FMath::Atan2(Y, X);
 			const float Wobble =
@@ -171,6 +259,11 @@ namespace Solstice
 	FCelPalette Gen::DefaultPalette()
 	{
 		return FCelPalette();
+	}
+
+	float Gen::TornRadius(float BaseRadius, float X, float Y)
+	{
+		return TornRadiusLocal(BaseRadius, X, Y);
 	}
 
 	const FStandeeRecipe& Gen::StandeeRecipe(ESpeciesKind Kind)
@@ -407,13 +500,34 @@ namespace Solstice
 				// is a torn cut rather than a circle: R-19 replaced the perfect-radius cull with
 				// TornRadius, which breaks the edge in irregular arcs instead of a stair around a
 				// machined circle.
+				//
+				// Culling by tile *centre* still left a one-metre staircase (the review's "comb"),
+				// because a boundary that passes through the middle of a row of tiles can only be
+				// drawn as whole tiles. So the test is now per corner: tiles wholly inside are
+				// emitted as before, tiles the boundary crosses are clipped to the same curve, and
+				// land the tile carries (grass, trees, stones) is dropped there - a blade rooted in
+				// a tile that no longer exists is one of the specks that hang past the edge.
+				const float HalfTile = MeterUU * 0.5f;
 				const float Torn = TornRadius(RealmRadius, Centre.X, Centre.Y);
-				if (Centre.X * Centre.X + Centre.Y * Centre.Y > Torn * Torn)
+				float CornerMin = TNumericLimits<float>::Max();
+				float CornerMax = 0.0f;
+				for (int32 CornerY = 0; CornerY < 2; ++CornerY)
+				{
+					for (int32 CornerX = 0; CornerX < 2; ++CornerX)
+					{
+						const float DX = Centre.X + (CornerX ? HalfTile : -HalfTile);
+						const float DY = Centre.Y + (CornerY ? HalfTile : -HalfTile);
+						const float Dist = FMath::Sqrt(DX * DX + DY * DY);
+						CornerMin = FMath::Min(CornerMin, Dist);
+						CornerMax = FMath::Max(CornerMax, Dist);
+					}
+				}
+				if (CornerMin > Torn)
 				{
 					continue;
 				}
+				const bool bClipped = CornerMax > Torn;
 
-				const float HalfTile = MeterUU * 0.5f;
 				// Water is one sheet: any per-tile variation on it turns into a moire grid, because
 				// the sheet is flat and otherwise a single colour. Land gets slow fibre, softly.
 				const float Grain = Tile->IsWater() ? 1.0f : (0.97f + CelGrainSmooth(X, Y) * 0.06f);
@@ -494,13 +608,40 @@ namespace Solstice
 							return FVector(-DHdU, -DHdV, 1.0f).GetSafeNormal();
 						};
 
-						const int32 I00 = Out.Add(S00, PatchNormal(U0, V0), FVector2D(U0, V0), Colour);
-						const int32 I10 = Out.Add(S10, PatchNormal(U1, V0), FVector2D(U1, V0), Colour);
-						const int32 I11 = Out.Add(S11, PatchNormal(U1, V1), FVector2D(U1, V1), Colour);
-						const int32 I01 = Out.Add(S01, PatchNormal(U0, V1), FVector2D(U0, V1), Colour);
+						if (!bClipped)
+						{
+							const int32 I00 = Out.Add(S00, PatchNormal(U0, V0), FVector2D(U0, V0), Colour);
+							const int32 I10 = Out.Add(S10, PatchNormal(U1, V0), FVector2D(U1, V0), Colour);
+							const int32 I11 = Out.Add(S11, PatchNormal(U1, V1), FVector2D(U1, V1), Colour);
+							const int32 I01 = Out.Add(S01, PatchNormal(U0, V1), FVector2D(U0, V1), Colour);
 
-						Out.Tri(I00, I10, I11);
-						Out.Tri(I00, I11, I01);
+							Out.Tri(I00, I10, I11);
+							Out.Tri(I00, I11, I01);
+						}
+						else
+						{
+							// Boundary tile: clip the sub-quad to the torn circle and emit it as a
+							// fan. Only the ~200 tiles the edge crosses take this path.
+							const FSheetCorner Poly[4] = {
+								{ S00, PatchNormal(U0, V0), FVector2D(U0, V0) },
+								{ S10, PatchNormal(U1, V0), FVector2D(U1, V0) },
+								{ S11, PatchNormal(U1, V1), FVector2D(U1, V1) },
+								{ S01, PatchNormal(U0, V1), FVector2D(U0, V1) }
+							};
+							TArray<FSheetCorner> Clipped;
+							ClipPolyToDisc(Poly, 4, Torn, Clipped);
+							if (Clipped.Num() >= 3)
+							{
+								const int32 First = Out.Add(Clipped[0].P, Clipped[0].N, Clipped[0].UV, Colour);
+								int32 Prev = Out.Add(Clipped[1].P, Clipped[1].N, Clipped[1].UV, Colour);
+								for (int32 Index = 2; Index < Clipped.Num(); ++Index)
+								{
+									const int32 Next = Out.Add(Clipped[Index].P, Clipped[Index].N, Clipped[Index].UV, Colour);
+									Out.Tri(First, Prev, Next);
+									Prev = Next;
+								}
+							}
+						}
 					}
 				}
 
@@ -509,7 +650,7 @@ namespace Solstice
 				// shore. The rim is the one that matters at the entry framing - without it the
 				// sheet is one flat blue area and reads as a hole in the terrain rather than as
 				// water. Both are drawn on the water surface, lifted a hair to beat z-fighting.
-				if (Tile->IsWater())
+				if (Tile->IsWater() && !bClipped)
 				{
 					const float WaterZ = Surface * MeterUU;
 					constexpr float RimWidth = 35.0f;	// 35 cm of pale water along the shore
@@ -563,7 +704,7 @@ namespace Solstice
 				// standing blades over the sheet. Without it the terrain is a coloured plane and no
 				// amount of light or grading makes it read as ground. Three crossed blades per land
 				// tile above the waterline, deterministic per tile so rebuilds never shimmer.
-				if (!Tile->IsWater() && Surface > 1.0f)
+				if (!bClipped && !Tile->IsWater() && Surface > 1.0f)
 				{
 					const FLinearColor Blade = Colour * 0.78f;
 					const FLinearColor TipColour = Colour * 1.12f;
@@ -588,7 +729,7 @@ namespace Solstice
 				// Tiny Glade's meadow carries a sprinkle of white and ochre flecks that turn the
 				// grass band into texture at mid distance. Two crossed horizontal diamonds per
 				// flower, deterministic per tile, roughly one meadow tile in six.
-				if (!Tile->IsWater() && Surface > 6.0f && Surface < 32.0f
+				if (!bClipped && !Tile->IsWater() && Surface > 6.0f && Surface < 32.0f
 					&& CelGrain(X * 17 + 3, Y * 11 + 9) > 0.84f)
 				{
 					const bool White = CelGrain(X * 5 + 1, Y * 9 + 4) > 0.5f;
@@ -619,7 +760,7 @@ namespace Solstice
 				// lighter than the last. The previous crossed-paper-strip trunk plus one flat
 				// eight-fan read as a cut-out at every angle; stacked irregular blobs hold a
 				// round, top-lit silhouette from the entry framing down to the close-up.
-				if (!Tile->IsWater() && Surface > 8.0f && Surface < 38.0f
+				if (!bClipped && !Tile->IsWater() && Surface > 8.0f && Surface < 38.0f
 					&& CelGrain(X * 13 + 5, Y * 7 + 3) > 0.87f)
 				{
 					const float TrunkHeight = 120.0f + 120.0f * CelGrain(X + 11, Y + 17);
@@ -670,80 +811,24 @@ namespace Solstice
 				// Cold grey paper stones anchor the meadow the way Tiny Glade's ruins do: low
 				// irregular cushions, one tile in twelve above the silt band, clustered by the
 				// shared hash so they read as outcrops rather than sprinkles.
-				if (!Tile->IsWater() && Surface > 10.0f
+				if (!bClipped && !Tile->IsWater() && Surface > 10.0f
 					&& CelGrain(X * 29 + 7, Y * 19 + 5) > 0.915f)
 				{
 					const float StoneR = 26.0f + 34.0f * CelGrain(X + 51, Y + 37);
 					const float StoneH = StoneR * (0.55f + 0.45f * CelGrain(X + 63, Y + 21));
 					const FLinearColor Stone(0.56f, 0.55f, 0.52f, 1.0f);
 					const FLinearColor StoneTop(0.74f, 0.73f, 0.68f, 1.0f);
-					Cushion(Out, Centre + FVector(0.0f, 0.0f, Surface * MeterUU), 6, StoneR, StoneH,
+					// Centre already carries the tile surface height in Z - adding it again put every
+					// boulder at twice its ground height, i.e. a ring of pale cubes hanging in the sky
+					// above the hills (the "specks" that survived every edge fix, 2026-10-18).
+					Cushion(Out, FVector(Centre.X, Centre.Y, Surface * MeterUU), 6, StoneR, StoneH,
 						Stone, StoneTop, X * 53 + Y * 17);
 				}
 
-				// ---- the rim: the only place a cut edge still shows ---------------------
-				// Interior walls are gone with the plateaus. The realm keeps its silhouette by
-				// closing the sheet against the plinth wherever there is no paper next door.
-				static const int32 NX[4] = { 1, -1, 0, 0 };
-				static const int32 NY[4] = { 0, 0, 1, -1 };
-				static const FVector EdgeNormal[4] = {
-					FVector(1.0f, 0.0f, 0.0f), FVector(-1.0f, 0.0f, 0.0f),
-					FVector(0.0f, 1.0f, 0.0f), FVector(0.0f, -1.0f, 0.0f)
-				};
-
-				for (int32 Side = 0; Side < 4; ++Side)
-				{
-					const int32 NXIndex = X + NX[Side];
-					const int32 NYIndex = Y + NY[Side];
-					const FTile* Neighbour = Kernel.TileAt(NXIndex, NYIndex);
-					if (Neighbour)
-					{
-						const FVector NC = Gen::TileToLocal(Kernel, NXIndex, NYIndex, 0.0f);
-						const float NeighbourTorn = TornRadius(RealmRadius, NC.X, NC.Y);
-						if (NC.X * NC.X + NC.Y * NC.Y <= NeighbourTorn * NeighbourTorn)
-						{
-							continue;		// paper next door: the sheet simply continues
-						}
-					}
-
-					const float Ex = Centre.X + EdgeNormal[Side].X * HalfTile;
-					const float Ey = Centre.Y + EdgeNormal[Side].Y * HalfTile;
-					const FVector A = (Side == 0 || Side == 1)
-						? FVector(Ex, Centre.Y - HalfTile, 0.0f)
-						: FVector(Centre.X - HalfTile, Ey, 0.0f);
-					const FVector B = (Side == 0 || Side == 1)
-						? FVector(Ex, Centre.Y + HalfTile, 0.0f)
-						: FVector(Centre.X + HalfTile, Ey, 0.0f);
-
-					// Edge heights at both ends, so the cliff can follow the sheet's slope.
-					const float TopA = (Side == 0) ? H10 : (Side == 1) ? H00 : (Side == 2) ? H01 : H00;
-					const float TopB = (Side == 0) ? H11 : (Side == 1) ? H01 : (Side == 2) ? H11 : H10;
-
-					const bool bWaterFace = Tile->IsWater();
-					const FLinearColor Top = bWaterFace ? Colour : Colour * 0.78f;
-					const FLinearColor Bottom = bWaterFace ? Colour * 0.72f : Palette.CutEdge * (0.90f + Grain * 0.10f);
-
-					// The cliff is subdivided with the sheet. One wall per tile put a one-metre step
-					// along an edge whose surface above it no longer has any steps, which left the rim
-					// as the last place the tile grid still showed. Each segment takes the mean of its
-					// two end heights so it stays a flat quad (Wall wants a constant top) at a third
-					// of the step.
-					constexpr float CliffDepth = 192.0f;
-					for (int32 Seg = 0; Seg < Sub; ++Seg)
-					{
-						const float T0 = static_cast<float>(Seg) * InvSub;
-						const float T1 = static_cast<float>(Seg + 1) * InvSub;
-						const FVector P0 = FMath::Lerp(A, B, T0);
-						const FVector P1 = FMath::Lerp(A, B, T1);
-						const float TopZ = 0.5f * (FMath::Lerp(TopA, TopB, T0) + FMath::Lerp(TopA, TopB, T1)) * MeterUU + PlateThickness;
-						// Collapsed to zero height on purpose. One wall per tile, each at its own
-						// height, is the sawtooth edge in every screenshot: three segments per tile
-						// over 177 boundary tiles is a pixel-stepped comb, not a cut edge. The cut is
-						// drawn once, as a 96-segment swept band in BuildBase, so it is a smooth
-						// circle at any zoom. (The variables stay used, so no unreachable-code warning.)
-						Out.Wall(P0, P1, TopZ, TopZ, EdgeNormal[Side], Bottom, Top);
-					}
-				}
+				// The rim wall used to live here: one zero-height wall per tile edge, i.e. the very
+				// comb it was written to avoid, kept alive by a comment claiming the cut was drawn
+				// elsewhere. It is drawn elsewhere now (Gen::BuildBase sweeps the same TornRadius the
+				// sheet is clipped to), so the dead geometry is gone rather than disabled.
 			}
 		}
 
@@ -817,61 +902,79 @@ namespace Solstice
 	void Gen::BuildBase(const FSimKernel& Kernel, const FCelPalette& Palette, FMeshBuilder& Out)
 	{
 		const int32 Size = Kernel.GetSize();
-		// The container is an upper hemisphere on a round paper plinth (docs/setting/WORLD.md SS1.1):
-		// a square board would poke out of the dome at its four corners, so the plinth is a disc.
 		const float Radius = static_cast<float>(Size) * 0.5f * MeterUU;
-		const float Bottom = -192.0f;	// 1.6 m of kraft board below the lowest paper plate
-		const float Top = 0.0f;
 
-		const FLinearColor Kraft = Palette.CutEdge * 0.86f;
+		// WORLD SS1.1: the world is a *thin slice of earth*, and the cut edge is a single dark
+		// line - "0.03 R thick, one colour, no highlight, no shading, no rolled lip", colour
+		// #080B18, i.e. darker than the void behind it. Everything the old plinth did contradicted
+		// that: it was a 1.9 m kraft board in *cut-edge beige*, its top disc was wider than the
+		// terrain (a sand-coloured ring peeking out around the world at every framing), and its
+		// radius was a machined circle while the terrain's edge was torn. The whole thing read as
+		// "a cake on a plate", which is exactly the "no plinth / no base" line WORLD draws.
+		//
+		// So: the wall follows the same TornRadius the sheet is clipped to, its thickness is 3% of
+		// the radius (not a hardcoded 192 uu that would vanish on a 512 realm), and every face of
+		// it - wall, top, bottom - is the same near-black. Seen from the entry framing it is a
+		// thin dark line under the land, which is what "the world ends here" should look like.
+		const FLinearColor CutInk = CelSrgb(0x08, 0x0B, 0x18);
+		const float Thickness = Radius * 0.03f;
+		const float Bottom = -Thickness;
 		const FVector Up(0.0f, 0.0f, 1.0f);
 		const FVector Down(0.0f, 0.0f, -1.0f);
+		const float WaterLevel = Kernel.GetSky().WaterLevel;
 
-		constexpr int32 Segments = 96;
+		// The wall has to start where the *sheet* ends, which is not Z = 0: the ground is a surface
+		// with hills on it, so its boundary is at whatever height the profile has there. A wall that
+		// started at Z = 0 left the underside of the sheet open, and the flat cap under it showed
+		// through as a black plane wherever the camera looked under the rim (2026-10-18).
+		//
+		// The lip lifts the wall a few centimetres above the sampled height so the seam is never a
+		// gap. It reads as the hard outline art.md asks for at the world's edge.
+		constexpr float LipUU = 30.0f;
+
+		constexpr int32 Segments = 192;		// one segment every ~2 m at a 128 m realm
 		constexpr float TwoPi = 6.28318530718f;
 
-		// A disc fan: one centre vertex plus a rim ring, all at a constant Z.
-		auto Disc = [&Out](float InRadius, float Z, const FVector& Normal, const FLinearColor& Colour)
-		{
-			const int32 Centre = Out.Add(FVector(0.0f, 0.0f, Z), Normal, FVector2D(0.5f, 0.5f), Colour);
-			TArray<int32> Ring;
-			Ring.Reserve(Segments);
-			for (int32 Index = 0; Index < Segments; ++Index)
-			{
-				const float Angle = TwoPi * static_cast<float>(Index) / static_cast<float>(Segments);
-				const float CosA = FMath::Cos(Angle);
-				const float SinA = FMath::Sin(Angle);
-				Ring.Add(Out.Add(
-					FVector(CosA * InRadius, SinA * InRadius, Z),
-					Normal,
-					FVector2D(0.5f + 0.5f * CosA, 0.5f + 0.5f * SinA),
-					Colour));
-			}
-			for (int32 Index = 0; Index < Segments; ++Index)
-			{
-				const int32 A = Ring[Index];
-				const int32 B = Ring[(Index + 1) % Segments];
-				// Winding follows the supplied normal, so the same fan serves either face.
-				if (Normal.Z >= 0.0f) { Out.Tri(Centre, A, B); }
-				else { Out.Tri(Centre, B, A); }
-			}
-		};
-
-		Disc(Radius, Bottom, Down, Kraft * 0.8f);
-		Disc(Radius, Top, Up, Kraft);
-
-		// The round cut edge between the two faces.
+		TArray<FVector2D> Rim;
+		TArray<float> RimTop;
+		Rim.Reserve(Segments);
+		RimTop.Reserve(Segments);
 		for (int32 Index = 0; Index < Segments; ++Index)
 		{
-			const float A0 = TwoPi * static_cast<float>(Index) / static_cast<float>(Segments);
-			const float A1 = TwoPi * static_cast<float>(Index + 1) / static_cast<float>(Segments);
-			const FVector P0(FMath::Cos(A0) * Radius, FMath::Sin(A0) * Radius, 0.0f);
-			const FVector P1(FMath::Cos(A1) * Radius, FMath::Sin(A1) * Radius, 0.0f);
-			const FVector Normal = FVector::CrossProduct(P1 - P0, Up).GetSafeNormal();
-			Out.Wall(P0, P1, Bottom, Top, Normal, Kraft * 0.7f, Kraft);
+			const float Angle = TwoPi * static_cast<float>(Index) / static_cast<float>(Segments);
+			const float CosA = FMath::Cos(Angle);
+			const float SinA = FMath::Sin(Angle);
+			const float RimRadius = TornRadius(Radius, CosA, SinA);
+			const FVector2D Point(CosA * RimRadius, SinA * RimRadius);
+			Rim.Add(Point);
+			RimTop.Add(FMath::Max(Bottom, SheetHeightAt(Kernel, Point.X, Point.Y, WaterLevel)) + LipUU);
 		}
 
-		// WORLD SS1.1 第 53 轮：禁止托板 / 底座。圆盘之外什么都没有，界外是空场。
+		// Underside only. The top cap is gone with the exposed-plane bug: the sheet covers the top,
+		// and a cap at Z = 0 could only ever be seen through a hole.
+		{
+			const int32 Centre = Out.Add(FVector(0.0f, 0.0f, Bottom), Down, FVector2D(0.5f, 0.5f), CutInk);
+			TArray<int32> Ring;
+			Ring.Reserve(Rim.Num());
+			for (const FVector2D& Point : Rim)
+			{
+				Ring.Add(Out.Add(FVector(Point.X, Point.Y, Bottom), Down, FVector2D(0.5f, 0.5f), CutInk));
+			}
+			for (int32 Index = 0; Index < Ring.Num(); ++Index)
+			{
+				Out.Tri(Centre, Ring[(Index + 1) % Ring.Num()], Ring[Index]);
+			}
+		}
+
+		for (int32 Index = 0; Index < Rim.Num(); ++Index)
+		{
+			const int32 Next = (Index + 1) % Rim.Num();
+			const FVector P0(Rim[Index].X, Rim[Index].Y, 0.0f);
+			const FVector P1(Rim[Next].X, Rim[Next].Y, 0.0f);
+			const FVector Normal = FVector::CrossProduct(P1 - P0, Up).GetSafeNormal();
+			// Single colour top to bottom: the spec calls the cut edge a flat dark band.
+			Out.Wall(P0, P1, Bottom, FMath::Max(RimTop[Index], RimTop[Next]), Normal, CutInk, CutInk);
+		}
 	}
 
 	void Gen::BuildLife(const FSimKernel& Kernel, const FCelPalette& Palette, FMeshBuilder& Out, FMeshBuilder& OutOutline)
@@ -897,6 +1000,21 @@ namespace Solstice
 			{
 				continue;
 			}
+
+			// The sim addresses the whole square grid; the picture is a torn disc. Every standee
+			// outside that disc used to be drawn anyway and floated over the void - the ring of
+			// specks past the edge visible in every wide shot (2026-10-18). Same radius as the
+			// sheet clip, so an individual can never stand where there is no ground.
+			{
+				const float RealmRadius = static_cast<float>(Size) * 0.5f * MeterUU;
+				const FVector Flat = TileToLocal(Kernel, TileX, TileY, 0.0f);
+				const float Torn = TornRadius(RealmRadius, Flat.X, Flat.Y);
+				if (Flat.X * Flat.X + Flat.Y * Flat.Y > Torn * Torn)
+				{
+					continue;
+				}
+			}
+
 			const float Surface = (Kind == ESpeciesKind::StreamFish)
 				? FMath::Max(Tile->Height, WaterLevel) * MeterUU
 				: SurfaceHeight(*Tile, WaterLevel) * MeterUU;

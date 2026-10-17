@@ -99,7 +99,17 @@ namespace Solstice
 		/** Peak height. WORLD SS1.1 asks for 0.30-0.55 R; 26 m is 0.41 R at the 128 m realm. */
 		const float TerrainPeakMeters = 26.0f;
 		/** Deepest sea bed, in metres above the plinth. */
-		const float SeabedMinHeightMeters = 1.0f;
+		const float SeabedMinHeightMeters = 0.5f;
+		/**
+		 * The ground falls away to this far below the water line at the rim.
+		 *
+		 * The cut edge is meant to read as a thin dark line (WORLD SS1.1: 0.03 R, one colour, no
+		 * shading). A boundary that slices through a mountain cannot: the cross-section is twenty
+		 * metres of dark face and the world reads as a cake on a black curtain (2026-10-18). So the
+		 * outer 16% of the radius eases down to just under the water line - the mountains stay
+		 * inside the disc, and the edge the camera sees is water meeting the cut.
+		 */
+		const float TerrainRimDropBelowWaterMeters = 0.4f;
 		const float TerrainFertilityBase = 0.35f;
 		const float TerrainFertilityNoise = 0.6f;
 		const float TerrainFertilityMin = 0.05f;
@@ -167,7 +177,7 @@ namespace Solstice
 		const float AshToFertility = 0.15f;
 
 		// ---- presentation-facing sim readouts ----
-		const float WaterSheetShadingDepthMeters = 6.0f;
+		const float WaterSheetShadingDepthMeters = 2.5f;
 		const float DefaultHumidity01 = 0.45f;
 		const float DefaultCloudCover01 = 0.15f;
 		const float RainToStormThreshold01 = 0.5f;

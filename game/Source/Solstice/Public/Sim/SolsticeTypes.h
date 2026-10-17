@@ -268,7 +268,9 @@ namespace Solstice
 		/** Peak land height in metres (0.41 R at the 128 m realm; WORLD SS1.1 asks 0.30-0.55 R). */
 		extern const float TerrainPeakMeters;			// 26.0
 		/** Deepest sea bed in metres above the plinth. */
-		extern const float SeabedMinHeightMeters;		// 1.0
+		extern const float SeabedMinHeightMeters;		// 0.5
+		/** How far below the water line the ground sits at the rim (keeps the cut edge thin). */
+		extern const float TerrainRimDropBelowWaterMeters;	// 0.4
 		/** Fertility / moisture fields, each seeded from its own noise layer. */
 		extern const float TerrainFertilityBase;		// 0.35
 		extern const float TerrainFertilityNoise;		// 0.6
