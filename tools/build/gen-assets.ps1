@@ -4,7 +4,7 @@
 
 .DESCRIPTION
   仓库里不存二进制资产（docs/tech/STRUCTURE.md §0）。唯一必须的资产是两个纸材质主材质
-  /Game/Core/M_Paper 与 M_Ink，由 SolsticeEditor 模块里的生成器按代码建图后写出，
+  /Game/Core/M_Cel 与 M_Ink，由 SolsticeEditor 模块里的生成器按代码建图后写出，
   所以每次克隆、清理 Intermediate 或换机之后都要跑一次本脚本。
 
   命令是幂等的：两个包已存在时直接跳过，因此重复执行只花两次 FileExists 的时间。
@@ -13,7 +13,7 @@
   2026-10-16 实测通过：
   - `LogSolstice: editor module ready: paper material builder installed`
   - `LogSolstice: Display: gen-assets: ok`
-  - 产物 game\Content\Core\M_Paper.uasset (11.3 KB) 与 M_Ink.uasset (5.0 KB)
+  - 产物 game\Content\Core\M_Cel.uasset (11.3 KB) 与 M_Ink.uasset (5.0 KB)
 
 .NOTES
   用 UnrealEditor-Cmd.exe（无窗口）而不是 UnrealEditor.exe，避免拉起 GUI。
@@ -22,7 +22,7 @@
   声明的 LoadingPhase 必须是 Default（见 docs/ops/ENV.md §2.6）。
 
 .EXAMPLE
-  powershell -ExecutionPolicy Bypass -File tools\gen-assets.ps1
+  powershell -ExecutionPolicy Bypass -File tools\build\gen-assets.ps1
 #>
 [CmdletBinding()]
 param(
@@ -31,9 +31,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-. (Join-Path $PSScriptRoot 'find-ue.ps1')
+. (Join-Path $PSScriptRoot '..\lib\Solstice.Common.ps1')
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
+$repoRoot = Get-SolsticeRepoRoot
 
 if ([string]::IsNullOrWhiteSpace($EngineRoot)) {
     $e = Find-UnrealEngine
@@ -64,7 +64,7 @@ $logDir = Join-Path $repoRoot 'tmp\logs'
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $absLog = Join-Path $logDir 'gen-assets.log'
 
-Write-Host '生成内容：/Game/Core/M_Paper + M_Ink' -ForegroundColor Green
+Write-Host '生成内容：/Game/Core/M_Cel + M_Ink' -ForegroundColor Green
 $cmdArgs = @(
     $Project,
     '-run=SolsticeGenAssets',
@@ -75,13 +75,13 @@ $cmdArgs = @(
 $code = $LASTEXITCODE
 
 # 命令行自己会把结果写进日志；这里再确认一次磁盘上的产物，退出码之外多一道事实校验。
-$paper = Join-Path $repoRoot 'game\Content\Core\M_Paper.uasset'
+$cel = Join-Path $repoRoot 'game\Content\Core\M_Cel.uasset'
 $ink = Join-Path $repoRoot 'game\Content\Core\M_Ink.uasset'
-$ok = (Test-Path -LiteralPath $paper) -and (Test-Path -LiteralPath $ink)
+$ok = (Test-Path -LiteralPath $cel) -and (Test-Path -LiteralPath $ink)
 
 if ($code -eq 0 -and $ok) {
     Write-Host '✓ 内容就绪：' -ForegroundColor Green
-    Get-Item -LiteralPath $paper, $ink | ForEach-Object { Write-Host ("    {0}  ({1} B)" -f $_.Name, $_.Length) }
+    Get-Item -LiteralPath $cel, $ink | ForEach-Object { Write-Host ("    {0}  ({1} B)" -f $_.Name, $_.Length) }
 } else {
     Write-Host ("✗ 生成失败（退出码 {0}，产物存在={1}）。日志：{2}" -f $code, $ok, $absLog) -ForegroundColor Red
 }

@@ -163,7 +163,7 @@
 
 | 配方项 | 代码位置（现名 → 目标名） |
 |---|---|
-| 色板（地表 / 水体 / 植被 / 描边 / 暗部） | `Gen/SolsticeGenerators.h` 的 `FPaperPalette` → **`FCelPalette`** |
+| 色板（地表 / 水体 / 植被 / 描边 / 暗部） | `Gen/SolsticeGenerators.h` 的 `FCelPalette` → **`FCelPalette`**（**所有目视取色的常量必须走 `CelSrgb()`**：直接写 `FLinearColor(0.40f,0.54f,0.26f)` 等于把 sRGB 当线性，出屏会亮一档、饱和度掉一半——2026-10-17 整界发灰就是这么来的） |
 | 地形与植被几何（层数、坡面、草丛密度） | `Gen/SolsticeGenerators.cpp` 的 `BuildChunk` / `BuildLife`（去纸层叠） |
 | 主材质与 Cel 分带（段数、分段点、描边宽、天色） | `Render/SolsticePaperMaterial.cpp` → **`SolsticeCelMaterial.cpp`**（`M_Paper` → `M_Cel`） |
 | 灯光、雾、天空盒 | `World/SolsticeRealm.cpp` 顶部匿名 namespace + `BuildSkyDome()` |
@@ -171,6 +171,8 @@
 
 > 分层规则见 [`../tech/tech.md`](../tech/tech.md) §1.6：**表现层配方不得影响 Sim 的演化**——改完代跑 `bench`，digest 必须不变。
 > 上表的改名与几何改动**不在本文档里做**，施工派单见 [`../plan/work.md`](../plan/work.md) `D-01`–`D-04`。
+>
+> **改完怎么看对不对**：`tools/run/shot.ps1` 无人值守抓一帧（`-game -RenderOffscreen`，相机停在指定格点，写出 PNG 并自动跑 `tools/checks/measure-frame.py` 判 PASS/FAIL）。别再靠"看截图"——同一类"改了但画面没变"已经浪费过五轮。
 
 ### 2.6 取景与机位（★角度离散，距离连续）
 

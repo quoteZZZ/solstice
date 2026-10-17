@@ -164,6 +164,24 @@ int32 USolsticeBenchCommandlet::Main(const FString& Params)
 		Config.Seed = static_cast<uint32>(SeedOverride);
 	}
 
+	// world.json ships seed 0 = "roll a fresh world per launch", which is right for play and
+	// poison for a regression: the two runs would roll two different worlds and the digest would
+	// always differ. Pin the historical default seed when nobody asked for one.
+	constexpr uint32 BenchSeed = 20261016u;
+	if (Config.Seed == 0u)
+	{
+		Config.Seed = BenchSeed;
+	}
+
+	// Same reason, second half: the realm derives its opening day-of-year and minute-of-day from
+	// the wall clock. A digest that changes with the time of day is not a digest, so both are
+	// pinned here - the run has to be reproducible tomorrow.
+	if (Config.StartingDayOfYear < 0)
+	{
+		Config.StartingDayOfYear = 80;		// 21 March: the equinox, i.e. the middle of the year
+	}
+	Config.StartingMinuteOfDay = 6 * 60 + 30;
+
 	// Seed life by default. The default preset is deliberately a bare chaos start ("no life,
 	// uncoloured paper"), but a regression that never spawns a creature would pass a digest
 	// comparison while proving nothing about the ecology - and the ecology is the game. Pass

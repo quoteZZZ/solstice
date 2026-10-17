@@ -18,29 +18,41 @@
 namespace Solstice
 {
 	/**
-	 * Presentation palette: the whole "paper diorama" look in one place.
-	 * Never read by the simulation. These are the art recipe of docs/art/ART-STYLE.md SS2 -
+	 * Palette helper. Colours in this project are *picked* (a colour wheel, a reference frame),
+	 * not measured, so they are sRGB values - and an FLinearColor built from raw sRGB numbers is
+	 * not the colour that comes out on screen. It is the same colour with its gamma applied twice:
+	 * grass authored as 0.40 renders at 0.66 and the whole world reads as pale sage. Everything
+	 * authored by eye goes through this.
+	 */
+	inline FLinearColor CelSrgb(uint8 R, uint8 G, uint8 B)
+	{
+		return FLinearColor::FromSRGBColor(FColor(R, G, B));
+	}
+
+	/**
+	 * Presentation palette: the whole cel look in one place.
+	 * Never read by the simulation. These are the art recipe of docs/art/art.md SS2.3 -
 	 * tuning the look means tuning this struct instead of hunting literals in the generators.
 	 */
 	struct FCelPalette
 	{
 		/** Cel stock and cut edges. */
-		FLinearColor CutEdge = FLinearColor(0.86f, 0.82f, 0.74f);
-		FLinearColor Ribbon = FLinearColor(0.35f, 0.30f, 0.26f);
-		FLinearColor RawBare = FLinearColor(0.93f, 0.91f, 0.86f);
+		FLinearColor CutEdge = CelSrgb(0xDB, 0xD1, 0xBD);
+		FLinearColor Ribbon = CelSrgb(0x59, 0x4D, 0x42);
+		FLinearColor RawBare = CelSrgb(0xED, 0xE8, 0xDB);
 
 		/** Ink. */
-		FLinearColor InkWash = FLinearColor(0.16f, 0.14f, 0.13f);
+		FLinearColor InkWash = CelSrgb(0x29, 0x24, 0x21);
 
 		/** Water sheet, shallow -> deep. Saturated deep blue: the reference pond reads as water,
 			not as pale grey glass, and the dark sheet is what makes the lit land pop. */
-		FLinearColor Water = FLinearColor(0.24f, 0.47f, 0.62f);
-		FLinearColor WaterDeep = FLinearColor(0.07f, 0.19f, 0.38f);
+		FLinearColor Water = CelSrgb(0x3D, 0x78, 0x9E);
+		FLinearColor WaterDeep = CelSrgb(0x12, 0x30, 0x61);
 
 		/** Terrain surface states. */
-		FLinearColor Moss = FLinearColor(0.40f, 0.54f, 0.28f);
-		FLinearColor Ash = FLinearColor(0.30f, 0.27f, 0.25f);
-		FLinearColor Ember = FLinearColor(1.00f, 0.42f, 0.10f);
+		FLinearColor Moss = CelSrgb(0x66, 0x8A, 0x47);
+		FLinearColor Ash = CelSrgb(0x4D, 0x45, 0x40);
+		FLinearColor Ember = CelSrgb(0xFF, 0x6B, 0x1A);
 
 		/** How strongly vegetation / fire tint the base colour (0..1). */
 		float VegetationTintStrength = 0.75f;

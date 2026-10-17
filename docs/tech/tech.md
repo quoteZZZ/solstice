@@ -182,6 +182,7 @@ game/
 │  │  ├─ Gen/    程序化几何生成器（地形网格 / 描边卡 / 轮廓带）
 │  │  ├─ World/  分块网格构建与脏标记重建（`ASolsticeRealm`）
 │  │  ├─ God/    观察者、玩家控制器、游戏模式
+│  │  ├─ Dev/    无人值守抓帧（`SolsticeShot`）：-SolsticeShot=<png> 时抓一帧就退，非调试启动完全不执行
 │  │  ├─ UI/     HUD（纯 Slate，无 UMG 资产）
 │  │  └─ Render/ 赛璐璐渲染：主材质解析、Cel 分带、天空调色
 │  └─ SolsticeEditor/           编辑器模块：Commandlet（资产生成 / 无头基准）

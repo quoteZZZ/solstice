@@ -20,35 +20,35 @@ namespace Solstice
 		const TCHAR* InkFallbackPath = TEXT("/Engine/EngineDebugMaterials/BlackUnlitMaterial.BlackUnlitMaterial");
 
 		// ------------------------------------------------------------------
-		// Cel material tuning (docs/art/ART-STYLE.md SS2).
-		// The whole "how does paper look under this sky" recipe lives here, so a look
-		// tune is a single-file read instead of a hunt through the shading maths.
+		// Cel material tuning (docs/art/art.md SS2.1).
+		// The material is unlit and paints its own three bands; everything the lighting model
+		// would have supplied is a colour here instead, which is the only way the band edges stay
+		// hard through post processing. This block is the whole "how does the world look under
+		// this sky" recipe, so a look tune is one file read.
 		// ------------------------------------------------------------------
 
-		/** Master material scalar parameters. */
-		constexpr float CelBandCount = 4.0f;
-
-		/** Kelvin -> linear conversion window, and the sRGB decode gamma of paper stock. */
+		/** Kelvin -> linear conversion window, and the sRGB decode gamma of the palette. */
 		constexpr float KelvinClampMin = 1000.0f;
 		constexpr float KelvinClampMax = 12000.0f;
 		constexpr float SrgbToLinearGamma = 2.2f;
 
-		/** Sun altitude window used for shading, and the ramp that turns it into "daylight". */
+		/** Sun altitude window used for tinting, and the ramp that turns it into "daylight". */
 		constexpr float SkyAltitudeClampMinDeg = -12.0f;
 		constexpr float SkyAltitudeClampMaxDeg = 90.0f;
 		constexpr float DaylightAltitudeFloorDeg = -5.0f;
 		constexpr float DaylightAltitudeSpanDeg = 12.0f;
 
-		/** Overcast grey the lit surface is pulled toward. */
+		/** Overcast grey the lit band is pulled toward. */
 		const FLinearColor CloudGrey(0.62f, 0.64f, 0.67f);
-		/** Cool ambient for surfaces facing away, and its brighter overcast counterpart. */
-		const FLinearColor ShadowCool(0.10f, 0.11f, 0.17f);
-		const FLinearColor ShadowOvercast(0.34f, 0.35f, 0.39f);
+		/** Cool ambient for the shadow band; SS2.1 asks for a lifted, blue-violet shadow. */
+		const FLinearColor ShadowCool(0.30f, 0.34f, 0.50f);
+		const FLinearColor ShadowOvercast(0.40f, 0.42f, 0.50f);
 		/** Chaos (unpainted) leans chalky and flat so the first colour reads as a change. */
 		const FLinearColor ChaosLitTint(0.86f, 0.85f, 0.82f);
-		const FLinearColor ChaosShadowTint(0.30f, 0.30f, 0.31f);
+		const FLinearColor ChaosShadowTint(0.36f, 0.36f, 0.38f);
 
-		/** Lighting mix weights. */
+		/** Where the middle band sits between shadow and lit, and the lighting mix weights. */
+		constexpr float MidBandMix = 0.60f;
 		constexpr float SunGainFloor = 0.55f;
 		constexpr float SunGainScale = 0.55f;
 		constexpr float CloudMixStrength = 0.62f;
@@ -57,6 +57,14 @@ namespace Solstice
 		constexpr float ShadowDayFloor = 0.55f;
 		constexpr float ChaosLitStrength = 0.35f;
 		constexpr float ChaosShadowStrength = 0.45f;
+
+		/**
+		 * Band edges, straight from art.md SS2.1: below 0.30 the surface takes the shadow colour,
+		 * above 0.62 the lit one. Pushed onto the material instance rather than baked into the
+		 * asset so retuning them at the style gate costs a rebuild of nothing.
+		 */
+		constexpr float BandLow = 0.30f;
+		constexpr float BandHigh = 0.62f;
 
 		/** Tanner Helland's approximation, mapped to linear so the emissive term behaves. */
 		FLinearColor KelvinToLinearColour(float Kelvin)
@@ -172,7 +180,8 @@ namespace Solstice
 
 		if (Set.CelMID)
 		{
-			Set.CelMID->SetScalarParameterValue(TEXT("Bands"), CelBandCount);
+			Set.CelMID->SetScalarParameterValue(TEXT("BandLow"), BandLow);
+			Set.CelMID->SetScalarParameterValue(TEXT("BandHigh"), BandHigh);
 		}
 
 		bResolved = true;
@@ -198,14 +207,16 @@ namespace Solstice
 		const FLinearColor SunColour = KelvinToLinearColour(Sky.ColorTempK);
 		const float Cloud = FMath::Clamp(Sky.CloudCover, 0.0f, 1.0f);
 
-		// Lit surfaces: sun colour, pulled toward an overcast grey by cloud, dimmed by daytime.
+		// Lit band: sun colour, pulled toward an overcast grey by cloud, dimmed outside daytime.
 		FLinearColor Lit = FMath::Lerp(
 			SunColour * (SunGainFloor + SunGainScale * Sky.LightIntensity),
 			CloudGrey,
 			Cloud * CloudMixStrength);
 		Lit *= FMath::Lerp(NightDimFloor, 1.0f, Daylight);
 
-		// Surfaces facing away: cool ambient, brighter when the sky is overcast.
+		// Shadow band: cool ambient, brighter when the sky is overcast. SS2.1 asks for a *lifted*
+		// shadow - at least 45% of the lit band's lightness and shifted toward blue-violet - so
+		// the dark side reads as a colour, never as a hole.
 		FLinearColor Shadow = FMath::Lerp(ShadowCool, ShadowOvercast, Cloud * ShadowCloudStrength);
 		Shadow *= FMath::Lerp(ShadowDayFloor, 1.0f, Daylight);
 
@@ -216,10 +227,13 @@ namespace Solstice
 			Shadow = FMath::Lerp(Shadow, ChaosShadowTint, ChaosShadowStrength);
 		}
 
-		// The material's hard bands are thresholds on dot(VertexNormalWS, SunDirection): the graph
-		// takes only SkyTint/NightTint as parameters, so the direction has to be pushed from here.
-		// Without this the bands stay frozen on the builder's default vector and the paper never
-		// turns with the sun.
+		// The middle band is derived, not authored: it is the same light at a lower incidence, so
+		// interpolating keeps dusk/overcast/night from drifting apart across the three stops.
+		const FLinearColor Mid = FMath::Lerp(Shadow, Lit, MidBandMix);
+
+		// The bands are thresholds on dot(VertexNormalWS, SunDirection). The direction has to be
+		// pushed from here: without it the bands stay frozen on the asset's default vector and the
+		// world never turns with the sun.
 		const float SunAltRad = FMath::DegreesToRadians(Altitude);
 		const float SunAzRad = FMath::DegreesToRadians(Sky.SunAzimuthDeg);
 		const FVector SunDirection(
@@ -228,8 +242,9 @@ namespace Solstice
 			FMath::Sin(SunAltRad));
 
 		Set.CelMID->SetVectorParameterValue(TEXT("SunDirection"), FLinearColor(SunDirection));
-		Set.CelMID->SetVectorParameterValue(TEXT("SkyTint"), Lit);
-		Set.CelMID->SetVectorParameterValue(TEXT("NightTint"), Shadow);
+		Set.CelMID->SetVectorParameterValue(TEXT("LitTint"), Lit);
+		Set.CelMID->SetVectorParameterValue(TEXT("MidTint"), Mid);
+		Set.CelMID->SetVectorParameterValue(TEXT("ShadowTint"), Shadow);
 	}
 
 	void FCelMaterials::ApplyToMesh(UProceduralMeshComponent* Mesh)

@@ -31,12 +31,24 @@ namespace
 
 	// ------------------------------------------------------------------
 	// Scene rig (docs/art/ART-STYLE.md SS2).
-	// The paper material is unlit and paints its own light; these rigs only supply a light
+	// The cel material is unlit and paints its own bands; these rigs only supply a light
 	// *direction*, a fill level, and the depth fog that sells the miniature scale.
 	// ------------------------------------------------------------------
-	constexpr float SunLightIntensity = 1.0f;
+	constexpr float SunLightIntensity = 3.2f;
 	const FLinearColor SunLightColour(1.0f, 0.97f, 0.92f);
 	constexpr float SkyLightIntensity = 0.4f;
+
+	/**
+	 * R-41: fixed exposure, in stops of gain over the manual-mode default.
+	 *
+	 * Histogram exposure used to own this, and that is why every past attempt at "make the palette
+	 * show" appeared to do nothing: a dim scene gets pushed up until the frame is nearly white and
+	 * every band the material painted is flattened out of existence. A stylised frame cannot let
+	 * the camera decide its own brightness, so this is a constant - the palette is authored as
+	 * display-referred colour and one gain maps mid albedo onto mid display. Calibrated against
+	 * `tools/run/shot.ps1 -Measure`.
+	 */
+	constexpr float ExposureStops = 1.0f;
 
 	// Fog depth (optical depth at one fit-camera-distance) for clear and fully overcast sky.
 	// Density is derived from these against the fit distance - see BuildStatics.
@@ -77,26 +89,21 @@ ASolsticeRealm::ASolsticeRealm()
 	SunLight = CreateDefaultSubobject<UDirectionalLightComponent>(TEXT("SunLight"));
 	SunLight->SetupAttachment(Root);
 	SunLight->SetMobility(EComponentMobility::Movable);
-	// P2: the paper material is lit now, so this light finally does real work - it has to be
-	// bright enough to be the key, and it has to cast shadows or the terraces have no separation.
-	// 4.0 blew the paper out to white (the project runs with a fixed exposure), so the key stays at
-	// the value the unlit version used - it now simply does real work through the lit material.
-	// The paper albedo is high (0.7-0.95), so a key of 1.0 lux with the project's fixed exposure
-	// clipped most of the sheet to white - which is why the colours never showed. 0.45 puts the lit
-	// range back inside [0,1] and lets the shadow side actually read as shadow.
-	SunLight->SetIntensity(0.32f);
+	// The cel material is unlit, so this light shades nothing today. It stays because it is the
+	// only thing that defines *which way the sun is* for the shadow pass and for the sky capture,
+	// and its intensity is kept at the physical value (a white Lambertian facing it lands at ~1.0)
+	// instead of the 50x bisect value that used to be here - that value plus histogram exposure is
+	// what turned the whole frame into a white disc (R-41).
+	SunLight->SetIntensity(SunLightIntensity);
 	SunLight->SetCastShadows(true);
 	SunLight->SetLightColor(SunLightColour);
 
 	SkyLight = CreateDefaultSubobject<USkyLightComponent>(TEXT("SkyLight"));
 	SkyLight->SetupAttachment(Root);
 	SkyLight->SetMobility(EComponentMobility::Movable);
-	// Kept proportional to the key above (it used to be 0.4 against a key of 1.0); the fill is what
-	// gives the shadow side its cool cast instead of black.
-	SkyLight->SetIntensity(0.20f);
+	SkyLight->SetIntensity(SkyLightIntensity);
 	// A captured skylight is only as good as what it captures: BuildStatics recaptures it once the
-	// dome exists, so the fill is the sky's own colour instead of black. The lower hemisphere stays
-	// open so the bouncing ground light is not clipped to black either.
+	// dome exists. The lower hemisphere stays open so the ground bounce is not clipped to black.
 	SkyLight->bLowerHemisphereIsBlack = false;
 
 	Fog = CreateDefaultSubobject<UExponentialHeightFogComponent>(TEXT("Fog"));
@@ -115,6 +122,20 @@ ASolsticeRealm::ASolsticeRealm()
 	PostProcess->bUnbound = true;
 	{
 		FPostProcessSettings& PP = PostProcess->Settings;
+
+		// ---- exposure (R-41) -------------------------------------------------
+		// Manual, not histogram: the frame must not re-expose itself when the camera moves, when
+		// fog rolls in, or when a cloud crosses the sun. Everything else in this block is a
+		// *grade* on top of a fixed exposure, which is the only combination where a palette value
+		// reads on screen as the colour that was authored.
+		PP.bOverride_AutoExposureMethod = true;
+		PP.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
+		PP.bOverride_AutoExposureBias = true;
+		PP.AutoExposureBias = ExposureStops;
+		// The physical-camera path would recompute the exposure from the lens, which is exactly
+		// the coupling this project does not want.
+		PP.bOverride_AutoExposureApplyPhysicalCameraExposure = true;
+		PP.AutoExposureApplyPhysicalCameraExposure = false;
 
 		// Grade: warm gain, cool gamma, a touch more saturation and contrast than neutral.
 		PP.bOverride_ColorSaturation = true;
@@ -484,11 +505,13 @@ void ASolsticeRealm::UpdateSun()
 		FMath::Cos(AltRad) * FMath::Cos(AzRad),
 		FMath::Cos(AltRad) * FMath::Sin(AzRad),
 		FMath::Sin(AltRad));
-	SunLight->SetWorldRotation(FRotator(-89.98f, Sky.SunAzimuthDeg, 0.0f));
-	// BISECT: noon-straight-down light at x50 - whichever pitch convention this engine uses,
-	// one of the two poles points at the ground; this isolates "light never lands" from
-	// "light direction mapping". The component's actual world axes are printed below.
-	SunLight->SetIntensity(FMath::Lerp(0.15f, 1.0f, FMath::Clamp((Sky.SolarAltitudeDeg + 8.0f) / 18.0f, 0.0f, 1.0f)) * 50.0f);
+	// Rotation from -SunDir: the component's +X is its emission axis.
+	const FRotator LightRotation = (-SunDir).Rotation();
+	SunLight->SetWorldRotation(LightRotation);
+	// Daylight ramp only - the *colour* and the band direction are pushed to the material by
+	// ApplySky, so this scalar never has to encode a look.
+	SunLight->SetIntensity(
+		FMath::Lerp(0.15f, 1.0f, FMath::Clamp((Sky.SolarAltitudeDeg + 8.0f) / 18.0f, 0.0f, 1.0f)) * SunLightIntensity);
 
 	const float Wet = FMath::Clamp(Sky.RainIntensity * 0.7f + Sky.CloudCover * 0.3f, 0.0f, 1.0f);
 	// The void outside the realm is pinned deep blue (WORLD SS1.1, #0B1431) in every weather -
@@ -506,12 +529,16 @@ void ASolsticeRealm::UpdateSun()
 	Fog->SetFogDensity(FMath::Lerp(ClearFogDepth, WetFogDepth, Wet) / FitDistance);
 	Fog->SetStartDistance(FitDistance * 0.12f);
 
-	const FLinearColor FogNow = Fog->FogInscatteringLuminance;
-	const FVector LightForward = SunLight->GetForwardVector();
-	UE_LOG(LogSolstice, Warning,
-		TEXT("[diag] sun: alt=%.1f intensity=%.2f fog=(%.3f,%.3f,%.3f) lightFwd=(%.2f,%.2f,%.2f)"),
-		Sky.SolarAltitudeDeg, SunLight->Intensity, FogNow.R, FogNow.G, FogNow.B,
-		LightForward.X, LightForward.Y, LightForward.Z);
+	// Throttled: this used to print every tick, which buried the log it was meant to help read.
+	static int32 DiagCalls = 0;
+	if ((++DiagCalls % 120) == 0)
+	{
+		const FLinearColor FogNow = Fog->FogInscatteringLuminance;
+		UE_LOG(LogSolstice, Log,
+			TEXT("[diag] sun: alt=%.1f intensity=%.2f fog=(%.3f,%.3f,%.3f) sunDir=(%.2f,%.2f,%.2f)"),
+			Sky.SolarAltitudeDeg, SunLight->Intensity, FogNow.R, FogNow.G, FogNow.B,
+			SunDir.X, SunDir.Y, SunDir.Z);
+	}
 }
 
 void ASolsticeRealm::Tick(float DeltaSeconds)

@@ -4,9 +4,11 @@
 
 #include "Camera/CameraComponent.h"
 #include "Core/SolsticeGameInstance.h"
+#include "Dev/SolsticeShot.h"
 #include "Engine/World.h"
 #include "God/SolsticeObserver.h"
 #include "Kismet/GameplayStatics.h"
+#include "Render/SolsticeCelMaterial.h"
 #include "Sim/SolsticeKernel.h"
 #include "Solstice.h"
 #include "World/SolsticeRealm.h"
@@ -678,6 +680,91 @@ void ASolsticePlayerController::Tick(float DeltaSeconds)
 		if (QuitCountdown < 0.0f)
 		{
 			ConsoleCommand(TEXT("quit"));
+		}
+	}
+
+	// ---- unattended capture (tools/run/shot.ps1) --------------------------------
+	// Deliberately last: the frame that gets measured has to be one where the intro move has
+	// finished and the preset, if any, has been applied. Capturing earlier measured the entry
+	// animation instead of the picture.
+	if (Solstice::Shot::Enabled() && !bShotCaptured)
+	{
+		ShotAge += DeltaSeconds;
+		if (ShotAge >= Solstice::Shot::Delay())
+		{
+			bShotCaptured = true;
+			if (ASolsticeObserver* ObserverPawn = Observer())
+			{
+				// ApplyCameraPreset only moves the arm; a running intro move would keep overwriting
+				// it on the following tick, so the move is cancelled first (it lands on its own end
+				// pose, then the preset takes over).
+				ObserverPawn->CancelMove();
+			}
+			if (Solstice::Shot::Preset() != INDEX_NONE)
+			{
+				ApplyCameraPreset(Solstice::Shot::Preset());
+			}
+			// Force the lens to update this frame rather than at the next camera tick, so the PNG
+			// and the numbers in the log always describe the same picture.
+			if (ASolsticeObserver* ObserverPawn = Observer())
+			{
+				ObserverPawn->GetCamera()->MarkRenderStateDirty();
+			}
+			Solstice::Shot::Capture(this);
+			UE_LOG(LogSolstice, Warning, TEXT("[shot] framing: preset=%d dist=%.0f yaw=%.1f pitch=%.1f"),
+				Solstice::Shot::Preset(),
+				Observer() ? Observer()->GetDistance() : -1.0f,
+				Observer() ? Observer()->GetYaw() : 0.0f,
+				Observer() ? Observer()->GetPitch() : 0.0f);
+
+			// State readback. Every "I changed it and nothing happened" in this project came from
+			// not knowing which of these three was true at capture time.
+			if (const USolsticeGameInstance* Instance = Game())
+			{
+				const FSimKernel& Sim = Instance->Kernel();
+				UE_LOG(LogSolstice, Warning,
+					TEXT("[shot] state: painted=%.2f chaos=%d pop=%d material=%s authored=%d"),
+					Sim.GetPaintedFraction(), Sim.IsChaos() ? 1 : 0, Sim.GetPopulationTotal(),
+					*FCelMaterials::Get().Cel->GetPathName(),
+					FCelMaterials::Get().bAuthored ? 1 : 0);
+			}
+
+			// Screen-space box around the realm disc, so a measurement script knows which pixels
+			// are world and which are the void behind it. Guessing the crop by eye was the reason
+			// the first measurement read 0.44 median on a frame that was visually pure white - the
+			// blue surround dominated the sample.
+			if (ASolsticeRealm* RealmActor = Realm())
+			{
+				const FVector Centre = RealmActor->GetRealmCentre();
+				const float Radius = RealmActor->GetRealmRadiusUU();
+				FVector2D Min(TNumericLimits<float>::Max(), TNumericLimits<float>::Max());
+				FVector2D Max(-TNumericLimits<float>::Max(), -TNumericLimits<float>::Max());
+				bool bAny = false;
+				for (int32 Step = 0; Step < 16; ++Step)
+				{
+					const float Angle = 2.0f * PI * static_cast<float>(Step) / 16.0f;
+					for (const float Lift : {0.0f, 0.12f})
+					{
+						const FVector Rim = Centre + FVector(
+							FMath::Cos(Angle) * Radius,
+							FMath::Sin(Angle) * Radius,
+							Lift * Radius);
+						FVector2D Screen;
+						if (UGameplayStatics::ProjectWorldToScreen(this, Rim, Screen, true))
+						{
+							Min = FVector2D(FMath::Min(Min.X, Screen.X), FMath::Min(Min.Y, Screen.Y));
+							Max = FVector2D(FMath::Max(Max.X, Screen.X), FMath::Max(Max.Y, Screen.Y));
+							bAny = true;
+						}
+					}
+				}
+				if (bAny)
+				{
+					UE_LOG(LogSolstice, Warning, TEXT("[shot] box=%.0f,%.0f,%.0f,%.0f"),
+						FMath::Max(0.0, Min.X), FMath::Max(0.0, Min.Y),
+						Max.X, Max.Y);
+				}
+			}
 		}
 	}
 

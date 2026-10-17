@@ -186,8 +186,8 @@ namespace Solstice
 			// Shrub: 0.6-1.2 m tall, one tile of crown.
 			{
 				FStandeeRecipe& Recipe = All[static_cast<int32>(ESpeciesKind::Shrub)];
-				Recipe.BaseColour = FLinearColor(0.36f, 0.52f, 0.30f);		// leaf
-				Recipe.AccentColour = FLinearColor(0.45f, 0.36f, 0.24f);	// stem
+				Recipe.BaseColour = CelSrgb(0x5C, 0x85, 0x4D);			// leaf
+				Recipe.AccentColour = CelSrgb(0x73, 0x5C, 0x3D);		// stem
 				Recipe.Cards.Add(FStandeeCard{ EStandeePlane::XZ, -9.0f, 9.0f, 0.0f, 42.0f, 0.0f, 1.00f, true });
 				Recipe.Cards.Add(FStandeeCard{ EStandeePlane::XZ, -52.0f, 52.0f, 34.0f, 92.0f, 0.0f, 1.00f, false });
 				Recipe.Cards.Add(FStandeeCard{ EStandeePlane::XZ, -30.0f, 30.0f, 76.0f, 108.0f, 0.0f, 1.08f, false });
@@ -197,7 +197,7 @@ namespace Solstice
 			// Grazer: 0.5 m tall, 0.8 m long.
 			{
 				FStandeeRecipe& Recipe = All[static_cast<int32>(ESpeciesKind::Grazer)];
-				Recipe.BaseColour = FLinearColor(0.72f, 0.58f, 0.38f);		// hide
+				Recipe.BaseColour = CelSrgb(0xB8, 0x94, 0x61);			// hide
 				Recipe.AccentColour = Recipe.BaseColour * 0.85f;			// belly
 				Recipe.Cards.Add(FStandeeCard{ EStandeePlane::XZ, -40.0f, 34.0f, 22.0f, 50.0f, 0.0f, 1.00f, false });
 				Recipe.Cards.Add(FStandeeCard{ EStandeePlane::XZ, 34.0f, 50.0f, 30.0f, 50.0f, 0.0f, 0.85f, false });
@@ -211,7 +211,7 @@ namespace Solstice
 			// Raptor: 0.4 m long, 0.8 m wingspan.
 			{
 				FStandeeRecipe& Recipe = All[static_cast<int32>(ESpeciesKind::Raptor)];
-				Recipe.BaseColour = FLinearColor(0.34f, 0.34f, 0.40f);		// feathers
+				Recipe.BaseColour = CelSrgb(0x57, 0x57, 0x66);			// feathers
 				Recipe.AccentColour = Recipe.BaseColour * 0.85f;
 				Recipe.Cards.Add(FStandeeCard{ EStandeePlane::XZ, -20.0f, 22.0f, 18.0f, 34.0f, 0.0f, 1.00f, false });
 				Recipe.Cards.Add(FStandeeCard{ EStandeePlane::XZ, 22.0f, 34.0f, 22.0f, 32.0f, 0.0f, 0.85f, false });
@@ -222,7 +222,7 @@ namespace Solstice
 			// Stream fish: 0.2 m long, lives only on water tiles.
 			{
 				FStandeeRecipe& Recipe = All[static_cast<int32>(ESpeciesKind::StreamFish)];
-				Recipe.BaseColour = FLinearColor(0.76f, 0.84f, 0.88f);		// scales
+				Recipe.BaseColour = CelSrgb(0xC2, 0xD6, 0xE0);			// scales
 				Recipe.AccentColour = Recipe.BaseColour * 0.9f;
 				Recipe.Cards.Add(FStandeeCard{ EStandeePlane::XZ, -10.0f, 10.0f, -4.0f, 4.0f, 0.0f, 1.00f, false });
 				Recipe.Cards.Add(FStandeeCard{ EStandeePlane::XZ, -18.0f, -10.0f, -7.0f, 7.0f, 0.0f, 0.90f, false });
@@ -321,17 +321,21 @@ namespace Solstice
 		// waterline, grass over the low ground, drier meadow above, pale rock on the tops.
 		if (Tile.GetMat() == EMaterial::Bare)
 		{
-			// Height above the plinth in metres; water sits near 0, so silt starts at the waterline.
-			const float H = FMath::Clamp(Tile.Height / 24.0f, 0.0f, 1.0f);
-			const FLinearColor Silt(0.80f, 0.74f, 0.56f, 1.0f);
-			const FLinearColor Grass(0.40f, 0.54f, 0.26f, 1.0f);
-			const FLinearColor Meadow(0.50f, 0.61f, 0.33f, 1.0f);
-			const FLinearColor Rock(0.63f, 0.61f, 0.56f, 1.0f);
-			Base = (H < 0.18f)
-				? FMath::Lerp(Silt, Grass, H / 0.18f)
-				: (H < 0.55f)
-					? FMath::Lerp(Grass, Meadow, (H - 0.18f) / 0.37f)
-					: FMath::Lerp(Meadow, Rock, FMath::Clamp((H - 0.55f) / 0.45f, 0.0f, 1.0f));
+			// Height above the plinth, normalised by the height the generator can actually reach.
+			// R-42: this divisor used to be a hardcoded 24 m from when the world topped out at 24,
+			// while the generator now spans Tuning::MaxHeightMeters (64). Nearly every tile clamped
+			// to 1.0 and the whole realm rendered as the rock band - one grey sheet, which is the
+			// other half of why "the palette never showed" (the exposure was the first half).
+			const float H = FMath::Clamp(Tile.Height / Tuning::MaxHeightMeters, 0.0f, 1.0f);
+			const FLinearColor Silt = CelSrgb(0xD9, 0xC2, 0x92);
+			const FLinearColor Grass = CelSrgb(0x6F, 0x9B, 0x4A);
+			const FLinearColor Meadow = CelSrgb(0x8A, 0xA9, 0x55);
+			const FLinearColor Rock = CelSrgb(0x9A, 0x94, 0x88);
+			Base = (H < 0.14f)
+				? FMath::Lerp(Silt, Grass, H / 0.14f)
+				: (H < 0.42f)
+					? FMath::Lerp(Grass, Meadow, (H - 0.14f) / 0.28f)
+					: FMath::Lerp(Meadow, Rock, FMath::Clamp((H - 0.42f) / 0.26f, 0.0f, 1.0f));
 		}
 
 		if (Tile.Vegetation > 0.01f)
@@ -535,8 +539,8 @@ namespace Solstice
 				{
 					const bool White = CelGrain(X * 5 + 1, Y * 9 + 4) > 0.5f;
 					const FLinearColor Petal = White
-						? FLinearColor(0.96f, 0.94f, 0.86f, 1.0f)
-						: FLinearColor(0.88f, 0.66f, 0.20f, 1.0f);
+						? CelSrgb(0xF5, 0xF0, 0xDB)
+						: CelSrgb(0xE0, 0xA8, 0x33);
 					const float JitterX = (CelGrain(X * 23, Y * 7) - 0.5f) * MeterUU * 0.8f;
 					const float JitterY = (CelGrain(X * 7, Y * 23) - 0.5f) * MeterUU * 0.8f;
 					const float HeadZ = Surface * MeterUU + 22.0f + 18.0f * CelGrain(X + 2, Y + 5);

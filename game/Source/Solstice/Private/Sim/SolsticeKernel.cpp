@@ -254,6 +254,14 @@ namespace Solstice
 		// at zero meant every new realm opened at 00:00, sun below the horizon, the whole sheet
 		// multiplied down into night tints. That was the single largest reason a fresh world read
 		// as grey. The date was already taken from the real calendar above; take the hour too.
+		//
+		// A pinned minute skips all of it. The headless bench pins one because a digest that
+		// depends on when the process started is not a digest.
+		if (Config.StartingMinuteOfDay >= 0)
+		{
+			WorldMinute = static_cast<int64>(Config.StartingMinuteOfDay);
+		}
+		else
 		{
 			const FDateTime RealNow = FDateTime::Now();
 			int32 MinuteOfDay = RealNow.GetHour() * 60 + RealNow.GetMinute();

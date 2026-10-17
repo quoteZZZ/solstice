@@ -458,22 +458,35 @@ R-37 摆件模式相机 ──┘（一行门控，随时可做）
 - 验：`F4` 顶视一帧，用像素量圆盘轮廓——**任意方向到中心的半径差 < 1 格**（100 uu）；`grep -rn "TornRadius\|torn paper" game/Source` 零命中。
 - 源：[`../setting/WORLD.md`](../setting/WORLD.md) §1.1 · [`../art/art.md`](../art/art.md) §0.5 红线 4 · `Gen/SolsticeGenerators.cpp:121-129,353,468` · 证据 `tmp/review/r2_01.png`
 
-### 色彩失真（R-41–R-42）· 2026-10-17 读码追到根
+### 模拟确定性（R-43）· 2026-10-17 夜 · **已修**
 
-> **这两条是"画面全灰白"的真凶，比换 Cel 材质更靠前。** 在此之前所有"改色板 / 改材质"的尝试都不会有效果——因为颜色在出屏前被压平了。**`D-02` 的验收依赖这两条先修好。**
+**`bench` 一直在比两个随机世界，红线 2「digest 不变」实际已失效**（P0）· ✅ 已修
+- 现象：`bench.ps1 -Days 2` 连跑两次，run A / run B 的 digest 每次都不同，而且**换一个进程又变成第三个数**（`E7FD54…` → `38E24C…` → 稳定后 `CE8B0D…`）。population / deaths 每次都不一样（deaths 40 / 0 / 28）。
+- 因（两处，都是**读真实时钟**）：① `world.json` 的 `seed: 0` 语义是「每次开局摇新世界」，`FSimKernel::Initialize` 见 `Config.Seed == 0` 就把 `FDateTime::Now().GetTicks()` 当种子——于是同进程两次 run 是两个不同的世界；② 开局时刻 `WorldMinute` 由 `FDateTime::Now()` 的时分推出，两个进程不会同分钟。
+- 改：`FWorldConfig` 增 `StartingMinuteOfDay`（`-1` = 真实时钟，玩家侧行为不变）；**bench 侧钉死** `seed = 20261016`、`StartingDayOfYear = 80`（春分）、`StartingMinuteOfDay = 06:30`。玩家侧「世界跟着真实日历走」是产品特性，不动；要的是"回归可复现"。
+- 验：两次独立进程 `digest A == digest B == CE8B0D7BE6489900`，`bench: ok - deterministic and alive`。
+- 教训：**只要 Sim 里还有一处读真实时钟，"digest 不变"就永远无法成立**。以后新增任何 `FDateTime::Now()` 到 Sim 路径，先问一句"bench 要怎么钉住它"。
 
-**R-41 后处理没锁曝光，自动曝光把画面推到接近纯白，中间调为零**（P0）
+### 色彩失真（R-41–R-42）· 2026-10-17 读码追到根 · **已修（2026-10-17 夜）**
+
+> **两条都已落地并量过**：`tools/run/shot.ps1` 无人值守抓帧 → `measure-frame.py` 三项全 PASS（0.497 / 0.563 / 0.010）。
+> 修的过程里发现**第三条更好的解释**，记在这里以免下次又只盯着曝光：
+> **色板把 sRGB 数值直接塞进 `FLinearColor`**（`Gen/SolsticeGenerators.h` 的 `FCelPalette`、`TileColour` 里的 `Silt/Grass/Meadow/Rock`、立牌 recipe、花），
+> 等于 gamma 施加两次——草地写 0.40、出屏 0.66，**整个世界因此"灰"而不只是"亮"**。已统一走 `CelSrgb()`。
+> 剩下没解决的：树仍是低模团块、水体在俯视图里看不出、天空还没建（`D-04`）。
+
+**R-41 后处理没锁曝光，自动曝光把画面推到接近纯白，中间调为零**（P0）· ✅ 已修
+- 改法：`AEM_Manual` + `ExposureStops = 1.0`（`World/SolsticeRealm.cpp` 顶部匿名 namespace，**当风格参数，别写回构造函数**）；`UpdateSun` 里 `*50.0f` 的 bisect 光强与逐帧 `[diag] sun` 一并清掉（改成每 120 帧一条 `Log`）。
 - 现象：实测画面 `r2_01.png` 整体浅灰、对比极低。对世界区域做像素统计：**平均 RGB (207,204,201)**（三个通道差 6，等于无色）、**亮度中位数 0.910 / 最大值 0.953**、**平均饱和度 0.095**；亮度直方图是双峰——4235 个采样落在 `0.9–1.0`、2486 个落在 `0.6–0.7`，而 **`0.2–0.5` 整段是 0**。也就是"**大片接近白 + 一小片中灰 + 没有中间调**"。`art.md` §2.1 的 Cel 三段判据（亮 / 中 / 暗）在这里连**中间调都不存在**，谈分带没有意义。
 - 因：`ASolsticeRealm` 的 `UPostProcessComponent` 只覆盖了饱和度 / 对比 / Gamma / Gain / 暗角 / Bloom / 颗粒 / DOF（`World/SolsticeRealm.cpp:111-145`），**一条曝光都没覆盖**。而场景光很暗（方向光 `SetIntensity(0.45)`、`SkyLight 0.20`，`:81,90,456`）。引擎默认 `Auto Exposure = Histogram` 会把这个暗场景往上推——**推过头就是现在这样：中位亮度 0.91，颜色被冲掉**（饱和度 0.095 就是这么来的）。这一条也解释了 `R-35`「雾一来自动糊白」的一半：不是雾变浓，是曝光跟着画面亮度漂。
 - 改：① 覆盖 `AutoExposureMethod = Manual`（或 `Histogram` 但钉死 min/max 亮度）；② 给一个固定 EV，先在 `F1` 机位调到"草地饱和、天空不过曝"；③ 把曝光值当**风格参数**记进 `art.md` §2.4 的昼夜表，别写死在构造函数里。
 - 验：跑 `python tools/checks/measure-frame.py <png> --box <世界区域>`，三项全 PASS——**当前基线：饱和度 0.095 / 亮度中位 0.910 / 高光占比 0.597，三项全 FAIL**；再补"静止 / 相机移动 / 起雾"三态平均亮度不漂（均值差 < 5%）。
 - 源：[`../art/art.md`](../art/art.md) §2.1（Cel 三段）/ §2.4（昼夜四组参数）· `World/SolsticeRealm.cpp:81,90,111-145,456` · 证据 `tmp/review/r2_01.png`
 
-**R-42 地形配色按"高度 ÷ 24 m"分档，而山高上限是 64 m → 全世界都落到"岩石"档**（P1）
+**R-42 地形配色按"高度 ÷ 24 m"分档，而山高上限是 64 m → 全世界都落到"岩石"档**（P1）· ✅ 已修
 - 现象：地形几乎全是一种灰褐色，只有极少数低地透出一点绿。
-- 因：`Gen::TileColour` 里裸地的高度配色写死 `H = Tile.Height / 24.0f`（`Gen/SolsticeGenerators.cpp:272`），分档是 `H<0.18` 淤 / `<0.55` 草 / 否则岩石。而 `Tuning::MaxHeightMeters = 64`（`R-38` 已记它 = 1.0R）——**大多数地块的高度落在 24 m 以上，`H` 直接 clamp 到 1.0 → 全是 `Rock(0.63,0.61,0.56)`**。这个 24 是按旧的小山高调的，山高一变，分档全错。
-- 改：分母不能写死，要跟 `relief` / `MaxHeightMeters` 走（例如按 `0.55 × MaxHeightMeters` 归一），或者干脆用**高度分位数**（同种子下取 20% / 60% / 90% 三个切点）——分位数不怕山高怎么变，永远三等分。
-- 验：`F1` 一帧里能同时数出**淤 / 草 / 草甸 / 岩**四档（或改成分位数后的三档）；把 `MaxHeightMeters` 从 64 改成 32，画面分档位置跟着变而不是全变一色。
+- 改（实际落地，与下面的建议略有出入）：`H = Tile.Height / Tuning::MaxHeightMeters`，切点 `0.14 / 0.42`，四档 `Silt #D9C292 / Grass #6F9B4A / Meadow #8AA955 / Rock #9A9488`（全部走 `CelSrgb`）。**没有**改成分位数：分位数要扫一遍全图才拿得到，而 `TileColour` 是无状态单块函数；先让分母跟着常量走，等 `R-38` 把山高收进规格再谈分位。
+- 验：抓帧后 `measure-frame.py` 三项 PASS；改 `MaxHeightMeters` 时分档跟着移动（分母是它）。
 - 源：[`../art/art.md`](../art/art.md) §2.3（色带：每个生态域 2–3 档同族色，硬边切换）· `Gen/SolsticeGenerators.cpp:262-297` · `Sim/SolsticeKernel.cpp:397-412` · 证据 `tmp/review/r2_01.png`
 
 ### 资源与目录（R-24–R-28）

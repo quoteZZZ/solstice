@@ -414,6 +414,13 @@ namespace Solstice
 		bool bChaosStart = false;			// the realm opens already painted (WORLD SS3.3 step 5)
 		bool bWithLifeSeed = true;			// creator step 8 "life seed"
 		int32 StartingDayOfYear = -1;		// -1 = derive from the real clock
+		/**
+		 * Minute of day the realm opens on. -1 = read the real clock (the shipped behaviour: the
+		 * world runs on the real calendar). Anything >= 0 pins it, which is what the headless
+		 * bench needs - two runs of the same seed must not differ by the wall clock, or the
+		 * determinism check is comparing two different worlds.
+		 */
+		int32 StartingMinuteOfDay = -1;
 		FString RealmId = TEXT("realm.valley-20261016");
 		FString RealmNameZh = TEXT("无名之界");
 		FString RealmNameEn = TEXT("Nameless Realm");

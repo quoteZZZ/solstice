@@ -113,6 +113,9 @@ private:
 	bool bCameraFramed = false;
 	/** Seconds left before the quit lands; negative means "not quitting". */
 	float QuitCountdown = -1.0f;
+	/** Seconds since the unattended-capture harness armed (see Dev/SolsticeShot.h). */
+	float ShotAge = 0.0f;
+	bool bShotCaptured = false;
 	static constexpr float AutoOrbitDegPerSecond = 3.5f;
 
 public:

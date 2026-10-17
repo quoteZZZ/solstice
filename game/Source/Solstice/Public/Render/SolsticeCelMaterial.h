@@ -1,15 +1,18 @@
-// Solstice - Render layer: the paper material.
+// Solstice - Render layer: the cel material.
 //
-// The look is cel-shaded paper, not PBR (docs/art/ART-STYLE.md SS1): a handful of hard light
-// bands, no specular, no Lumen, no Nanite. The master material is generated into
+// The look is flat animation cel, not PBR (docs/art/art.md SS2.1): three hard light bands, no
+// specular, no Lumen, no Nanite, no paper grain. The master material is generated into
 // /Game/Core/M_Cel by the editor module on first launch, so a fresh checkout rebuilds its
 // own content. If generation is unavailable the renderer degrades to the engine's vertex
-// colour material, which is unlit - the realm still reads as paper, it just loses the sun.
+// colour material, which is also unlit - the realm still reads, it just loses the bands.
 //
-// Contract with the generated material:
-//   SkyTint   (vector) - colour of a fully lit surface after dusk-to-noon tinting
-//   NightTint (vector) - colour of a surface facing away from the sun
-//   Bands     (scalar) - number of hard light bands
+// Contract with the generated material (all pushed from ApplySky every frame):
+//   SunDirection (vector) - unit vector pointing at the sun; the bands are dot(normal, this)
+//   LitTint      (vector) - colour of a surface facing the sun
+//   MidTint      (vector) - colour of a surface roughly side-on to it
+//   ShadowTint   (vector) - colour of a surface facing away
+//   BandLow/High (scalar) - the two hard cut points, 0.30 / 0.62 per art.md
+//   RecipeVersion(scalar) - graph revision stamp; a mismatch makes the builder rewrite the asset
 
 #pragma once
 
