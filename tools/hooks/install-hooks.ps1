@@ -2,7 +2,7 @@
 # ASCII-only on purpose: no encoding concerns under Windows PowerShell 5.1 / PS 7+.
 # Idempotent: safe to run repeatedly. Uninstall: git config --unset core.hooksPath
 $ErrorActionPreference = 'Stop'
-Set-Location (Join-Path $PSScriptRoot '..')
+Set-Location (Join-Path $PSScriptRoot '..\..')
 
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     Write-Host '[install-hooks] git not found - install Git first.' -ForegroundColor Red

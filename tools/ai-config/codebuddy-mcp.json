@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "unreal-mcp": {
+      "type": "http",
+      "url": "http://127.0.0.1:8000/mcp",
+      "description": "Unreal Editor 5.8 内置 MCP（实验性）。需先在编辑器里启用 Unreal MCP + All Toolsets 插件并启动服务器，否则本条目连接失败（不影响其它功能）。详见 docs/ops/AI-TOOLING.md §2。"
+    }
+  }
+}

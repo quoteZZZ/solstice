@@ -1,0 +1,29 @@
+{
+  "enabledPlugins": {
+    "commit-commands@codebuddy-plugins-official": true,
+    "pr-review-toolkit@codebuddy-plugins-official": true,
+    "code-simplifier@codebuddy-plugins-official": true,
+    "security-scan@codebuddy-plugins-official": true,
+    "development-essentials@codebuddy-plugins-official": true,
+    "feature-dev@codebuddy-plugins-official": true,
+    "context7@codebuddy-plugins-official": true,
+    "agent-browser@codebuddy-plugins-official": true,
+    "playwright-cli@codebuddy-plugins-official": true,
+    "find-skills@codebuddy-plugins-official": true,
+    "skills-sec-audit@codebuddy-plugins-official": true
+  },
+  "env": {
+    "CODEBUDDY_INTERNET_ENVIRONMENT": "internal"
+  },
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "Bash(*)",
+      "PowerShell(*)"
+    ]
+  },
+  "memory": {
+    "enabled": true,
+    "autoMemoryEnabled": true
+  }
+}

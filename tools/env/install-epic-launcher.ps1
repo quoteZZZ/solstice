@@ -8,9 +8,9 @@
   幂等：已安装则跳过。
 
 .EXAMPLE
-  powershell -ExecutionPolicy Bypass -File tools\install-epic-launcher.ps1 -DryRun
+  powershell -ExecutionPolicy Bypass -File tools\env\install-epic-launcher.ps1 -DryRun
 .EXAMPLE
-  powershell -ExecutionPolicy Bypass -File tools\install-epic-launcher.ps1
+  powershell -ExecutionPolicy Bypass -File tools\env\install-epic-launcher.ps1
 #>
 [CmdletBinding()]
 param(
@@ -50,6 +50,6 @@ if ($DryRun) { Write-Host '[DryRun] 未实际安装。' -ForegroundColor Yellow;
 Write-Host 'ⓘ 安装后需【人工登录 Epic 账号】，才能安装虚幻引擎。' -ForegroundColor Yellow
 & $winget @wgArgs
 $code = $LASTEXITCODE
-if ($code -eq 0) { Write-Host '✓ 安装完成。下一步：打开并登录 Epic 账号，安装 UE 最新稳定版到 D:\UE\UE_5.x' -ForegroundColor Green }
+if ($code -eq 0) { Write-Host '✓ 安装完成。下一步：打开并登录 Epic 账号，安装 UE 最新稳定版（安装位置任意，tools\env\find-ue.ps1 会自动探测）' -ForegroundColor Green }
 else { Write-Host ("✗ winget 退出码 {0}。可重试或手动安装：https://store.epicgames.com/download" -f $code) -ForegroundColor Red }
 exit $code

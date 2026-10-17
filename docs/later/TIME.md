@@ -1,20 +1,22 @@
 ---
-id: gameplay/TIME
+id: later/TIME
 title: 时间与现实耦合
-version: 1.0
-date: 2026-10-14
-status: active
+status: frozen
 truth: subsystem
+stage: M1
 owner: both
 ---
 
 # 时间与现实耦合（TIME）
 
+> **⏸ 冻结（2026-10-17 文档重构）**：本文件是 **M1 及以后** 的规格，**不参与当前施工、不参与评审、不参与契约校验**。M0 开工时不读它；M1 立项时再解冻并对齐现状。引用它时请注明「M1 设想」。
+
+
 ## 0 本文件管什么 / 不管什么
 
 - **管**：**现实的桥**（现实输入如何改写世界）、**双模式时间系统**（真实 / 虚拟）、昼夜的相位与形状、现实锚的刷新与降级、离线行为。
-- **不管**：世界本身的设定（见 [`../setting/WORLD.md`](../setting/WORLD.md)）；卡怎么改时间（见 [`INTERVENTION.md`](INTERVENTION.md) 与 [`../setting/CARDS.md`](../setting/CARDS.md) §5 第 11 类）；世界钟的**实现**（见 [`../tech/ARCHITECTURE.md`](../tech/ARCHITECTURE.md) §2）。
-- **来源**：由 `charter/GDD.md` §1.1 / §1.2 / §5 / §6 拆出（内容未改）。
+- **不管**：世界本身的设定（见 [`../setting/WORLD.md`](../setting/WORLD.md)）；卡怎么改时间（见 [`INTERVENTION.md`](../gameplay/INTERVENTION.md) 与 [`TRIGGERS.md`](TRIGGERS.md)——时间类效果走触发规则）；世界钟的**实现**（见 [`../tech/tech.md`](../tech/tech.md) §2）。
+- **来源**：由 `charter/CHARTER.md` §1 / §1.2 / §5 / §6 拆出（内容未改）。
 
 ---
 
@@ -51,7 +53,7 @@ owner: both
 | 天气 | **联网真实天气** | 虚拟天气（随机 + 可干涉） |
 | 联网 | **必需** | 不需要 |
 | 生态节奏 | 真实（极慢，适合挂着看） | 加速可见 |
-| 时间类卡（[`../setting/CARDS.md`](../setting/CARDS.md) §5 第 11 类） | **不可用** | 全部可用 |
+| 时间类卡（[`TRIGGERS.md`](TRIGGERS.md)） | **不可用** | 全部可用 |
 
 ### 2.2 玩家时间控制（仅虚拟模式）
 
@@ -66,7 +68,7 @@ owner: both
 - 退出即**冻结**：世界钟不推进、生态不演化、**不做补偿推演**。
 - 再打开：生态从冻结处继续；**真实模式下环境立刻同步到当前现实**，并给一句提示（"你离开期间，外面从寒露走到了霜降"）。**只是文本，不推演生态。**
 
-> **设计意图**：不给"回来要补作业"的压力（[`LOOP.md`](LOOP.md) §2）。
+> **设计意图**：不给"回来要补作业"的压力（[`../charter/CHARTER.md`](../charter/CHARTER.md) §3.2）。
 
 ---
 
@@ -97,7 +99,7 @@ owner: both
 | 位置 | 手选城市（内置城市表：名称 + 经纬度）或手动输入纬度；纬度用于太阳高度角与昼长（**本机算**） |
 | 天气 | **Open-Meteo**（免费无 key）：`temperature_2m`、`precipitation`、`weather_code`、`wind_speed_10m`、`wind_direction_10m`、`cloud_cover`；缓存 30 分钟，超时 5 秒 |
 | 降级 | 连续失败 3 次 → 系统时间 + 虚拟天气，UI 标"离线态"，恢复后自动切回；**不阻塞游玩** |
-| 接管 | 每一项现实输入（日照 / 天气 / 节气 / 温度）都可被玩家"**接管**"，UI 明确标记并可**一键释放回现实**（[`INTERVENTION.md`](INTERVENTION.md) §5.3） |
+| 接管 | 每一项现实输入（日照 / 天气 / 节气 / 温度）都可被玩家"**接管**"，UI 明确标记并可**一键释放回现实**（[`INTERVENTION.md`](../gameplay/INTERVENTION.md) §5.3） |
 | 隐私 | 只取城市级天气，**不上传任何用户数据**；无账号、无遥测 |
 
 ---
@@ -106,15 +108,10 @@ owner: both
 
 | 改动类型 | 必须同次更新 |
 |---|---|
-| 三层映射 / 现实输入项变化 | 本文件 §1 / §4 + [`../setting/WORLD.md`](../setting/WORLD.md) §3.2 + [`../charter/GDD.md`](../charter/GDD.md) |
-| 双模式规则变化 | 本文件 §2 + [`../setting/CARDS.md`](../setting/CARDS.md) §5（时间类卡）+ [`UI-UX.md`](UI-UX.md) §1 |
-| 天气 API / 降级策略变化 | 本文件 §4.2 + [`../ops/ENV.md`](../ops/ENV.md)（若涉及依赖） |
-| 昼夜算法变化 | 本文件 §3 + [`../tech/ARCHITECTURE.md`](../tech/ARCHITECTURE.md)（若涉及实现） |
+| 三层映射 / 现实输入项变化 | 本文件 §1 / §4 + [`../setting/WORLD.md`](../setting/WORLD.md) §3.2 + [`../charter/CHARTER.md`](../charter/CHARTER.md) |
+| 双模式规则变化 | 本文件 §2 + [`TRIGGERS.md`](TRIGGERS.md)（时间类卡）+ [`UI-UX.md`](UI-UX.md) §1 |
+| 天气 API / 降级策略变化 | 本文件 §4.2 + [`../ops/ENVIRONMENT.md`](../../tools/docs/ENVIRONMENT.md)（若涉及依赖） |
+| 昼夜算法变化 | 本文件 §3 + [`../tech/tech.md`](../tech/tech.md)（若涉及实现） |
 
 ---
 
-## 沿革
-
-| 版本 | 日期 | 变更 |
-|---|---|---|
-| 1.0 | 2026-10-14 | 新建：由 `charter/GDD.md` §1.1 / §1.2 / §5 / §6 拆出（现实的桥、双模式、昼夜形状、现实锚规格） |

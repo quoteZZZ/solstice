@@ -1,197 +1,58 @@
 ---
 id: INDEX
-title: 文档索引与状态矩阵
-version: 2.29
-date: 2026-10-17
+title: 文档清单
 status: active
-truth: nav
-owner: ai
+truth: index
+owner: both
 ---
 
-# 文档索引（INDEX）
+# 文档清单（INDEX）
 
-> **全仓唯一的文档索引与状态矩阵。** 任何文档的新增 / 作废 / 迁移 / 版本或状态变化，必须在**同一次提交**内更新本表。
-> **唯一设计真源**：[`charter/GDD.md`](charter/GDD.md)（`truth: owner`）——它只回答"**为什么做、做成什么、不做什么**"，设计细节在 `setting/` 与 `gameplay/`。
+> **本页只回答一个问题：有哪些文档、各自管什么、什么时候读。**
+> **开工看 [`START.md`](START.md)**；**改数字先查 [`CONSTANTS.md`](CONSTANTS.md)**。
+> **只在新增 / 作废 / 迁移文档时改本页**——改内容不必动它。
 
----
+## 1 现行（L0–L2 + ops）
 
-## 0 事务域划分（9 类 · 一类一域）
-
-| # | 事务域 | 目录 | 管什么 | 明确不管 |
-|---|---|---|---|---|
-| 1 | **立项** | `charter/` | 为什么做、给谁、第一卖点、非目标、体验支柱、裁决沿革、待裁决 | 任何规格细节 |
-| 2 | **设定集** | `setting/` | **世界是什么样**：世界 / 卡片 / 卡种清单 / 物种 / 风格主题的设定 | 玩家怎么玩、怎么实现 |
-| 3 | **玩法** | `gameplay/` | **玩家怎么玩**：核心循环、时间、手牌与干涉、**经济数值**、自定义、界面 | 世界设定的内容 |
-| 4 | **美术与资产** | `art/` | 风格执行参数、素材规格、资产生产与登记 | 风格的设计取舍（在 setting） |
-| 5 | **技术与架构** | `tech/` | 引擎、模块依赖、性能预算、目录与命名 | 玩法与设定 |
-| 6 | **计划** | `plan/` | 里程碑、验收、风险、执行计划 | 规格正文 |
-| 7 | **环境与工具链** | `ops/` | 安装步骤、实测环境、编辑器配置 | 设计决策 |
-| 8 | **协作与流程** | `ops/` | 分工、文档纪律、提交规范、评审闸门 | 具体技术方案 |
-| 9 | **归档** | `archive/` | 作废稿 + 作废时点与可继承清单 | 现行内容 |
-
-**边界口诀**：**立项**说"为什么"、**设定集**说"世界是什么"、**玩法**说"玩家做什么"、**技术**说"程序怎么实现"、**流程**说"我们怎么协作"。
-
----
-
-## 1 现行文档状态矩阵
-
-| 路径 | 事务域 | 版本 | 状态 | truth | 一句话职责 |
-|---|---|---|---|---|---|
-| [`charter/GDD.md`](charter/GDD.md) | 立项 | 7.4 | active | **owner** | 立项决策、定位与卖点、非目标、体验支柱 + 文档地图 + 旧章节号对照 |
-| [`charter/DECISIONS.md`](charter/DECISIONS.md) | 立项 | 2.10 | active | history | 裁决沿革**摘要式日志**（48 轮，含存废标注；不保留对话原文） |
-| [`charter/OPEN-QUESTIONS.md`](charter/OPEN-QUESTIONS.md) | 立项 | 2.9 | active | subsystem | **开放清单（2 项：#16 挂 M2、#41 生产挂账）+ 已裁决一行索引** |
-| [`setting/WORLD.md`](setting/WORLD.md) | 设定集 | 3.10 | active | subsystem | 界 / **界壁（穹顶罩 + 形态语言）** / 界外 / 七原质（叙事层）/ 环级（含超环）与禁物 / 规模 / 世界模型（**五轴** / 天气转移矩阵 / **山的解剖** / **混沌初态与画面 + 上色触发**）/ 年表 / 叙事与命名 |
-| [`setting/CARDS.md`](setting/CARDS.md) | 设定集 | 3.10 | active | subsystem | 卡片**规则**：三轴、252 卡池矩阵、卡类 + **持续性字段**、生克（物理涌现）、**禁物 21 件名单**、**§7.1 卡的组成模板与示例卡**、命名 |
-| [`setting/CARD-LIST.md`](setting/CARD-LIST.md) | 设定集 | 1.7 | active | subsystem | 卡片**内容**：M0 36 格 + **首批 10 张候选**、价值表、**240 功能位池（平铺）**、超环（21 张） |
-| [`setting/PHYSICS.md`](setting/PHYSICS.md) | 设定集 | 1.2 | active | subsystem | **物理属性系统**：第一原则（元素≠世界实体）、**材质表（15 材质）**、七原质↔物理量**翻译表**（暗 = 纯效果）、分级结算、相变、卡的基础能力 |
-| [`setting/SPECIES.md`](setting/SPECIES.md) | 设定集 | 2.2 | active | subsystem | 物种模板、M0 五物种（尺寸 + **模板初值表**）、种群动力、因果可读性；世界初始**混沌无生命** |
-| [`setting/STYLE.md`](setting/STYLE.md) | 设定集 | 1.1 | active | subsystem | 风格主题（**只 T1**）的定义与验收约定；主题扩展已否决（第 47 轮） |
-| [`gameplay/LOOP.md`](gameplay/LOOP.md) | 玩法 | 1.1 | active | subsystem | 核心循环、五个尺度的节奏、支柱→机制映射、无失败红线（含**个体不可控**） |
-| [`gameplay/TIME.md`](gameplay/TIME.md) | 玩法 | 1.0 | active | subsystem | 现实的桥、双模式时间、昼夜形状、现实锚规格 |
-| [`gameplay/INTERVENTION.md`](gameplay/INTERVENTION.md) | 玩法 | 2.9 | active | subsystem | **手牌 / 实体池（含开局池 + 开局余响 0）/ 释放与回收（无撤销 + 3 秒未干期）**、余响规则、扰动值、卡包（禁物不进包 / **无风格包**）、卡库筛选（无类别 / 卡型）、接管、倒带 |
-| [`gameplay/ECONOMY.md`](gameplay/ECONOMY.md) | 玩法 | 2.3 | active | subsystem | **全部经济数值**：三源产出（含 **offset 测量公式**、**势能三因子定义**）、价值与回收返还、包价、掉落权重、六条红线验算 |
-| [`gameplay/TRIGGERS.md`](gameplay/TRIGGERS.md) | 玩法 | 1.1 | active | subsystem | **触发规则语法（WHEN-THEN 有限词表 DSL）**：条件 / 动作词表、12 条上限、后写覆盖（触发 = 律类 + 持续性取值） |
-| [`gameplay/SCREENS.md`](gameplay/SCREENS.md) | 玩法 | 1.6 | active | subsystem | **屏幕清单与线框原型（界面蓝图）**：九屏、导航流（S1 唯一根屏）、**穹顶可见性 / 混沌空态 / 开包分镜（前摇 + 拆卡动画分级）**、卡库全屏鉴赏、释放三态 |
-| [`gameplay/CUSTOMIZE.md`](gameplay/CUSTOMIZE.md) | 玩法 | 1.3 | active | subsystem | **首次启动流程（穹顶开场 + 首启问卷 + 直入）**、界创建向导 9 步、出厂预设、创世面板、存档与导入导出 |
-| [`gameplay/UI-UX.md`](gameplay/UI-UX.md) | 玩法 | 2.6 | active | subsystem | 界面区域、**手牌区与拖拽手势**、键位（含 **`P` 摆件 / 截图模式**）、**相机（上半球环绕 + 4 预设机位）**、极简原则 |
-| [`art/ART-STYLE.md`](art/ART-STYLE.md) | 美术与资产 | 2.7 | active | subsystem | 渲染配方（含**天气纸痕**）、色板、素材规格（**卡面 2048 + 纸层 3 层视差**）、**卡面区域级版式 + 花纹系统（含档内华丽度梯度）+ 三档牌背 + 字体（§4）**、QC（**色盲核验**）、风格验收流程 |
-| [`art/ASSETS.md`](art/ASSETS.md) | 美术与资产 | 1.1 | active | subsystem | 资产去向、生产线、规模预算（**单主题**）、manifest 登记、合规 |
-| [`tech/ARCHITECTURE.md`](tech/ARCHITECTURE.md) | 技术与架构 | 1.0 | active | subsystem | 性能预算、模块划分与硬约束 |
-| [`tech/STRUCTURE.md`](tech/STRUCTURE.md) | 技术与架构 | 3.5 | active | subsystem | 目录与命名（含 🟡/✅ 状态列与归位决策表）+ git 与 Content 重建（不入库清单含 `*.slnx` / `.vsconfig`）；M0 已落地 |
-| [`plan/ROADMAP.md`](plan/ROADMAP.md) | 计划 | 1.8 | active | subsystem | 三阶段切分（混沌初态 / 音频挂 M1 / 逐卡制作口径）、M0 验收 + **进度实测表**、前置条件、风险、执行计划（含性能浮层 / bench 长跑 / 摆件模式挂账） |
-| [`ops/ENV.md`](ops/ENV.md) | 环境与工具链 | 2.2 | active | nav | 环境安装步骤与本机实测；含 `-NoUBA`、`.NET Framework 4.6.2 SDK` 补法、UBT 的 dotnet 运行方式（引擎自带 dotnet + DLL）与提交钩子安装 |
-| [`ops/VSCODE.md`](ops/VSCODE.md) | 环境与工具链 | 1.2 | active | nav | VSCode 工作区配置（真源是 `.vscode/` 实文件） |
-| [`ops/WORKFLOW.md`](ops/WORKFLOW.md) | 协作与流程 | 1.1 | active | nav | 分工、文档纪律、提交规范、评审闸门、AI 进入清单、git 约定（单机） |
-| [`INDEX.md`](INDEX.md) | 导航 | 2.28 | active | nav | 本文件 |
-
-**状态取值**：`active` · `reference` · `deprecated` · `draft`。
-**truth 取值**：`owner`（唯一真源，全仓只允许一个）· `subsystem`（子系统真源）· `nav`（导航/说明）· `history`（仅沿革）。
-
----
-
-## 2 真源链
-
-```text
-charter/GDD.md  (truth: owner) —— 立项书 + 文档地图
-├─ setting/WORLD.md       世界设定      （界 / 界壁穹顶 / 原质 / 环级 / 规模 / 世界模型 / 年表 / 命名）
-├─ setting/CARDS.md       卡片规则      （三轴 / 矩阵 / 生克 / 字段 / 命名）
-├─ setting/CARD-LIST.md   卡片内容      （清单 / 价值表 / 功能位池）
-├─ setting/PHYSICS.md     物理属性系统  （属性字典 / 原质映射 / 分级结算 / 相变）
-├─ setting/SPECIES.md     物种设定
-├─ setting/STYLE.md       美术设定      （主题定义；执行参数在 art/ART-STYLE.md）
-├─ gameplay/LOOP.md       玩法总纲
-├─ gameplay/TIME.md       时间与现实耦合
-├─ gameplay/INTERVENTION.md 手牌 / 释放与回收 / 余响规则
-├─ gameplay/ECONOMY.md    经济数值      （产出 / 价值 / 价格 / 红线）
-├─ gameplay/CUSTOMIZE.md  自定义
-├─ gameplay/UI-UX.md      界面与交互
-├─ art/ART-STYLE.md       美术执行参数   = setting/STYLE.md 的执行层
-├─ art/ASSETS.md          资产生产与登记
-├─ tech/ARCHITECTURE.md   技术架构与性能
-├─ plan/ROADMAP.md        计划与里程碑
-├─ charter/DECISIONS.md   裁决沿革      （truth: history，不构成规格）
-├─ charter/OPEN-QUESTIONS.md 开放问题
-└─ tech/STRUCTURE.md      目录与命名     （独立真源，受 GDD 约束）
-```
-
-**规则**：子系统真源与 GDD 冲突时以 GDD 为准，并在**同一次改动**内修正子系统文档与本文档。
-
----
-
-## 3 新会话阅读顺序（约 3 分钟）
-
-1. 本文件（30 秒：现状、状态矩阵、硬规则）
-2. [`charter/GDD.md`](charter/GDD.md)（立项 + §4 文档地图）
-3. [`plan/ROADMAP.md`](plan/ROADMAP.md) §1 三阶段切分 + §5 执行计划
-4. [`ops/WORKFLOW.md`](ops/WORKFLOW.md) §6（禁止事项清单）
-5. 按任务域读对应文档；"新东西放哪"读 [`tech/STRUCTURE.md`](tech/STRUCTURE.md) §8
-
----
-
-## 4 更新触发矩阵（改动 → 必须同次更新的文档）
-
-| 改动类型 | 必须同次更新 |
-|---|---|
-| 立项 / 定位 / 非目标 / 支柱 | `charter/GDD.md` §0–§3 + `charter/DECISIONS.md` + 本文件 |
-| 世界观 / 世界模型 / 规模 | `setting/WORLD.md` + 受影响文档 |
-| 卡片规则（三轴 / 生克 / 字段） | `setting/CARDS.md` |
-| 卡种清单 / 价值表 / 功能位 | `setting/CARD-LIST.md` + `gameplay/ECONOMY.md` §3 |
-| **任何经济数值调整** | `gameplay/ECONOMY.md` + **重跑其 §6 红线验算** |
-| 手牌 / 释放 / 回收规则 | `gameplay/INTERVENTION.md` + `gameplay/UI-UX.md` |
-| 物种 | `setting/SPECIES.md` + `setting/WORLD.md` §2.2 |
-| 风格主题定义 | `setting/STYLE.md` + `art/ART-STYLE.md` |
-| 玩法机制（时间 / 自定义 / 界面） | 对应 `gameplay/*` + 受影响设定集 |
-| 美术执行 / 资产管线 | `art/ART-STYLE.md` + `art/ASSETS.md` |
-| 模块 / 依赖 / 性能预算 | `tech/ARCHITECTURE.md` |
-| 目录 / 命名 | `tech/STRUCTURE.md` + `.gitignore` 注释 + 本文件 |
-| 里程碑 / 计划 | `plan/ROADMAP.md` + `README.md` §三 |
-| 环境 / 工具脚本 | `ops/ENV.md` + `tools/README.md` |
-| 协作 / 提交规范 | `ops/WORKFLOW.md` + `.codebuddy/rules/` + `README.md` §五 |
-| git 策略 / Content 重建 | `ops/WORKFLOW.md` §5 + `tech/STRUCTURE.md` §9 |
-| 新增待裁决 / 完成裁决 | `charter/OPEN-QUESTIONS.md` + `charter/DECISIONS.md` |
-| 文档作废 | 移入 `archive/` + `archive/README.md` 记时点与可继承项 + 本文件状态改 `deprecated` |
-
-**四条硬规则**：
-1. **真源唯一**：全仓只允许一个 `truth: owner`；出现第二个即视为缺陷。
-2. **一种事务一份文档**：规格 / 计划 / 环境 / 流程不得混写。
-3. **结构描述必须带状态**：目录树必须标 `现状` / `计划`，禁止把计划写成存在。
-4. **引用要指到会动的文档**：不要引用"某文档的某章节号"，除非该章节确实存在（**GDD 已瘦身，旧的 §4–§16 引用一律改指对应域文档**）。
-
----
-
-## 5 文档体系维护备忘
-
-- **新增文档**：先确定事务域（§0）与 `truth` 取值，写统一文档头（`id/title/version/date/status/truth/owner`），再登记到 §1。
-- **文档骨架**：正文首节写"本文件管什么 / 不管什么"，末节写"更新触发"与"沿革"。
-- **作废文档**：`git mv` 进 `archive/`，改名带版本（`XXX-v1.md`），在 `archive/README.md` 记时点与可继承项。
-- **拆分超长文档**：同时承载 ≥2 类事务、或超过约 600 行时按 §0 的事务域拆分，并在双方加"相关文档"指针（范例：`CARDS` ⟷ `CARD-LIST` 的**规则 vs 内容**；`INTERVENTION` ⟷ `ECONOMY` 的**规则 vs 数值**）。
-- **提交前自检**（两条，已入库 [`../tools/checks/`](../tools/checks)，Python 标准库实现）：
-  1. 链接校验 `python tools/checks/check-links.py` —— 解析所有相对链接，**0 断链**才提交（有断链退出码 1）；
-  2. 契约校验 `python tools/checks/validate-contracts.py` —— 把 `shared/schema/` 与 `game/Config/Solstice/Data/` 逐对校验 + 卡 / 物种 id 查重 + 存档信封样例（`shared/fixtures/save.sample.json`）；卡 `params` 按 key 白名单与 material / weather 枚举校验；并校验 `Localization/` 双语言 key 对齐（缺失 / 多余 key、占位符不一致、空值即报错）。
-  两条都跑通再提交；**自检自动执行**：本地 pre-commit 钩子（`tools/hooks/` + `tools/install-hooks.ps1`，每克隆装一次）与 GitHub Actions（`.github/workflows/checks.yml`，push / PR，无需引擎）两道闸门代跑。**2026-10-16 复测：37 份文档 571 链接 0 断链；6 对契约（41 个 id）+ 本地化 2 文件（162 key）全过；params / realm_id 负例注入实测拦截。**
-
----
-
-## 6 归档
-
-作废稿与作废原因见 [`archive/README.md`](archive/README.md)。归档文档**无约束力**。
-
----
-
-## 沿革
-
-| 版本 | 日期 | 变更 |
+| 路径 | 层 | 一句话 |
 |---|---|---|
-| 1.0 | 2026-10-14 | 建立索引与状态矩阵；三份作废稿入 `archive/`；全部文档补统一 frontmatter |
-| 1.1 | 2026-10-14 | P2：新增 4 份文档，GDD/CARDS/STRUCTURE 迁入子目录 |
-| 1.2 | 2026-10-14 | P3：新增 WORLD / ART-STYLE(v2) / ASSETS / WORKFLOW，ENV/VSCODE/SYNC 迁入 `ops/` |
-| 2.0 | 2026-10-14 | 按"设定集 / 玩法"二次分域：新增 `setting/` 与 `gameplay/`；GDD 瘦身为立项书（7.0）；事务域由 8 类改为 9 类 |
-| 2.1 | 2026-10-14 | 手牌与回收机制落地：`INTERVENTION` 2.0、`UI-UX` 2.0、`CARDS` 3.0 + 新增 `CARD-LIST`（规则与内容分家） |
-| 2.2 | 2026-10-14 | 超环定案（21 张）→ **单元素卡池下限 231 上修为 252**；0 环允许固化 |
-| 2.3 | 2026-10-14 | **经济闭环定稿**：新增 `gameplay/ECONOMY.md`（三源产出、价值与回收返还、包价、掉落权重、六条红线验算）；卡的价值表定稿 |
-| 2.4 | 2026-10-14 | **ECONOMY 2.0**：超环改由**特殊包**产出（普通包权重 0）；新增**防膨胀五道闸 + 放大回路验算**、**数据流转账本与 8 条审计清单**、**100 小时长期平衡验算**；新增**每种卡持有上限 3 张 + 自动折算**；元素包范围收回为 **33 个卡种** |
-| 2.5 | 2026-10-14 | **小世界细化（WORLD 3.0 / SPECIES 2.0）**：物理尺度（1 格 = 1 m）、水体模型（湖/河/海/湿地/潮汐）、`地力` 与生态域四轴阈值表、环境曲线与天气状态机、世界生成流程 6 阶段、分块世界语义、年表双时间戳；修正三处自相矛盾（水体表达、分解回地力、"整界"相对化） |
-| 2.6 | 2026-10-15 | **第 33 轮批量采纳**：INTERVENTION 2.3（扰动值补完 + 倒带回滚定案）、WORLD 3.1（多界 3 座 / 禁物获取方向 / 潮汐初值 / 异质留档保留）、CUSTOMIZE 1.2（世界故事摘要）、SPECIES 2.1（物种集与承载力）、UI-UX 2.1（生效规则清单落创世面板 / 手牌固定 10 格；**登记相机操作缺口**）、CARDS 3.3（配额按 252 重算）、OPEN-QUESTIONS 1.5（#38–#40 关闭）、DECISIONS 1.6 |
-| 2.7 | 2026-10-15 | **第 34 轮 P1 前置**：UI-UX 2.2（**相机定案：固定俯视角 45–75°**）、ROADMAP 1.1（**音频挂 M1** + M0 预留音频总线占位）、CARD-LIST 1.4（**卡逐张制作**，36 格仅范围框架）、WORLD 3.2（**生态域五轴 + 光照**）、DECISIONS 1.7 |
-| 2.8 | 2026-10-15 | **第 35 轮相机修订**（用户纠正"世界是全 3D"）：UI-UX 2.3 + WORLD 3.3——撤销固定俯视角，改**上半球全角度环绕 + 4 预设机位**（F1 全景 / F2 特写 / F3 低角 / F4 顶视）；登记 T2 立牌低角侧视线注意项 |
-| 2.9 | 2026-10-15 | **第 36 轮世界形态与物理**：**界壁 = 上半球穹顶罩**（WORLD 3.4）、新建 **`setting/PHYSICS.md` 1.0**（万物有物理属性：全量定义 + 分级结算、七原质映射含**暗 = 吸光**、相变表、卡的 7 类基础能力）、CARDS 3.4（模拟效果 = 逐卡逻辑；生克涌现化）、GDD 7.1（世界形态行 + 文档地图）；扰动值 = 配比失衡 |
-| 2.10 | 2026-10-15 | **第 37 轮**：**元素与世界模拟分层**（第一原则，PHYSICS 1.1 翻译表 / WORLD 3.5 层次澄清；**暗 = 纯效果**）、CUSTOMIZE 1.3（**首启流程**：穹顶开场 + ≤5 问问卷 + 直入；界名生成器；设置页最小集）、INTERVENTION 2.4（**开局实体池** + **无撤销 + 3 秒未干期**）、LOOP 1.1（个体不可控红线）、ECONOMY 2.1（**offset 公式 + 势能三因子**初值提案）、WORLD 3.5（**天气转移概率初值表**） |
-| 2.11 | 2026-10-15 | **第 38 轮设定七件**：PHYSICS 1.2（**材质表 15 材质**，UE/PBR 调研后丰富）、WORLD 3.6（**混沌初态** / **山的解剖** / 穹顶形态语言）、SPECIES 2.2（物种数值改**模板初值** + 五物种初值表 + 种子雨）、**新建 `gameplay/TRIGGERS.md` 1.0**（WHEN-THEN 有限词表 DSL）、CARDS 3.5（禁物逐件自由设计）、ART-STYLE 2.1（**卡面版式 + 字体**思源黑/宋） |
-| 2.12 | 2026-10-15 | **日志清理**：DECISIONS 2.0（改写为摘要式日志，删对话原文，第 1–26 轮压缩并标注存废）、OPEN-QUESTIONS 2.0（只留 6 项真开放 + 已裁决一行索引）；修矛盾：**元素包含禁物 vs 禁物不随机出**（ECONOMY 2.2 / INTERVENTION 2.5 → 池 = 0–9 环 30 卡种）、INTERVENTION 三处过期"待裁决 / 待定"、ROADMAP 1.2（"卡库直取"旧口径 → 只读 + 免费补池；补混沌初态与逐卡口径） |
-| 2.13 | 2026-10-15 | **原型设计启动（第 39 轮）**：新建 `gameplay/SCREENS.md`（九屏清单 / 导航流 / 逐屏线框 / 释放三态 / 实现注记）；三张概念参考图存 `tmp/ui-concepts/`（不入库）；DECISIONS 2.1 |
-| 2.14 | 2026-10-15 | **原型第二轮（第 40 轮）**：ART-STYLE 2.2（**卡面区域级版式 + 花纹系统（物回纹/术云水纹/律封印菱纹）+ 统一牌背**；字体移 §4.5）、SCREENS 1.1（穹顶可见性 / 混沌空态 / 开包五帧分镜）；新增四张概念图（穹顶卫星视角 / 卡面 v2 / 牌背 / 三卡类花纹对比）；DECISIONS 2.2 |
-| 2.15 | 2026-10-15 | **原型第三轮（第 41 轮）**：四张概念图（**超环卡面**金框缠枝 / **禁物卡面**撕裂黑框 / **S3 卡库** / **S2 创世面板**蜡球滑轨）；登记 **#42 十二类存废**质询（待裁决）；DECISIONS 2.3 / OPEN-QUESTIONS 2.1 |
-| 2.16 | 2026-10-15 | **第 42 轮：删除「类别」维度**——卡 =「元素 × 环级 × 卡类 × 卡型」四项描述；GDD 7.2、CARDS 3.6（§5 作废）、CARD-LIST 1.5（功能位池平铺）、WORLD 3.7、UI-UX 2.4、SCREENS 1.2、INTERVENTION 2.6、ART-STYLE 2.3、STRUCTURE（schema 注记）；OPEN-QUESTIONS 2.2（#42 关闭）、DECISIONS 2.4 |
-| 2.17 | 2026-10-15 | **第 43 轮：删除「卡型」维度**——持续性改为枚举字段（瞬时 / 持续 / 永久 / 触发）；合契 / 仪轨降为可选参数；触发 = 律类 + 持续性取值（TRIGGERS / 地脉包不变）；卡面身份行只剩回收价值；GDD 7.3、CARDS 3.7（§6 作废）、CARD-LIST 1.6、WORLD 3.8、UI-UX 2.5、SCREENS 1.3、INTERVENTION 2.7、ART-STYLE 2.4、STRUCTURE 2.4、ROADMAP 1.3、TRIGGERS 1.1；OPEN-QUESTIONS 2.3（#19 关闭）、DECISIONS 2.5 |
-| 2.18 | 2026-10-15 | **第 44 轮**：CARDS 3.8（**§7.1 卡的组成模板 + 三张示例卡**：物·丘 / 术·火种 / 律·霜线）、CARD-LIST 1.7（**M0 首批 10 张候选**）、WORLD 3.9（**混沌 = 未上色的纸**：画面定义与上色机制）；DECISIONS 2.6 |
-| 2.19 | 2026-10-16 | **M0 工程落地（首次有可运行代码）**：工具链补齐（引擎 5.8.3 / VS2022 / `.NET Framework 4.6.2 SDK`）；`game/` 落地 `.uproject` + 2 个 Target + 主模块 `Solstice`（Core/Sim/Gen/World/God/UI/Render）+ 编辑器模块 `SolsticeEditor`，**两个目标编译通过**；内容改为代码生成（`SolsticeGenAssets`）、新增无头确定性回归（`SolsticeBench`）与 `tools/gen-assets.ps1` `tools/bench.ps1`；STRUCTURE 3.0（三个目录转 ✅ + `Source/` 结构按实测修正 + `SOLSTICE_API`/`LoadingPhase` 规则）、ENV 2.0（§1.3 + §2.4.1 + 常见坑扩至 13 条）、ROADMAP 1.4、README §一–§四 |
-| 2.20 | 2026-10-16 | **结构体检与自检入库**：提交前两条自检脚本由 `tmp/`（不入库）迁入 `tools/checks/`（标准库实现；链接 0 断链 / 契约 5 对 41 个 id 全过）；README GDD 版本号修正（6.1 → 7.3）；STRUCTURE 3.1（Content 子目录树对齐、§3 依赖按 Build.cs 瘦身去 UMG / JsonUtilities / RenderCore / RHI、§10.7 登记打包 stage 待办）；ROADMAP 1.5（§4 风险登记）；`.codebuddy/rules` 过时事实修正（game/studio/shared 已 ✅、WORLD.md 路径） |
-| 2.21 | 2026-10-16 | **概念图评审落地**：OPEN-QUESTIONS 2.4（新增 **#44 世界容器形态**、**#45 金色用量预算** 待裁决）；HUD 实装改进——按钮改纸片质感（暖纸底 + 棕细边 + hover 抬亮）、正文字号整体上移一档（12/11/10）、**修复 Tab 隐藏 UI 后无法恢复的死锁**（Tab 移出输入门控 + HUD 面板绑定 IsUIOpen）、帮助面板补 H 键（zh/en 文案同步） |
-| 2.22 | 2026-10-16 | **第 45 轮：容器与牌背双裁决**——OPEN-QUESTIONS 2.5（**#44 关闭**：容器维持半球穹顶定案、HUD mockup 方盒构图作废；**#45 关闭**：牌背三档）；ART-STYLE 2.5（§4.3 金语言收口 + §4.4 常规统一素纸背 + 超环 / 禁物特殊牌背）、SCREENS 1.4、INTERVENTION 2.8、CARDS 3.9（去"牌背颜色"旧口径）同步；DECISIONS 2.7 |
-| 2.23 | 2026-10-16 | **自检自动化 + 本地化校验**：validate-contracts 扩展 Localization 双语言 key 对齐（缺失 / 多余 key、占位符不一致、空值；161 key 复测全过）；新增 `tools/hooks/pre-commit` + `tools/install-hooks.ps1`（本地闸门，`core.hooksPath=tools/hooks`）与 `.github/workflows/checks.yml`（CI 闸门，push / PR 无需引擎）；新增 `.gitattributes`（钩子 LF 锁定）；README 状态表去硬编码 GDD 版本号（版本号只活在本文 §1）；STRUCTURE 3.2、ENV 2.1、tools/README、README 同步 |
-| 2.24 | 2026-10-16 | **契约收紧 + 存档信封 + mat 键名修复**：修复 cards 数据 `mat`→`material`（6 处；DataLoader `ReadParams` 只认 `material`，原字符串被 `Atof` 解析成 0 = Paper 材质，paint 卡材质全错的静默 bug）；`card.schema.json` params 收紧为 key 白名单 + material（14 值）/ weather（5 值）枚举；新增 `save.schema.json` 信封骨架（版本 + 元数据 + 快照 / 卡池历史 / 年表容器，载荷 M1 收紧）与 `shared/fixtures/save.sample.json`，validate-contracts 扩为 6 对契约；负例注入实测拦截；STRUCTURE 3.3 同步 |
-| 2.25 | 2026-10-16 | **第 46 轮批量落地**：M0 验收 #8「离线再打开」**移至 M1**（ROADMAP 1.6，消除验收与范围切分矛盾）；ART-STYLE 2.6（**常规 0–9 环档内华丽度梯度**）；WORLD 3.10（**混沌→上色触发表**）；CARDS 3.10（**禁物 21 件名单初稿**：物 / 术 / 律各 7，5 示例收编）；OPEN-QUESTIONS 2.6（#41 更新 + 新增 **#46 开局余响数量**）；DECISIONS 2.8；本表沿革序号修复（2.19 归位、2.21 / 2.22 重复改 2.23 / 2.24） |
-| 2.26 | 2026-10-16 | **第 47 轮：商业化族裁决**——OPEN-QUESTIONS 2.7（**#3 / #4 / #9 否决**：无付费 / 无剪影解锁 / 无主题扩展；**#46 关闭**：开局余响 = 0；§1 剩 2 项）；INTERVENTION 2.9（开局余响 + 去风格包 / 剪影）、ECONOMY 2.3（去风格包、年度预算 32,850→31,250）、ROADMAP 1.7（M1 / M2 去风格包与剪影）、STYLE 1.1（**只 T1**）、ASSETS 1.1（单主题预算）、SCREENS 1.5（卡库无剪影）、DECISIONS 2.9 同步 |
-| 2.27 | 2026-10-16 | **批量提案 + 状态矩阵体检**：OPEN-QUESTIONS 2.8（新增 **#47–#60** 14 项提案：拆卡动画分级 / 拆包前摇 / 光敏安全 / 卡面高清与鉴赏 / 纸层视差闪卡 / 拖卡手感 / POP-UP 入场 / 天气纸痕 / 截图模式 / 存档安全网 / 性能浮层 / 长跑自动化 / 0 起步引导 / 色盲安全——§1 共 16 项待裁决）；本表 §1 状态矩阵版本列滞后修正（STRUCTURE 3.3、ENV 2.1、INDEX 2.27） |
-| 2.28 | 2026-10-16 | **第 48 轮批量裁决 + 双机协作废止**：① **#47–#60 全部采纳关闭**——SCREENS 1.6（前摇 / 拆卡分级 / 鉴赏 / 手感 / POP-UP 入场 / 0 起步引导 / 动画三档 + 减弱闪光）、ART-STYLE 2.7（2048 高清 / 纸层 3 层 / 天气纸痕 / 色盲核验）、UI-UX 2.6（`P` 摆件模式）、ROADMAP 1.8（安全网 M1 / bench 长跑 / 性能浮层 / 摆件挂账）、OPEN-QUESTIONS 2.9（§1 剩 2 项）、DECISIONS 2.10；② **回归单机开发**——`ops/SYNC.md` 归档（`archive/SYNC-v1.1.md`），WORKFLOW 1.1（§5 改单机 git 约定）、STRUCTURE 3.4（§9 改 Content 重建）、GDD 7.4 / VSCODE 1.2 / README / tasks.json（删 Git 同步任务）同步，§0 / §1 / §4 / §5 去双机引用 |
-| 2.29 | 2026-10-17 | **工具链修复 + 本机闭环复测**：① `tools/gen-projectfiles.ps1` 改走**引擎自带 dotnet + `UnrealBuildTool.dll`**（原直调 `UnrealBuildTool.exe` 在本机因只装 .NET 8/9 而必然失败），工作目录对齐 `Build.bat`（`Engine\Source`），保留 `.exe` 回退；② 修复 `tools/configure-vscode.ps1` 的 **UTF-8 读取缺陷**——PS 5.1 的 `Get-Content -Raw` 按 ANSI 解析无 BOM 的 UTF-8，会把 `.vscode` 三份配置的中文注释整篇写成乱码（已 `git checkout` 还原，改用 `[System.IO.File]::ReadAllText`）；③ `.gitignore` 补 `*.slnx` / `*.vsconfig`（UBT 派生物，与 `*.sln` 同列），STRUCTURE 3.5 / ENV 2.2 / `tools/README.md` 同步。**本机闭环复测全过**：pre-commit 钩子安装（575 链接 0 断链 / 6 对契约 41 id / 本地化 162 key）、20 项推荐扩展齐备、引擎路径写入 `.vscode`（中文完好）、`Solstice.sln` 生成、`build.ps1` 编译成功、纸材质生成、`bench -Days 2` 确定性成立 |
+| [`START.md`](START.md) | L0 | **唯一入口**：现在做什么、只读哪份、红线、卡点 |
+| [`CONSTANTS.md`](CONSTANTS.md) | L0 | **跨文档数字的唯一索引**：值 / 真源 / 还有谁在用 |
+| [`setting/WORLD.md`](setting/WORLD.md) | L1 | **世界形态与生成**：界形态判据、尺度、生态域、世界骰六轴与七条判据、地块与水体模型、环境曲线与天气、生成流程、年表结构 |
+| [`setting/LORE.md`](setting/LORE.md) | L1 | **世界怎么说**：术语表与命名 id、文案与本地化规范、叙事原则、留档设定（相合 / 异质）。**施工不读，写文案时读** |
+| [`art/art.md`](art/art.md) | L1 | 动画赛璐璐配方（着色 / 天空 / 地形水植被 / 昼夜）、**取景与机位**（§2.6）、资产生产与登记 |
+| [`setting/cards.md`](setting/cards.md) | L1 | 卡的三轴与生克、卡种字段、M0 36 格清单、价值表、240 功能位 |
+| [`gameplay/INTERVENTION.md`](gameplay/INTERVENTION.md) | L1 | 玩家怎么用卡：手牌、实体池、余响规则、释放手感 |
+| [`tech/tech.md`](tech/tech.md) | L1 | 性能预算、模块依赖、仓库目录与命名、归位决策 |
+| [`plan/work.md`](plan/work.md) | L1 | **施工派单板 + 工单池 + 待裁决**（分析→开发的唯一交接口） |
+| [`plan/ROADMAP.md`](plan/ROADMAP.md) | L2 | 三阶段切分与验收口径 |
+| [`charter/CHARTER.md`](charter/CHARTER.md) | L2 | **宪章**：定位 / 支柱 / 非目标 §1 · **已定口径表 58 轮** §5 · **待裁决与已否决** §6 |
+| [`CHANGELOG.md`](CHANGELOG.md) | L2 | **全仓唯一变更记录**：一行一条，倒序 |
+| [`tools/docs/ENVIRONMENT.md`](../tools/docs/ENVIRONMENT.md) | ops | 装机、VSCode、构建与 DDC、MCP、排错（**不在 docs/ 内**） |
+| [`ops/PLAYTEST.md`](ops/PLAYTEST.md) | ops | 怎么试玩：启动、种子、冒烟流程、记录模板 |
+
+
+## 2 冻结（M1 及以后，**M0 不读不改**）
+
+| 路径 | 内容 |
+|---|---|
+| [`later/ECONOMY.md`](later/ECONOMY.md) | 余响经济完整数值模型（三源、五道闸、长期验算） |
+| [`later/TRIGGERS.md`](later/TRIGGERS.md) | 律卡的 `WHEN-THEN` 规则 DSL |
+| [`later/TIME.md`](later/TIME.md) | 现实时间耦合、昼夜相位、离线行为 |
+| [`later/SCREENS.md`](later/SCREENS.md) | 全屏清单与线框（S0–S9） |
+| [`later/CUSTOMIZE.md`](later/CUSTOMIZE.md) | 高级面板（锁轴）与创世面板全参数 |
+| [`later/UI-UX.md`](later/UI-UX.md) | M1 的全屏设想与 HUD 版式（**相机已迁出**：现真源 `art.md` §2.6；键位与 HUD 缺真源一事挂在 `plan/work.md` `A-09`） |
+| [`later/PHYSICS.md`](later/PHYSICS.md) | 材质属性与物理交互 |
+| [`later/SPECIES.md`](later/SPECIES.md) | 物种模板、种群动力、因果可读性 |
+
+> 冻结件**不参与施工、评审与契约校验**；M1 立项时再解冻并对齐现状。引用时注明「M1 设想」。
+
+## 3 归档
+
+[`archive/`](archive/)：已作废形态与旧稿（动态壁纸 / 场景引擎 / 卡牌收集 / 自走棋 / 2.5D / Tauri / WebGL / 纸雕时期旧稿）。**无约束力，不作依据。**
+
+## 4 三条维护规则
+
+1. **改内容**：只改正文 + [`CHANGELOG.md`](CHANGELOG.md) 加一行。**不写「沿革」表，不 bump 版本号。**
+2. **禁止复制规格段**：一段规格只在一份文档里写成，别处只写指针。新出现的数字先进 [`CONSTANTS.md`](CONSTANTS.md)。
+3. **新增 / 作废 / 迁移**：才改本页；文档头只需 `id / title / status / truth / owner` 五字段。

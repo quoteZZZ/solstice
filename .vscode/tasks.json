@@ -14,7 +14,7 @@
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        "${workspaceFolder}/tools/build.ps1",
+        "${workspaceFolder}/tools/build/build.ps1",
         "-Target",
         "SolsticeEditor",
         "-Config",
@@ -35,7 +35,7 @@
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        "${workspaceFolder}/tools/build.ps1",
+        "${workspaceFolder}/tools/build/build.ps1",
         "-Target",
         "SolsticeEditor",
         "-Config",
@@ -55,7 +55,7 @@
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        "${workspaceFolder}/tools/build.ps1",
+        "${workspaceFolder}/tools/build/build.ps1",
         "-Target",
         "SolsticeEditor",
         "-Config",
@@ -78,7 +78,7 @@
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        "${workspaceFolder}/tools/gen-projectfiles.ps1",
+        "${workspaceFolder}/tools/build/gen-projectfiles.ps1",
         "-Mode",
         "Solution"
       ],
@@ -96,7 +96,7 @@
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        "${workspaceFolder}/tools/gen-projectfiles.ps1",
+        "${workspaceFolder}/tools/build/gen-projectfiles.ps1",
         "-Mode",
         "ClangDb"
       ],
@@ -105,8 +105,8 @@
       "presentation": { "reveal": "always", "panel": "shared", "clear": true }
     },
     {
-      "label": "Solstice: 配置 VSCode (写入引擎路径)",
-      "detail": "把探测到的引擎路径写入 .vscode 配置，替换 __UE_ENGINE_ROOT__。",
+      "label": "Solstice: 配置 VS Code (写入引擎环境变量)",
+      "detail": "探测引擎并写入用户级环境变量 SOLSTICE_UE_ENGINE_ROOT；.vscode 配置通过 ${env:...} 引用它。跑完需重启 VS Code。",
       "type": "shell",
       "command": "powershell",
       "args": [
@@ -114,7 +114,7 @@
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        "${workspaceFolder}/tools/configure-vscode.ps1"
+        "${workspaceFolder}/tools/env/configure-vscode.ps1"
       ],
       "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": [],
@@ -130,7 +130,24 @@
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        "${workspaceFolder}/tools/launch-editor.ps1"
+        "${workspaceFolder}/tools/run/launch-editor.ps1"
+      ],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "Solstice: 启动编辑器（含 MCP 服务器）",
+      "detail": "同上，但额外传 -ModelContextProtocolStartServer：编辑器进程内的官方 MCP 服务器监听 127.0.0.1:8000/mcp，AI 可据此边改边观察。详见 docs\\ops\\AI-TOOLING.md §2。",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/tools/run/launch-editor.ps1",
+        "-Mcp"
       ],
       "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": [],
@@ -148,7 +165,7 @@
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        "${workspaceFolder}/tools/check-env.ps1"
+        "${workspaceFolder}/tools/env/check-env.ps1"
       ],
       "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": [],
@@ -163,7 +180,7 @@
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        "${workspaceFolder}/tools/find-ue.ps1",
+        "${workspaceFolder}/tools/env/find-ue.ps1",
         "-All"
       ],
       "options": { "cwd": "${workspaceFolder}" },
@@ -171,10 +188,33 @@
       "presentation": { "reveal": "always", "panel": "shared", "clear": true }
     },
 
-    // ==================== 契约 ====================
+    // ==================== 自检 ====================
+    // 与提交钩子（tools\hooks\pre-commit）和 CI（.github\workflows\checks.yml）跑的是同两条命令。
     {
-      "label": "契约: 校验 shared（schema + 交叉引用）",
-      "detail": "校验 shared/examples 下的数据是否符合 schema，并检查 id 交叉引用完整性。⚠ shared/ 目录尚未落地（规划见 docs\\STRUCTURE.md §1），在此之前运行会报「文件不存在」。",
+      "label": "自检: 契约校验（schema + 交叉引用 + 本地化 key）",
+      "detail": "tools\\checks\\validate-contracts.py：shared\\schema\\ 与 game\\Config\\Solstice\\Data\\ 逐对校验 + 卡/物种 id 查重 + 存档信封样例 + 中英 key 对齐。",
+      "type": "shell",
+      "command": "python",
+      "args": ["${workspaceFolder}/tools/checks/validate-contracts.py"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "自检: 链接校验（文档相对链接）",
+      "detail": "tools\\checks\\check-links.py：解析全部文档相对链接，有断链即退出码 1。",
+      "type": "shell",
+      "command": "python",
+      "args": ["${workspaceFolder}/tools/checks/check-links.py"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    },
+
+    // ==================== 回归 ====================
+    {
+      "label": "回归: 无头确定性基准（SolsticeBench）",
+      "detail": "tools\\run\\bench.ps1：同种子跑两遍内核比对世界结构摘要，不一致即硬失败。不碰 RHI / World / GameMode，无需编辑器。",
       "type": "shell",
       "command": "powershell",
       "args": [
@@ -182,7 +222,9 @@
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        "${workspaceFolder}/shared/validate.ps1"
+        "${workspaceFolder}/tools/run/bench.ps1",
+        "-Days",
+        "2"
       ],
       "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": [],
@@ -190,52 +232,27 @@
     },
 
     // ==================== 生图线 ====================
+    // 唯一入口是 studio\tools\comfy_batch.py（见 docs\tech\STRUCTURE.md §4）。
+    // ComfyUI 自身的启动在本仓库之外（默认装在 D:\ComfyUI），故不在此提供启动任务。
     {
-      "label": "生图: 启动 ComfyUI",
-      "detail": "启动本地 ComfyUI 并等待 API 就绪。⚠ studio/ 目录尚未落地（规划见 docs\\STRUCTURE.md §1），在此之前运行会报「文件不存在」。",
+      "label": "生图: 体检 ComfyUI（探针 + 列出模型）",
+      "detail": "comfy_batch.py --check：探 ComfyUI API 是否就绪并列出可用 checkpoint。不占 GPU。",
       "type": "shell",
-      "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}/studio/scripts/start-comfy.ps1"
-      ],
-      "options": { "cwd": "${workspaceFolder}" },
-      "problemMatcher": [],
-      "presentation": { "reveal": "always", "panel": "dedicated" }
-    },
-    {
-      "label": "生图: 环境体检",
-      "detail": "检查 ComfyUI / 显卡 / 模型是否就绪。⚠ studio/ 目录尚未落地，在此之前运行会报「文件不存在」。",
-      "type": "shell",
-      "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}/studio/scripts/check-comfy.ps1"
-      ],
+      "command": "python",
+      "args": ["${workspaceFolder}/studio/tools/comfy_batch.py", "--check"],
       "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": [],
       "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
     },
     {
-      "label": "生图: 干跑卡面批单（DryRun）",
-      "detail": "不占用 GPU，只校验批单与 prompt 拼装是否正确。⚠ 依赖 studio/jobs/ 与 studio/scripts/，目录尚未落地。",
+      "label": "生图: 跑纸纹批次（studio\\jobs\\paper-textures.jsonl）",
+      "detail": "按 jobs 清单调 ComfyUI 出图并写入 studio\\out\\manifest.jsonl（逐张留档：模型 / prompt / seed / 日期）。",
       "type": "shell",
-      "command": "powershell",
+      "command": "python",
       "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}/studio/scripts/generate-batch.ps1",
-        "-JobsFile",
-        "${workspaceFolder}/studio/jobs/cards-m0-sample.jsonl",
-        "-DryRun"
+        "${workspaceFolder}/studio/tools/comfy_batch.py",
+        "--jobs",
+        "${workspaceFolder}/studio/jobs/paper-textures.jsonl"
       ],
       "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": [],

@@ -114,7 +114,91 @@ def validate(value, schema, root_schema, where, errors):
             validate(item, schema['items'], root_schema, '%s[%d]' % (where, i), errors)
 
 
+import re
+
+SOURCE_DIR = os.path.join(ROOT, 'game', 'Source')
+LITERAL_RE = re.compile(r'Loc\(\s*TEXT\("([A-Za-z0-9_.]+)"\)\s*\)')
+PREFIX_RE = re.compile(r'Printf\(\s*TEXT\("([A-Za-z0-9_]+\.)%s"\)')
+
+
+def scan_loc_keys(errors):
+    """
+    R-17: the l10n alignment pass above only compares the two JSON files, so it cannot see a key
+    that is assembled in C++. That is exactly how `species.sp.moss-grass` (R-05) leaked a raw key
+    into the panel: the string never existed in any JSON, so nothing could miss it.
+
+    Two shapes are scanned: literal `Loc(TEXT("a.b"))` keys, and runtime prefixes of the form
+    `Printf(TEXT("species.%s"), ...)`. A literal key that no l10n file defines is an error; a
+    runtime prefix is reported as INFO because its suffix is resolved at run time.
+    """
+    known = set()
+    for name in L10N_FILES:
+        path = os.path.join(L10N_DIR, name)
+        if os.path.exists(path):
+            with open(path, 'r', encoding='utf-8') as handle:
+                known.update(json.load(handle).keys())
+
+    literals, prefixes = [], []
+    if not os.path.isdir(SOURCE_DIR):
+        return literals, prefixes
+
+    for dirpath, _dirnames, filenames in os.walk(SOURCE_DIR):
+        for fname in filenames:
+            if not fname.endswith(('.cpp', '.h')):
+                continue
+            path = os.path.join(dirpath, fname)
+            rel = os.path.relpath(path, ROOT)
+            try:
+                with open(path, 'r', encoding='utf-8', errors='replace') as handle:
+                    text = handle.read()
+            except OSError:
+                continue
+            for line_no, line in enumerate(text.splitlines(), 1):
+                for match in LITERAL_RE.finditer(line):
+                    key = match.group(1)
+                    literals.append((rel, line_no, key))
+                    if key not in known:
+                        errors.append('loc key %r used at %s:%d is not defined in any l10n file'
+                                      % (key, rel, line_no))
+                for match in PREFIX_RE.finditer(line):
+                    prefixes.append((rel, line_no, match.group(1)))
+    return literals, prefixes
+
+
+def scan_world_scale(errors):
+    """
+    Config drift guard.
+
+    world.json once shipped size=512 while the code default and docs/setting/WORLD.md SS2.1 both
+    said 128. That one number made the realm four times wider: the camera had to sit at 144k units
+    to frame it, the fog went opaque at that range, and the mesh grew sixteen-fold. It was found by
+    eye after three wrong guesses - which is exactly the kind of thing a check exists to prevent.
+    """
+    world = os.path.join(DATA_DIR, 'world.json')
+    types = os.path.join(ROOT, 'game', 'Source', 'Solstice', 'Public', 'Sim', 'SolsticeTypes.h')
+    if not (os.path.exists(world) and os.path.exists(types)):
+        return None
+    with open(types, 'r', encoding='utf-8', errors='replace') as handle:
+        match = re.search(r'int32\s+Size\s*=\s*(\d+)', handle.read())
+    if not match:
+        return None
+    expected = int(match.group(1))
+    with open(world, 'r', encoding='utf-8') as handle:
+        data = json.load(handle)
+    seen = []
+    if isinstance(data.get('default'), dict):
+        seen.append(('default', data['default'].get('size')))
+    for index, preset in enumerate(data.get('presets') or []):
+        if isinstance(preset, dict):
+            seen.append(('presets[%d]' % index, preset.get('size')))
+    for where, value in seen:
+        if value is not None and int(value) != expected:
+            errors.append('world.json %s size=%s but the code default is %d' % (where, value, expected))
+    return (expected, len(seen))
+
+
 def main():
+
     errors = []
     pairs_checked = 0
     seen_ids = {}
@@ -171,6 +255,11 @@ def main():
                         errors.append('localization placeholder mismatch for %s: %s vs %s'
                                       % (key, here, there))
 
+    loc_literals, loc_prefixes = scan_loc_keys(errors)
+    world_scale = scan_world_scale(errors)
+    if world_scale:
+        print('world scale   : %d x %d (checked %d entries)' % (world_scale[0], world_scale[0], world_scale[1]))
+
     print('schema dir    : %s' % SCHEMA_DIR)
     print('data dir      : %s' % DATA_DIR)
     print('fixtures dir  : %s' % FIXTURE_DIR)
@@ -178,6 +267,10 @@ def main():
     print('pairs checked : %d' % pairs_checked)
     print('ids checked   : %d' % len(seen_ids))
     print('l10n keys     : %d' % l10n_keys)
+    print('loc literals  : %d' % len(loc_literals))
+    print('loc prefixes  : %d' % len(loc_prefixes))
+    for rel, line_no, prefix in loc_prefixes:
+        print('  INFO runtime-built key %s* at %s:%d' % (prefix, rel, line_no))
     print('errors        : %d' % len(errors))
     for e in errors:
         print('  ERROR ' + e)

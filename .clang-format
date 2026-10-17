@@ -1,4 +1,4 @@
-# 《至日 · 岁局》C++ 代码格式
+# Solstice C++ 代码格式
 # 由 VSCode 的 ms-vscode.cpptools（内置 clang-format）读取，见 .vscode/settings.json 的 "[cpp]" 段。
 # 基调对齐虚幻引擎风格（Allman 大括号、指针靠左、无列宽强制、4 空格缩进）。
 # 与 .editorconfig 保持一致：indent_style = space，indent_size = 4（不使用 Tab）。

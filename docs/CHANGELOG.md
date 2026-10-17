@@ -1,0 +1,51 @@
+---
+id: CHANGELOG
+title: 变更日志（唯一）
+status: active
+truth: history
+owner: ai
+---
+
+# 变更日志（CHANGELOG）
+
+> **从 2026-10-17 起，这是全仓唯一的变更记录。**
+> 各文档底部的「沿革」表**全部冻结**（保留作历史，不再追加）；新的变更只写在这里，**一行一条**，倒序。
+> 格式：`日期 · 一句话结果（为什么）→ 动了哪些文件`。**不写对话过程、不写思考、不复述规格**——规格去正文看，过程去 git log 看。
+
+| 日期 | 变更 |
+|---|---|
+| 2026-10-17 | **新增画面量具 `tools/checks/measure-frame.py`**：把 `art/art.md` §2.1 的 Cel 判据变成三条可跑的数字（平均饱和度 / 亮度中位 / `≥0.90` 高光占比），各给 PASS·FAIL、退出码 1 = 不达标，取代"看图数明度带"；实测基线（`r2_01.png`，box `330,150,760,430`）：**饱和度 0.095 · 亮度中位 0.910 · 高光占比 0.597，三项全 FAIL**——"全灰白"从观感变成了数据；`R-41` 的验收改指向这条命令，`PLAYTEST` §2.2 补「别用眼睛判断灰不灰」 → `tools/checks/measure-frame.py`（新）`tools/README.md` `docs/plan/work.md` `docs/ops/PLAYTEST.md` `docs/CHANGELOG.md` |
+| 2026-10-17 | **追到"画面全灰白"的真凶**（读码，非试错）：**`R-41` 后处理一条曝光都没覆盖**（`World/SolsticeRealm.cpp:111-145` 只设了饱和度/对比/Bloom/DOF），而场景光只有 0.45+0.20 → 引擎默认 Histogram 自动曝光把暗场景推到中灰，**Cel 分带的明度差被整平**，这才是历轮"改色板没用"的原因，也解释 `R-35` 的一半（曝光随画面亮度漂移而不是雾变浓）；**`R-42` 裸地配色分母写死 /24 m**（`Gen/SolsticeGenerators.cpp:272`）而山高上限 64 m → `H` 全被 clamp 到 1.0，**全世界落到 `Rock(0.63,0.61,0.56)` 档**；**`D-02` 补两条前提**：① 不先修 `R-41`，验收第 1 条不可能过；② `M_Paper` 已被改成 `MSM_DefaultLit`（`SolsticePaperMaterialBuilder.cpp:155-173`），`SkyTint`/`NightTint` 每帧被推但**没人读**，是死参数；**§3 顺序图改为 `R-41`/`R-42` → `D-01` → `D-02` → …**，`R-41` 明确为最先做 → `docs/plan/work.md` `docs/CHANGELOG.md` |
+| 2026-10-17 | **实机第二轮（128²，14:45）**：起 PIE 截 `r2_00/01.png`，放大存 `r2_world/base/edge/top.png`；新开三条 P0：**`R-38` 世界读成"一只碗"**（`MaxHeightMeters=64` = 1.0R，超规格上限 0.55R 一倍；`basin` 剖面 `+Radial*Weight` 让高度随半径单调抬升；`CliffDepth=192uu` 是 128² 的 `0.03R` 硬编码，512² 下会窄到看不见）/ **`R-39` PIE 里按 Esc 连编辑器一起关**（`Esc`→`ConsoleCommand("quit")`，日志 `reason: UUnrealEdEngine::CloseEditor()`——这才是"编辑器老闪退"的真相）/ **`R-40` 世界外缘是撕纸边**（`Gen::TornRadius()` 叠 4.6% 谐波，注释引的是纸雕旧口径，与 `WORLD` §1.1 圆盘 + `art` §0.5 红线 4 冲突）；`D-04` 补前提「`BuildSkyDome` 是被注释掉的，不是做错，顺序必须先材质后半透明」；`PLAYTEST` 新增 **§2.2 第二轮实测事实 6 条**；`R-36` 得到日志实证（`dist=60000` 撞顶、从 Fit 到近处要滚 22 档） → `docs/plan/work.md` `docs/ops/PLAYTEST.md` `docs/CHANGELOG.md` |
+| 2026-10-17 | **相机离散机位定案（用户拍板「按照你的推荐写」）**：① 全离散成立——方位 **8** × 俯仰 **4**，`[` `]` 转方位 / `V`+`F1–F4` 切俯仰 / 中键推拉 / `Y` 改档间巡游；② **`A-08` 从待裁决迁出**，口径写入 `CHARTER` **第 59 轮**（明确推翻第 35 轮的「360° 自由环绕」）；③ `plan/work.md` §0.2 加**红线第 10 条**「相机只许停在 32 个格点，不许新增任何连续改 yaw/pitch 的入口」——防止以后被"顺手加个拖动"加回去；④ **`D-10` 解除阻塞**，改为排在 `D-05` 之后开工（先键位后文案会白改一轮）；⑤ `art/art.md` §2.6 补口径来源指针，`ops/PLAYTEST.md` §3 措辞从「正在裁决」改为「已定案、代码未跟进」；⑥ **硬红线九条 → 十条**：`START.md` §3 与 `.codebuddy/rules/solstice-core/RULE.mdc` §3 同步，后者并补一行「相机真源 = `art/art.md` §2.6」索引 → `docs/charter/CHARTER.md` `docs/plan/work.md` `docs/art/art.md` `docs/ops/PLAYTEST.md` `docs/START.md` `.codebuddy/rules/solstice-core/RULE.mdc` `docs/CHANGELOG.md` |
+| 2026-10-17 | **相机取景口径（用户提出「中键限范围缩放 + 键盘切固定视角」）**：新建 `art/art.md` **§2.6 取景与机位**——角度离散（方位 8 档 × 俯仰 4 档 14/35/62/88）、距离连续（远界 `1.6×Fit`、近界 **25 m 绝对值**，因一格恒 1 m）、三条禁路（禁连续环绕 / 禁越过 88° / 禁匀速自动环绕），推翻 `later/UI-UX.md` §2.3 的「方位 360° 自由」（理由：自由旋转会转到没人画过的面，`R-19`/`R-34`/穹顶背面都是这么露出来的）；`CONSTANTS` 加 §7 相机数字索引（`Fit = 5.63R`）；**新开 `R-36`（`Zoom` 远界写死 60000，512² 的 `Fit ≈ 144000` → 滚轮一滚全景就被锁死，且三处 clamp 各写一套）/ `R-37`（摆件模式下 `PollInput` 被 `bShowUI` 门控，相机全死）**；新增 `D-10` 视角离散化（**等 `A-08` 拍板，未拍板不开工**）与两条待裁决 `A-08`（离散程度）/ `A-09`（HUD 与键位规格仍躺在冻结区）；顺手修 `work.md` 8 处死引用（`docs/gameplay/*` 已迁 `later/`）与 §6 开头一条无主残片（按残留正文复原为 `R-03`） → `docs/art/art.md` `docs/CONSTANTS.md` `docs/plan/work.md` `docs/ops/PLAYTEST.md` `docs/INDEX.md` |
+| 2026-10-17 | **实机测试（128²，14:19）**：截 4 帧（`tmp/review/run1_a/b.png` `live_02/03.png`）；四条现象挂到已有工单（`R-19` 托盘与梳齿、`R-21` 纸壳表述作废、`R-31` HUD 72% 与画面 0% 对撞、`R-30` 种子码不可见）；**新开 `R-34` 水面黑椭圆 / `R-35` 雾被云量驱动 + 起雾距离 26 m 对小界过近**；`PLAYTEST` 补 §2.1「本轮实测环境」与 §5 编辑器回收后的重拉法（一次性计划任务） → `docs/plan/work.md` `docs/ops/PLAYTEST.md` |
+| 2026-10-17 | **环境手册移出 docs/**：`docs/ops/ENVIRONMENT.md` → `tools/docs/ENVIRONMENT.md`（游戏文档目录不再混装机手册）；`check-links.py` 扫描范围加 `tools/docs`；全仓 12 处引用重算 → `tools/docs/ENVIRONMENT.md` `tools/README.md` `docs/{INDEX,START}.md` `README.md` |
+| 2026-10-17 | **世界文档拆档**：`setting/WORLD.md` 611 → 446 行（只留形态 / 尺度 / 骰 / 世界模型 / 年表 / 更新触发）；叙事 · 术语 · 文案 · 留档 · 已关闭待裁决 → 新建 `setting/LORE.md` 194 行（**施工不读，写文案时读**）。章节重编号：WORLD `§1.7→§1.3`（环级）、`§1.8→§1.4`（禁物）、`§10→§5`；LORE `§1.3/1.4→§1.1/1.2`、`§1.5/1.6→§2.1/2.2`、`§5/6/7/8/9/11→§3/4/5/6/7/8`。全仓 9 处交叉引用同步 |
+| 2026-10-17 | **文档重构：29 份 → 22 份（14 现行 + 8 冻结）**。① 合并 `ART-STYLE`+`ASSETS`→`art/art.md`、`CARDS`+`CARD-LIST`→`setting/cards.md`、`ARCHITECTURE`+`STRUCTURE`→`tech/tech.md`、`DISPATCH`+`REVIEW`→`plan/work.md`、`VSCODE`+`ENV`+`AI-TOOLING`→`ops/ENVIRONMENT.md`（去重后 1165→927 行）、`GDD`+`DECISIONS`+`OPEN-QUESTIONS`→`charter/CHARTER.md`；② **`WORKFLOW` 并入 `START.md`**；③ M1 文档 8 份移入 **`docs/later/`** 并冻结（`status: frozen` / `stage: M1`，不参与施工评审）；④ **新建 `START.md`（唯一入口）与 `CONSTANTS.md`（跨文档数字唯一索引）**；⑤ `INDEX` 199→66 行，只留清单；⑥ **删掉 26 份文档的「沿革」表**（内容已在本文），front matter 精简为 5 字段 → `docs/START.md`（新）`docs/CONSTANTS.md`（新）`docs/INDEX.md` `docs/art/art.md` `docs/setting/cards.md` `docs/tech/tech.md` `docs/plan/work.md` `docs/ops/ENVIRONMENT.md` `docs/charter/CHARTER.md` `docs/later/*`（8 份迁移） |
+| 2026-10-17 | **纸雕作废，T1 换动画赛璐璐**（第 57 轮）：`ART-STYLE` 4.0（§2 整体重写：着色描边 / 天空 / 地形水植被 / 昼夜天气 / 代码真源）；全仓 58 处表述同步；`REVIEW` 删 `A-08`、新开 `R-33`；**新建 `plan/DISPATCH.md` 施工派单板**（`D-01`–`D-05` 画风换轨 + `D-06`–`D-09` 世界生成） → `docs/art/ART-STYLE.md` `docs/plan/REVIEW.md` `docs/plan/DISPATCH.md`（新）`docs/charter/DECISIONS.md` `docs/INDEX.md` `docs/charter/GDD.md` `docs/setting/WORLD.md` `docs/setting/SPECIES.md` `docs/setting/PHYSICS.md` `docs/gameplay/{UI-UX,INTERVENTION,CUSTOMIZE}.md` `docs/plan/ROADMAP.md` `docs/tech/{ARCHITECTURE,STRUCTURE}.md` `docs/art/ASSETS.md` `docs/ops/{ENV,AI-TOOLING}.md` `docs/charter/OPEN-QUESTIONS.md` |
+| 2026-10-17 | **文档体系减负**：新增唯一变更日志；冻结各文档「沿革」；`INDEX` 删版本列、只登记增删迁移；立"禁止复制规格段"硬规 → `docs/CHANGELOG.md`（新）`docs/INDEX.md` `docs/ops/WORKFLOW.md` |
+| 2026-10-17 | **世界成立性判据取代配额护栏**（纯水 / 全陆是合法品类，只有"读不出来的死面"才重掷）→ `setting/WORLD.md` §2.4 |
+| 2026-10-17 | **世界骰定案**：512² 默认档、六轴随机、种子码、去混沌与播种、首启改世界卡 → `setting/WORLD.md` `gameplay/CUSTOMIZE.md` `gameplay/SCREENS.md` `setting/SPECIES.md` `charter/GDD.md` `plan/ROADMAP.md` `ops/PLAYTEST.md` `tech/ARCHITECTURE.md` `charter/DECISIONS.md` `game/Config/Solstice/Data/world.json` |
+| 2026-10-17 | **世界生成四张工单**（R-29 真尺度 / R-30 世界骰 / R-31 去混沌 / R-32 512² 实测）→ `plan/REVIEW.md` |
+| 2026-10-17 | 土地厚 **0.03R** 定案（玩家读顶面不读侧壁，厚 : 山高 ≥ 1:10）→ `setting/WORLD.md` §1.1 `plan/REVIEW.md` R-19 `studio/tools/gen_world_ref.py` |
+| 2026-10-17 | 界形态改**世界空间**表述，撤掉投影比例；工具改 3D 正交投影 → `setting/WORLD.md` §1.1 `charter/DECISIONS.md` |
+| 2026-10-17 | 新增 **§0.5 外部参照**（Tiny Glade 等五款 + 三条红线）→ `art/ART-STYLE.md` |
+| 2026-10-17 | **罩不可见**（边界靠淡出，不靠壳；分瓣纸壳作废）→ `setting/WORLD.md` §1.1 `charter/DECISIONS.md` |
+| 2026-10-17 | 新增 **游玩与测试指南**（启动 / 键位 / 冒烟 / 回归 / 记录模板）→ `ops/PLAYTEST.md` |
+| 2026-10-16 | **A-01–A-04 键位重排**（卡库 P→L、摆件 P、播种 N）、撤掉撤回、帮助默认收起 → `gameplay/UI-UX.md` |
+| 2026-10-16 | 14 项体验与工程提案采纳（拆卡分级 / 开包前摇 / 光敏安全 / 全屏鉴赏 / 摆件模式 / 存档安全网 / 性能浮层 / 长跑 bench）→ `gameplay/SCREENS.md` `art/ART-STYLE.md` `plan/ROADMAP.md` |
+| 2026-10-16 | **无付费 / 无剪影 / 无主题扩展**三连否决；开局余响 = 0 → `gameplay/INTERVENTION.md` `gameplay/ECONOMY.md` |
+| 2026-10-15 | 材质表 15 种 + 物理属性系统 + 暗 = 纯效果 → `setting/PHYSICS.md` |
+| 2026-10-15 | 卡片坐标系定型（元素 × 环级 × 卡类 + 持续性），删「类别」「卡型」两维 → `setting/CARDS.md` |
+| 2026-10-15 | 生态域判定改**五轴**（补光照轴）→ `setting/WORLD.md` §2.2 |
+| 2026-10-15 | 小世界细化：1 格 = 1 m、高度 0–64 m、水模型、天气状态机、分块语义 → `setting/WORLD.md` §2–§3 |
+| 2026-10-14 | 立项定稿：纸雕微缩全 3D + 卡牌干涉 + 余响经济 + 无失败 → `charter/GDD.md` |
+
+---
+
+## 迁移说明
+
+- **以前**：每份文档底部一张「沿革」，改一处设定要在 8–12 份文档里同步版本号与描述，且容易漂移。
+- **现在**：变更只记这里一行；文档正文只负责"当前是什么"，`front matter` 的 `version` 仅供本文自述，**不再要求跨文件同步**，也不再登记进 `INDEX.md`。
+- **回溯**：要看某次改动动了什么，用 `git log -p <file>`，比对着 54 条对话摘要翻文档更快。

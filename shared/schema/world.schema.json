@@ -1,13 +1,19 @@
 {
 	"$schema": "http://json-schema.org/draft-07/schema#",
 	"$id": "https://solstice.local/schema/world.schema.json",
-	"title": "Solstice world preset contract",
-	"description": "Realm generation parameters. Truth: docs/setting/WORLD.md SS2.1 (scale), SS2.2 (biome thresholds), SS3.3 (creation flow). Read at runtime from game/Config/Solstice/Data/world.json. One tile is one metre.",
+	"title": "Solstice world generation contract",
+	"description": "Realm generation parameters. Truth: docs/setting/WORLD.md SS2.1 (scale), SS2.4 (world roll), SS3.3 (generation flow). Read at runtime from game/Config/Solstice/Data/world.json. One tile is one metre. `default` is the safe recipe; `presets` are recipes that lock a few axes and carry no fixed seed.",
 	"type": "object",
 	"required": ["default"],
 	"properties": {
 		"_comment": { "type": "string" },
 		"_note": { "type": "string" },
+		"_wiring": { "type": "string" },
+		"generator_version": {
+			"type": "integer",
+			"minimum": 1,
+			"description": "Bump whenever generation output changes; required to reproduce an old save exactly."
+		},
 		"default": { "$ref": "#/definitions/world" },
 		"presets": {
 			"type": "array",
@@ -23,17 +29,30 @@
 			},
 			"additionalProperties": false
 		},
+		"sky": {
+			"type": "object",
+			"description": "Celestial content of this realm. Position / visual diameter are fixed by WORLD SS1.1; only count, colour and presence are rolled.",
+			"properties": {
+				"suns": { "type": "integer", "minimum": 1, "maximum": 2 },
+				"moons": { "type": "integer", "minimum": 0, "maximum": 3 },
+				"rings": { "type": "boolean" },
+				"aurora": { "type": "boolean" },
+				"star_density": { "type": "number", "minimum": 0, "maximum": 1 },
+				"sun_tint": { "type": "string", "enum": ["warm", "gold", "cool"] }
+			},
+			"additionalProperties": false
+		},
 		"world": {
 			"type": "object",
 			"required": ["size", "algo", "seed"],
 			"properties": {
-				"realm_id": { "type": "string", "description": "Stable identity of the realm, e.g. realm.valley." },
+				"realm_id": { "type": "string", "description": "Stable identity of the realm, e.g. realm.rolled." },
 				"realm_name": { "$ref": "#/definitions/biText" },
 				"size": {
 					"type": "integer",
 					"minimum": 32,
 					"maximum": 512,
-					"description": "Tiles per axis. The M0 small realm is 128 (docs/setting/WORLD.md SS2.1)."
+					"description": "Tiles per axis. 512 is the default tier; 128 is the sandbox / bench tier (WORLD SS2.1)."
 				},
 				"chunk_size": {
 					"type": "integer",
@@ -43,9 +62,24 @@
 				"algo": {
 					"type": "string",
 					"enum": ["ridges", "islands", "canyon", "plateau", "basin", "archipelago"],
-					"description": "Terrain algorithm. Six ship in M0 so the creator's reshape step has something to choose from."
+					"description": "Base height field. In the roll it is one axis, not the whole generation (see R-29)."
 				},
-				"seed": { "type": "integer", "minimum": 0, "description": "Deterministic generation seed." },
+				"seed": {
+					"type": "integer",
+					"minimum": 0,
+					"description": "0 = roll a fresh world every new game; any other value pins that exact world. Human-readable form is SOL-XXXX-XXXX."
+				},
+				"land_ratio": {
+					"type": "number",
+					"minimum": 0,
+					"maximum": 1,
+					"description": "Land share of the disc. 0 = ocean world, 1 = all-land world; both are legal, judged by the seven readability criteria (WORLD SS2.4)."
+				},
+				"relief": { "type": "number", "minimum": 0.1, "maximum": 1, "description": "Scales the height field ceiling." },
+				"ranges": { "type": "integer", "minimum": 0, "maximum": 4, "description": "Number of main mountain ranges." },
+				"bearing": { "type": "number", "minimum": 0, "maximum": 180, "description": "Overall orientation of ranges and valleys, degrees." },
+				"rivers": { "type": "integer", "minimum": 0, "maximum": 6 },
+				"lakes": { "type": "integer", "minimum": 0, "maximum": 4 },
 				"base_water_level": { "type": "number", "minimum": 0, "maximum": 32 },
 				"latitude": {
 					"type": "number",
@@ -55,16 +89,34 @@
 				},
 				"tidal_amplitude": { "type": "number", "minimum": 0 },
 				"tides": { "type": "boolean", "default": false },
-				"chaos_start": {
-					"type": "boolean",
-					"default": true,
-					"description": "The realm begins as uncoloured paper with no life (docs/setting/WORLD.md SS3.3 step 5)."
+				"aridity": { "type": "number", "minimum": 0, "maximum": 1, "description": "0 = rainforest, 1 = desert." },
+				"season_amplitude": { "type": "number", "minimum": 0.1, "maximum": 2, "description": "Summer-winter swing multiplier." },
+				"weather_bias": {
+					"type": "string",
+					"enum": ["dry", "temperate", "wet", "foggy", "stormy"],
+					"description": "Weights the weather state machine's entry probabilities."
 				},
-				"life_seed": {
-					"type": "boolean",
-					"default": false,
-					"description": "Creator step 8. True seeds the species that the biomes can support."
-				}
+				"wind_dir": { "type": "number", "minimum": 0, "maximum": 360 },
+				"vegetation_density": { "type": "number", "minimum": 0, "maximum": 1 },
+				"biome_pool": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"enum": ["water", "grass", "woodland", "rock_slope", "swamp", "desert", "snow", "river_valley", "highland"]
+					},
+					"description": "Which biomes this realm may contain; filtered by climate feasibility."
+				},
+				"species_pool": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"enum": ["moss", "shrub", "grazer", "raptor", "fish"]
+					},
+					"description": "Which species exist at world birth. Life is rolled, never sown by the player."
+				},
+				"sky": { "$ref": "#/definitions/sky" },
+				"start_season": { "type": "string", "enum": ["spring", "summer", "autumn", "winter"] },
+				"start_hour": { "type": "string", "enum": ["dawn", "morning", "noon", "dusk"], "description": "Must be inside daylight; a realm never opens pitch black." }
 			},
 			"additionalProperties": false
 		}

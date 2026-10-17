@@ -1,6 +1,7 @@
-// 《至日 · 岁局》工作区设置
+// Solstice 工作区设置
 // 说明：这是「工作区级」设置，只影响本仓库，不改动你的用户级全局设置。
-// 引擎路径占位符 __UE_ENGINE_ROOT__ 由 tools\configure-vscode.ps1 自动替换。
+// 引擎路径不再写进本文件：`.vscode` 配置统一引用环境变量 ${env:SOLSTICE_UE_ENGINE_ROOT}，
+// 由 tools\env\configure-vscode.ps1 探测引擎后写入用户级环境变量（换机/换盘只需重跑该脚本并重启 VS Code）。
 {
   // ========================= 文件与编码 =========================
   "files.encoding": "utf8",
@@ -30,8 +31,8 @@
   },
 
   // ========================= 性能：排除 UE 生成物 =========================
-  // 注：studio/ 与 shared/ 目前尚未落地（见 docs\STRUCTURE.md §1 的规划），
-  //     下面这些 studio/* 排除项属于预置，目录一旦建立即自动生效，现在留着无副作用。
+  // 注：studio/ 与 shared/ 已落地（状态见 docs/tech/STRUCTURE.md §0/§1），
+  //     下面这些 studio/* 排除项用于挡掉本地生图产物与临时工作区。
   "files.exclude": {
     "**/game/Binaries": true,
     "**/game/Intermediate": true,
@@ -206,7 +207,6 @@
   "cSpell.language": "en,zh-CN",
   "cSpell.words": [
     "Solstice",
-    "岁局",
     "UCLASS",
     "USTRUCT",
     "UENUM",
@@ -231,7 +231,9 @@
     "Bulwark",
     "Yearguard",
     "Yearbound",
-    "SolsticeSim",
+    "SolsticeBench",
+    "SolsticeGenAssets",
+    "Standee",
     "OTBS",
     "Allman"
   ],

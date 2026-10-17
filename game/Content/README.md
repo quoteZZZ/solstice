@@ -1,7 +1,7 @@
 # `game/Content/` — 二进制资产（不入 git）
 
 本目录的 `.uasset` / `.umap` 及媒体文件**不入 git**（见仓库根 `.gitignore` §2 与
-[`docs/tech/STRUCTURE.md`](../../docs/tech/STRUCTURE.md) §0 的核心不变量）。目录结构本身入 git，
+[`docs/tech/tech.md`](../../docs/tech/tech.md) §0 的核心不变量）。目录结构本身入 git，
 所以每个子目录都放一个 `.gitkeep`。
 
 ## 为什么可以不入 git
@@ -10,7 +10,7 @@
 
 | 子目录 | 放什么 | 由谁生成 |
 |---|---|---|
-| `Core/` | 纸雕母材质 `M_Paper` / 描边墨材质 `M_Ink` | 跑 **`tools\gen-assets.ps1`**（内部是 `-run=SolsticeGenAssets`），由 `Source/SolsticeEditor/Private/SolsticePaperMaterialBuilder.cpp` 按代码建材质图并保存 |
+| `Core/` | 纸雕母材质 `M_Paper` / 描边墨材质 `M_Ink` | 跑 **`tools\build\gen-assets.ps1`**（内部是 `-run=SolsticeGenAssets`），由 `Source/SolsticeEditor/Private/SolsticePaperMaterialBuilder.cpp` 按代码建材质图并保存 |
 | `World/` | 地形纸板 / 岩石 / 水体 / 植被模板 | 目前**不需要**：地形、水、纸雕穹顶全部由 `Gen/` 程序化生成 |
 | `Cards/` | 卡面贴图 | `studio/`（ComfyUI 生图线），登记在 `studio/out/manifest.jsonl` |
 | `UI/` | 图标 / 九宫格 | 目前**不需要**：HUD 是纯 C++ Slate，无 UMG 资产 |
@@ -20,7 +20,7 @@
 ## 新克隆后怎么做
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\gen-assets.ps1
+powershell -ExecutionPolicy Bypass -File tools\build\gen-assets.ps1
 ```
 
 约 10 秒，产出 `M_Paper.uasset`（11.3 KB）与 `M_Ink.uasset`（5.0 KB）。**幂等**：两个包已存在时直接跳过
@@ -43,6 +43,6 @@ powershell -ExecutionPolicy Bypass -File tools\gen-assets.ps1
 > **`SolsticeEditor` 的 `LoadingPhase` 必须是 `Default`**：`-run=XxxCommandlet` 的类解析发生在
 > `PostEngineInit` 阶段模块加载**之前**，写成 `PostEngineInit` 会直接报
 > `looked like a commandlet, but we could not find the class`。原因见
-> [`docs/ops/ENV.md`](../../docs/ops/ENV.md) §2.6 第 9 条。
+> [`docs/ops/ENVIRONMENT.md`](../../tools/docs/ENVIRONMENT.md) §2.6 第 9 条。
 
 > **结论**：删掉整个 `Content/` 目录，重跑 `gen-assets.ps1` 即可完全重建。这是本仓库"资产不入 git"的前提。

@@ -8,9 +8,9 @@
   幂等：已检测到 VC.Tools 组件则跳过（-Force 可强跑以修复/补装）。
 
 .EXAMPLE
-  powershell -ExecutionPolicy Bypass -File tools\install-vs-buildtools.ps1 -DryRun
+  powershell -ExecutionPolicy Bypass -File tools\env\install-vs-buildtools.ps1 -DryRun
 .EXAMPLE
-  powershell -ExecutionPolicy Bypass -File tools\install-vs-buildtools.ps1
+  powershell -ExecutionPolicy Bypass -File tools\env\install-vs-buildtools.ps1
 #>
 [CmdletBinding()]
 param(
@@ -77,7 +77,7 @@ if ($DryRun) { Write-Host '[DryRun] 未实际安装。' -ForegroundColor Yellow;
 
 & $winget @wgArgs
 $code = $LASTEXITCODE
-if ($code -eq 0) { Write-Host '✓ 安装完成。可用 tools\check-env.ps1 复检。' -ForegroundColor Green }
+if ($code -eq 0) { Write-Host '✓ 安装完成。可用 tools\env\check-env.ps1 复检。' -ForegroundColor Green }
 else {
     Write-Host ("✗ winget 退出码 {0}。" -f $code) -ForegroundColor Red
     Write-Host '  建议改用 VS 安装器 GUI，勾选「使用 C++ 的桌面开发」，并在“单个组件”中确认 Windows SDK 已选。' -ForegroundColor Yellow

@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  VSCode 扩展体检与管理（面向《至日 · 岁局》）。
+  VSCode 扩展体检与管理（面向 Solstice）。
 
 .DESCRIPTION
   读取 .vscode\extensions.json 的 recommendations / unwantedRecommendations，
@@ -13,13 +13,13 @@
     -RemoveUnwanted       卸载与本项目无关的扩展（默认先预览；确认需再加 -Confirm）
 
 .EXAMPLE
-  powershell -ExecutionPolicy Bypass -File tools\vscode-extensions.ps1
+  powershell -ExecutionPolicy Bypass -File tools\env\vscode-extensions.ps1
 .EXAMPLE
-  powershell -ExecutionPolicy Bypass -File tools\vscode-extensions.ps1 -InstallRecommended
+  powershell -ExecutionPolicy Bypass -File tools\env\vscode-extensions.ps1 -InstallRecommended
 .EXAMPLE
-  powershell -ExecutionPolicy Bypass -File tools\vscode-extensions.ps1 -RemoveUnwanted
+  powershell -ExecutionPolicy Bypass -File tools\env\vscode-extensions.ps1 -RemoveUnwanted
 .EXAMPLE
-  powershell -ExecutionPolicy Bypass -File tools\vscode-extensions.ps1 -RemoveUnwanted -Confirm
+  powershell -ExecutionPolicy Bypass -File tools\env\vscode-extensions.ps1 -RemoveUnwanted -Confirm
 #>
 [CmdletBinding()]
 param(
@@ -40,10 +40,11 @@ function Resolve-CodeCli {
     $cmd = Get-Command code -ErrorAction SilentlyContinue
     if ($cmd) { return $cmd.Source }
 
+    # 盘符不写死：优先环境变量 SOLSTICE_VSCODE_CLI，其次标准安装位置（由系统变量推导）。
     $candidates = @(
+        $env:SOLSTICE_VSCODE_CLI,
         (Join-Path $env:LOCALAPPDATA 'Programs\Microsoft VS Code\bin\code.cmd'),
-        'C:\Program Files\Microsoft VS Code\bin\code.cmd',
-        'D:\Microsoft VS Code\bin\code.cmd',
+        (Join-Path ${env:ProgramFiles} 'Microsoft VS Code\bin\code.cmd'),
         (Join-Path $env:LOCALAPPDATA 'Programs\Microsoft VS Code Insiders\bin\code-insiders.cmd')
     )
     foreach ($c in $candidates) { if ($c -and (Test-Path -LiteralPath $c)) { return $c } }
@@ -66,7 +67,9 @@ function Read-Jsonc {
 
 # ============================ 主流程 ============================
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot '..\lib\Solstice.Common.ps1')
+
+$repoRoot = Get-SolsticeRepoRoot
 $extJson  = Join-Path $repoRoot '.vscode\extensions.json'
 
 if (-not (Test-Path -LiteralPath $extJson)) {
@@ -77,7 +80,7 @@ if (-not (Test-Path -LiteralPath $extJson)) {
 $code = Resolve-CodeCli -Explicit $CodeCli
 if (-not $code) {
     Write-Host '✗ 未找到 VSCode CLI（code.cmd）。请用 -CodeCli 指定完整路径，' -ForegroundColor Red
-    Write-Host '  例如：-CodeCli "D:\Microsoft VS Code\bin\code.cmd"' -ForegroundColor Yellow
+    Write-Host '  例如：-CodeCli "<你的 code.cmd 完整路径>"；或设环境变量 SOLSTICE_VSCODE_CLI' -ForegroundColor Yellow
     exit 1
 }
 Write-Host ("VSCode CLI：{0}" -f $code) -ForegroundColor Cyan
@@ -140,7 +143,7 @@ if ($RemoveUnwanted) {
             foreach ($j in $junk) { Write-Host ("  - {0}" -f $j) -ForegroundColor Yellow }
             Write-Host ''
             Write-Host '确认请追加 -Confirm 参数，例如：' -ForegroundColor Yellow
-            Write-Host '  powershell -ExecutionPolicy Bypass -File tools\vscode-extensions.ps1 -RemoveUnwanted -Confirm' -ForegroundColor DarkGray
+            Write-Host '  powershell -ExecutionPolicy Bypass -File tools\env\vscode-extensions.ps1 -RemoveUnwanted -Confirm' -ForegroundColor DarkGray
             Write-Host ''
             Write-Host '⚠ 这些扩展是【全局卸载】—— 会影响你在其它项目里的使用。' -ForegroundColor Red
             Write-Host '  若它们还有别的用途，建议改用 VSCode 的「工作区禁用扩展」：' -ForegroundColor DarkGray

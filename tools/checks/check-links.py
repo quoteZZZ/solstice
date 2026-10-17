@@ -14,6 +14,7 @@ TARGETS = [
     'README.md',
     '.codebuddy/rules',
     'tools/README.md',
+    'tools/docs',
     'shared/README.md',
     'studio/README.md',
     'game/Content/README.md',

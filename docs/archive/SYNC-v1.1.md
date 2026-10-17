@@ -11,7 +11,7 @@ owner: both
 # 双机 git 同步（SYNC）
 
 > 约定：**git 是唯一真源**（远端仓库 `origin`）+ 计划任务定时 `pull` / `push`。大二进制资产不进 git（见 §4）。
-> 提交规范与文档纪律见 [`WORKFLOW.md`](../ops/WORKFLOW.md) §2 / §3。
+> 提交规范与文档纪律见 [`START.md`](../START.md) §2 / §3。
 > **路径约定**：下文示例用变量 `$repo` 表示**本机仓库根**——两台机器各自填自己的路径（本机为 `E:\solstice`，另一台按实际填写），**不要照抄别的机器的绝对路径**。
 
 ---
@@ -66,7 +66,7 @@ git add -A; git commit -m "chore: sync"; git push
 ## 3 避免冲突的实践
 
 1. **目录归属分工**：两台机器各有主战场（一台偏文档 / 工具链，一台偏素材生产）；**同一文件不要在两台机器上同时改**。
-   > **目录现状**：`game/`、`studio/`、`shared/` 目前**尚未落地**（计划中，随 M0 建立）——状态见 [`../tech/STRUCTURE.md`](../tech/STRUCTURE.md) §1。落地后再按"素材线只动 `studio/`，代码线只动 `game/`、`tools/`、`shared/`"分工。
+   > **目录现状**：`game/`、`studio/`、`shared/` 目前**尚未落地**（计划中，随 M0 建立）——状态见 [`../tech/STRUCTURE.md`](../tech/tech.md) §1。落地后再按"素材线只动 `studio/`，代码线只动 `game/`、`tools/`、`shared/`"分工。
 2. **小步提交、频繁同步**：宁可多 push，不攒一整天。
 3. **派生文件不入库**：`Intermediate`、`Binaries`、`*_generated.h`、`compile_commands.json`、`.sln` 一律忽略，跨机各自生成。
 4. **遇分叉**：`git pull --rebase --autostash`；冲突解决后 `git rebase --continue`。
@@ -76,9 +76,9 @@ git add -A; git commit -m "chore: sync"; git push
 
 ## 4 `Content/` 下大资产的处理
 
-`game/Content/**` 的 `.uasset` / `.umap` 体积大且二进制不可合并，**默认不入 git**（见 [`../tech/STRUCTURE.md`](../tech/STRUCTURE.md) §9）。三选一：
+`game/Content/**` 的 `.uasset` / `.umap` 体积大且二进制不可合并，**默认不入 git**（见 [`../tech/STRUCTURE.md`](../tech/tech.md) §9）。三选一：
 
-- **优先（当前策略）：本地再生 + 契约入库。** 只版本化 `Source/`、`Config/`、`shared/schema/`、`studio/{workflows,jobs,presets,refs}`、`studio/out/manifest.jsonl`（登记规范见 [`../art/ASSETS.md`](../art/ASSETS.md) §2）。
+- **优先（当前策略）：本地再生 + 契约入库。** 只版本化 `Source/`、`Config/`、`shared/schema/`、`studio/{workflows,jobs,presets,refs}`、`studio/out/manifest.jsonl`（登记规范见 [`../art/ASSETS.md`](../art/art.md) §2）。
 - **可选：Git LFS**（仅跟踪少量确需共享的关键资产）：
 
 ```powershell
@@ -98,8 +98,8 @@ git add .gitattributes game/Content
 | 改动类型 | 必须同次更新 |
 |---|---|
 | 仓库根路径 / 分支策略变化 | 本文件 §1 / §2 |
-| `.gitignore` 策略变化 | 本文件 §3 / §4 + [`.gitignore`](../../.gitignore) 注释 + [`../tech/STRUCTURE.md`](../tech/STRUCTURE.md) §9 |
-| 目录归属分工变化 | 本文件 §3 + [`../tech/STRUCTURE.md`](../tech/STRUCTURE.md) §9 |
+| `.gitignore` 策略变化 | 本文件 §3 / §4 + [`.gitignore`](../../.gitignore) 注释 + [`../tech/STRUCTURE.md`](../tech/tech.md) §9 |
+| 目录归属分工变化 | 本文件 §3 + [`../tech/STRUCTURE.md`](../tech/tech.md) §9 |
 
 ---
 

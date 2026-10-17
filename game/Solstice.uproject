@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "5.8",
+	"EngineAssociation": "{E11125EC-40C5-795E-8FE0-D0A9EB879AF8}",
 	"Category": "Game",
 	"Description": "Solstice - a self-living paper diorama miniature world (perpetual god sandbox).",
 	"Modules": [
@@ -27,6 +27,34 @@
 		{
 			"Name": "ModelingToolsEditorMode",
 			"Enabled": false
+		},
+		{
+			"Name": "ModelContextProtocol",
+			"Enabled": true
+		},
+		{
+			"Name": "EditorToolset",
+			"Enabled": true
+		},
+		{
+			"Name": "ConfigSettingsToolset",
+			"Enabled": true
+		},
+		{
+			"Name": "SlateInspectorToolset",
+			"Enabled": true
+		},
+		{
+			"Name": "AutomationTestToolset",
+			"Enabled": true
+		},
+		{
+			"Name": "PluginToolset",
+			"Enabled": true
+		},
+		{
+			"Name": "MCPClientToolset",
+			"Enabled": true
 		}
 	]
 }

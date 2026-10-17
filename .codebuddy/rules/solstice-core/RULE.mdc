@@ -6,45 +6,51 @@ alwaysApply: true
 
 # Solstice · 核心约束（改动前必读）
 
-**当前形态**：**UE5 + C++ 的全 3D 纸雕微缩「永续生态界」**——上帝沙盒，无失败、无数值成长、无目标系统。
-（本项目曾经历 动态壁纸 → 场景引擎 → 卡牌收集 → 自走棋 等形态，**均已作废**。）
+**当前形态**：**UE5 + C++ 的全 3D 动画赛璐璐微缩「永续生态界」**——上帝沙盒，无失败、无数值成长、无目标系统。
+（曾经历 动态壁纸 → 场景引擎 → 卡牌收集 → 自走棋 → 纸雕微缩 等形态，**均已作废**。）
 
 ## 1. 唯一真源与入口
 
 | 要什么 | 读哪 |
 |---|---|
-| **开工先读** | `docs/INDEX.md`（全仓唯一索引 + 状态矩阵 + 更新触发矩阵） |
-| 设计真源（全仓唯一 `truth: owner`） | `docs/charter/GDD.md`（冲突以它为准，并在同一次改动内同步修正对方） |
-| 世界设定（界 / 原质 / 规模 / 年表 / 命名） | `docs/setting/WORLD.md` |
-| 卡片规则 / 卡种清单 | `docs/setting/CARDS.md` · `docs/setting/CARD-LIST.md` |
-| 物种 / 风格主题 | `docs/setting/SPECIES.md` · `docs/setting/STYLE.md` |
-| 玩法（循环 / 时间 / 手牌与干涉 / 自定义 / 界面） | `docs/gameplay/`（LOOP · TIME · INTERVENTION · CUSTOMIZE · UI-UX） |
-| 风格规范 / 资产生产 | `docs/art/ART-STYLE.md` · `docs/art/ASSETS.md` |
-| 架构与性能 / 目录与命名 | `docs/tech/ARCHITECTURE.md` · `docs/tech/STRUCTURE.md` |
-| 里程碑与执行计划 | `docs/plan/ROADMAP.md` |
-| 待裁决问题 / 裁决沿革 | `docs/charter/OPEN-QUESTIONS.md` · `docs/charter/DECISIONS.md` |
-| 协作、提交、评审闸门 | `docs/ops/WORKFLOW.md` |
+| **开工先读** | `docs/START.md`（唯一入口：做什么单、只读哪份、红线、卡点） |
+| **任何数字** | `docs/CONSTANTS.md`（跨文档数字的唯一索引：值 / 真源 / 谁在用） |
+| **文档清单** | `docs/INDEX.md`（只在新增 / 作废 / 迁移时改） |
+| 设计真源（全仓唯一 `truth: owner`） | `docs/charter/CHARTER.md`（定位 / 支柱 / 非目标 / 已定口径 / 待裁决） |
+| 世界形态与尺度、世界骰 | `docs/setting/WORLD.md` §1.1 / §2.4 |
+| 画风配方与资产 | `docs/art/art.md` §2（渲染）/ §7（资产） |
+| **相机取景与机位** | `docs/art/art.md` **§2.6**（角度档位 / 距离两界 / 三条禁路）——改相机先读它 |
+| 卡的数据与清单 | `docs/setting/cards.md` §7（字段）/ §13（清单） |
+| 玩家怎么用卡 | `docs/gameplay/INTERVENTION.md` |
+| 架构、性能、目录、命名 | `docs/tech/tech.md` §1（预算）/ §3（状态）/ §10（命名）/ §11（归位） |
+| 派单、工单、待裁决 | `docs/plan/work.md` |
+| 里程碑与验收 | `docs/plan/ROADMAP.md` |
+| 环境、VSCode、MCP、排错 | `tools/docs/ENVIRONMENT.md` |
+| **M1 及以后** | `docs/later/**`——**M0 期间不读、不改、不评审** |
 
 ## 2. 硬约束
 
-1. **技术栈锁定**：UE5（最新稳定版）+ C++ 为主 + 蓝图 / UMG 混合。**不引入计划外的第三方插件或中间件**。
-2. **`Sim/` 零渲染依赖**：世界钟 / 生态演化 / 模拟 LOD 是纯逻辑，可 headless 跑；不依赖 Tick / 渲染 / 蓝图。
-3. **逻辑在 C++，表现层在蓝图**；游戏逻辑**不使用 Python**（编辑器资产批处理可用官方 ScriptPlugin）。
-4. **写入前先查归位**：`docs/tech/STRUCTURE.md` §8 归位决策表 + §0 状态列（🟡 = 计划中、**尚未落地**，不要按存在去写代码或脚本）。
-5. **内容数据驱动**：物种 / 卡池 / 法则 / 预设全 JSON，运行时读取。
-6. **默认中英双语**；文案规范见 `docs/setting/WORLD.md` §3。
-7. **提交与文档纪律**：提交信息英文、简短祈使句；文档与代码**同次提交**；任何文档增删改（含版本、状态）必须**同次更新 `docs/INDEX.md`**。
+1. **技术栈锁定**：UE5 + C++ 为主 + 蓝图 / UMG 混合。**不引入计划外的第三方插件或中间件**。
+2. **`Sim/` 零渲染依赖**：世界钟 / 生态 / 模拟 LOD 是纯逻辑，可 headless 跑；不依赖 Tick / 渲染 / 蓝图。
+3. **逻辑在 C++，表现层在蓝图**；游戏逻辑**不使用 Python**（编辑器批处理可用官方 ScriptPlugin）。
+4. **写入前先查归位**：`docs/tech/tech.md` §11 归位决策表 + §3 状态列（🟡 = 计划中，**尚未落地**，不要按存在去写代码）。
+5. **内容数据驱动**：物种 / 卡池 / 法则 / 预设全 JSON，运行时读取；改 `shared/schema/` 必须同步 `game/Config/` 与 `studio/presets/`。
+6. **默认中英双语**；`Localization/{zh-Hans,en}.json` 两份 key 必须对齐。
+7. **文档纪律**：改内容只改正文 + `docs/CHANGELOG.md` 加**一行**；**不写「沿革」表、不 bump 版本号、不改 `INDEX`**。**禁止复制规格段**——一段规格只在一份文档里写全，别处只写指针。
+8. **提交**：英文简短祈使句；文档与代码**同次提交**；`main` 禁 force push；未提交 = 未落地。
 
 ## 3. 禁止事项（历史踩坑清单）
 
-- **不要把已作废形态带回**方案或文档：**Tauri / WebGL / Vite / TypeScript / 2.5D / 自走棋 / 卡牌收集**；`app/` 已删除（现行 `studio/`、`shared/` 与旧形态无关）。
-- **不要把 `docs/archive/**` 当依据**——归档稿无约束力（见 `docs/archive/README.md`）。
-- **不要把计划中的目录当已存在**（以 `docs/tech/STRUCTURE.md` §0 状态列为准：M0 起 `game/` `studio/` `shared/` 已 ✅，🟡 仅剩个别子项）。
-- **不要凭印象写规格或数字**——一切以 `docs/charter/GDD.md` 为准，数字必须可核对。
-- **不在运行期调用 AI**、不做服务端 / 账号 / 云同步、不做 macOS / Linux（明确非目标，GDD §2）。
+- **不要把已作废形态带回**：**Tauri / WebGL / Vite / TypeScript / 2.5D / 自走棋 / 卡牌收集 / 纸雕**。
+- **不要把 `docs/archive/**` 或 `docs/later/**` 当依据**——前者无约束力，后者是 M1 设想。
+- **不要把计划中的目录当已存在**（以 `docs/tech/tech.md` §3 状态列为准）。
+- **不要凭印象写规格或数字**——查 `docs/CONSTANTS.md` 与各真源。
+- **不在运行期调用 AI**、不做服务端 / 账号 / 云同步、不做 macOS / Linux（`CHARTER.md` §2）。
+- **画面里不出现纸质感**（纸纹 / 纸厚 / 纸纤维 / 撕裂边）——`docs/art/art.md` §0.5 红线 4。
+- **不给相机加连续旋转入口**——相机只许停在 `docs/art/art.md` §2.6 的 **32 个格点**（方位 8 × 俯仰 4）。任何"顺手加个拖动 / 按住某键微调 / 让自动环绕转快点"都算**回退**（`CHARTER` 第 59 轮裁决，理由：验收口径从"任意角度"收回到"32 个格点"）。
 
 ## 4. 协作
 
 - 分工：**AI ≈ 85%**（代码 / 脚本 / 文档 / 数据 / 生图调度）；**用户 ≈ 15%**（安装、GUI 操作、审美裁决、挑图、立项与数值拍板）。
-- 只在五处评审闸门停下来等用户裁决（风格定标、素材挑图、里程碑验收、立项规格变更、开放问题）——其余自己查证、自己定。
-- 闸门清单见 `docs/ops/WORKFLOW.md` §4；新会话进入方式与禁止事项见同文 §6。
+- **只在四处闸门停下来等用户裁决**（风格定标三张图 / 素材挑图 / 里程碑验收 / 立项规格变更）；其余自己查证、自己定。清单见 `docs/START.md` §6。
+- **分析侧与开发侧分离**：分析侧只出测试证据 / 分析结论 / 文档 / 派单（`docs/plan/work.md`），**不写 C++**。

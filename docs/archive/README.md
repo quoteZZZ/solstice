@@ -1,8 +1,8 @@
 ---
 id: archive/README
 title: 归档说明
-version: 1.2
-date: 2026-10-16
+version: 1.4
+date: 2026-10-17
 status: active
 truth: nav
 owner: ai
@@ -21,14 +21,16 @@ owner: ai
 
 ## 1 归档清单
 
-| 文件 | 原名 | 版本 / 日期 | 作废原因 |
-|---|---|---|---|
-| [`DESIGN-v3.md`](DESIGN-v3.md) | `docs/DESIGN.md` | v3.0 / 2026-10-13 | 描述《至日·岁局》单机肉鸽自走棋卡牌（2.5D 固定斜俯视、`shared/` 契约、`studio/` 生图线），形态已被否决，整体降级为参考 |
-| [`STORY-v1.md`](STORY-v1.md) | `docs/STORY.md` | v1.0 / 2026-10-13 | 是 DESIGN v3.0 §3 的展开（父源已作废），四时界叙事设定不再适用于「界 / 界外 / 七原质」世界观 |
-| [`ART-STYLE-v1.md`](ART-STYLE-v1.md) | `docs/ART-STYLE.md` | v1.0 / 2026-10-13 | 卡面与卡牌版式规范全部作废；八系属性语言（含日/月/灵）与现行七元素不符；§5 为 2.5D 相机规范 |
-| [`SYNC-v1.1.md`](SYNC-v1.1.md) | `docs/ops/SYNC.md` | v1.1 / 2026-10-14 | 双机 git 同步约定——2026-10-16 起**双机协作模式废止，回归单机开发**；定时同步计划任务与"未 push 视为未落地"口径不再适用，git 约定改见 [`../ops/WORKFLOW.md`](../ops/WORKFLOW.md) §5 |
+| 文件 | 原名 | 版本 / 日期 | 作废宣布 | 作废原因 |
+|---|---|---|---|---|
+| [`DESIGN-v3.md`](DESIGN-v3.md) | `docs/DESIGN.md` | v3.0 / 2026-10-13 | 2026-10-14 | 描述《至日·岁局》单机肉鸽自走棋卡牌（2.5D 固定斜俯视、`shared/` 契约、`studio/` 生图线），形态已被否决，整体降级为参考 |
+| [`STORY-v1.md`](STORY-v1.md) | `docs/STORY.md` | v1.0 / 2026-10-13 | 2026-10-14 | 是 DESIGN v3.0 §3 的展开（父源已作废），四时界叙事设定不再适用于「界 / 界外 / 七原质」世界观 |
+| [`ART-STYLE-v1.md`](ART-STYLE-v1.md) | `docs/ART-STYLE.md` | v1.0 / 2026-10-13 | 2026-10-14 | 卡面与卡牌版式规范全部作废；八系属性语言（含日/月/灵）与现行七元素不符；§5 为 2.5D 相机规范 |
+| [`SYNC-v1.1.md`](SYNC-v1.1.md) | `docs/ops/SYNC.md` | v1.1 / 2026-10-14 | 2026-10-16 | 双机 git 同步约定——2026-10-16 起**双机协作模式废止，回归单机开发**；定时同步计划任务与"未 push 视为未落地"口径不再适用，git 约定改见 [`../ops/START.md`](../START.md) §5 |
+| [`STYLE-v1.1.md`](STYLE-v1.1.md) | `docs/setting/STYLE.md` | v1.1 / 2026-10-15 | 2026-10-17（**并档**，非作废） | 设定层并入 [`../art/ART-STYLE.md`](../art/art.md) §0.1–§0.4：第 47 轮只做一个主题（T1）后，设定层与执行层长期同进同退，拆两份只生双写。正文保留供沿革查阅 |
+| [`LOOP-v1.2.md`](LOOP-v1.2.md) | `docs/gameplay/LOOP.md` | v1.2 / 2026-10-15 | 2026-10-17（**并档**，非作废） | 大部分内容是立项书 §3 支柱与 §2 非目标的映射表，独立成文的价值低于其维持成本；全文并入 [`../charter/CHARTER.md`](../charter/CHARTER.md) §3.1–§3.3。正文保留供沿革查阅 |
 
-**作废宣布时间**：2026-10-14（随 `README.md` 与本文档一并落档）；2026-10-16 增补 `SYNC-v1.1.md`（双机协作废止）。
+> 前四份中，`DESIGN-v3` / `STORY-v1` / `ART-STYLE-v1` 于 2026-10-14 随 `README.md` 与本文件一并落档；`SYNC-v1.1.md` 于 2026-10-16 双机协作废止时增补；`STYLE-v1.1.md` / `LOOP-v1.2.md` 于 2026-10-17 **同域并档**时增补——这两份是**迁移**（内容已并入现行文档），**不是作废**，只是原文件不再单独维护。
 
 ---
 
@@ -36,12 +38,15 @@ owner: ai
 
 | 归档稿 | 可继承的部分 | 现承载位置 | 状态 |
 |---|---|---|---|
-| `ART-STYLE-v1.md` | 墨线 + 平涂 + 纸颗粒的画面语言 | [`../art/ART-STYLE.md`](../art/ART-STYLE.md) §3（作为 T3 基线） | ✅ 已迁入 |
-| `ART-STYLE-v1.md` | 四季色板与七元素视觉语言 | [`../art/ART-STYLE.md`](../art/ART-STYLE.md) §3.3 / §3.4（标为候选，待定标） | ✅ 已迁入 |
-| `ART-STYLE-v1.md` | 生图 Prompt 串、批次一致性、QC 清单、"避免人脸特写" | [`../art/ASSETS.md`](../art/ASSETS.md) §3 / §4 + [`../art/ART-STYLE.md`](../art/ART-STYLE.md) §5 | ✅ 已迁入 |
+| `ART-STYLE-v1.md` | 墨线 + 平涂 + 纸颗粒的画面语言 | [`../art/ART-STYLE.md`](../art/art.md) §3（作为 T3 基线） | ✅ 已迁入 |
+| `ART-STYLE-v1.md` | 四季色板与七元素视觉语言 | [`../art/ART-STYLE.md`](../art/art.md) §3.3 / §3.4（标为候选，待定标） | ✅ 已迁入 |
+| `ART-STYLE-v1.md` | 生图 Prompt 串、批次一致性、QC 清单、"避免人脸特写" | [`../art/ASSETS.md`](../art/art.md) §3 / §4 + [`../art/ART-STYLE.md`](../art/art.md) §5 | ✅ 已迁入 |
 | `STORY-v1.md` | 叙事设计原则（不写小说 / 不解释机制 / 真相靠拼接 / 原创零借名） | [`../setting/WORLD.md`](../setting/WORLD.md) §1 | ✅ 已迁入 |
 | `STORY-v1.md` | 语料与命名规范、对话写作规范 | [`../setting/WORLD.md`](../setting/WORLD.md) §2 / §3 | ✅ 已迁入并改写 |
-| `SYNC-v1.1.md` | Content 大资产不入 git、由"种子 + 生成器 + 契约 + manifest"重建的思路 | [`../tech/STRUCTURE.md`](../tech/STRUCTURE.md) §9 | ✅ 早已迁入（与双机无关，单机下继续有效） |
+| `SYNC-v1.1.md` | Content 大资产不入 git、由"种子 + 生成器 + 契约 + manifest"重建的思路 | [`../tech/STRUCTURE.md`](../tech/tech.md) §9 | ✅ 早已迁入（与双机无关，单机下继续有效） |
+| `STYLE-v1.1.md` | 「风格 = 纯表现层，因此可随时切换」的架构论证 | [`../art/ART-STYLE.md`](../art/art.md) §0.1 | ✅ 已迁入 |
+| `STYLE-v1.1.md` | 主题定义与取舍、参数落位与排期、定标与验收约定 | [`../art/ART-STYLE.md`](../art/art.md) §0.2 / §0.3 / §0.4 | ✅ 已迁入 |
+| `LOOP-v1.2.md` | **全部正文**（支柱→机制映射 / 核心循环五尺度 + 设计意图 / "无失败"红线五条） | [`../charter/CHARTER.md`](../charter/CHARTER.md) §3.1 / §3.2 / §3.3 | ✅ 已逐条迁入 |
 
 ---
 
@@ -57,7 +62,8 @@ owner: ai
 
 | 改动类型 | 必须同次更新 |
 |---|---|
-| 新文档作废 | 本文件 §1 增行（含作废原因）+ §2 列可继承项 + [`../INDEX.md`](../INDEX.md) 状态改 `deprecated` + [`../charter/DECISIONS.md`](../charter/DECISIONS.md) §4 |
+| 新文档作废 | 本文件 §1 增行（含作废原因）+ §2 列可继承项 + [`../INDEX.md`](../INDEX.md) 状态改 `deprecated` + [`../charter/CHARTER.md`](../charter/CHARTER.md) §4 |
+| 文档**并档**（合并进同域文档） | 本文件 §1 增行（标明"并档，非作废"）+ §2 列可继承项 + [`../INDEX.md`](../INDEX.md) 状态矩阵**删行**（不是改 `deprecated`）+ 原文件加退场头指向新落点 |
 | 可继承项落地到现行文档 | 本文件 §2 的「状态」列改为 ✅ 并写清落点章节 |
 | 归档稿被彻底否定（连沿革价值也无） | 在本文件说明，并考虑直接删除（git 历史仍可找回） |
 
@@ -70,3 +76,5 @@ owner: ai
 | 1.0 | 2026-10-14 | 建立归档说明：三份作废稿的清单、可继承项与引用禁令 |
 | 1.1 | 2026-10-14 | 可继承项已全部落地（P3）；补"更新触发"章节与统一骨架 |
 | 1.2 | 2026-10-16 | 归档 `SYNC-v1.1.md`（双机协作废止，回归单机开发；可继承项 = Content 重建思路，已在 STRUCTURE §9 承载） |
+| 1.3 | 2026-10-17 | §1 补**逐份作废宣布日**列（原只有一句批次总时间），便于沿革审计 |
+| 1.4 | 2026-10-17 | §1 增补两份**并档迁移**条目（`STYLE-v1.1.md` / `LOOP-v1.2.md`，非作废）；§2 列其可继承项落点；§4 触发补"并档"一行 |

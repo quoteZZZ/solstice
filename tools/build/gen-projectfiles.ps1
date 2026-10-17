@@ -11,9 +11,9 @@
   幂等；失败时透传退出码。
 
 .EXAMPLE
-  powershell -ExecutionPolicy Bypass -File tools\gen-projectfiles.ps1 -Mode Solution
+  powershell -ExecutionPolicy Bypass -File tools\build\gen-projectfiles.ps1 -Mode Solution
 .EXAMPLE
-  powershell -ExecutionPolicy Bypass -File tools\gen-projectfiles.ps1 -Mode ClangDb
+  powershell -ExecutionPolicy Bypass -File tools\build\gen-projectfiles.ps1 -Mode ClangDb
 #>
 [CmdletBinding()]
 param(
@@ -24,16 +24,16 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-. (Join-Path $PSScriptRoot 'find-ue.ps1')
+. (Join-Path $PSScriptRoot '..\lib\Solstice.Common.ps1')
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
+$repoRoot = Get-SolsticeRepoRoot
 
 if ([string]::IsNullOrWhiteSpace($EngineRoot)) {
     $e = Find-UnrealEngine
     if ($e) { $EngineRoot = $e.Path }
 }
 if ([string]::IsNullOrWhiteSpace($EngineRoot) -or -not (Test-Path -LiteralPath $EngineRoot)) {
-    Write-Host '✗ 未找到虚幻引擎，无法生成工程文件。先跑 tools\find-ue.ps1 排查。' -ForegroundColor Red
+    Write-Host '✗ 未找到虚幻引擎，无法生成工程文件。先跑 tools\env\find-ue.ps1 排查。' -ForegroundColor Red
     exit 1
 }
 

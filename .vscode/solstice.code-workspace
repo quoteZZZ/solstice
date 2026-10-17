@@ -1,4 +1,4 @@
-// 《至日 · 岁局》工作区文件
+// Solstice 工作区文件
 // 用法：VSCode → 文件 → 打开工作区 → 选择本文件
 //
 // 为什么不拆成多根工作区？
@@ -16,12 +16,12 @@
 {
   "folders": [
     {
-      "name": "岁局 · Solstice",
+      "name": "Solstice",
       "path": ".."
     }
   ],
   "settings": {
-    "window.title": "岁局 · ${activeEditorShort}${separator}${rootName}",
+    "window.title": "${activeEditorShort}${separator}${rootName}",
     "workbench.editor.labelFormat": "short",
     "explorer.compactFolders": false
   }

@@ -1,25 +1,25 @@
 ﻿<#
 .SYNOPSIS
-  《至日 · 岁局》开发环境只读体检。不做任何修改，可反复运行。
+  Solstice 开发环境只读体检。不做任何修改，可反复运行。
 
 .DESCRIPTION
   检测：winget / Git / Python / GPU 显存 / 磁盘剩余 / Epic Games Launcher / 虚幻引擎 / VS2022 生成工具(C++)。
   输出「通过 / 缺失」表格与缺失项的可操作补救命令。普通用户权限即可。
 
 .EXAMPLE
-  powershell -ExecutionPolicy Bypass -File tools\check-env.ps1
+  powershell -ExecutionPolicy Bypass -File tools\env\check-env.ps1
 #>
 [CmdletBinding()]
 param(
-    [string[]]$EngineSearchRoots = @(
-        'C:\Program Files\Epic Games',
-        'D:\Epic Games', 'D:\UE', 'D:\UnrealEngine', 'C:\UnrealEngine', 'E:\Epic Games', 'E:\UE'
-    ),
+    # 引擎候选根目录不在这里重复声明：find-ue.ps1 是唯一真源（dot-source 后即生效），
+    # 需要覆盖时设环境变量 SOLSTICE_UE_SEARCH_ROOTS 或给 find-ue.ps1 传 -SearchRoots。
+    # ComfyUI 根目录同理：环境变量 SOLSTICE_COMFYUI_ROOT 优先，其次本参数的默认值。
+    [string]$ComfyUIRoot = $(if ($env:SOLSTICE_COMFYUI_ROOT) { $env:SOLSTICE_COMFYUI_ROOT } else { 'D:\ComfyUI' }),
     [int]$DiskWarnGB = 120   # UE + VS + 工程缓存 ≈ 100–120GB
 )
 
 $ErrorActionPreference = 'Continue'
-. (Join-Path $PSScriptRoot 'find-ue.ps1')
+. (Join-Path $PSScriptRoot '..\lib\Solstice.Common.ps1')
 
 $script:Results = @()
 function Add-Result {
@@ -39,7 +39,7 @@ function Get-CmdPath {
     return $null
 }
 
-Write-Host '==== 《至日 · 岁局》开发环境体检 ====' -ForegroundColor Cyan
+Write-Host '==== Solstice 开发环境体检 ====' -ForegroundColor Cyan
 Write-Host ''
 
 # ---- winget ----
@@ -93,9 +93,22 @@ foreach ($dev in @('C:', 'D:')) {
 }
 
 # ---- ComfyUI（本地生图）----
-$comfyOk = Test-Path -LiteralPath 'D:\ComfyUI\ComfyUI\main.py'
-$modelOk = Test-Path -LiteralPath 'D:\ComfyUI\ComfyUI\models\diffusion_models\flux-2-klein-4b-fp8.safetensors'
-Add-Result 'ComfyUI（本地生图）' ($comfyOk -and $modelOk) $(if ($comfyOk -and $modelOk) { 'D:\ComfyUI 就绪，FLUX.2 Klein 4B FP8 已装' } else { '缺少 D:\ComfyUI 或模型文件' }) '见 docs\ENV.md §3'
+# 不写死模型文件名与层级：扫到 main.py + 任一扩散模型即视为就绪，换模型/换目录都不用改脚本。
+$comfyMain = $null
+$comfyModels = @()
+if (Test-Path -LiteralPath $ComfyUIRoot) {
+    $comfyMain = Get-ChildItem -LiteralPath $ComfyUIRoot -Filter 'main.py' -File -Recurse -Depth 2 -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    $diffDir = Get-ChildItem -LiteralPath $ComfyUIRoot -Directory -Recurse -Depth 3 -Filter 'diffusion_models' -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($diffDir) {
+        $comfyModels = @(Get-ChildItem -LiteralPath $diffDir.FullName -Filter '*.safetensors' -File -ErrorAction SilentlyContinue)
+    }
+}
+$comfyOk = [bool]($comfyMain -and $comfyModels.Count -gt 0)
+Add-Result 'ComfyUI（本地生图）' $comfyOk `
+    $(if ($comfyOk) { '{0} 就绪（{1} 个扩散模型）' -f $ComfyUIRoot, $comfyModels.Count } else { '未在 {0} 找到 main.py 或扩散模型' -f $ComfyUIRoot }) `
+    '可用环境变量 SOLSTICE_COMFYUI_ROOT 指定根目录；见 docs\ops\ENV.md §3'
 
 # ---- Epic Games Launcher ----
 $launcherOk = $false; $launcherDetail = ''
@@ -106,14 +119,14 @@ else {
     $reg = Get-ItemProperty 'HKLM:\SOFTWARE\WOW6432Node\Epic Games\EpicGamesLauncher' -ErrorAction SilentlyContinue
     if ($reg) { $launcherOk = $true; $launcherDetail = '注册表 HKLM\...\Epic Games\EpicGamesLauncher' }
 }
-Add-Result 'Epic Games Launcher' $launcherOk $launcherDetail 'tools\install-epic-launcher.ps1（需用户主动执行）'
+Add-Result 'Epic Games Launcher' $launcherOk $launcherDetail 'tools\env\install-epic-launcher.ps1（需用户主动执行）'
 
 # ---- 虚幻引擎 ----
-$engines = @(Find-UnrealEngine -Roots $EngineSearchRoots -All)
+$engines = @(Find-UnrealEngine -All)
 if ($engines.Count -gt 0) {
     Add-Result '虚幻引擎 (UE5)' $true (($engines | ForEach-Object { "{0} (v{1})" -f $_.Path, $_.Version }) -join '; ')
 } else {
-    Add-Result '虚幻引擎 (UE5)' $false '未找到 UnrealEditor.exe' '装 Epic Launcher → 登录 → 安装 UE 最新稳定版到 D:\UE\UE_5.x'
+    Add-Result '虚幻引擎 (UE5)' $false '未找到 UnrealEditor.exe' '装 Epic Launcher → 登录 → 安装 UE 最新稳定版（位置任意，会被自动探测）'
 }
 
 # ---- VS2022 生成工具 ----
@@ -124,7 +137,7 @@ if (Test-Path -LiteralPath $vswhere) {
     if ($vsPath) { $vsOk = $true; $vsDetail = $vsPath }
     else { $vsDetail = '有 VS 但缺组件 Microsoft.VisualStudio.Component.VC.Tools.x86.x64' }
 } else { $vsDetail = '未找到 vswhere.exe（无 VS2022）' }
-Add-Result 'VS2022 生成工具 (C++)' $vsOk $vsDetail 'tools\install-vs-buildtools.ps1（需用户主动执行）'
+Add-Result 'VS2022 生成工具 (C++)' $vsOk $vsDetail 'tools\env\install-vs-buildtools.ps1（需用户主动执行）'
 
 # ---- 输出 ----
 Write-Host ''
@@ -142,5 +155,5 @@ if ($missing.Count -gt 0) {
     }
 } else {
     Write-Host ''
-    Write-Host '全部通过。可执行 tools\configure-vscode.ps1 与 tools\gen-projectfiles.ps1。' -ForegroundColor Green
+    Write-Host '全部通过。可执行 tools\env\configure-vscode.ps1 与 tools\build\gen-projectfiles.ps1。' -ForegroundColor Green
 }

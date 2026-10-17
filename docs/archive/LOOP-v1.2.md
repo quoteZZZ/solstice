@@ -1,36 +1,40 @@
 ---
 id: gameplay/LOOP
 title: 玩法总纲 · 体验支柱与核心循环
-version: 1.1
+version: 1.2
 date: 2026-10-15
-status: active
+status: archived
 truth: subsystem
 owner: both
 ---
+
+> ⚠ **本文件已并档退场（2026-10-17），不再是真源。** 全文（支柱→机制映射 / 核心循环五尺度 / "无失败"红线）已并入
+> [`../charter/CHARTER.md`](../charter/CHARTER.md) **§3.1–§3.3**。此处保留仅供沿革查阅。
+> 退场原因：本文大部分内容是立项书 §3 支柱与 §2 非目标的映射表，独立成文的价值低于其维持成本（详见 GDD 7.6 沿革）。
 
 # 玩法总纲 · 体验支柱与核心循环（LOOP）
 
 ## 0 本文件管什么 / 不管什么
 
 - **管**：**体验支柱**（这游戏要给玩家什么感受）、**核心循环**（在秒 / 日 / 分钟 / 会话 / 周五个尺度上重复什么）、以及"无失败"如何落到节奏上。
-- **不管**：具体机制规则（时间 → [`TIME.md`](TIME.md)；干涉与资源 → [`INTERVENTION.md`](INTERVENTION.md)；自定义 → [`CUSTOMIZE.md`](CUSTOMIZE.md)；界面 → [`UI-UX.md`](UI-UX.md)）；立项与非目标 → [`../charter/GDD.md`](../charter/GDD.md)。
+- **不管**：具体机制规则（时间 → [`TIME.md`](../later/TIME.md)；干涉与资源 → [`INTERVENTION.md`](../gameplay/INTERVENTION.md)；自定义 → [`CUSTOMIZE.md`](../later/CUSTOMIZE.md)；界面 → [`UI-UX.md`](../later/UI-UX.md)）；立项与非目标 → [`../charter/CHARTER.md`](../charter/CHARTER.md)。
 - **来源**：由 `charter/GDD.md` §3 + §4 拆出（内容未改，补了一段"节奏自洽"的说明）。
 
 ---
 
 ## 1 体验支柱 → 机制的映射
 
-**七条支柱的唯一真源是立项书** [`../charter/GDD.md`](../charter/GDD.md) §3（此处不重复，避免双写）。本节只说明**每条支柱由哪些机制承担**：
+**七条支柱的唯一真源是立项书** [`../charter/CHARTER.md`](../charter/CHARTER.md) §3（此处不重复，避免双写）。本节只说明**每条支柱由哪些机制承担**：
 
 | 支柱 | 承担的机制 | 落点 |
 |---|---|---|
-| ① 它真的在活着 | 物种与生态、因果可读性 | [`../setting/SPECIES.md`](../setting/SPECIES.md) |
-| ② 外面发生什么，里面就发生什么 | 现实的桥、现实锚、特殊包 | [`TIME.md`](TIME.md) §1 / §4 |
-| ③ 万物可干涉 | 卡片三轴与矩阵 + 施放流程 | [`../setting/CARDS.md`](../setting/CARDS.md) · [`INTERVENTION.md`](INTERVENTION.md) §1 |
-| ④ 这次能怎么玩 | 余响、开包、解锁 | [`INTERVENTION.md`](INTERVENTION.md) §2 / §4 |
-| ⑤ 我的界我做主 | 9 步向导、创世面板 | [`CUSTOMIZE.md`](CUSTOMIZE.md) |
-| ⑥ 没有失败，也不会结束 | 红线约束 | 本文 §3 · [`INTERVENTION.md`](INTERVENTION.md) §2.3 |
-| ⑦ 打开就好看 | 五个风格主题、纸雕渲染 | [`../setting/STYLE.md`](../setting/STYLE.md) · [`../art/ART-STYLE.md`](../art/ART-STYLE.md) |
+| ① 它真的在活着 | 物种与生态、因果可读性 | [`../later/SPECIES.md`](../later/SPECIES.md) |
+| ② 外面发生什么，里面就发生什么 | 现实的桥、现实锚、特殊包 | [`TIME.md`](../later/TIME.md) §1 / §4 |
+| ③ 万物可干涉 | 卡片三轴与矩阵 + 施放流程 | [`../setting/CARDS.md`](../setting/cards.md) · [`INTERVENTION.md`](../gameplay/INTERVENTION.md) §1 |
+| ④ 这次能怎么玩 | 余响、开包、解锁 | [`INTERVENTION.md`](../gameplay/INTERVENTION.md) §2 / §4 |
+| ⑤ 我的界我做主 | 9 步向导、创世面板 | [`CUSTOMIZE.md`](../later/CUSTOMIZE.md) |
+| ⑥ 没有失败，也不会结束 | 红线约束 | 本文 §3 · [`INTERVENTION.md`](../gameplay/INTERVENTION.md) §2.3 |
+| ⑦ 打开就好看 | 五个风格主题、纸雕渲染 | [`../setting/STYLE.md`](../art/art.md) · [`../art/ART-STYLE.md`](../art/art.md) |
 
 ---
 
@@ -55,9 +59,9 @@ owner: both
 
 ## 3 "无失败"如何落到节奏上（红线）
 
-- **不设**：战斗、失败、等级 / 属性成长、稀有度、每日任务、签到、广告、成就弹窗（[`../charter/GDD.md`](../charter/GDD.md) §2）。
-- **唯一积累物**是「余响」，且**只买选择与审美，不买强度**（[`INTERVENTION.md`](INTERVENTION.md) §2）。
-- **扰动值升高不是惩罚**：世界进入"剧烈"是**另一种玩法**，不是失败态（[`INTERVENTION.md`](INTERVENTION.md) §3）。
+- **不设**：战斗、失败、等级 / 属性成长、稀有度、每日任务、签到、广告、成就弹窗（[`../charter/CHARTER.md`](../charter/CHARTER.md) §2）。
+- **唯一积累物**是「余响」，且**只买选择与审美，不买强度**（[`INTERVENTION.md`](../gameplay/INTERVENTION.md) §2）。
+- **扰动值升高不是惩罚**：世界进入"剧烈"是**另一种玩法**，不是失败态（[`INTERVENTION.md`](../gameplay/INTERVENTION.md) §3）。
 - **个体不可直接控制**（★2026-10-15 定案）：上帝不操控个体——**观察与干涉是仅有的两种关系**；物种行为永远由模拟驱动（防范围爆炸，守"它自己活着"）。
 - **打开就好看**是留存手段，不是数值钩子——所以风格主题与观感优先级高于任何进度系统。
 
@@ -67,9 +71,9 @@ owner: both
 
 | 改动类型 | 必须同次更新 |
 |---|---|
-| 体验支柱变化 | 本文件 §1 + [`../charter/GDD.md`](../charter/GDD.md) §3 + [`../charter/DECISIONS.md`](../charter/DECISIONS.md) |
+| 体验支柱变化 | 本文件 §1 + [`../charter/CHARTER.md`](../charter/CHARTER.md) §3 + [`../charter/CHARTER.md`](../charter/CHARTER.md) |
 | 核心循环变化 | 本文件 §2 + 受影响的机制文档（TIME / INTERVENTION） |
-| "无失败"红线变化 | 本文件 §3 + [`INTERVENTION.md`](INTERVENTION.md) §2 + [`../charter/GDD.md`](../charter/GDD.md) §2 |
+| "无失败"红线变化 | 本文件 §3 + [`INTERVENTION.md`](../gameplay/INTERVENTION.md) §2 + [`../charter/CHARTER.md`](../charter/CHARTER.md) §2 |
 
 ---
 
@@ -79,3 +83,4 @@ owner: both
 |---|---|---|
 | 1.0 | 2026-10-14 | 新建：由 `charter/GDD.md` §3 + §4 拆出；补"支柱↔机制对应表"与"五个尺度的设计意图" |
 | 1.1 | 2026-10-15 | §3 红线补**个体不可直接控制**（观察与干涉是仅有的两种关系，第 37 轮） |
+| 1.2 | 2026-10-17 | §0 来源行改指 GDD §4.1 旧章节号对照（原文"§3 + §4"里的 §4 现为文档地图）；§1 第 ⑦ 条"五个风格主题"改"风格主题（只 T1）" |

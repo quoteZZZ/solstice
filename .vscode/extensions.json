@@ -1,8 +1,8 @@
 // 工作区扩展建议 —— **扩展清单的唯一真源**
 //   recommendations         = 打开本仓库时提示安装（标 ✅ 的是本机已装）
 //   unwantedRecommendations = 与本项目无关，抑制 VS Code 的推荐噪音（只降噪，不卸载）
-// 增删本机扩展请走 tools\vscode-extensions.ps1（默认只读；-RemoveUnwanted 先预览，
-// 加 -Confirm 才真正全局卸载）。扩展分析与处置记录见 docs\VSCODE.md §3。
+// 增删本机扩展请走 tools\env\vscode-extensions.ps1（默认只读；-RemoveUnwanted 先预览，
+// 加 -Confirm 才真正全局卸载）。扩展分析与处置记录见 docs/ops/VSCODE.md §3。
 //
 // ⚠ 已装但按设计「不启用」的扩展（刻意不写进下面两张清单，以免被 -RemoveUnwanted 一并卸掉）：
 //   · llvm-vs-code-extensions.vscode-clangd —— 路线 B 专用。当前路线 A（cpptools）下两套
@@ -10,10 +10,11 @@
 //     彻底移除：code --uninstall-extension llvm-vs-code-extensions.vscode-clangd
 //   · 个人工具（翻译 / 键位，随你保留）：intellsmi.comment-translate、
 //     xiaodiyan.translator-helper、k--kato.intellij-idea-keybindings、orionunique.troll
-// 注：openai.chatgpt、openai.codex-audio 已于 2026-10-13 卸载；本项目唯一 AI 助手 = CodeBuddy
-//     （tencent-cloud.coding-copilot）。详见 docs\VSCODE.md §3.6。
+// 注：openai.chatgpt、openai.codex-audio 已于 2026-10-13 卸载；johnstoncode.svn-scm、
+//     typescriptteam.native-preview 已于 2026-10-17 卸载（本项目用 git、零 TypeScript）。
+//     本项目唯一 AI 助手 = CodeBuddy（tencent-cloud.coding-copilot）。详见 docs/ops/VSCODE.md §3.6。
 // 注：VSCode **无官方 UE 扩展**，也没有任何插件能操作蓝图编辑器；UE 相关候选的
-//     市场核实记录（采纳 / 条件性 / 不采纳）见 docs\VSCODE.md §3.8（2026-10-14）。
+//     市场核实记录（采纳 / 条件性 / 不采纳）见 docs/ops/VSCODE.md §3.8（2026-10-14）。
 {
   "recommendations": [
     // ---- 必需：C++ / 虚幻引擎 ----
@@ -39,9 +40,24 @@
     "streetsidesoftware.code-spell-checker", // 中英拼写检查（已配 cSpell.words）（✅ 已装）
     "christian-kohler.path-intellisense", // 路径补全（✅ 已装）
     "sleistner.vscode-fileutils", // 文件操作增强（✅ 已装）
+    "alefragnani.bookmarks", // 大文件内打书签跳转（SolsticeKernel.cpp 这类上千行文件尤其有用）（✅ 已装 2026-10-17）
+
+    // ---- 高价值：Python 工具链（studio/ 生图线与 tools/checks 都是 Python）----
+    "ms-python.python", // 运行 / 调试 Python 脚本（✅ 已装 2026-10-17）
+    "charliermarsh.ruff", // Python 静态检查，轻量、标准库友好（✅ 已装 2026-10-17）
+
+    // ---- 高价值：CI 与协作（origin 在 GitHub，已上 Actions 自检）----
+    "github.vscode-github-actions", // 查看 / 重跑 .github/workflows/checks.yml 的运行记录（✅ 已装 2026-10-17）
+    "github.vscode-pull-request-github", // PR / Issue 与评审（✅ 已装 2026-10-17）
+    "spmeesseman.vscode-taskexplorer", // 一处运行 .vscode/tasks.json 里的全部任务（✅ 已装 2026-10-17）
+    "timonwong.shellcheck", // pre-commit 钩子是 sh 脚本，需要 shell 静态检查（✅ 已装 2026-10-17）
+
+    // ---- 高价值：UE 编辑器脚本 / 数据审阅 ----
+    "nilssoderman.ue-python", // 编辑器 Python（资产批处理、自定义 Unreal MCP 工具集）（✅ 已装 2026-10-17）
+    "mechatroner.rainbow-csv", // CSV 列对齐，便于审阅卡表 / 数值表（✅ 已装 2026-10-17）
 
     // ---- 可选：按需安装（下列均已装；未用到不影响任何功能）----
-    "eamodio.gitlens", // git blame / 历史（双机同步场景有用）（✅ 已装）
+    "eamodio.gitlens", // git blame / 历史（查某行改动出处）（✅ 已装）
     "mhutchie.git-graph", // 图形化 git 历史（✅ 已装）
     "bierner.markdown-mermaid", // 文档里画流程图（✅ 已装）
     "jock.svg", // SVG 预览（UI 素材）（✅ 已装）
@@ -83,6 +99,7 @@
     // 其他无关工具链
     "mtxr.sqltools",
     "johnstoncode.svn-scm",
+    "typescriptteam.native-preview",
     "ms-azuretools.vscode-containers",
     "formulahendry.code-runner",
     "dotjoshjohnson.xml"

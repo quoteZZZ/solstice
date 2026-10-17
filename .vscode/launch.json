@@ -1,6 +1,7 @@
 // 调试配置（F5）
-// cppvsdbg = Visual Studio 调试引擎，需要 VS2022 生成工具已安装（见 docs/ENV.md）
-// __UE_ENGINE_ROOT__ 由 tools\configure-vscode.ps1 自动替换为真实引擎路径
+// cppvsdbg = Visual Studio 调试引擎，需要 VS2022 生成工具已安装（见 docs/ops/ENV.md）
+// 引擎路径走环境变量 ${env:SOLSTICE_UE_ENGINE_ROOT}（由 tools\env\configure-vscode.ps1 写入），
+// 本文件因此与主机无关，可安全入库；改变量后需重启 VS Code。
 {
   "version": "0.2.0",
   "configurations": [
@@ -18,7 +19,7 @@
       "name": "Solstice: 启动 UnrealEditor（-game）",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "__UE_ENGINE_ROOT__/Engine/Binaries/Win64/UnrealEditor.exe",
+      "program": "${env:SOLSTICE_UE_ENGINE_ROOT}/Engine/Binaries/Win64/UnrealEditor.exe",
       "args": [
         "${workspaceFolder}/game/Solstice.uproject",
         "-game",
@@ -37,22 +38,23 @@
       "name": "Solstice: 启动 UnrealEditor（编辑器 UI）",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "__UE_ENGINE_ROOT__/Engine/Binaries/Win64/UnrealEditor.exe",
+      "program": "${env:SOLSTICE_UE_ENGINE_ROOT}/Engine/Binaries/Win64/UnrealEditor.exe",
       "args": ["${workspaceFolder}/game/Solstice.uproject", "-log"],
       "cwd": "${workspaceFolder}/game",
       "environment": [],
       "console": "externalTerminal"
     },
     {
-      // 离线平衡模拟器：M1 起落地（纯 C++ 命令行，不依赖渲染）
-      "name": "Solstice: 岁局模拟器（占位，M1 启用）",
-      "type": "cppvsdbg",
+      // M0 的自动化证明：同一种子跑两遍内核，比对世界结构摘要，不一致即硬失败。
+      // 走 tools\run\bench.ps1（内部是 -run=SolsticeBench），不碰 RHI / World / GameMode，
+      // 所以不开编辑器也能跑。旧的 SolsticeSim 独立目标已在 M0 取消（见 docs/tech/STRUCTURE.md §3）。
+      "name": "Solstice: 无头回归 bench（-Days 2）",
+      "type": "PowerShell",
       "request": "launch",
-      "program": "${workspaceFolder}/game/Binaries/Win64/SolsticeSim.exe",
-      "args": ["--runs", "1000", "--seed", "1"],
-      "cwd": "${workspaceFolder}/game",
-      "console": "integratedTerminal",
-      "preLaunchTask": "Solstice: 构建 SolsticeEditor (Development)"
+      "script": "${workspaceFolder}/tools/run/bench.ps1",
+      "args": ["-Days", "2"],
+      "cwd": "${workspaceFolder}",
+      "createTemporaryIntegratedConsole": true
     },
     {
       // 调试 tools/ 下的 PowerShell 脚本

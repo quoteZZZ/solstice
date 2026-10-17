@@ -1,6 +1,8 @@
 // C/C++ IntelliSense 配置（ms-vscode.cpptools）
-// ⚠ 占位符 __UE_ENGINE_ROOT__ 由 tools\configure-vscode.ps1 自动替换为真实引擎路径。
-//    引擎未安装时保持占位状态——此时工程源码自身的 IntelliSense 仍然可用（只是引擎头文件解析不到）。
+// 引擎路径统一走环境变量 ${env:SOLSTICE_UE_ENGINE_ROOT}，由 tools\env\configure-vscode.ps1 写入用户级环境变量。
+// 这样本文件入库后在任何主机都成立：换机 / 换盘 / 多人协作都不需要再改写本文件，git 也不会一直挂着修改。
+// 变量未设置或引擎未安装时，工程源码自身的 IntelliSense 仍然可用（只是引擎头文件解析不到）。
+// ⚠ 变量有变化后必须重启 VS Code——环境变量只在进程启动时被读取。
 {
   "version": 4,
   "configurations": [
@@ -17,10 +19,10 @@
         "${workspaceFolder}/game/Source/**",
         "${workspaceFolder}/game/Plugins/**",
         "${workspaceFolder}/game/Intermediate/Build/Win64/UnrealEditor/Inc/**",
-        // ---- 虚幻引擎 ----
-        "__UE_ENGINE_ROOT__/Engine/Source/**",
-        "__UE_ENGINE_ROOT__/Engine/Plugins/**",
-        "__UE_ENGINE_ROOT__/Engine/Intermediate/Build/Win64/UnrealEditor/Inc/**"
+        // ---- 虚幻引擎（来自环境变量；值为正斜杠、无尾随斜杠的引擎根）----
+        "${env:SOLSTICE_UE_ENGINE_ROOT}/Engine/Source/**",
+        "${env:SOLSTICE_UE_ENGINE_ROOT}/Engine/Plugins/**",
+        "${env:SOLSTICE_UE_ENGINE_ROOT}/Engine/Intermediate/Build/Win64/UnrealEditor/Inc/**"
       ],
       "defines": [
         "__UNREAL__",
@@ -41,8 +43,8 @@
         "path": [
           "${workspaceFolder}/game/Source",
           "${workspaceFolder}/game/Plugins",
-          "__UE_ENGINE_ROOT__/Engine/Source/Runtime",
-          "__UE_ENGINE_ROOT__/Engine/Source/Editor"
+          "${env:SOLSTICE_UE_ENGINE_ROOT}/Engine/Source/Runtime",
+          "${env:SOLSTICE_UE_ENGINE_ROOT}/Engine/Source/Editor"
         ],
         "limitSymbolsToIncludedHeaders": true,
         // ⚠ 必须落在「可再生且已被 .gitignore 覆盖」的目录里。

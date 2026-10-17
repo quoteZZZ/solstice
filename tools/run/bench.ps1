@@ -32,7 +32,7 @@
   回归即使摘要一致也证明不了什么，所以基准默认播种。传 0 可以只测未动过的混沌初态。
 
 .EXAMPLE
-  powershell -ExecutionPolicy Bypass -File tools\bench.ps1 -Days 2
+  powershell -ExecutionPolicy Bypass -File tools\run\bench.ps1 -Days 2
 #>
 [CmdletBinding()]
 param(
@@ -45,9 +45,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-. (Join-Path $PSScriptRoot 'find-ue.ps1')
+. (Join-Path $PSScriptRoot '..\lib\Solstice.Common.ps1')
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
+$repoRoot = Get-SolsticeRepoRoot
 
 if ([string]::IsNullOrWhiteSpace($EngineRoot)) {
     $e = Find-UnrealEngine
