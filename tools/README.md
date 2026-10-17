@@ -35,7 +35,7 @@ Solstice 的环境检测、安装、工程生成与构建脚本；PowerShell 部
 | `build/build.ps1` | 调用 `Build.bat` 编译目标，透传退出码。**默认追加 `-NoUBA`**（本机 UBA 的 FS detour 失效、PCH 会 `C1083`，见 [`docs/ENVIRONMENT.md`](docs/ENVIRONMENT.md) §2.4.1）；`-UseUBA` 换回加速 | 引擎 + VS2022 生成工具 | `... -File tools\build\build.ps1 -Target SolsticeEditor` |
 | `build/gen-assets.ps1` | **生成内容**：跑 `-run=SolsticeGenAssets` 写出 `/Game/Core/M_Paper` 与 `M_Ink`。幂等，已存在则跳过 | 已编译 `SolsticeEditor` | `... -File tools\build\gen-assets.ps1` |
 | `run/bench.ps1` | **无头确定性回归**：跑 `-run=SolsticeBench`，同种子跑两遍比对世界摘要；不一致即退出码 1 | 已编译 `SolsticeEditor` | `... -File tools\run\bench.ps1 -Days 2` |
-| `run/shot.ps1` | **无人值守抓帧 + 量化**：`-game -RenderOffscreen` 起一帧，等世界稳定、相机停到指定格点，写 PNG 后自行退出；从日志读引擎投影出的世界屏幕盒，自动调 `checks/measure-frame.py` 判 PASS/FAIL。无人值守会话的"眼睛" | 已编译 `SolsticeEditor` + 装了 Pillow 的 python（`SOLSTICE_PYTHON` 可指定） | `... -File tools\run\shot.ps1 -Preset 0 -Delay 5` |
+| `run/shot.ps1` | **无人值守抓帧 + 量化**：`-game -RenderOffscreen` 起一帧，等世界稳定、相机停到指定格点，写 PNG 后自行退出；从日志读引擎投影出的世界屏幕盒，自动调 `checks/measure-frame.py` 判 PASS/FAIL。`-Minute` 钉时钟、**`-Seed` 钉世界种子**（`world.json` 的 `seed:0` = 每次新世界，不钉种子两帧不可比）。无人值守会话的"眼睛" | 已编译 `SolsticeEditor` + 装了 Pillow 的 python（`SOLSTICE_PYTHON` 可指定） | `... -File tools\run\shot.ps1 -Preset 0 -Delay 5 -Minute 720` |
 | `run/launch-editor.ps1` | 启动虚幻编辑器打开工程；`-Mcp` 额外开启引擎内置 MCP 服务器（`-McpPort` 改端口，默认 `8000`），`-Headless` 走无窗口（`-NullRHI -unattended -nopause`） | 已装引擎 | `... -File tools\run\launch-editor.ps1 -Mcp -Headless` |
 | `hooks/install-hooks.ps1` | 安装 pre-commit 钩子：设 `core.hooksPath=tools/hooks`，提交时自动跑 `checks/` 两条自检；幂等；卸载 `git config --unset core.hooksPath` | git + Python | `... -File tools\hooks\install-hooks.ps1` |
 

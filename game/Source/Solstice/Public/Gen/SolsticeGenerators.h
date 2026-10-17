@@ -140,8 +140,15 @@ namespace Solstice
 		 */
 		float TornRadius(float BaseRadius, float X, float Y);
 
-		/** Cel colour of one tile: material tone pulled toward raw paper by the chaos state. */
-		FLinearColor TileColour(const FTile& Tile, const FCelPalette& Palette);
+		/**
+		 * Cel colour of one point on the ground.
+		 *
+		 * `HeightMeters` and `Slope01` (1 - N.z) are *per vertex*, not per tile: the bands this
+		 * paints are contour lines and cliff faces, and both cut across tiles. Passing the tile's
+		 * own height (what this used to take) could only ever paint one flat patch per tile, which
+		 * is why the realm read as a continuous green wash with no readable relief.
+		 */
+		FLinearColor TileColour(const FTile& Tile, float HeightMeters, float Slope01, const FCelPalette& Palette);
 
 		/** One terrain chunk: plates, cut edges, contour ribbons and the water sheet. */
 		void BuildChunk(const FSimKernel& Kernel, int32 ChunkX, int32 ChunkY, const FCelPalette& Palette, FMeshBuilder& Out);

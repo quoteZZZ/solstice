@@ -395,11 +395,13 @@ namespace Solstice
 		}
 	}
 
-	FLinearColor Gen::TileColour(const FTile& Tile, const FCelPalette& Palette)
+	FLinearColor Gen::TileColour(const FTile& Tile, float HeightMeters, float Slope01, const FCelPalette& Palette)
 	{
 		if (Tile.IsWater())
 		{
-			// Deeper water is a darker sheet. Depth is read off the tile, which the mesh already knows.
+			// Deeper water is a darker sheet. Depth is read off the *tile*, not off the vertex: the
+			// sheet is flat at the water line, so a per-vertex height would report depth zero
+			// everywhere and paint the whole sea one colour.
 			const float Depth = FMath::Clamp(
 				(Tuning::WaterSheetShadingDepthMeters - Tile.Height) / Tuning::WaterSheetShadingDepthMeters, 0.0f, 1.0f);
 			return FMath::Lerp(Palette.Water, Palette.WaterDeep, Depth);
@@ -419,16 +421,36 @@ namespace Solstice
 			// and then Tuning::MaxHeightMeters (64) while the generator still capped at 24 - nearly
 			// every tile clamped into the grass band, which is why the realm rendered as one green
 			// sheet. Tuning::TerrainPeakMeters is the peak the profile is now built to.
-			const float H = FMath::Clamp(Tile.Height / Tuning::TerrainPeakMeters, 0.0f, 1.0f);
+			const float H = FMath::Clamp(HeightMeters / Tuning::TerrainPeakMeters, 0.0f, 1.0f);
 			const FLinearColor Silt = CelSrgb(0xD9, 0xC2, 0x92);
-			const FLinearColor Grass = CelSrgb(0x6F, 0x9B, 0x4A);
-			const FLinearColor Meadow = CelSrgb(0x8A, 0xA9, 0x55);
+			// The three greens are art.md SS2.3's own numbers (#7FBF5F / #5F9E4A / #3F7A3C), in
+			// that order: sunlit meadow, grass, and the shaded face of a slope.
+			const FLinearColor Meadow = CelSrgb(0x7F, 0xBF, 0x5F);
+			const FLinearColor Grass = CelSrgb(0x5F, 0x9E, 0x4A);
+			const FLinearColor GrassDark = CelSrgb(0x3F, 0x7A, 0x3C);
 			const FLinearColor Rock = CelSrgb(0x9A, 0x94, 0x88);
-			Base = (H < 0.14f)
-				? FMath::Lerp(Silt, Grass, H / 0.14f)
-				: (H < 0.42f)
-					? FMath::Lerp(Grass, Meadow, (H - 0.14f) / 0.28f)
-					: FMath::Lerp(Meadow, Rock, FMath::Clamp((H - 0.42f) / 0.26f, 0.0f, 1.0f));
+			const FLinearColor RockDark = CelSrgb(0x71, 0x6C, 0x64);
+
+			// Four *hard* stops, not a lerp (art.md SS2.3: "色带 2-3 档同族色，硬边切换"). The lerp
+			// this replaces produced a perfectly smooth gradient, which is the other half of why
+			// the realm read as a featureless green wash: every silhouette had to be found from
+			// lighting alone, and the material's bands are uniform on a gentle slope.
+			//
+			// Slope overrides height *within* a zone rather than globally: a hillside is a darker
+			// shade of its own green, not stone. Painting every slope grey turned the realm into a
+			// rock pile at the first attempt (measured: saturation 0.351 → 0.218, 2026-10-18).
+			// Slope01 is 1 - N.z, so 1 m of rise over 2 m of ground is 0.11.
+			const bool bHigh = H >= 0.62f;
+			const bool bSteep = Slope01 > 0.42f;
+			Base = bHigh
+				? (bSteep ? RockDark : Rock)
+				: (H < 0.10f)
+					? Silt
+					: (bSteep)
+						? GrassDark
+						: (H < 0.30f)
+							? Grass
+							: Meadow;
 		}
 
 		if (Tile.Vegetation > 0.01f)
@@ -531,7 +553,16 @@ namespace Solstice
 				// Water is one sheet: any per-tile variation on it turns into a moire grid, because
 				// the sheet is flat and otherwise a single colour. Land gets slow fibre, softly.
 				const float Grain = Tile->IsWater() ? 1.0f : (0.97f + CelGrainSmooth(X, Y) * 0.06f);
-				const FLinearColor Colour = TileColour(*Tile, Palette) * Grain;
+				const FLinearColor Colour = TileColour(*Tile, Tile->Height, 0.0f, Palette) * Grain;
+
+				// Per-vertex ground colour: the bands are contours and cliff faces, so they have to
+				// be sampled where the vertex actually is. Water keeps the single tile colour.
+				const auto GroundColour = [&](const FVector& P, const FVector& N) -> FLinearColor
+				{
+					return Tile->IsWater()
+						? Colour
+						: TileColour(*Tile, P.Z / MeterUU, FMath::Clamp(1.0f - N.Z, 0.0f, 1.0f), Palette) * Grain;
+				};
 
 				// ---- the sheet ---------------------------------------------------------
 				// One flat quad per tile made every tile edge a step; at one metre per tile that is
@@ -610,10 +641,10 @@ namespace Solstice
 
 						if (!bClipped)
 						{
-							const int32 I00 = Out.Add(S00, PatchNormal(U0, V0), FVector2D(U0, V0), Colour);
-							const int32 I10 = Out.Add(S10, PatchNormal(U1, V0), FVector2D(U1, V0), Colour);
-							const int32 I11 = Out.Add(S11, PatchNormal(U1, V1), FVector2D(U1, V1), Colour);
-							const int32 I01 = Out.Add(S01, PatchNormal(U0, V1), FVector2D(U0, V1), Colour);
+							const int32 I00 = Out.Add(S00, PatchNormal(U0, V0), FVector2D(U0, V0), GroundColour(S00, PatchNormal(U0, V0)));
+							const int32 I10 = Out.Add(S10, PatchNormal(U1, V0), FVector2D(U1, V0), GroundColour(S10, PatchNormal(U1, V0)));
+							const int32 I11 = Out.Add(S11, PatchNormal(U1, V1), FVector2D(U1, V1), GroundColour(S11, PatchNormal(U1, V1)));
+							const int32 I01 = Out.Add(S01, PatchNormal(U0, V1), FVector2D(U0, V1), GroundColour(S01, PatchNormal(U0, V1)));
 
 							Out.Tri(I00, I10, I11);
 							Out.Tri(I00, I11, I01);
@@ -632,11 +663,12 @@ namespace Solstice
 							ClipPolyToDisc(Poly, 4, Torn, Clipped);
 							if (Clipped.Num() >= 3)
 							{
-								const int32 First = Out.Add(Clipped[0].P, Clipped[0].N, Clipped[0].UV, Colour);
-								int32 Prev = Out.Add(Clipped[1].P, Clipped[1].N, Clipped[1].UV, Colour);
+								const int32 First = Out.Add(Clipped[0].P, Clipped[0].N, Clipped[0].UV, GroundColour(Clipped[0].P, Clipped[0].N));
+								int32 Prev = Out.Add(Clipped[1].P, Clipped[1].N, Clipped[1].UV, GroundColour(Clipped[1].P, Clipped[1].N));
 								for (int32 Index = 2; Index < Clipped.Num(); ++Index)
 								{
-									const int32 Next = Out.Add(Clipped[Index].P, Clipped[Index].N, Clipped[Index].UV, Colour);
+									const int32 Next = Out.Add(Clipped[Index].P, Clipped[Index].N, Clipped[Index].UV,
+										GroundColour(Clipped[Index].P, Clipped[Index].N));
 									Out.Tri(First, Prev, Next);
 									Prev = Next;
 								}

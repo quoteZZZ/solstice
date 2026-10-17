@@ -35,6 +35,9 @@ param(
     [switch]$UI,
     [switch]$NoMeasure,
     [int]$Minute = -1,
+    # 世界种子。world.json 的 seed:0 = 每次开局摇一个新世界，那样两张“同一机位”其实是两个世界，数值不可比。
+    # 默认钉住与 bench 相同的 20261016。
+    [int]$Seed = 20261016,
     [int]$TimeoutSeconds = 180,
     [string]$EngineRoot,
     [string]$Project
@@ -73,6 +76,11 @@ if (-not (Test-Path -LiteralPath $editorExe)) {
 if ([string]::IsNullOrWhiteSpace($Out)) {
     $Out = Join-Path $repoRoot 'tmp\review\shot.png'
 }
+# 相对路径必须相对仓库根。之前直接交给引擎，它会按 game/ 解析 → 图写到
+# game/tmp/review/，而脚本自己在仓库根找文件 → 报“没有产出”（2026-10-18）。
+elseif (-not [System.IO.Path]::IsPathRooted($Out)) {
+    $Out = Join-Path $repoRoot $Out
+}
 $Out = $Out -replace '\\', '/'
 $outDir = Split-Path -Parent $Out
 if (-not (Test-Path -LiteralPath $outDir)) {
@@ -110,8 +118,10 @@ if ($UI) { $shotArgs += '-SolsticeShotUI' }
 # Pin the world clock so the same frame can be taken at noon, at dusk and at night
 # (docs/art/art.md SS0.4 asks for exactly that trio).
 if ($Minute -ge 0) { $shotArgs += ("-SolsticeMinute={0}" -f $Minute) }
+# 钉种子：否则每次都是一个新世界，画面指标不可比。
+if ($Seed -gt 0) { $shotArgs += ("-SolsticeSeed={0}" -f $Seed) }
 
-Write-Host ("抓帧：preset={0} {1}x{2} -> {3}{4}" -f $Preset, $Width, $Height, $Out,
+Write-Host ("抓帧：preset={0} {1}x{2} seed={3} -> {4}{5}" -f $Preset, $Width, $Height, $Seed, $Out,
     $(if ($Minute -ge 0) { ("  (clock {0}:{1:D2})" -f [int][math]::Floor($Minute / 60), ($Minute % 60)) } else { '' })) -ForegroundColor Green
 
 $proc = Start-Process -FilePath $editorExe -ArgumentList $shotArgs -PassThru -WindowStyle Hidden

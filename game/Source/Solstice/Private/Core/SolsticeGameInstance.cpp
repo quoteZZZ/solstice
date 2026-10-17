@@ -43,6 +43,18 @@ void USolsticeGameInstance::Init()
 		UE_LOG(LogSolstice, Log, TEXT("world clock pinned to minute %d of the day"), Config.StartingMinuteOfDay);
 	}
 
+	// `-SolsticeSeed=<n>` does the same job for the roll. `seed: 0` in world.json means "roll a
+	// fresh world", which is right for play and useless for review: two shots of the same framing
+	// were two different worlds, so no measurement could be compared against the one before it
+	// (framing metrics moved 0.44 -> 0.37 with no code change - 2026-10-18). tools/run/shot.ps1
+	// pins this, so a screenshot is reproducible.
+	int32 PinnedSeed = INDEX_NONE;
+	if (FParse::Value(FCommandLine::Get(), TEXT("SolsticeSeed="), PinnedSeed) && PinnedSeed > 0)
+	{
+		Config.Seed = static_cast<uint32>(PinnedSeed);
+		UE_LOG(LogSolstice, Log, TEXT("world seed pinned to %u"), Config.Seed);
+	}
+
 	Sim.Initialize(Config, Loaded.Catalog);
 
 	// The reference pace from docs/setting/SPECIES.md SS2.1: a healthy small realm runs a full

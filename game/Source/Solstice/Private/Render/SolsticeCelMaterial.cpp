@@ -51,7 +51,7 @@ namespace Solstice
 		/** Overcast grey the lit band is pulled toward. */
 		const FLinearColor CloudGrey(0.62f, 0.64f, 0.67f);
 		/** Cool ambient for the shadow band; SS2.1 asks for a lifted, blue-violet shadow. */
-		const FLinearColor ShadowCool(0.30f, 0.34f, 0.50f);
+		const FLinearColor ShadowCool(0.34f, 0.38f, 0.54f);
 		const FLinearColor ShadowOvercast(0.40f, 0.42f, 0.50f);
 		/** Chaos (unpainted) leans chalky and flat so the first colour reads as a change. */
 		const FLinearColor ChaosLitTint(0.86f, 0.85f, 0.82f);
@@ -75,7 +75,7 @@ namespace Solstice
 		constexpr float TwilightBandAltitudeDeg = 14.0f;
 
 		/** Where the middle band sits between shadow and lit, and the lighting mix weights. */
-		constexpr float MidBandMix = 0.60f;
+		constexpr float MidBandMix = 0.70f;
 		constexpr float SunGainFloor = 0.55f;
 		constexpr float SunGainScale = 0.55f;
 		constexpr float CloudMixStrength = 0.62f;
