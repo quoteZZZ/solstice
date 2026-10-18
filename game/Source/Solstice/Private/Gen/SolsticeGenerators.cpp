@@ -449,7 +449,21 @@ namespace Solstice
 		// (the panel said "上色比例 72%" while the screen had no colour at all). Cel tiles now get
 		// a height ramp instead, so relief is readable before any vegetation exists: silt at the
 		// waterline, grass over the low ground, drier meadow above, pale rock on the tops.
-		if (Tile.GetMat() == EMaterial::Bare)
+		// Which materials are painted by the height ramp below, instead of by their own swatch.
+		//
+		// Only `Bare` used to qualify, and everything else fell through to MaterialColor() - so a
+		// realm whose generator happened to mark its ground as Clay came out as #8A6A4B over the
+		// entire island. That is exactly the red-brown lump in the 2026-10-18 screenshot: the
+		// land was not badly lit, it was never painted at all. Ground that can hold plants has to
+		// be painted as ground (sand, grass, rock with height), not as a material sample; only
+		// materials that *are* the look - stone, ore, magma, ice, snow, ash - keep their swatch.
+		const EMaterial Mat = Tile.GetMat();
+		const bool bPaintByHeight =
+			Mat == EMaterial::Bare || Mat == EMaterial::Soil || Mat == EMaterial::Clay ||
+			Mat == EMaterial::Mud || Mat == EMaterial::Sand || Mat == EMaterial::DeadWood ||
+			Mat == EMaterial::Tissue;
+
+		if (bPaintByHeight)
 		{
 			// Four bands, in metres above the water line. They are absolute because the remap
 			// spends the land budget on the low ground: ~40% of the land sits under 2 m and only a
