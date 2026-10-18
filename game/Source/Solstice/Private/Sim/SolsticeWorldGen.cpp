@@ -926,7 +926,15 @@ namespace Solstice
 
 				// Target heights (x radius): plain / low hill / high hill / mid mountain / high.
 				// The top used to be 0.612 R - a 135 m boulder in a 220 m world, i.e. a pillar.
-				const float HTab[6] = { 0.000f, 0.032f, 0.072f, 0.132f, 0.212f, 0.300f };
+				// 0.300 is where it landed after that.
+				//
+				// Raised to 0.440 (and the whole lower ladder lifted with it, +40%) after a
+				// measurement of the *distribution* rather than the peak: the bench reported
+				// "height bands 0-8: 90.2%, 8-16: 6.9%" - nine tenths of the land was inside the
+				// first eight metres. A 128 m island whose highest point is 21 m has a mean slope
+				// of 16 degrees, and no amount of material work turns that into an island with an
+				// edge; it reads as a sandbar with a lump on it. Islands have cliffs.
+				const float HTab[6] = { 0.000f, 0.070f, 0.155f, 0.250f, 0.350f, 0.450f };
 
 				const int32 Count = Land.Num();
 				float SourceQ[6];

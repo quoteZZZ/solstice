@@ -596,7 +596,14 @@ void ASolsticePlayerController::ApplyCameraPreset(int32 Index)
 	// 0 is the landscape ("wallpaper") framing: low camera, sea running to the horizon, the realm
 	// sitting on the water. It replaced the 35 degree three-quarter in 2026-10-18: with an open
 	// ocean behind the world, a high camera only ever shows water and no sky.
-	case 0:		Distance = Fit * 0.80f; Yaw = -45.0f; Pitch = -1.8f; AimLift = 0.02f; break;
+	//
+	// 0.60, not 0.80, and 2.6 degrees off the horizontal rather than 1.8.
+	//
+	// At 0.80 the island was a third of the frame width and the eye read it as something far
+	// away that the camera happened to be pointed at - a backdrop, not a subject. 0.60 puts the
+	// coastline and its surf inside the sharp part of the depth-of-field band and lets the hill
+	// fill the middle third, which is what makes the frame a picture of a place.
+	case 0:		Distance = Fit * 0.60f; Yaw = -45.0f; Pitch = -2.6f; AimLift = 0.02f; break;
 	// 1 satellite survey: whole world from almost directly above
 	case 1:		Distance = Fit * 1.00f; Yaw = -52.0f; Pitch = -76.0f; break;
 	// 2 low ornament: whole world, camera just above the rim

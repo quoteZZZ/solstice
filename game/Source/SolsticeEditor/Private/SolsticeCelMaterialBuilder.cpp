@@ -61,7 +61,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 60;
+	constexpr int32 CelRecipeVersion = 63;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -227,9 +227,72 @@ namespace
 		TintedBase->A.Expression = VertexColour;
 		TintedBase->B.Expression = BaseGain;
 
+		// ---- ground detail -------------------------------------------------
+		//
+		// The generator writes one flat colour per tile: meadow is #7FBF5F everywhere, and a
+		// hundred square metres of one green is what makes the island read as a plastic model
+		// rather than as land. Nothing in the pipeline had any *surface* - no grain, no wear, no
+		// change of soil - so the eye got a single hue and concluded "low-poly toy".
+		//
+		// Two overlapping noise fields, evaluated in world space so the pattern does not swim
+		// when geometry is rebuilt, give each patch its own slightly different grass: a broad
+		// one (about 50 m) that says "this hillside faces the weather" and a finer one (about
+		// 6 m) that breaks the silhouette of a single slope. It multiplies the albedo, so it
+		// survives any lighting change and costs one extra shader pair.
+		UMaterialExpressionWorldPosition* DetailPos = AddExpr<UMaterialExpressionWorldPosition>(Material, -1200, 640);
+
+		UMaterialExpressionCustom* GroundDetail = AddExpr<UMaterialExpressionCustom>(Material, -900, 640);
+		GroundDetail->Description = TEXT("GroundDetail");
+		GroundDetail->OutputType = CMOT_Float3;
+		GroundDetail->Code = TEXT(R"(
+float2 p = P.xy * 0.018;
+float n = 0.0;
+float a = 0.55;
+for (int i = 0; i < 3; i++)
+{
+    float2 c = floor(p);
+    float2 f = frac(p);
+    f = f * f * (3.0 - 2.0 * f);
+
+    float3 h0 = frac(float3(c.x,        c.y,        c.x) * 0.1031);
+    float3 h1 = frac(float3(c.x + 1.0,  c.y,        c.x + 1.0) * 0.1031);
+    float3 h2 = frac(float3(c.x,        c.y + 1.0,  c.x) * 0.1031);
+    float3 h3 = frac(float3(c.x + 1.0,  c.y + 1.0,  c.x + 1.0) * 0.1031);
+    h0 += dot(h0, h0.yzx + 33.33);
+    h1 += dot(h1, h1.yzx + 33.33);
+    h2 += dot(h2, h2.yzx + 33.33);
+    h3 += dot(h3, h3.yzx + 33.33);
+
+    float v0 = frac((h0.x + h0.y) * h0.z);
+    float v1 = frac((h1.x + h1.y) * h1.z);
+    float v2 = frac((h2.x + h2.y) * h2.z);
+    float v3 = frac((h3.x + h3.y) * h3.z);
+
+    n += a * lerp(lerp(v0, v1, f.x), lerp(v2, v3, f.x), f.y);
+    p = float2(p.x * 1.71 - p.y * 1.31, p.x * 1.31 + p.y * 1.71);
+    a *= 0.5;
+}
+n = saturate((n - 0.5) * 1.9 + 0.5);
+
+// Warm/dry on one side of the field, cool/damp on the other - soil and grass, not a filter.
+float3 Dry  = float3(1.13, 1.04, 0.86);
+float3 Damp = float3(0.86, 0.98, 0.93);
+return lerp(Damp, Dry, n);
+)");
+		{
+			FCustomInput Input;
+			Input.InputName = TEXT("P");
+			Input.Input.Expression = DetailPos;
+			GroundDetail->Inputs.Add(Input);
+		}
+
+		UMaterialExpressionMultiply* DetailedBase = AddExpr<UMaterialExpressionMultiply>(Material, -200, -60);
+		DetailedBase->A.Expression = TintedBase;
+		DetailedBase->B.Expression = GroundDetail;
+
 		if (UMaterialEditorOnlyData* EditorData = Material->GetEditorOnlyData())
 		{
-			EditorData->BaseColor.Expression = TintedBase;
+			EditorData->BaseColor.Expression = DetailedBase;
 			EditorData->Roughness.Expression = Roughness;
 			EditorData->Specular.Expression = Specular;
 
@@ -350,7 +413,14 @@ namespace
 		WaveScale->ParameterName = TEXT("WaveFrequencyScale");
 		// 1/1250 uu -> a wavelength of ~65 px at the entry framing. Smaller (finer waves) turns
 		// into aliasing noise; larger becomes a slow blotch.
-		WaveScale->DefaultValue = 0.00032f;
+		// 0.00058, not 0.00032.
+		//
+		// The wavelength is authored against the *entry framing*, and the entry framing moved
+		// from 213 m to 160 m when the camera was brought in. At the old value every crest grew
+		// by a third on screen and the interference pattern of the four direction waves turned
+		// into long horizontal bands. Scaling with the camera keeps the water at the same
+		// apparent grain it was tuned at.
+		WaveScale->DefaultValue = 0.00058f;
 
 		UMaterialExpressionCustom* WaveNormal = AddExpr<UMaterialExpressionCustom>(Material, -900, 760);
 		WaveNormal->Description = TEXT("WaveNormal");
@@ -456,7 +526,14 @@ chop = (chop - 0.44) * 1.9;
 // Chop is weighted above the swell, not below it. These ripples are the only structure the
 // nearest 20% of the frame can show (the swell is longer than the view there), and at equal
 // weight they moved the picture by 8.6% brightness - under the noise floor of the swell.
-float hn = swell / 3.5 + chop;
+// Chop leads, swell follows.
+//
+// Both terms were weighted equally and the swell won: four plane waves at a fixed set of
+// directions interfere into long parallel bands, and once perspective compresses them toward
+// the horizon the whole sea reads as brushed silk - the single most artificial thing in the
+// frame, and it covers half of it. Isotropic noise has no such axis, so it goes on top; the
+// swell keeps the large shape, at 60%.
+float hn = swell / 3.5 * 0.60 + chop * 1.35;
 // Foam belongs to the swell's crests, not to the ripples riding on them, and it starts low:
 // at 0.42 only the rare tallest crest qualified and no white ever reached the frame.
 float foam = saturate((swell / 3.5 - 0.24) / 0.38);

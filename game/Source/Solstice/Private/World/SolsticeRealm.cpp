@@ -390,9 +390,15 @@ ASolsticeRealm::ASolsticeRealm()
 		PP.bOverride_ColorSaturation = true;
 		// Mild on purpose. The old grade was written to undo the filmic curve's desaturation; with
 		// the curve gone it only has to add a little life, and a strong grade would clip the sky.
-		PP.ColorSaturation = FVector4(1.18f, 1.14f, 1.08f, 1.0f);
+		// Neutral, not boosted.
+		//
+		// The old grade pushed saturation 18% and contrast 14% on top of a palette that was
+		// already authored at full chroma. The result was pure green next to pure blue - the
+		// signature of a toy, not of a photograph. A wallpaper reads "expensive" because its
+		// colours sit slightly *below* full chroma and are separated by value, not by hue.
+		PP.ColorSaturation = FVector4(0.96f, 0.94f, 0.90f, 1.0f);
 		PP.bOverride_ColorContrast = true;
-		PP.ColorContrast = FVector4(1.14f, 1.12f, 1.08f, 1.0f);
+		PP.ColorContrast = FVector4(1.04f, 1.03f, 1.01f, 1.0f);
 		PP.bOverride_ColorGamma = true;
 		PP.ColorGamma = FVector4(1.0f, 0.99f, 1.02f, 1.0f);
 		PP.bOverride_ColorGain = true;

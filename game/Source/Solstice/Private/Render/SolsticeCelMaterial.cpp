@@ -72,7 +72,13 @@ namespace Solstice
 		const FLinearColor LitNightTint = Rgb(0x7C, 0x8C, 0xB4);
 		const FLinearColor ShadowDuskTint = Rgb(0x9C, 0x7F, 0x9E);
 		const FLinearColor ShadowNightTint = Rgb(0x3A, 0x46, 0x66);
-		constexpr float GoldenWindowDeg = 14.0f;
+		// 14, and widening it is NOT the way to get a golden hour.
+	//
+	// Trying 26 to make the afternoon warm turned the whole sky violet: the dusk palette
+	// (DuskZenith / DuskHorizon) is a purple-grey twilight, so opening the window early just
+	// blends evening colour into a midday sun. Measured at 16:30 (sun 13.7 degrees): sky violet,
+	// saturation dropped to 0.259. The window is the *right* size; the dusk colours are wrong.
+	constexpr float GoldenWindowDeg = 14.0f;
 		/** Below the horizon the band direction tilts up to this: the sky is the light source. */
 		constexpr float TwilightBandAltitudeDeg = 14.0f;
 
