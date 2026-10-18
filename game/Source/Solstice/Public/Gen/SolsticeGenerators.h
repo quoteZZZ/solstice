@@ -44,15 +44,18 @@ namespace Solstice
 		/** Ink. */
 		FLinearColor InkWash = CelSrgb(0x29, 0x24, 0x21);
 
-		/** Water sheet, shallow -> deep. Saturated deep blue: the reference pond reads as water,
-			not as pale grey glass, and the dark sheet is what makes the lit land pop. */
-		FLinearColor Water = CelSrgb(0x4E, 0x9B, 0xC0);
 		/**
-		 * Deep water. Kept clearly lighter than the void (#0B1431) on purpose: at #123061 the sheet
-		 * and the empty field behind the realm were the same colour to within a few units, so the
-		 * sea read as "the disc ends here" rather than as water (2026-10-18).
+		 * Water, three stops: lagoon / mid / deep.
+		 *
+		 * Picked from the prototype's own water palette (`CLIM_PAL[].wat`, temperates:
+		 * 0.42/0.86/0.84 - 0.10/0.56/0.78 - 0.03/0.22/0.52). The prototype is right and my
+		 * hand-mixed greys were wrong: a cel sea is a saturated tropical lagoon shallowing into a
+		 * dark blue, not a muted slate. Deep stays clearly lighter than the void (#0B1431) so the
+		 * disc does not read as "the world ends here".
 		 */
-		FLinearColor WaterDeep = CelSrgb(0x1E, 0x5B, 0x86);
+		FLinearColor Water = CelSrgb(0x6B, 0xDC, 0xD6);
+		FLinearColor WaterMid = CelSrgb(0x1A, 0x8F, 0xC7);
+		FLinearColor WaterDeep = CelSrgb(0x08, 0x38, 0x85);
 		/** Surf: the pale rim on the water side of a shoreline (art.md SS2.3). */
 		FLinearColor Surf = CelSrgb(0xDC, 0xF0, 0xF8);
 		/** Ripple strokes on open water. */
@@ -143,12 +146,16 @@ namespace Solstice
 		/**
 		 * Cel colour of one point on the ground.
 		 *
-		 * `HeightMeters` and `Slope01` (1 - N.z) are *per vertex*, not per tile: the bands this
-		 * paints are contour lines and cliff faces, and both cut across tiles. Passing the tile's
-		 * own height (what this used to take) could only ever paint one flat patch per tile, which
-		 * is why the realm read as a continuous green wash with no readable relief.
+		 * `HeightAboveSeaMetres` and `Slope01` (1 - N.z) are *per vertex*, not per tile: the bands
+		 * this paints are contour lines and cliff faces, and both cut across tiles. Passing the
+		 * tile's own height (what this used to take) could only ever paint one flat patch per
+		 * tile, which is why the realm read as a continuous green wash with no readable relief.
+		 *
+		 * Metres, not a fraction of the peak: the area-quantile remap puts ~40% of the land in the
+		 * lowest 2 m, so dividing by the peak (18 m here) pushed every tile under the silt
+		 * threshold and painted the whole island as beach.
 		 */
-		FLinearColor TileColour(const FTile& Tile, float HeightMeters, float Slope01, const FCelPalette& Palette);
+		FLinearColor TileColour(const FTile& Tile, float HeightAboveSeaMetres, float Slope01, const FCelPalette& Palette);
 
 		/** One terrain chunk: plates, cut edges, contour ribbons and the water sheet. */
 		void BuildChunk(const FSimKernel& Kernel, int32 ChunkX, int32 ChunkY, const FCelPalette& Palette, FMeshBuilder& Out);

@@ -341,6 +341,7 @@ namespace Solstice
 			Out.Algo = ParseAlgo(ReadString(Object, TEXT("algo"), TEXT("ridges")));
 			Out.Seed = static_cast<uint32>(FMath::RoundToInt(ReadNumber(Object, TEXT("seed"), static_cast<float>(Fallback.Seed))));
 			Out.BaseWaterLevel = ReadNumber(Object, TEXT("base_water_level"), Fallback.BaseWaterLevel);
+			Out.LandRatio = ReadNumber(Object, TEXT("land_ratio"), Fallback.LandRatio);
 			Out.Latitude = ReadNumber(Object, TEXT("latitude"), Fallback.Latitude);
 			Out.TidalAmplitude = ReadNumber(Object, TEXT("tidal_amplitude"), Fallback.TidalAmplitude);
 			Out.bTides = ReadBool(Object, TEXT("tides"), Fallback.bTides);

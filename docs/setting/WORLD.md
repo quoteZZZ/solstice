@@ -380,6 +380,19 @@ owner: both
 ⑦ 年表起点   写入"创世"：种子码 + 六轴摘要 + `generator_version` + 两套时间戳
 ```
 
+**实现真源**：①②两段的算法**不是在这里发明的**——它是 `studio/previews/world-model.html`（世界生成与画风的探索原型）的移植，代码在 `game/Source/Solstice/{Public,Private}/Sim/SolsticeWorldGen.*`：
+
+| 层 | 做什么 | 原型里的名字 |
+|---|---|---|
+| L0 大陆场 | 极坐标谐波 + 定向半岛（cos⁴ 窗）+ 两层海岸噪声 + 海峡 + 离岸岛链 → 距离场 `df` | `landField` |
+| 掩膜 | `1 − smoothstep(0.700, 1.140, df)` × 外圈强制压海带（`0.975~0.9965 R`）——**边缘一定是水**，切口才是薄边 | `maskOf` / `rimMask` |
+| 海陆预算 | 对 `landR` 二分，判据是**真实高度 ≤ 0**，目标面积来自 `land_ratio` | `calibrateLand` |
+| L1 地貌省 | 9–13 个省，每省一套剖面函数（平原/丘陵/山地/高原/盆地/喀斯特/丹霞/雅丹/黄土/火山/沙丘/方山/礁盘），按最近三省指数权重咬合 | `provWeights` / `provHeight` |
+| L2 骨架 | 内陆抬升 + 整体倾斜 + 造山带（**排水网的前提**） | `rawHeight` |
+| 定高 | **按面积分位重标**：平原 / 低丘 / 高丘 / 中山 / 高山 各自占多少面积由 `mountain` 说了算 | `buildTerrain` |
+
+> 未移植：河流（`buildRivers` 的填洼 + 汇流 + 切谷）、冰川角峰（`glacialCarve`，现按山地处理）、按省配色（`PROV_TONE` / `PROV_ROCK`）。三项都在原型里，都还没进 C++。
+
 **可复现性（硬要求）**：**同种子码 + 同 `generator_version` + 同尺寸 = 同世界**——与 [`../tech/tech.md`](../tech/tech.md) §2.2 的"固定 tick + 随机数分流域"一致。种子码可抄、可输入、可分享（§2.4）。
 
 **开局即景（★第 54 轮：取代原「混沌的画面」）**：

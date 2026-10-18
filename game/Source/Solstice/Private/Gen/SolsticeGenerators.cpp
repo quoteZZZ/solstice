@@ -395,16 +395,14 @@ namespace Solstice
 		}
 	}
 
-	FLinearColor Gen::TileColour(const FTile& Tile, float HeightMeters, float Slope01, const FCelPalette& Palette)
+	FLinearColor Gen::TileColour(const FTile& Tile, float HeightAboveSeaMetres, float Slope01, const FCelPalette& Palette)
 	{
 		if (Tile.IsWater())
 		{
-			// Deeper water is a darker sheet. Depth is read off the *tile*, not off the vertex: the
-			// sheet is flat at the water line, so a per-vertex height would report depth zero
-			// everywhere and paint the whole sea one colour.
-			const float Depth = FMath::Clamp(
-				(Tuning::WaterSheetShadingDepthMeters - Tile.Height) / Tuning::WaterSheetShadingDepthMeters, 0.0f, 1.0f);
-			return FMath::Lerp(Palette.Water, Palette.WaterDeep, Depth);
+			// Water is painted in BuildChunk, where the water line is known (the sheet needs
+			// `BaseWaterLevel - Tile.Height` in metres, not a height fraction). This is the flat
+			// fallback for anything that asks without that context.
+			return Palette.WaterMid;
 		}
 
 		FLinearColor Base = MaterialColor(Tile.GetMat());
@@ -416,12 +414,11 @@ namespace Solstice
 		// waterline, grass over the low ground, drier meadow above, pale rock on the tops.
 		if (Tile.GetMat() == EMaterial::Bare)
 		{
-			// Height above the plinth, normalised by the height the generator can actually reach.
-			// R-42: this divisor used to be a hardcoded 24 m from when the world topped out at 24,
-			// and then Tuning::MaxHeightMeters (64) while the generator still capped at 24 - nearly
-			// every tile clamped into the grass band, which is why the realm rendered as one green
-			// sheet. Tuning::TerrainPeakMeters is the peak the profile is now built to.
-			const float H = FMath::Clamp(HeightMeters / Tuning::TerrainPeakMeters, 0.0f, 1.0f);
+			// Four bands, in metres above the water line. They are absolute because the remap
+			// spends the land budget on the low ground: ~40% of the land sits under 2 m and only a
+			// few percent reaches the peak, so any fraction-of-peak threshold bands the whole
+			// island at once (tried twice: once all meadow, once all beach).
+			const float H = HeightAboveSeaMetres;
 			const FLinearColor Silt = CelSrgb(0xD9, 0xC2, 0x92);
 			// The three greens are art.md SS2.3's own numbers (#7FBF5F / #5F9E4A / #3F7A3C), in
 			// that order: sunlit meadow, grass, and the shaded face of a slope.
@@ -440,15 +437,15 @@ namespace Solstice
 			// shade of its own green, not stone. Painting every slope grey turned the realm into a
 			// rock pile at the first attempt (measured: saturation 0.351 → 0.218, 2026-10-18).
 			// Slope01 is 1 - N.z, so 1 m of rise over 2 m of ground is 0.11.
-			const bool bHigh = H >= 0.62f;
+			const bool bHigh = H >= 11.0f;
 			const bool bSteep = Slope01 > 0.42f;
 			Base = bHigh
 				? (bSteep ? RockDark : Rock)
-				: (H < 0.10f)
+				: (H < 0.6f)
 					? Silt
 					: (bSteep)
 						? GrassDark
-						: (H < 0.30f)
+						: (H < 4.5f)
 							? Grass
 							: Meadow;
 		}
@@ -553,7 +550,23 @@ namespace Solstice
 				// Water is one sheet: any per-tile variation on it turns into a moire grid, because
 				// the sheet is flat and otherwise a single colour. Land gets slow fibre, softly.
 				const float Grain = Tile->IsWater() ? 1.0f : (0.97f + CelGrainSmooth(X, Y) * 0.06f);
-				const FLinearColor Colour = TileColour(*Tile, Tile->Height, 0.0f, Palette) * Grain;
+
+				// Water: depth in metres, three stops (art.md SS2.3 / the prototype's palette).
+				// Depth is read off the tile, not the vertex - the sheet is flat at the water line,
+				// so a per-vertex height would report zero depth everywhere and paint one colour.
+				const auto WaterColour = [&Palette, WaterLevel, Tile]() -> FLinearColor
+				{
+					const float Depth = FMath::Max(0.0f, WaterLevel - Tile->Height);
+					const float T01 = FMath::Clamp(Depth / Tuning::WaterSheetShadingDepthMeters, 0.0f, 1.0f);
+					return (T01 < 0.5f)
+						? FMath::Lerp(Palette.Water, Palette.WaterMid, T01 * 2.0f)
+						: FMath::Lerp(Palette.WaterMid, Palette.WaterDeep, (T01 - 0.5f) * 2.0f);
+				};
+
+				// Height bands are measured from the *water line*, not from the plinth: the world's
+				// land starts at `BaseWaterLevel`, so dividing the raw height by the peak put every
+				// tile above 0.3 and painted the whole island one band of meadow.
+				const FLinearColor Colour = (Tile->IsWater() ? WaterColour() : TileColour(*Tile, Tile->Height - WaterLevel, 0.0f, Palette)) * Grain;
 
 				// Per-vertex ground colour: the bands are contours and cliff faces, so they have to
 				// be sampled where the vertex actually is. Water keeps the single tile colour.
@@ -561,7 +574,7 @@ namespace Solstice
 				{
 					return Tile->IsWater()
 						? Colour
-						: TileColour(*Tile, P.Z / MeterUU, FMath::Clamp(1.0f - N.Z, 0.0f, 1.0f), Palette) * Grain;
+						: TileColour(*Tile, P.Z / MeterUU - WaterLevel, FMath::Clamp(1.0f - N.Z, 0.0f, 1.0f), Palette) * Grain;
 				};
 
 				// ---- the sheet ---------------------------------------------------------

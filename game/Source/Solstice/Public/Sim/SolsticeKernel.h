@@ -14,6 +14,7 @@
 
 #include "CoreMinimal.h"
 #include "Sim/SolsticeTypes.h"
+#include "Sim/SolsticeWorldGen.h"
 #include "Sim/SolsticeRng.h"
 
 namespace Solstice
@@ -80,6 +81,16 @@ namespace Solstice
 		const FCatalog& GetCatalog() const { return Catalog; }
 		const TArray<FTile>& GetTiles() const { return Tiles; }
 		const FSkyState& GetSky() const { return Sky; }
+		/** What the roll decided about this world (archetype, climate, provinces). */
+		const WorldGen::FRoll& GetWorldRoll() const { return WorldRoll; }
+		/**
+		 * Peak land height of this world, in metres.
+		 *
+		 * The render layer's height ramp divides by this instead of a fixed ceiling: the peak is
+		 * 0.30 R x relief, so it moves with the realm size and with the roll, and a hardcoded
+		 * divisor was what put every tile in one colour band twice already.
+		 */
+		float GetTerrainPeakMeters() const { return TerrainPeakMeters; }
 		int32 GetSize() const { return Config.Size; }
 		int32 GetChunksPerAxis() const { return ChunksPerAxis; }
 		int32 GetChunkCount() const { return ChunksPerAxis * ChunksPerAxis; }
@@ -229,6 +240,9 @@ namespace Solstice
 		FCatalog Catalog;
 		TArray<FTile> Tiles;
 		FSkyState Sky;
+		/** The roll behind this world; see Sim/SolsticeWorldGen.h. */
+		WorldGen::FRoll WorldRoll;
+		float TerrainPeakMeters = 19.2f;
 		FRealitySample Reality;
 		TArray<FIndividual> Individuals;
 		TArray<FDeathMark> DeathMarks;

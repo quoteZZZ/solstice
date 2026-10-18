@@ -20,10 +20,10 @@ owner: both
 | 世界半径 `R` | 穹顶半径 = 土地圆盘半径 = **1.0 R** | `art/art.md` §2.3（外缘描边）、`ops/PLAYTEST.md` |
 | 土地厚度 | **0.03 R**（切口视厚 = `0.03R·cosθ`） | `art/art.md` §2.3、`plan/work.md` `D-03` |
 | 山高 / 分布 | **0.30–0.55 R**，沿半径 **0.64–0.97 R** 的弧 | `art/art.md` §2.3、`plan/work.md` `D-03` |
-| 峰高（现实现） | **26 m** = 0.41 R @ 128²（`Tuning::TerrainPeakMeters`） | `setting/WORLD.md` §3.1 |
-| 基准水位 | **3 m**（`world.json` `base_water_level`）；**切面占比 14%**，按本界噪声百分位切（`Tuning::TargetWaterFraction01`）；含外缘收低带后实测水面 **36.6%** | `setting/WORLD.md` §3.1 |
-| 海床最低 | **0.5 m**（`Tuning::SeabedMinHeightMeters`） | `setting/WORLD.md` §3.1 |
-| 外缘收低 | 半径 **0.84–1.0 R** 平滑降到 **水位 − 0.4 m**（`Tuning::TerrainRimDropBelowWaterMeters`），把切口从山体断面变成一条薄边 | `setting/WORLD.md` §1.1 |
+| 峰高 | **0.30 R × relief**（`WorldGen::PeakMetres`；128² 实测 18–21 m） | `setting/WORLD.md` §3.1 |
+| 基准水位 | **3 m**（`world.json` `base_water_level`）；海床到 **−0.092 R**（相对深度分档） | `setting/WORLD.md` §3.1 |
+| 水域占比 | **由 `land_ratio` 反解**（默认陆地 0.62 → 目标海 38%；实测 **43.6%**，差 5.6 点来自 5×5 松弛把近岸推到水下） | `setting/WORLD.md` §3.1 |
+| 世界生成 | 全流程（海岸轮廓 / 地貌省 / 骨架 / 面积分位重标）真源 = **`game/Source/Solstice/{Public,Private}/Sim/SolsticeWorldGen.*`**，移植自 `studio/previews/world-model.html` | `setting/WORLD.md` §3.3 |
 | 树高 / 分布 | **0.10–0.22 R**，密铺半径 **0.55–1.0 R** 环 | `art/art.md` §2.3 |
 | 月 | 月心 **0.66 R**，视直径 **0.21 R** | `art/art.md` §2.2 |
 | 厚度 : 山高 | **≥ 1 : 10**（判据 5，防"地读成山"） | `setting/WORLD.md` §1.1 |

@@ -258,19 +258,9 @@ namespace Solstice
 		extern const int32 IndividualBudgetSmall;	// 1200 (docs WORLD SS2.1)
 
 		// ---- terrain shaping (docs/setting/WORLD.md SS2.2) ----
-		/** Profile exponent applied to the normalised noise before scaling to metres. */
-		extern const float TerrainShapingExponent;		// 1.25
-		/**
-		 * Share of the realm that ends up under the water line. The sea line is the matching
-		 * *percentile* of this realm's own raw profile, so every algorithm gets a coast.
-		 */
-		extern const float TargetWaterFraction01;		// 0.14
-		/** Peak land height in metres (0.41 R at the 128 m realm; WORLD SS1.1 asks 0.30-0.55 R). */
-		extern const float TerrainPeakMeters;			// 26.0
-		/** Deepest sea bed in metres above the plinth. */
-		extern const float SeabedMinHeightMeters;		// 0.5
-		/** How far below the water line the ground sits at the rim (keeps the cut edge thin). */
-		extern const float TerrainRimDropBelowWaterMeters;	// 0.4
+		// The shape itself is no longer a set of tuning scalars: it is the port of
+		// studio/previews/world-model.html in Sim/SolsticeWorldGen.{h,cpp}, where the coastline,
+		// the province profiles and the area-quantile remap live with their own numbers.
 		/** Fertility / moisture fields, each seeded from its own noise layer. */
 		extern const float TerrainFertilityBase;		// 0.35
 		extern const float TerrainFertilityNoise;		// 0.6
@@ -413,6 +403,15 @@ namespace Solstice
 		int32 Algo = 0;						// 0 ridges / 1 islands / 2 canyon / 3 plateau / 4 basin / 5 archipelago
 		uint32 Seed = 20261016u;
 		float BaseWaterLevel = 18.0f;	// ~mid height of the 0-42 m terrain: low ground becomes a lake, not a puddle
+		/**
+		 * Share of the realm that should be land, by area (`world.json` `land_ratio`).
+		 *
+		 * The roll's archetype brings its own sea range, but the *budget* is a design input: the
+		 * world generator solves its coastline radius so the measured sea area hits this. It was
+		 * documented in the six-axis contract for months and read by nothing, so the sea fraction
+		 * was whatever noise produced (measured 77% on the default seed).
+		 */
+		float LandRatio = 0.62f;
 		float Latitude = 31.23f;			// real-world anchor (docs/gameplay/TIME.md SS4.2)
 		float TidalAmplitude = 1.0f;
 		bool bTides = false;

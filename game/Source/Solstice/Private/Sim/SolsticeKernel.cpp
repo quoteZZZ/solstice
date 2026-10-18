@@ -334,96 +334,56 @@ namespace Solstice
 	void FSimKernel::GenerateTerrain()
 	{
 		const int32 Size = Config.Size;
-		const int32 Count = Size * Size;
 		const float InvSize = 1.0f / static_cast<float>(Size);
-		const uint32 Seed = Config.Seed;
-		const float WaterLevel = Config.BaseWaterLevel;
 
-		// Pass 1: the raw profile, kept so the sea line can be a percentile of *this* realm's own
-		// distribution instead of an absolute threshold. See TargetWaterFraction01: the ridge
-		// profile almost never fell below the old 0.18 cut, and the realm had no water at all.
-		TArray<float> Raw;
-		Raw.SetNumUninitialized(Count);
+		// The world is rolled, then the field is turned into metres. Both halves live in
+		// Sim/SolsticeWorldGen.* and are a port of studio/previews/world-model.html - the coastline,
+		// the province blend, the interior rise, the tilt and the orogenic belt all come from
+		// there, with the prototype's own numbers.
+		//
+		// `Config.Algo` no longer selects a noise function: the archetype is part of the roll
+		// (seed in, same world out). world.json still carries the old `algo` strings and they are
+		// inert - the presets need re-authoring around `archetype` before they mean anything again.
+		WorldRoll = WorldGen::Roll(Config.Seed);
+
+		// The land budget is a design input, not a side effect of the roll: the archetype brings
+		// its own sea range, but `land_ratio` says how much of this realm should stand above
+		// water, and the generator solves its coastline radius to hit it. Without this the sea was
+		// whatever the noise produced - 77% on the default seed, which is not a diorama.
+		WorldRoll.Sea = FMath::Clamp(1.0f - Config.LandRatio, 0.10f, 0.88f);
+		WorldGen::CalibrateLand(WorldRoll);
+
+		TerrainPeakMeters = FMath::Max(4.0f, WorldGen::PeakMetres(WorldRoll, Size));
+
+		TArray<float> Heights;
+		WorldGen::ResolveHeights(WorldRoll, Size, Config.BaseWaterLevel, Heights);
 
 		for (int32 Y = 0; Y < Size; ++Y)
 		{
 			for (int32 X = 0; X < Size; ++X)
 			{
+				const int32 Index = ToIndex(X, Y);
 				const float U = static_cast<float>(X) * InvSize;
 				const float V = static_cast<float>(Y) * InvSize;
-				const float CX = U - 0.5f;
-				const float CY = V - 0.5f;
-				const float Radial = FMath::Sqrt(CX * CX + CY * CY) * 2.0f;	// 0 centre .. ~1.41 corner
 
-				float H01 = 0.5f;
-				switch (FMath::Clamp(Config.Algo, 0, 5))
-				{
-				case 0:	// ridges: 山脊
-				{
-					const float N = Fbm(U * TerrainNoise::RidgeFreq, V * TerrainNoise::RidgeFreq, Seed, TerrainNoise::RidgeOctaves);
-					const float Ridge = 1.0f - FMath::Abs(N * 2.0f - 1.0f);
-					H01 = FMath::Clamp(Ridge * TerrainNoise::RidgeMainWeight
-						+ Fbm(U * TerrainNoise::RidgeDetailFreq, V * TerrainNoise::RidgeDetailFreq,
-							Seed + TerrainNoise::RidgeDetailSeed, TerrainNoise::RidgeDetailOctaves) * TerrainNoise::RidgeDetailWeight,
-						0.0f, 1.0f);
-					break;
-				}
-				case 1:	// islands: 岛屿
-				{
-					const float N = Fbm(U * TerrainNoise::IslandFreq, V * TerrainNoise::IslandFreq, Seed, TerrainNoise::IslandOctaves);
-					const float Falloff = FMath::Clamp(
-						1.0f - FMath::Pow(FMath::Clamp(Radial, 0.0f, 1.0f), TerrainNoise::IslandFalloffExponent), 0.0f, 1.0f);
-					H01 = FMath::Clamp(N * Falloff * TerrainNoise::IslandScale, 0.0f, 1.0f);
-					break;
-				}
-				case 2:	// canyon: 峡谷
-				{
-					const float N = Fbm(U * TerrainNoise::CanyonFreq, V * TerrainNoise::CanyonFreq, Seed, TerrainNoise::CanyonOctaves);
-					const float Cut = FMath::Abs(U - 0.5f) * TerrainNoise::CanyonCutScale;
-					H01 = FMath::Clamp(N * TerrainNoise::CanyonScale + TerrainNoise::CanyonBias
-						- Cut * TerrainNoise::CanyonCutWeight, 0.0f, 1.0f);
-					break;
-				}
-				case 3:	// plateau: 台地
-				{
-					const float N = Fbm(U * TerrainNoise::PlateauFreq, V * TerrainNoise::PlateauFreq, Seed, TerrainNoise::PlateauOctaves);
-					H01 = N > TerrainNoise::PlateauThreshold
-						? TerrainNoise::PlateauHighBase + (N - TerrainNoise::PlateauThreshold) * TerrainNoise::PlateauHighGain
-						: TerrainNoise::PlateauLowBase + N * TerrainNoise::PlateauLowGain;
-					H01 = FMath::Clamp(H01, 0.0f, 1.0f);
-					break;
-				}
-				case 4:	// basin: 盆地
-				{
-					const float N = Fbm(U * TerrainNoise::BasinFreq, V * TerrainNoise::BasinFreq, Seed, TerrainNoise::BasinOctaves);
-					H01 = FMath::Clamp(N * TerrainNoise::BasinScale + Radial * TerrainNoise::BasinRadialWeight
-						- TerrainNoise::BasinBias, 0.0f, 1.0f);
-					break;
-				}
-				default:	// archipelago: 群岛
-				{
-					const float N = Fbm(U * TerrainNoise::ArchipelagoFreq, V * TerrainNoise::ArchipelagoFreq, Seed, TerrainNoise::ArchipelagoOctaves);
-					const float Falloff = FMath::Clamp(1.0f - Radial * TerrainNoise::ArchipelagoRadialWeight, 0.0f, 1.0f);
-					H01 = FMath::Clamp((N * TerrainNoise::ArchipelagoScale - TerrainNoise::ArchipelagoBias)
-						* Falloff * TerrainNoise::ArchipelagoFalloffScale, 0.0f, 1.0f);
-					break;
-				}
-				}
-
-				Raw[ToIndex(X, Y)] = H01;
-
-				// ---- fields that do not depend on the height mapping --------------
-				FTile& Tile = Tiles[ToIndex(X, Y)];
+				FTile& Tile = Tiles[Index];
 				Tile = FTile();
+
+				// Heights are metres above the plinth, and the sea floor is *negative*: the water
+				// line is Config.BaseWaterLevel, so `Height < BaseWaterLevel` is water. The old
+				// clamp to >= 0 flattened every sea bed to one depth and took the shelf with it.
+				const float Height = FMath::RoundToFloat(Heights[Index] / Tuning::HeightQuantum) * Tuning::HeightQuantum;
+				Tile.Height = FMath::Clamp(Height, -Tuning::MaxHeightMeters, Tuning::MaxHeightMeters);
+
 				Tile.Fertility = FMath::Clamp(
 					Tuning::TerrainFertilityBase
 						+ Fbm(U * TerrainNoise::FertilityFreq, V * TerrainNoise::FertilityFreq,
-							Seed + TerrainNoise::FertilitySeed, TerrainNoise::FertilityOctaves) * Tuning::TerrainFertilityNoise,
+							Config.Seed + TerrainNoise::FertilitySeed, TerrainNoise::FertilityOctaves) * Tuning::TerrainFertilityNoise,
 					Tuning::TerrainFertilityMin, 1.0f);
 				Tile.Moisture = FMath::Clamp(
 					Tuning::TerrainMoistureBase
 						+ Fbm(U * TerrainNoise::MoistureFreq, V * TerrainNoise::MoistureFreq,
-							Seed + TerrainNoise::MoistureSeed, TerrainNoise::MoistureOctaves) * Tuning::TerrainMoistureNoise,
+							Config.Seed + TerrainNoise::MoistureSeed, TerrainNoise::MoistureOctaves) * Tuning::TerrainMoistureNoise,
 					0.0f, 1.0f);
 				Tile.Mat = static_cast<uint8>(EMaterial::Bare);
 				// A realm that does not open in chaos opens already painted. The self-paint rate is
@@ -431,54 +391,6 @@ namespace Solstice
 				// for the first forty minutes; colour the land now and let the seasons change it.
 				Tile.Painted = Config.bChaosStart ? 0.0f : 0.72f;
 			}
-		}
-
-		// ---- pass 2: rank the profile and pin the water line on a percentile ----
-		TArray<float> Ranked = Raw;
-		Ranked.Sort();
-		const int32 SeaIndex = FMath::Clamp(
-			FMath::FloorToInt(static_cast<float>(Count) * Tuning::TargetWaterFraction01), 0, Count - 1);
-		// The peak comes from the 99.5th percentile, not the maximum: one stray noise spike should
-		// not flatten every other hill by setting the top of the ramp.
-		const int32 PeakIndex = FMath::Clamp(FMath::FloorToInt(static_cast<float>(Count) * 0.995f), 0, Count - 1);
-		const float Floor = Ranked[0];
-		const float SeaCut = Ranked[SeaIndex];
-		const float PeakCut = Ranked[PeakIndex];
-		const float SeaSpan = FMath::Max(1.0e-3f, SeaCut - Floor);
-		const float LandSpan = FMath::Max(1.0e-3f, PeakCut - SeaCut);
-		const float Peak = Tuning::TerrainPeakMeters;
-
-		for (int32 Index = 0; Index < Count; ++Index)
-		{
-			const float N = Raw[Index];
-			float Height;
-			if (N <= SeaCut)
-			{
-				// Sea bed, from the shelf floor up to just under the water line.
-				const float T = FMath::Clamp((N - Floor) / SeaSpan, 0.0f, 1.0f);
-				Height = FMath::Lerp(Tuning::SeabedMinHeightMeters, WaterLevel - 0.25f, T);
-			}
-			else
-			{
-				// Land: the exponent shapes the slope so plains, mid slopes and peaks all appear.
-				const float T = FMath::Pow(FMath::Clamp((N - SeaCut) / LandSpan, 0.0f, 1.0f), Tuning::TerrainShapingExponent);
-				Height = WaterLevel + T * (Peak - WaterLevel);
-			}
-
-			// Rim taper. The world is a *slice*, so the edge is a thin cut rather than the
-			// cross-section of a mountain; the ground eases down to just under the water line over
-			// the outer 16% of the radius. See TerrainRimDropBelowWaterMeters.
-			const int32 TileX = Index % Size;
-			const int32 TileY = Index / Size;
-			const float CX = static_cast<float>(TileX) - 0.5f * static_cast<float>(Size);
-			const float CY = static_cast<float>(TileY) - 0.5f * static_cast<float>(Size);
-			const float RadiusTiles = FMath::Max(1.0f, 0.5f * static_cast<float>(Size));
-			const float Radial01 = FMath::Sqrt(CX * CX + CY * CY) / RadiusTiles;
-			const float RimBlend = FMath::SmoothStep(0.84f, 1.0f, Radial01);
-			Height = FMath::Lerp(Height, WaterLevel - Tuning::TerrainRimDropBelowWaterMeters, RimBlend);
-
-			Height = FMath::RoundToFloat(Height / Tuning::HeightQuantum) * Tuning::HeightQuantum;
-			Tiles[Index].Height = FMath::Clamp(Height, 0.0f, Tuning::MaxHeightMeters);
 		}
 
 		RecomputeWaterBodies();

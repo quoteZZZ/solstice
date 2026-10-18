@@ -10,6 +10,7 @@
 #include "Core/SolsticeDataLoader.h"
 #include "Sim/SolsticeKernel.h"
 #include "Solstice.h"
+#include "Sim/SolsticeWorldGen.h"
 
 namespace
 {
@@ -50,6 +51,8 @@ namespace
 		static constexpr int32 Bands = 8;		// 8 m per band, 0..64
 		int32 BandCounts[Bands] = {};
 		int32 WaterTiles = 0;
+		int32 DiscTiles = 0;			// tiles inside the world disc (the census denominator)
+		int32 OutsideDisc = 0;
 		int32 ShoreTiles = 0;					// water tile with at least one land neighbour
 		float MinHeight = 0.0f;
 		float MaxHeight = 0.0f;
@@ -68,6 +71,8 @@ namespace
 		int32 Echo = 0;
 		double Seconds = 0.0;
 		FTerrainCensus Census;
+		Solstice::WorldGen::FRoll Roll;
+		float TerrainPeak = 0.0f;
 	};
 
 	/** One full headless run. Nothing outside Sim/ is touched. */
@@ -127,23 +132,45 @@ namespace
 		Run.ChronicleEntries = Kernel.GetChronicle().Num();
 		Run.DeathMarks = Kernel.GetDeathMarks().Num();
 		Run.PaintedFraction = Kernel.GetPaintedFraction();
+		Run.Roll = Kernel.GetWorldRoll();
+		Run.TerrainPeak = Kernel.GetTerrainPeakMeters();
 		Run.Echo = Kernel.GetEcho();
 
 		// ---- terrain census ------------------------------------------------
 		{
 			const int32 Size = Config.Size;
+			const float Half = static_cast<float>(Size) * 0.5f;
 			Run.Census.MinHeight = TNumericLimits<float>::Max();
-			for (const Solstice::FTile& Tile : Kernel.GetTiles())
+			for (int32 Y = 0; Y < Size; ++Y)
 			{
-				Run.Census.MinHeight = FMath::Min(Run.Census.MinHeight, Tile.Height);
-				Run.Census.MaxHeight = FMath::Max(Run.Census.MaxHeight, Tile.Height);
-				const int32 Band = FMath::Clamp(
-					FMath::FloorToInt(Tile.Height / 64.0f * static_cast<float>(FTerrainCensus::Bands)),
-					0, FTerrainCensus::Bands - 1);
-				++Run.Census.BandCounts[Band];
-				if (Tile.IsWater())
+				for (int32 X = 0; X < Size; ++X)
 				{
-					++Run.Census.WaterTiles;
+					const Solstice::FTile* Tile = Kernel.TileAt(X, Y);
+					if (!Tile)
+					{
+						continue;
+					}
+					// The disc, not the square: the four corners are r > 1 and are always sea.
+					// Counting them diluted the sea fraction by ~20 points and made "target 45%"
+					// read as "62%", which is the prototype's own note about area accounting.
+					const float DX = static_cast<float>(X) - Half;
+					const float DY = static_cast<float>(Y) - Half;
+					if (FMath::Sqrt(DX * DX + DY * DY) > Half * 0.985f)
+					{
+						++Run.Census.OutsideDisc;
+						continue;
+					}
+					++Run.Census.DiscTiles;
+					Run.Census.MinHeight = FMath::Min(Run.Census.MinHeight, Tile->Height);
+					Run.Census.MaxHeight = FMath::Max(Run.Census.MaxHeight, Tile->Height);
+					const int32 Band = FMath::Clamp(
+						FMath::FloorToInt(Tile->Height / 64.0f * static_cast<float>(FTerrainCensus::Bands)),
+						0, FTerrainCensus::Bands - 1);
+					++Run.Census.BandCounts[Band];
+					if (Tile->IsWater())
+					{
+						++Run.Census.WaterTiles;
+					}
 				}
 			}
 			for (int32 Y = 0; Y < Size; ++Y)
@@ -273,12 +300,31 @@ int32 USolsticeBenchCommandlet::Main(const FString& Params)
 
 	// Terrain census, run A. Percent is of all tiles; the bands are 8 m each from 0 to 64.
 	{
-		const float Total = static_cast<float>(FMath::Max(1, Tiles));
+		const float Total = static_cast<float>(FMath::Max(1, A.Census.DiscTiles));
 		UE_LOG(LogSolstice, Display,
 			TEXT("bench: terrain height %.1f..%.1f m, water %.1f%% (%d tiles), shore %d tiles"),
 			A.Census.MinHeight, A.Census.MaxHeight,
 			static_cast<float>(A.Census.WaterTiles) / Total * 100.0f, A.Census.WaterTiles,
 			A.Census.ShoreTiles);
+		// The roll itself, so a frame can be traced back to the world it came from: archetype and
+		// climate decide the coastline and the province pool, and `sea target` is what the
+		// calibration solved the coastline radius for.
+		{
+			const Solstice::WorldGen::FRoll& Roll = A.Roll;
+			static const TCHAR* ArchetypeNames[] = {
+				TEXT("continent-coast"), TEXT("inland-plateau"), TEXT("mountain-belt"), TEXT("archipelago"),
+				TEXT("volcanic-isles"), TEXT("arid-mesa"), TEXT("continent")
+			};
+			static const TCHAR* ClimateNames[] = {
+				TEXT("temperate"), TEXT("steppe"), TEXT("desert"), TEXT("rainforest"), TEXT("tundra"), TEXT("cold-desert")
+			};
+			UE_LOG(LogSolstice, Display,
+				TEXT("bench: roll %s / %s, sea target %.0f%% (landR %.2f), relief %.2f, mountain %.0f%%, %d provinces, peak %.1f m"),
+				ArchetypeNames[FMath::Clamp(Roll.Archetype, 0, 6)],
+				ClimateNames[FMath::Clamp(static_cast<int32>(Roll.Climate), 0, 5)],
+				Roll.Sea * 100.0f, Roll.LandR, Roll.Relief, Roll.Mountain * 100.0f,
+				Roll.Provinces.Num(), A.TerrainPeak);
+		}
 		FString Bands;
 		for (int32 Band = 0; Band < FTerrainCensus::Bands; ++Band)
 		{

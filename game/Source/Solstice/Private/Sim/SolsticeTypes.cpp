@@ -81,35 +81,9 @@ namespace Solstice
 		const int32 IndividualBudgetSmall = 1200;
 
 		// ---- terrain shaping (docs/setting/WORLD.md SS2.2) ----
-		//
-		// The profile is distribution-driven, not absolute. The raw noise value of every tile is
-		// ranked, the lowest `TargetWaterFraction01` of the realm becomes sea bed, and the rest is
-		// remapped onto (water line .. peak). Two consequences matter:
-		//
-		//   - every algorithm produces water and a shoreline whatever its noise distribution is.
-		//     The old code cut water at an absolute H01 < 0.18, and the ridge profile all but never
-		//     goes that low: measured 0.0% water tiles, 0 shore tiles (2026-10-18). That is why the
-		//     realm read as one green pancake floating in the void.
-		//   - the height ramp in Gen::TileColour can divide by a peak the generator actually
-		//     reaches. Heights topped out at 23 m against a 64 m divisor, so the rock band and the
-		//     mountain read never appeared at all.
-		const float TerrainShapingExponent = 1.25f;
-		/** Share of the realm that ends up under the water line. */
-		const float TargetWaterFraction01 = 0.14f;
-		/** Peak height. WORLD SS1.1 asks for 0.30-0.55 R; 26 m is 0.41 R at the 128 m realm. */
-		const float TerrainPeakMeters = 26.0f;
-		/** Deepest sea bed, in metres above the plinth. */
-		const float SeabedMinHeightMeters = 0.5f;
-		/**
-		 * The ground falls away to this far below the water line at the rim.
-		 *
-		 * The cut edge is meant to read as a thin dark line (WORLD SS1.1: 0.03 R, one colour, no
-		 * shading). A boundary that slices through a mountain cannot: the cross-section is twenty
-		 * metres of dark face and the world reads as a cake on a black curtain (2026-10-18). So the
-		 * outer 16% of the radius eases down to just under the water line - the mountains stay
-		 * inside the disc, and the edge the camera sees is water meeting the cut.
-		 */
-		const float TerrainRimDropBelowWaterMeters = 0.4f;
+		// Shape and height distribution moved to Sim/SolsticeWorldGen.{h,cpp} (a port of
+		// studio/previews/world-model.html). What stays here is the per-tile field noise that is
+		// not part of the height field.
 		const float TerrainFertilityBase = 0.35f;
 		const float TerrainFertilityNoise = 0.6f;
 		const float TerrainFertilityMin = 0.05f;
@@ -177,7 +151,7 @@ namespace Solstice
 		const float AshToFertility = 0.15f;
 
 		// ---- presentation-facing sim readouts ----
-		const float WaterSheetShadingDepthMeters = 2.5f;
+		const float WaterSheetShadingDepthMeters = 6.0f;
 		const float DefaultHumidity01 = 0.45f;
 		const float DefaultCloudCover01 = 0.15f;
 		const float RainToStormThreshold01 = 0.5f;
