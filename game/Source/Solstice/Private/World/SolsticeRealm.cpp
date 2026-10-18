@@ -95,7 +95,13 @@ namespace
 	const FLinearColor DayMiddle = Solstice::CelSrgb(0x69, 0xA6, 0xDC);
 	// A shade under the art note's #EAF3FA: with no tone curve there is no shoulder, so the
 	// near-white has to be authored below the clip point or the band turns into flat paper.
-	const FLinearColor DayHorizon = Solstice::CelSrgb(0xE3, 0xEF, 0xF8);
+	// #B9D8EE, not near-white.
+	//
+	// A near-white horizon is an *animation* convention (it reads as light scattering in a
+	// painted background). In a photographic sea it becomes a white stripe lying across the
+	// frame - measured at 60 px of luminance 0.91, the single most damaging element in the shot.
+	// The photographic horizon is the brightest *blue*, not white.
+	const FLinearColor DayHorizon = Solstice::CelSrgb(0x93, 0xC2, 0xE6);
 	const FLinearColor DayUnder = Solstice::CelSrgb(0x8A, 0xB4, 0xD6);
 
 	const FLinearColor DuskZenith = Solstice::CelSrgb(0x4A, 0x3F, 0x7A);
@@ -291,31 +297,37 @@ ASolsticeRealm::ASolsticeRealm()
 
 		// No filmic curve. A cel frame is drawn in display values; letting a shoulder roll off the
 		// top of the gradient is what turned the sky into a grey wash (R-44).
+		// 0.55, not 0.
+		//
+		// Turning the curve off entirely was a reaction to a filmic shoulder rolling the sky into
+		// a grey wash - but it also removed the *highlight shoulder* every photograph has, so
+		// bright sand and foam clipped to flat white and the frame read as raw linear output
+		// rather than an image. A little curve keeps the shoulder without eating the gradient.
 		PP.bOverride_ToneCurveAmount = true;
-		PP.ToneCurveAmount = 0.0f;
+		PP.ToneCurveAmount = 0.55f;
 
 		// Grade: warm gain, a touch more saturation and contrast than neutral.
 		PP.bOverride_ColorSaturation = true;
 		// Mild on purpose. The old grade was written to undo the filmic curve's desaturation; with
 		// the curve gone it only has to add a little life, and a strong grade would clip the sky.
-		PP.ColorSaturation = FVector4(1.08f, 1.06f, 1.02f, 1.0f);
+		PP.ColorSaturation = FVector4(1.18f, 1.14f, 1.08f, 1.0f);
 		PP.bOverride_ColorContrast = true;
-		PP.ColorContrast = FVector4(1.06f, 1.05f, 1.03f, 1.0f);
+		PP.ColorContrast = FVector4(1.14f, 1.12f, 1.08f, 1.0f);
 		PP.bOverride_ColorGamma = true;
 		PP.ColorGamma = FVector4(1.0f, 0.99f, 1.02f, 1.0f);
 		PP.bOverride_ColorGain = true;
 		PP.ColorGain = FVector4(1.05f, 1.00f, 0.94f, 1.0f);
 
 		PP.bOverride_VignetteIntensity = true;
-		PP.VignetteIntensity = 0.22f;
+		PP.VignetteIntensity = 0.38f;
 		// Bloom is for the sun disc and nothing else: with the threshold this high the sky's own
 		// near-white never interferes, where a low threshold washed the whole frame in R-44.
 		PP.bOverride_BloomIntensity = true;
-		PP.BloomIntensity = 0.35f;
+		PP.BloomIntensity = 0.75f;
 		PP.bOverride_BloomThreshold = true;
-		PP.BloomThreshold = 1.0f;
+		PP.BloomThreshold = 1.15f;
 		PP.bOverride_FilmGrainIntensity = true;
-		PP.FilmGrainIntensity = 0.08f;
+		PP.FilmGrainIntensity = 0.0f;
 
 		// Shallow band: the far rim and the near foreground go soft, the realm stays sharp. The
 		// focal distance itself is driven every tick from the actual camera distance (see Tick), so
@@ -323,11 +335,11 @@ ASolsticeRealm::ASolsticeRealm()
 		PP.bOverride_DepthOfFieldFocalDistance = true;
 		PP.DepthOfFieldFocalDistance = 30000.0f;
 		PP.bOverride_DepthOfFieldFocalRegion = true;
-		PP.DepthOfFieldFocalRegion = 9000.0f;
+		PP.DepthOfFieldFocalRegion = 4200.0f;
 		PP.bOverride_DepthOfFieldNearTransitionRegion = true;
-		PP.DepthOfFieldNearTransitionRegion = 13500.0f;
+		PP.DepthOfFieldNearTransitionRegion = 7000.0f;
 		PP.bOverride_DepthOfFieldFarTransitionRegion = true;
-		PP.DepthOfFieldFarTransitionRegion = 13500.0f;
+		PP.DepthOfFieldFarTransitionRegion = 7000.0f;
 		PP.bOverride_DepthOfFieldFstop = true;
 		PP.DepthOfFieldFstop = 2.8f;
 	}
@@ -429,7 +441,10 @@ void ASolsticeRealm::BuildStatics()
 		OceanPalette.WaterDeep = Palette.WaterDeep * OceanScreenGain;
 		OceanPalette.WaterMid = Palette.WaterMid * OceanScreenGain;
 		OceanPalette.Water = Palette.Water * OceanScreenGain;
-		Gen::BuildOcean(Radius * 1.02f, Radius * OceanRadiusRadii,
+		// 0.96 R, not 1.02: at 1.02 the ring started just *outside* the tile water and left a
+		// hairline gap at the shoreline that the sky card showed through (diagnosed by painting
+		// the card red: a thin red ring appeared around every island).
+		Gen::BuildOcean(Radius * 0.96f, Radius * OceanRadiusRadii,
 			Sim->GetSky().WaterLevel * MeterUU - 5.0f, OceanPalette, OceanHaze, Scratch);
 		Scratch.PushTo(BaseMesh, 2, false);
 		UE_LOG(LogSolstice, Warning, TEXT("[diag] sea mat: asset=%d mid=%d sky_mid=%d"),
@@ -653,7 +668,7 @@ void ASolsticeRealm::BuildSkyMesh()
 	// The card's "below the horizon" strip is only ever seen in the sliver between the sea's far
 	// edge and the true horizon, so it must be the far sea's own colour. It used to be its own
 	// grey-blue, which is why a band of it read as fog lying on the water.
-	Paint.Under = FMath::Lerp(Paint.Under, OceanHaze, 0.78f);
+	Paint.Under = FMath::Lerp(Paint.Under, Paint.Horizon, 0.85f);
 
 	// Clouds take the same hour: gold on top and violet underneath at dusk, white on white at
 	// noon, moonlit grey at night. Rain greys them without touching the sky above them.
@@ -864,6 +879,27 @@ void ASolsticeRealm::UpdateSun()
 	// Rotation from -SunDir: the component's +X is its emission axis.
 	const FRotator LightRotation = (-SunDir).Rotation();
 	SunLight->SetWorldRotation(LightRotation);
+
+	// ---- the sun's colour has to follow its height ---------------------------------
+	//
+	// It used to be a constant warm white set once in the constructor. A dusk frame therefore
+	// had a sun sitting 1.4 degrees above the horizon and *still* lighting the island like noon -
+	// the whole reason evening looked like a purple filter over a midday photo. Light at low
+	// angles passes through far more atmosphere, so it reddens and dims; that curve is most of
+	// what makes a golden hour read as golden.
+	const float SunHeight01 = FMath::Clamp((Sky.SolarAltitudeDeg + 4.0f) / 26.0f, 0.0f, 1.0f);
+	const FLinearColor HorizonSun(1.0f, 0.42f, 0.18f);	// deep orange at the horizon
+	const FLinearColor HighSun(1.0f, 0.97f, 0.92f);		// near-white overhead
+	SunLight->SetLightColor(FMath::Lerp(HorizonSun, HighSun, FMath::Pow(SunHeight01, 0.65f)));
+
+	// Ambient follows too: a low sun means less sky light in the frame, and it must not be
+	// allowed to keep the ground at midday brightness on its own.
+	const float Ambient01 = FMath::Clamp((Sky.SolarAltitudeDeg + 6.0f) / 22.0f, 0.06f, 1.0f);
+	SkyLight->SetIntensity(SkyLightIntensity * Ambient01);
+	SkyLight->SetLightColor(FMath::Lerp(
+		FLinearColor(0.42f, 0.50f, 0.72f),	// cold violet-blue at dusk
+		FLinearColor(0.86f, 0.90f, 1.00f),	// neutral daylight
+		Ambient01));
 	// Daylight ramp only - the *colour* and the band direction are pushed to the material by
 	// ApplySky, so this scalar never has to encode a look.
 	//

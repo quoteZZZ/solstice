@@ -456,7 +456,9 @@ namespace Solstice
 			// few percent reaches the peak, so any fraction-of-peak threshold bands the whole
 			// island at once (tried twice: once all meadow, once all beach).
 			const float H = HeightAboveSeaMetres;
-			const FLinearColor Silt = CelSrgb(0xD9, 0xC2, 0x92);
+			// Almost white, not ochre. A tropical shoreline is bleached coral sand; at #D9C292
+			// it read as wet mud and pulled the whole island warm-brown.
+			const FLinearColor Silt = CelSrgb(0xF2, 0xE6, 0xC8);
 			// The three greens are art.md SS2.3's own numbers (#7FBF5F / #5F9E4A / #3F7A3C), in
 			// that order: sunlit meadow, grass, and the shaded face of a slope.
 			const FLinearColor Meadow = CelSrgb(0x7F, 0xBF, 0x5F);
@@ -1285,9 +1287,15 @@ namespace Solstice
 				const float T = FMath::Clamp((V - H) / Span, 0.0f, 1.0f);
 				// 0.30, not 0.58: at 0.58 the near-white horizon colour owned 40 px of sky above
 				// the line and the frame read as a white stripe with blue above it.
-				return (T < 0.30f)
-					? FMath::Lerp(Paint.Horizon, Paint.Middle, T / 0.30f)
-					: FMath::Lerp(Paint.Middle, Paint.Zenith, (T - 0.30f) / 0.70f);
+				// Smoothstep, not two linear legs.
+				//
+				// Piecewise-linear interpolation leaves a *slope discontinuity* at the join, and on
+				// a large smooth gradient the eye reads that crease as a horizontal band - which is
+				// exactly what kept appearing just above the horizon. One smooth curve has no join.
+				const float S = T * T * (3.0f - 2.0f * T);
+				return (S < 0.5f)
+					? FMath::Lerp(Paint.Horizon, Paint.Middle, S / 0.5f)
+					: FMath::Lerp(Paint.Middle, Paint.Zenith, (S - 0.5f) / 0.5f);
 			}
 
 			// Below the horizon the sky darkens quickly: this is the far sea's backdrop, and a long
@@ -1520,10 +1528,14 @@ namespace Solstice
 				{
 					continue;
 				}
-				const float Length = HalfWidth * FMath::Lerp(0.24f, 0.55f, FMath::Frac(Seed * 1.31f));
-				const FLinearColor Mixed = FMath::Lerp(SkyRamp(Paint, V), Tone, 0.70f * Fade);
+				// Thicker and fainter. At 0.013 card-height against a 0.24-0.55 length the streak was
+				// a 20:1 sliver mixed 70% toward white - three hard horizontal scratches across the
+				// sky, which is exactly what it looked like. A cirrus veil is wide, soft and barely
+				// there: 2.5x thicker, mixed only 32%.
+				const float Length = HalfWidth * FMath::Lerp(0.30f, 0.62f, FMath::Frac(Seed * 1.31f));
+				const FLinearColor Mixed = FMath::Lerp(SkyRamp(Paint, V), Tone, 0.32f * Fade);
 				SkyPuff(Out, CirrusZ, FVector2D(U * HalfWidth, V * HalfHeight),
-					Length, HalfHeight * 0.013f, HalfHeight * 0.010f, Mixed, Mixed);
+					Length, HalfHeight * 0.032f, HalfHeight * 0.026f, Mixed, Mixed);
 			}
 		}
 
