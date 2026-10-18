@@ -52,6 +52,9 @@ param(
     [string]$Cel,
     # 只输出量化结果，不回显引擎日志。抓帧时的 [diag] 行是给排查用的，平时是噪声。
     [switch]$Quiet,
+    # 追加一条控制台命令，用来做 A/B（例：`-Cmd 'r.ReflectionMethod 0'`）。
+    # 抓帧时排查渲染特性只能这样试，否则每换一个 cvar 都要重编译。
+    [string]$Cmd,
     [string]$EngineRoot,
     [string]$Project
 )
@@ -140,6 +143,8 @@ if ($Seed -gt 0) { $shotArgs += ("-SolsticeSeed={0}" -f $Seed) }
 if (-not [string]::IsNullOrWhiteSpace($Sea)) { $shotArgs += ("-SolsticeSea={0}" -f $Sea) }
 if (-not [string]::IsNullOrWhiteSpace($Env)) { $shotArgs += ("-SolsticeEnv={0}" -f $Env) }
 if (-not [string]::IsNullOrWhiteSpace($Cel)) { $shotArgs += ("-SolsticeCel={0}" -f $Cel) }
+# 追加的 cvar 排在 VSync 之后执行，用来做渲染特性 A/B（不用重编译）。
+if (-not [string]::IsNullOrWhiteSpace($Cmd)) { $shotArgs += ('-ExecCmds=' + $Cmd) }
 
 Write-Host ("抓帧：preset={0} {1}x{2} seed={3} -> {4}{5}" -f $Preset, $Width, $Height, $Seed, $Out,
     $(if ($Minute -ge 0) { ("  (clock {0}:{1:D2})" -f [int][math]::Floor($Minute / 60), ($Minute % 60)) } else { '' })) -ForegroundColor Green

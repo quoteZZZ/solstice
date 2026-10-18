@@ -310,6 +310,69 @@ namespace Solstice
 				void* Dest = Texture->GetPlatformData()->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
 				FMemory::Memcpy(Dest, Pixels.GetData(), static_cast<SIZE_T>(Pixels.Num()));
 				Texture->GetPlatformData()->Mips[0].BulkData.Unlock();
+
+				// ---- mip chain --------------------------------------------------
+				//
+				// `CreateTransient` allocates exactly one mip. A single-mip texture has no
+				// filtering to fall back on, so the moment one pixel covers more than one texel
+				// the sampler picks arbitrary texels out of the pattern - and the eye receives
+				// that as moiré, not as noise. Measured consequence (2026-10-18): the ground
+				// detail texture tiled at 4 m showed as a regular 4 m checkerboard from the
+				// survey camera, and the whole sea in that frame was made of these tiles.
+				//
+				// Box-filtering by hand is the whole fix. The engine will pick the right level
+				// automatically once the levels exist, because the UVs are world-space and their
+				// screen derivatives are therefore correct.
+				const int32 MipCount = 1 + FMath::FloorToInt(
+					FMath::Log2(static_cast<float>(FMath::Max(Width, Height))));
+
+				TArray64<uint8> Src = Pixels;
+				int32 SrcW = Width;
+				int32 SrcH = Height;
+				for (int32 Mip = 1; Mip < MipCount; ++Mip)
+				{
+					const int32 DstW = FMath::Max(1, SrcW / 2);
+					const int32 DstH = FMath::Max(1, SrcH / 2);
+
+					TArray64<uint8> Dst;
+					Dst.SetNumUninitialized(static_cast<int64>(DstW) * DstH * 4);
+					const int64 SrcStride = static_cast<int64>(SrcW) * 4;
+					const int64 DstStride = static_cast<int64>(DstW) * 4;
+					for (int32 Y = 0; Y < DstH; ++Y)
+					{
+						const int32 Y0 = FMath::Min(2 * Y, SrcH - 1);
+						const int32 Y1 = FMath::Min(2 * Y + 1, SrcH - 1);
+						for (int32 X = 0; X < DstW; ++X)
+						{
+							const int32 X0 = FMath::Min(2 * X, SrcW - 1);
+							const int32 X1 = FMath::Min(2 * X + 1, SrcW - 1);
+							for (int32 Channel = 0; Channel < 4; ++Channel)
+							{
+								const int32 Sum =
+									Src[Y0 * SrcStride + X0 * 4 + Channel] + Src[Y0 * SrcStride + X1 * 4 + Channel] +
+									Src[Y1 * SrcStride + X0 * 4 + Channel] + Src[Y1 * SrcStride + X1 * 4 + Channel];
+								Dst[Y * DstStride + X * 4 + Channel] = static_cast<uint8>(Sum / 4);
+							}
+						}
+					}
+
+					// TIndirectArray holds pointers: levels are appended, not resized into.
+					// Locking a fresh FTexture2DMipMap does not allocate anything - the bulk data
+					// starts at zero bytes and writing through the pointer from Lock() is a null
+					// dereference (measured: EXCEPTION_ACCESS_VIOLATION writing address 0).
+					// Realloc inside the lock is what actually reserves the level.
+					FTexture2DMipMap* Level = new FTexture2DMipMap(DstW, DstH);
+					Texture->GetPlatformData()->Mips.Add(Level);
+					Level->BulkData.Lock(LOCK_READ_WRITE);
+					void* Out = Level->BulkData.Realloc(static_cast<int64>(Dst.Num()));
+					FMemory::Memcpy(Out, Dst.GetData(), static_cast<SIZE_T>(Dst.Num()));
+					Level->BulkData.Unlock();
+
+					Src = MoveTemp(Dst);
+					SrcW = DstW;
+					SrcH = DstH;
+				}
+
 				Texture->UpdateResource();
 				Texture->AddToRoot();
 

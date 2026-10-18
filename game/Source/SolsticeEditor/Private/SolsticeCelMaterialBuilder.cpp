@@ -63,7 +63,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 79;
+	constexpr int32 CelRecipeVersion = 89;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -247,6 +247,19 @@ namespace
 		GroundDetail->Description = TEXT("GroundDetail");
 		GroundDetail->OutputType = CMOT_Float3;
 		GroundDetail->Code = TEXT(R"(
+// ---- anti-aliasing ----
+//
+// This noise is 0.55 m across. From the survey camera one pixel covers about 43 uu (0.43 m),
+// i.e. more than one lattice cell, so the field is sampled far below its Nyquist limit and
+// folds down into huge moiré swirls - the entire sea in that shot was marble. The sea there is
+// not M_Sea at all: the survey framing covers 24000 uu and the world is 12800 uu across, so
+// what fills the frame is these tiles.
+//
+// Same remedy as the water shader: count lattice cells per pixel and fade out before aliasing.
+float2 fdx = abs(ddx(P.xy)) + abs(ddy(P.xy));
+const float CellSpan = max(fdx.x, fdx.y) * 0.018;
+const float DetailFade = 1.0 - smoothstep(0.25, 0.55, CellSpan);
+
 float2 p = P.xy * 0.018;
 float n = 0.0;
 float a = 0.55;
@@ -279,7 +292,7 @@ n = saturate((n - 0.5) * 1.9 + 0.5);
 // Warm/dry on one side of the field, cool/damp on the other - soil and grass, not a filter.
 float3 Dry  = float3(1.13, 1.04, 0.86);
 float3 Damp = float3(0.86, 0.98, 0.93);
-return lerp(Damp, Dry, n);
+return lerp(float3(1.0, 1.0, 1.0), lerp(Damp, Dry, n), DetailFade);
 )");
 		{
 			FCustomInput Input;
@@ -490,6 +503,9 @@ return float3(mul, mul, mul);
 		// 高频层振幅小、速度快，低频层决定大的起伏。
 		UMaterialExpressionWorldPosition* WorldPos = AddExpr<UMaterialExpressionWorldPosition>(Material, -1200, 640);
 		UMaterialExpressionTime* Clock = AddExpr<UMaterialExpressionTime>(Material, -1200, 800);
+		// Used for the one thing `ddx` could not do here: measure how far away the water is and
+		// drop the high-frequency detail before it aliases. (See the note in WaveNormal.)
+		UMaterialExpressionCameraPositionWS* CamPos = AddExpr<UMaterialExpressionCameraPositionWS>(Material, -1400, 1700);
 
 		UMaterialExpressionScalarParameter* WaveStrength = AddExpr<UMaterialExpressionScalarParameter>(Material, -1200, 920);
 		WaveStrength->ParameterName = TEXT("WaveNormalStrength");
@@ -524,6 +540,26 @@ return float3(mul, mul, mul);
 		WaveNormal->Code = TEXT(R"(
 float2 p = P.xy * WaveScaleInput;
 
+// ---- anti-aliasing: fade the short waves with distance --------------
+//
+// The single worst defect found by shooting the other camera presets (2026-10-18): from a
+// raised camera the whole sea becomes a marble pattern - huge Bezier swirls several hundred
+// pixels across, like polished stone. It is **moiré**: at that angle one pixel covers tens of
+// wavelengths, so the warp field and the short waves are sampled far below their Nyquist limit
+// and fold down into low-frequency interference. Confirmed by swapping the material's emissive
+// for flat magenta: the swirls survived, so they live in the lighting through this normal.
+//
+// The textbook fix is to measure wave periods per pixel with `ddx` and fade accordingly. That
+// was tried first and **measured no change at all** - the derivatives come back unusable in
+// this material, which is worth recording so nobody spends another round on it.
+//
+// Distance is the robust proxy: one pixel spans `dist / focal` world units, so a fixed
+// threshold in metres is equivalent up to the lens, and the lens does not change between shots.
+// Near water (33-100 m in the entry framing) keeps every layer; past ~260 m the surface is
+// smooth, which is also what a distant sea looks like.
+const float CamDist = length(P - CamPos.xyz);
+const float NearFade = 1.0 - saturate((CamDist - 8000.0) / 18000.0);
+
 // ---- domain warp ---------------------------------------------------
 //
 // Five plane waves that never stop being parallel are the reason this sea reads as brushed
@@ -533,7 +569,9 @@ float2 p = P.xy * WaveScaleInput;
 // So the coordinate is warped before the waves are evaluated. Two sines at different
 // frequencies in x and y produce a non-repeating warp field, so the crests bend and pinch and
 // the interference pattern stops having an axis. Cost: four extra sin() per pixel.
-float2 warp = float2(sin(p.y * 1.7 + Time * 0.21), sin(p.x * 1.3 - Time * 0.17)) * 1.10;
+// Faded with distance like the waves it bends: the warp is itself a 1.7 Hz sine field, so at
+// a raised camera it aliases just as badly as the crests do.
+float2 warp = float2(sin(p.y * 1.7 + Time * 0.21), sin(p.x * 1.3 - Time * 0.17)) * 1.10 * NearFade;
 float2 pw = p + warp;
 
 float2 g = float2(0.0, 0.0);
@@ -546,9 +584,12 @@ float2 d4 = normalize(float2(0.31, -0.95));
 // water has no large shape to sit in front of and the surface reads as one uniform texture.
 g += d0 * cos(dot(pw, d0) * 0.22 * 6.28318 + Time * 0.13) * 0.95;
 g += d1 * cos(dot(pw, d1) * 1.00 * 6.28318 + Time * 0.35) * 1.00;
-g += d2 * cos(dot(pw, d2) * 1.70 * 6.28318 + Time * 0.52) * 0.94;
-g += d3 * cos(dot(pw, d3) * 2.90 * 6.28318 + Time * 0.77) * 0.87;
-g += d4 * cos(dot(pw, d4) * 4.30 * 6.28318 + Time * 1.10) * 0.69;
+// The three short waves go first, then everything above the swell. What is left at the horizon
+// is the 78 m and 17 m swell, which is what a distant sea actually shows.
+const float HiFade = NearFade;
+g += d2 * cos(dot(pw, d2) * 1.70 * 6.28318 + Time * 0.52) * 0.94 * HiFade;
+g += d3 * cos(dot(pw, d3) * 2.90 * 6.28318 + Time * 0.77) * 0.87 * HiFade;
+g += d4 * cos(dot(pw, d4) * 4.30 * 6.28318 + Time * 1.10) * 0.69 * HiFade;
 g /= 4.45;
 
 // ---- micro ripples -------------------------------------------------
@@ -572,6 +613,12 @@ g /= 4.45;
 // derivative at the lattice so the diamonds stop being corners), and a third octave so no
 // single scale dominates.
 float2 mq = P.xy * 0.026 + float2(Time * 0.06, Time * 0.045);
+
+// The micro ripples are 45x the frequency of the swell, so they alias first and worst - at a
+// raised camera they are the source of the finest scale of the marble pattern.
+// Tighter than the swell's: 0.385 m ripples alias at a third of the distance.
+const float MicroFade = 1.0 - saturate((CamDist - 2500.0) / 9000.0);
+
 float2 mg = float2(0.0, 0.0);
 float mamp = 1.0;
 for (int m = 0; m < 3; m++)
@@ -598,7 +645,7 @@ for (int m = 0; m < 3; m++)
     mq = float2(mq.x * 1.83 - mq.y * 1.31, mq.x * 1.31 + mq.y * 1.83);
     mamp *= 0.52;
 }
-g += mg * 1.5;
+g += mg * 1.5 * MicroFade;
 
 return normalize(float3(-g * WaveStrengthInput, 1.0));
 )");
@@ -615,10 +662,14 @@ return normalize(float3(-g * WaveStrengthInput, 1.0));
 			FCustomInput InScale;
 			InScale.InputName = TEXT("WaveScaleInput");
 			InScale.Input.Expression = WaveScale;
+			FCustomInput InCam;
+			InCam.InputName = TEXT("CamPos");
+			InCam.Input.Expression = CamPos;
 			WaveNormal->Inputs.Add(InPos);
 			WaveNormal->Inputs.Add(InTime);
 			WaveNormal->Inputs.Add(InStrength);
 			WaveNormal->Inputs.Add(InScale);
+			WaveNormal->Inputs.Add(InCam);
 		}
 
 		// ---- wave height ---------------------------------------------------
@@ -642,6 +693,16 @@ return normalize(float3(-g * WaveStrengthInput, 1.0));
 		WaveDetail->Code = TEXT(R"(
 float2 p = P.xy * Scale;
 
+// Distance fade, same reason and same curve as WaveNormal.
+//
+// This is the layer that actually produced the marble pattern, and it took a magenta probe to
+// find: the swirls survived a flat emissive, so they were in the *lighting*, and they survived
+// the wave normal being faded out, so they were in the body colour. They are the 5.5 m chop
+// noise aliasing into a large-scale interference pattern - value noise has no band limit, and at
+// a raised camera one pixel covers it twenty times over.
+const float DetailCamDist = length(P - CamPos.xyz);
+const float DetailCameraFade = 1.0 - saturate((DetailCamDist - 8000.0) / 18000.0);
+
 // Same warp as WaveNormal, same constants, same order. A height field and the gradient it is
 // shaded from must be the *same* field or the highlight slides against the shading - which was
 // the bug that made an earlier version of this material look like oil on water.
@@ -664,7 +725,13 @@ swell /= 4.45;
 // the ripples were horizontal bars, i.e. wood grain, and no amount of amplitude fixes a
 // direction that should not exist. Isotropic value noise (Hoskins hash, no `sin`) has no
 // preferred axis, which is what water looks like from above.
-float2 q = p * 3.1 + float2(T * 0.9, T * 0.35);
+// 9.0, not 3.1.
+//
+// At 3.1 the lattice cell was 5.5 m, which is larger than a boat: from any camera that looks
+// down at the water the chop rendered as a handful of enormous blobs, and moving at 0.9 units a
+// second they read as slow swirls rather than as ripples. The distance fade hides it at range,
+// so the fix is to make the near water actually fine: 1.9 m.
+float2 q = p * 9.0 + float2(T * 1.6, T * 0.7);
 float chop = 0.0;
 float camp = 0.5;
 for (int i = 0; i < 3; i++)
@@ -711,10 +778,10 @@ chop = (chop - 0.44) * 1.9;
 // sea came out with large soft blotches that looked like clouds shadows on the water). The big
 // swell belongs in the normal and in the silhouette; the body colour is driven by the chop,
 // which is the scale the eye can actually resolve at this distance.
-float hn = swell * 0.28 + chop * 1.25;
+float hn = (swell * 0.28 + chop * 1.25) * DetailCameraFade;
 // Foam belongs to the swell's crests, not to the ripples riding on them, and it starts low:
 // at 0.42 only the rare tallest crest qualified and no white ever reached the frame.
-float foam = saturate((swell - 0.26) / 0.34);
+float foam = saturate((swell - 0.26) / 0.34) * DetailCameraFade;
 return float3(hn, foam, 0.0);
 )");
 		{
@@ -727,9 +794,13 @@ return float3(hn, foam, 0.0);
 			FCustomInput InScale;
 			InScale.InputName = TEXT("Scale");
 			InScale.Input.Expression = WaveScale;
+			FCustomInput InCam;
+			InCam.InputName = TEXT("CamPos");
+			InCam.Input.Expression = CamPos;
 			WaveDetail->Inputs.Add(InPos);
 			WaveDetail->Inputs.Add(InTime);
 			WaveDetail->Inputs.Add(InScale);
+			WaveDetail->Inputs.Add(InCam);
 		}
 
 		UMaterialExpressionConstant3Vector* AxisHeight = AddExpr<UMaterialExpressionConstant3Vector>(Material, -700, 760);

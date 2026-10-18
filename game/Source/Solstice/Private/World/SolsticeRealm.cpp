@@ -629,8 +629,20 @@ void ASolsticeRealm::BuildStatics()
 		// Inner radius is the world's centre, not 0.96 R: the ocean is now the *only* water
 		// surface (see the note in Gen::BuildChunk), so it has to reach under the island and
 		// cover the sea bed. A 0.02 R hole at the centre is under the island and never visible.
+		// **Above** the realm's own water sheet, not 5 cm below it.
+		//
+		// The offset exists so the two surfaces never z-fight, and it was signed the wrong way.
+		// At -5 cm the terrain's water tiles won every depth test, so what the frame called "the
+		// sea" was actually those tiles: flat quads painted by M_Cel with no wave normal, no
+		// Fresnel, no foam, and a colour chosen from the depth of the sea floor beneath them -
+		// which is noise terrain, so the whole ocean came out as marble swirls. Meanwhile M_Sea,
+		// with all of its shader work, was visible only past the world rim.
+		//
+		// +6 cm inverts the layering: M_Sea is now the surface, and the tiles underneath are
+		// simply hidden. Nothing is lost - the tiles' only job was a lagoon tint near the island,
+		// which the ocean mesh's own inner ring already provides.
 		Gen::BuildOcean(Radius * 0.02f, Radius * OceanRadiusRadii,
-			Sim->GetSky().WaterLevel * MeterUU - 5.0f, OceanPalette, OceanHaze, Scratch);
+			Sim->GetSky().WaterLevel * MeterUU + 6.0f, OceanPalette, OceanHaze, Scratch);
 		Scratch.PushTo(BaseMesh, 2, false);
 		UE_LOG(LogSolstice, Warning, TEXT("[diag] sea mat: asset=%d mid=%d sky_mid=%d"),
 			FCelMaterials::Get().Sea ? 1 : 0,
