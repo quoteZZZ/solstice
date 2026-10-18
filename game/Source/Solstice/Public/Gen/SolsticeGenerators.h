@@ -262,6 +262,19 @@ namespace Solstice
 		 */
 		void BuildSkyCard(float HalfWidth, float HalfHeight, const FSkyPaint& Paint, FMeshBuilder& Out);
 
+		/**
+		 * A unit sphere for the sky, to be scaled to `SkyDistance` and kept centred on the camera.
+		 *
+		 * This replaces the painted card as the primary sky. A card is a *finite plane*: whatever
+		 * its size, there is a view angle at which its edge enters the frame, and that edge was the
+		 * grey band that kept appearing across the water no matter how the gradient was tuned
+		 * (measured 2026-10-18: max row-to-row colour jump 0.374 exactly at the card's lower edge).
+		 *
+		 * A sphere centred on the camera has no edge in any direction, so the only thing that can
+		 * go wrong is the shading - which is now per-pixel in M_Sky, not per-vertex.
+		 */
+		void BuildSkyDome(int32 Segments, int32 Rings, FMeshBuilder& Out);
+
 		/** A flat paper disc, used for the sun and the moon. */
 		void BuildDisc(const FVector& Centre, const FVector& Right, const FVector& Up, float RadiusUU, const FLinearColor& Colour, FMeshBuilder& Out);
 

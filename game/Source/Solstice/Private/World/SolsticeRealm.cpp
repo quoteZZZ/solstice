@@ -74,7 +74,7 @@ namespace
 	// The sea's albedo is the only lever that behaves like the land's: raise it and the same sun
 	// and the same exposure lift it. Raising emissive instead put the sea on a *second* lighting
 	// path, and the two immediately fought - the water stayed dark while the island blew out.
-	constexpr float OceanScreenGain = 1.9f;
+	constexpr float OceanScreenGain = 0.62f;
 	constexpr float SkyCardOverscan = 1.12f;
 
 	// Sun and moon are painted, not projected: at a 35 degree down-pitch a physically placed sun
@@ -134,7 +134,10 @@ namespace
 	// differ by four orders of magnitude: the sky came out black with a single white line at the
 	// horizon. Sunlight on a clear day is ~100,000 lux; with a manual EV100 that matches it, land
 	// and sky finally sit on the same scale.
-	constexpr float SunLightIntensity = 9.0f;
+	// 5.5, not 9.0: at 9 the island's own albedo blew past the exposure - the framing
+	// midpoint measured 0.675 against a 0.45-0.60 target. The sea is emissive and does not
+	// take part, so this only affects the land.
+	constexpr float SunLightIntensity = 4.6f;
 	const FLinearColor SunLightColour(1.0f, 0.97f, 0.92f);
 	// 1.0: a real-time captured sky light is already in physical units; anything else double-counts.
 	constexpr float SkyLightIntensity = 0.25f;
@@ -173,11 +176,19 @@ namespace
 	// The sun went from 9 to 100,000 lux - 13.4 stops - so the compensation comes down by the
 	// same 13.4: 0.75 - 13.4 = -12.65. Getting this wrong is not subtle: at +15 the frame is pure
 	// white, at 0 it is black.
-	constexpr float ExposureStops = 0.75f;
+	constexpr float ExposureStops = 0.45f;
 
 	// Fog depth (optical depth at one fit-camera-distance) for clear and fully overcast sky.
 	// Density is derived from these against the fit distance - see BuildStatics.
-	constexpr float ClearFogDepth = 0.25f;
+	// 0.06, not 0.25.
+	//
+	// The fog was calibrated when the world was a 128 m disc with nothing behind it, where a
+	// quarter of an optical depth at the fit distance was the only thing giving it air. Now the
+	// camera looks at a 400 km sky dome, and exponential fog at that distance is fully opaque:
+	// it multiplies the whole sky by the fog colour, which is why every gradient arrived as one
+	// pale wash and the clouds vanished into it (measured 2026-10-18). Aerial perspective now
+	// belongs to the sea's own haze ramp, which is authored per stop and does not flatten the sky.
+	constexpr float ClearFogDepth = 0.06f;
 	constexpr float WetFogDepth = 1.20f;
 	constexpr float FogHeightFalloff = 0.06f;
 	// The void outside the realm is not fog-grey. WORLD SS1.1 pins it: a low-saturation deep blue
@@ -323,7 +334,7 @@ ASolsticeRealm::ASolsticeRealm()
 		// Bloom is for the sun disc and nothing else: with the threshold this high the sky's own
 		// near-white never interferes, where a low threshold washed the whole frame in R-44.
 		PP.bOverride_BloomIntensity = true;
-		PP.BloomIntensity = 0.75f;
+		PP.BloomIntensity = 0.45f;
 		PP.bOverride_BloomThreshold = true;
 		PP.BloomThreshold = 1.15f;
 		PP.bOverride_FilmGrainIntensity = true;
@@ -444,7 +455,10 @@ void ASolsticeRealm::BuildStatics()
 		// 0.96 R, not 1.02: at 1.02 the ring started just *outside* the tile water and left a
 		// hairline gap at the shoreline that the sky card showed through (diagnosed by painting
 		// the card red: a thin red ring appeared around every island).
-		Gen::BuildOcean(Radius * 0.96f, Radius * OceanRadiusRadii,
+		// Inner radius is the world's centre, not 0.96 R: the ocean is now the *only* water
+		// surface (see the note in Gen::BuildChunk), so it has to reach under the island and
+		// cover the sea bed. A 0.02 R hole at the centre is under the island and never visible.
+		Gen::BuildOcean(Radius * 0.02f, Radius * OceanRadiusRadii,
 			Sim->GetSky().WaterLevel * MeterUU - 5.0f, OceanPalette, OceanHaze, Scratch);
 		Scratch.PushTo(BaseMesh, 2, false);
 		UE_LOG(LogSolstice, Warning, TEXT("[diag] sea mat: asset=%d mid=%d sky_mid=%d"),
@@ -557,11 +571,10 @@ void ASolsticeRealm::UpdateSkyView()
 		if (Camera)
 		{
 			SkyMesh->AttachToComponent(Camera, FAttachmentTransformRules::KeepRelativeTransform);
-			// Card space is (right, up, forward); camera-local space is (forward, right, up).
-			// The mapping is a cyclic permutation of the axes, which is a 120 degree rotation
-			// about (1,1,1).
-			SkyMesh->SetRelativeRotation(
-				FQuat(FVector(1.0f, 1.0f, 1.0f).GetSafeNormal(), FMath::DegreesToRadians(120.0f)));
+			// The dome is a sphere: it needs no basis rotation, only to sit on the camera. That
+			// is also the whole point of the shape - centred on the eye, its equator *is* the
+			// horizon, at every pitch and every preset, with nothing to align.
+			SkyMesh->SetRelativeRotation(FQuat::Identity);
 			bSkyAttached = true;
 		}
 	}
@@ -786,13 +799,75 @@ void ASolsticeRealm::BuildSkyMesh()
 	Paint.MoonCore *= SkyDim;
 	Paint.Star *= SkyDim;
 
+	// ---- the dome ---------------------------------------------------------
+	//
+	// Replaces the painted card. The card was 12% oversized to hide its own edge, which is a
+	// workaround for a plane being finite; a sphere centred on the camera has no edge to hide.
+	// The geometry is a unit sphere and the component scale turns it into `SkyDistance`, so the
+	// shading has to be per-pixel - which is what M_Sky now is.
 	Scratch.Reset();
-	// The card is 12% larger than the viewport. Without this the card ended exactly at the frame
-	// edge and every rounding error showed it: the grey band across the sea at preset 0 was the
-	// card's own bottom edge, not fog.
-	Gen::BuildSkyCard(SkyHalfTanH * SkyCardOverscan, SkyHalfTanV * SkyCardOverscan, Paint, Scratch);
+	Gen::BuildSkyDome(128, 64, Scratch);
 	Scratch.PushTo(SkyMesh, 0, false);
 	SkyMesh->SetMeshSectionVisible(0, true);
+
+	// Everything the dome needs to know. All of it is authored here (FSkyPaint carries the hour),
+	// so the material never decides what time it is.
+	if (UMaterialInstanceDynamic* SkyMID = FCelMaterials::Get().SkyMID)
+	{
+		auto SetColour = [SkyMID](const TCHAR* Name, const FLinearColor& Value)
+		{
+			SkyMID->SetVectorParameterValue(Name, Value);
+		};
+
+		SetColour(TEXT("SunDirection"), FLinearColor(SunDir.X, SunDir.Y, SunDir.Z, 0.0f));
+		SetColour(TEXT("SkyZenith"), Paint.Zenith);
+		SetColour(TEXT("SkyMid"), Paint.Middle);
+		SetColour(TEXT("SkyHorizon"), Paint.Horizon);
+		SetColour(TEXT("CloudLit"), Paint.CumulusLit);
+		SetColour(TEXT("CloudShadow"), Paint.CumulusBase);
+		SetColour(TEXT("SunCore"), Paint.SunCore);
+		SetColour(TEXT("SunHalo"), Paint.SunHalo);
+
+		// Coverage -> threshold. The noise is centred near 0.47 with a spread around 0.12, so a
+		// threshold of 0.58 is a barely-there sky and 0.36 is overcast; mapping the sim's 0..1
+		// coverage onto that band keeps "clear" clear and "overcast" actually overcast.
+		SkyMID->SetScalarParameterValue(TEXT("CloudThreshold"), 0.585f - 0.30f * Cloud);
+		SkyMID->SetScalarParameterValue(TEXT("CloudScale"), 3.2f);
+		SkyMID->SetScalarParameterValue(TEXT("SunDiscCos"),
+			FMath::Cos(FMath::DegreesToRadians(SunAngularRadiusDeg)));
+
+		// 0.02 units per second times the wind: slow enough to read as drifting, fast enough that
+		// a still frame taken a minute later is a different sky.
+		SkyMID->SetScalarParameterValue(TEXT("CloudDrift"),
+			static_cast<float>(FApp::GetCurrentTime()) * 0.02f * (0.35f + Sky.WindSpeed * 0.9f));
+
+		const FLinearColor MoonColour(SunDir.X * -1.0f, SunDir.Y * -1.0f, SunDir.Z * -1.0f, 0.0f);
+		SetColour(TEXT("MoonDirection"), MoonColour);
+		SetColour(TEXT("MoonCore"), Paint.MoonCore);
+		SkyMID->SetScalarParameterValue(TEXT("MoonDiscCos"),
+			FMath::Cos(FMath::DegreesToRadians(MoonAngularRadiusDeg * 0.85f)));
+		SkyMID->SetScalarParameterValue(TEXT("MoonAlpha"),
+			Paint.bMoonVisible ? FMath::Clamp(1.0f - Daylight, 0.0f, 1.0f) : 0.0f);
+	}
+
+	// ---- the sea's two runtime inputs ------------------------------------
+	//
+	// SkyReflect: the colour the water mirrors at grazing angles. It is the sky's own horizon
+	// colour, which is what makes the far sea and the sky meet without a seam - one value, used
+	// by both, instead of two gradients tuned to agree.
+	//
+	// SeaTint: the ocean mesh is built once, so its vertex colours are a photograph of noon.
+	// Without this a dusk frame keeps a noon-blue sea under an orange sky.
+	if (UMaterialInstanceDynamic* SeaMID = FCelMaterials::Get().SeaMID)
+	{
+		SeaMID->SetVectorParameterValue(TEXT("SkyReflect"), Paint.Horizon);
+
+		const FLinearColor NightSea(0.20f, 0.26f, 0.42f, 1.0f);
+		const FLinearColor DaySea(1.0f, 1.0f, 1.0f, 1.0f);
+		const FLinearColor Tint = FMath::Lerp(NightSea, DaySea, Daylight);
+		SeaMID->SetVectorParameterValue(TEXT("SeaTint"),
+			FLinearColor(Tint.R * SkyDim, Tint.G * SkyDim, Tint.B * SkyDim, 1.0f));
+	}
 	// Sections 1 and 2 held the world-space shell and its celestial bodies. The bodies are
 	// painted into the card now and there is no shell; stale sections would draw a dome that no
 	// longer matches anything.

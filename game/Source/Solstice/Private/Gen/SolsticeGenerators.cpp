@@ -705,7 +705,20 @@ namespace Solstice
 							return FVector(-DHdU, -DHdV, 1.0f).GetSafeNormal();
 						};
 
-						if (!bClipped)
+						// Water tiles emit **no sheet**.
+						//
+						// The world had two water surfaces: these tiles (lit M_Cel, colour from a
+						// depth ramp) and the open ocean (emissive M_Sea). Two colour models for
+						// the same material can never agree, and the seam is the navy ring that sat
+						// around every island - 5 cm of tile sheet floating above the ocean.
+						// There is now exactly one water surface, Gen::BuildOcean, which starts at
+						// the centre of the world. The shore rim and the ripples stay: they are
+						// lifted above the ocean plane and are the only water detail the near view
+						// actually reads.
+						if (Tile->IsWater())
+						{
+						}
+						else if (!bClipped)
 						{
 							const int32 I00 = Out.Add(S00, PatchNormal(U0, V0), FVector2D(U0, V0), GroundColour(S00, PatchNormal(U0, V0)), GroundOcclusion(S00));
 							const int32 I10 = Out.Add(S10, PatchNormal(U1, V0), FVector2D(U1, V0), GroundColour(S10, PatchNormal(U1, V0)), GroundOcclusion(S10));
@@ -1131,17 +1144,17 @@ namespace Solstice
 			//   T 0.14-0.32  shelf        (where the bottom stops being visible)
 			//   T 0.32-1.00  deep -> haze (fades into the horizon band, no seam)
 			FLinearColor Colour;
-			if (T < 0.14f)
+			if (T < 0.18f)
 			{
-				Colour = FMath::Lerp(Palette.Water, Palette.WaterMid, T / 0.14f);
+				Colour = FMath::Lerp(Palette.Water, Palette.WaterMid, T / 0.18f);
 			}
-			else if (T < 0.32f)
+			else if (T < 0.34f)
 			{
-				Colour = FMath::Lerp(Palette.WaterMid, Palette.WaterDeep, (T - 0.14f) / 0.18f);
+				Colour = FMath::Lerp(Palette.WaterMid, Palette.WaterDeep, (T - 0.18f) / 0.16f);
 			}
 			else
 			{
-				const float HazeT = FMath::Clamp((T - 0.32f) / 0.68f, 0.0f, 1.0f);
+				const float HazeT = FMath::Clamp((T - 0.34f) / 0.66f, 0.0f, 1.0f);
 				Colour = FMath::Lerp(Palette.WaterDeep, HorizonHaze, FMath::Pow(HazeT, 1.5f));
 			}
 
@@ -1161,10 +1174,18 @@ namespace Solstice
 				for (int32 Index = 0; Index < Segments; ++Index)
 				{
 					const int32 Next = (Index + 1) % Segments;
-					// Wound so the face looks up; M_Sky is two-sided but the winding still matters
-					// for anything that ends up doing depth prepass work.
-					Out.Tri(Previous[Index], Current[Index], Current[Next]);
-					Out.Tri(Previous[Index], Current[Next], Previous[Next]);
+					// Wound so the face looks UP, i.e. this is the front face for a surface seen
+					// from above.
+					//
+					// The previous winding was the opposite. It stayed hidden because M_Sea was
+					// two-sided - but a two-sided material flips the normal for what it considers
+					// a back face, so every visible pixel had a normal pointing *down*. Fresnel
+					// then saw dot(N, V) <= 0, clamped to zero, and reported total reflection at
+					// every angle: the sea was permanently 75% sky, which is why it measured
+					// (0.50, 0.79, 0.90) no matter what the water palette said. A geometry bug
+					// that a material setting hides is still a geometry bug.
+					Out.Tri(Previous[Index], Current[Next], Current[Index]);
+					Out.Tri(Previous[Index], Previous[Next], Current[Next]);
 				}
 			}
 			Previous = MoveTemp(Current);
@@ -1399,6 +1420,50 @@ namespace Solstice
 			const int32 D = Out.Add(FVector(Centre.X - Size, Centre.Y, Z),
 				FVector(0.0f, 0.0f, -1.0f), FVector2D(0.0f, 0.5f), Colour);
 			Out.Quad(A, B, C, D);
+		}
+	}
+
+	void Gen::BuildSkyDome(int32 Segments, int32 Rings, FMeshBuilder& Out)
+	{
+		Segments = FMath::Max(8, Segments);
+		Rings = FMath::Max(4, Rings);
+
+		// A unit sphere. The caller scales it: the realm sets the component scale to SkyDistance,
+		// which keeps the geometry a metre-per-unit affair instead of a 400 km mesh.
+		//
+		// Normals point *inward* (we are inside the sphere looking out), and the winding is
+		// reversed to match, so the front faces are the ones the camera sees. M_Sky is two-sided
+		// as a belt-and-braces measure, but the direction the shader uses comes from
+		// normalize(WorldPosition - CameraPosition), so a flipped normal could not break it anyway.
+		TArray<int32> Previous;
+		for (int32 Ring = 0; Ring <= Rings; ++Ring)
+		{
+			const float V = static_cast<float>(Ring) / static_cast<float>(Rings);
+			const float Phi = (V - 0.5f) * PI;			// -90 deg .. +90 deg
+			const float SinPhi = FMath::Sin(Phi);
+			const float CosPhi = FMath::Cos(Phi);
+
+			TArray<int32> Current;
+			Current.Reserve(Segments);
+			for (int32 Index = 0; Index < Segments; ++Index)
+			{
+				const float U = static_cast<float>(Index) / static_cast<float>(Segments);
+				const float Theta = U * 2.0f * PI;
+				const FVector Outward(CosPhi * FMath::Cos(Theta), CosPhi * FMath::Sin(Theta), SinPhi);
+				Current.Add(Out.Add(Outward, -Outward, FVector2D(U, V), FLinearColor::White));
+			}
+
+			if (Ring > 0)
+			{
+				for (int32 Index = 0; Index < Segments; ++Index)
+				{
+					const int32 Next = (Index + 1) % Segments;
+					// Reversed relative to an outward sphere so the visible side is the front face.
+					Out.Tri(Previous[Index], Current[Index], Previous[Next]);
+					Out.Tri(Previous[Next], Current[Index], Current[Next]);
+				}
+			}
+			Previous = MoveTemp(Current);
 		}
 	}
 

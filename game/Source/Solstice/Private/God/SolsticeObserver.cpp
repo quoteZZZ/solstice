@@ -41,14 +41,21 @@ void ASolsticeObserver::SetDefaults(float InDistance, float InYaw, float InPitch
 {
 	Distance = FMath::Clamp(InDistance, 2000.0f, 600000.0f);
 	Yaw = InYaw;
-	Pitch = FMath::Clamp(InPitch, -88.0f, -4.0f);
+	// -1, not -4.
+	//
+	// The old ceiling existed for a floating disc: tilted any flatter, the camera saw under the
+	// realm and the frame edge became the subject. With an ocean running to a 400 km sky dome
+	// there is nothing to see under, and -4 degrees holds the horizon so high that the sky is
+	// only 20% of the frame no matter what the preset asks for (measured: preset 0 requested
+	// -1.8 and the log still reported -4.0).
+	Pitch = FMath::Clamp(InPitch, -88.0f, -1.0f);
 	Apply();
 }
 
 void ASolsticeObserver::Orbit(float DeltaYaw, float DeltaPitch)
 {
 	Yaw += DeltaYaw;
-	Pitch = FMath::Clamp(Pitch + DeltaPitch, -88.0f, -4.0f);
+	Pitch = FMath::Clamp(Pitch + DeltaPitch, -88.0f, -1.0f);
 	Apply();
 }
 
