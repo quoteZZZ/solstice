@@ -120,14 +120,11 @@ namespace
 	// ------------------------------------------------------------------
 	// Scene rig.
 	//
-	// REBOOT B0 之前这里写着「cel 材质是 unlit，自己画色阶，灯只提供方向」——那句话是对的，
-	// 也是画面永远像贴纸的原因：方向光投下的影子没有人接收。
-	//
-	// 现在 M_Cel 是 DefaultLit，太阳真的照着世界。于是这组数字第一次有了物理含义：
-	// 太阳/天光的**比值**决定阴影可见度，比值太低时环境光会把影子洗掉（实测 3.2/0.4 时
-	// 树冠的投影几乎看不见）。9.0/0.25 ≈ 36:1 是晴天该有的量级，也是让接触阴影出得来的
-	// 最低比值。
-	// ------------------------------------------------------------------
+	// REBOOT B0 之前这里写着「cel 材质�?unlit，自己画色阶，灯只提供方向」——那句话是对的，
+	// 也是画面永远像贴纸的原因：方向光投下的影子没有人接收�?	//
+	// 现在 M_Cel �?DefaultLit，太阳真的照着世界。于是这组数字第一次有了物理含义：
+	// 太阳/天光�?*比�?*决定阴影可见度，比值太低时环境光会把影子洗掉（实测 3.2/0.4 �?	// 树冠的投影几乎看不见）�?.0/0.25 �?36:1 是晴天该有的量级，也是让接触阴影出得来的
+	// 最低比值�?	// ------------------------------------------------------------------
 	// 100,000 lux, not 9.
 	//
 	// The atmosphere is evaluated in physical units, so a 9 lux sun and a physically-lit sky
@@ -145,12 +142,25 @@ namespace
 	// nothing: the island's large-scale shading had a direction concentration of R = 0.006,
 	// i.e. perfectly isotropic, so no face was brighter than any other and the world read as a
 	// flat illustration. Ambient was carrying the frame and the sun was decoration.
-	constexpr float SunLightIntensity = 14.0f;
+	// 100, not 14, and the sky light comes back up with it.
+	//
+	// Every value in this block was calibrated while M_Cel was silently unlit: its vertex colour
+	// was wired to EmissiveColor as well as BaseColor, so the ground showed the palette at full
+	// brightness no matter what the lights did, and "tune the light until the island looks right"
+	// was really "tune the light until nothing changes, then pick a number". Once that stale
+	// connection was cleared (see FSolsticeCelMaterialBuilder::ResetGraph) a sun of 14 left the
+	// island almost black, and the sweep that followed put the correct value an order of
+	// magnitude higher: measured at noon, island luminance 144.9 with every light off, 146.0 at
+	// sun=14, 180.8 at sun=140, and a readable mid-tone at sun=40 (560 in the units below).
+	constexpr float SunLightIntensity = 100.0f;
 	const FLinearColor SunLightColour(1.0f, 0.97f, 0.92f);
-	// 1.0: a real-time captured sky light is already in physical units; anything else double-counts.
-	// 0.10: a captured sky is already in physical units (tens of thousands of nits), so this is a
-	// multiplier on something very large. At 0.25 it out-lit the sun on every surface facing up.
-	constexpr float SkyLightIntensity = 0.10f;
+	// 1.0, not 0.10.
+	//
+	// The same miscalibration: with the ground unlit, ambient could be switched off without
+	// changing a pixel (measured 1.3% over the whole island), so any value looked harmless. Now
+	// that the ground is really lit, 0.10 leaves the shaded side of every hill at black. 1.0 is
+	// the value at which the sky alone reads as skylight rather than as nothing.
+	constexpr float SkyLightIntensity = 1.0f;
 
 	/**
 	 * R-41: fixed exposure, in stops of gain over the manual-mode default.
@@ -233,7 +243,10 @@ ASolsticeRealm::ASolsticeRealm()
 	PropMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("PropMesh"));
 	PropMesh->SetupAttachment(Root);
 	PropMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	PropMesh->SetCastShadow(false);
+	// Trees and rocks cast. Without this the island is a green carpet with standees printed on
+	// it: 120 props, no shadow under any of them, and the eye reads that as flat art rather than
+	// as objects standing on ground. The mesh is small (a few hundred triangles per prop).
+	PropMesh->SetCastShadow(true);
 	PropMesh->bUseAsyncCooking = true;
 
 	SunLight = CreateDefaultSubobject<UDirectionalLightComponent>(TEXT("SunLight"));
@@ -247,6 +260,33 @@ ASolsticeRealm::ASolsticeRealm()
 	SunLight->SetIntensity(SunLightIntensity);
 	SunLight->SetCastShadows(true);
 	SunLight->SetLightColor(SunLightColour);
+
+	// ---- shadows have to reach the realm ----------------------------------
+	//
+	// The engine default for a movable directional light is 20000 uu = 200 m of cascaded shadow
+	// range, and the framing puts the camera ~213 m from the realm's centre. Every square metre
+	// of the island therefore fell *outside* the last cascade: `SetCastShadows(true)` was true,
+	// every mesh was casting, and no shadow existed anywhere on screen. Measured: at a sun
+	// altitude of 2.4 degrees - where a 21 m hill should throw a 500 m shadow across the water -
+	// the frame contained no darker water at all.
+	//
+	// 900 m covers the realm, the lagoon and the near shelf, which is everything close enough to
+	// read. Further out the fog has taken over anyway.
+	SunLight->DynamicShadowDistanceMovableLight = 90000.0f;
+	SunLight->DynamicShadowCascades = 3;
+	// Push the cascade split towards the camera: the island is a compact object, and the default
+	// exponent spends most of the range on the far cascades where there is only water.
+	SunLight->CascadeDistributionExponent = 2.2f;
+	// Contact shadows are OFF, and the reason is a measurement, not taste.
+	//
+	// ContactShadowLength is in *screen* space: 0.06 is 6% of the viewport height, which on a
+	// terrain 213 m away is a very long world-space ray. It read a large part of every slope as
+	// occluded, which is why raising the sun by 14x only moved the island's mean luminance from
+	// 80 to 98 - the light was there and the shadow term was eating it. Start at 0 and only
+	// reintroduce it with a per-preset length once there is a close-up framing to tune it against.
+	SunLight->ContactShadowLength = 0.0f;
+	SunLight->ContactShadowLengthInWS = false;
+
 	// Tells the atmosphere which light is the sun: it drives the sky gradient and draws the disc.
 	SunLight->bAtmosphereSunLight = true;
 	SunLight->AtmosphereSunLightIndex = 0;
@@ -311,6 +351,25 @@ ASolsticeRealm::ASolsticeRealm()
 		PP.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
 		PP.bOverride_AutoExposureBias = true;
 		PP.AutoExposureBias = ExposureStops;
+		// `-SolsticeEnv=` third component: extra stops, applied once here. Exposure is the one
+		// knob that sets brightness outright; every other number in this block is a grade.
+		{
+			FString EnvSpec;
+			if (FParse::Value(FCommandLine::Get(), TEXT("SolsticeEnv="), EnvSpec, false))
+			{
+				TArray<FString> Parts;
+				EnvSpec.ParseIntoArray(Parts, TEXT(","), true);
+				if (Parts.Num() == 3)
+				{
+					// -1 means "leave the exposure alone", matching the sun/sky components.
+					const float Stops = static_cast<float>(FCString::Atof(*Parts[2]));
+					if (!FMath::IsNearlyEqual(Stops, -1.0f))
+					{
+						PP.AutoExposureBias += Stops;
+					}
+				}
+			}
+		}
 		// The physical-camera path would recompute the exposure from the lens, which is exactly
 		// the coupling this project does not want.
 		PP.bOverride_AutoExposureApplyPhysicalCameraExposure = true;
@@ -363,6 +422,66 @@ ASolsticeRealm::ASolsticeRealm()
 		PP.DepthOfFieldFarTransitionRegion = 7000.0f;
 		PP.bOverride_DepthOfFieldFstop = true;
 		PP.DepthOfFieldFstop = 2.8f;
+	}
+
+	// ---- water balance, tunable for one run ------------------------------
+	//
+	// `-SolsticeSea=<diffuse>,<glow>,<shade>`. Any component left at -1 keeps the value the
+	// material authors. See the member's comment in the header for why this exists.
+	FString SeaSpec;
+	// bShouldStopOnSeparator=false: the list *is* comma-separated, and the default behaviour
+	// truncates at the first comma (measured: it produced "1.0" and rejected the override).
+	if (FParse::Value(FCommandLine::Get(), TEXT("SolsticeSea="), SeaSpec, false))
+	{
+		TArray<FString> Parts;
+		SeaSpec.ParseIntoArray(Parts, TEXT(","), true);
+		SeaTuning.Reset();
+		for (const FString& Part : Parts)
+		{
+			SeaTuning.Add(static_cast<float>(FCString::Atof(*Part)));
+		}
+		if (SeaTuning.Num() < 3)
+		{
+			UE_LOG(LogSolstice, Warning,
+				TEXT("SolsticeSea needs at least three comma-separated numbers; got '%s'"), *SeaSpec);
+			SeaTuning.Reset();
+		}
+		else
+		{
+			UE_LOG(LogSolstice, Display, TEXT("[diag] sea tuning override %s"), *SeaSpec);
+		}
+	}
+
+	// ---- light ratio, tunable for one run --------------------------------
+	//
+	// `-SolsticeEnv=<sun>,<sky>,<exposure>`. Same idea as the sea override: the sun-to-sky ratio
+	// is the number that decides whether the frame has a light direction, and guessing it from
+	// the two intensities is impossible because they are in different units.
+	FString EnvSpec;
+	if (FParse::Value(FCommandLine::Get(), TEXT("SolsticeEnv="), EnvSpec, false))
+	{
+		TArray<FString> Parts;
+		EnvSpec.ParseIntoArray(Parts, TEXT(","), true);
+		if (Parts.Num() == 3)
+		{
+			EnvTuning = FVector(FCString::Atof(*Parts[0]), FCString::Atof(*Parts[1]),
+				FCString::Atof(*Parts[2]));
+			UE_LOG(LogSolstice, Display, TEXT("[diag] env tuning override sun=%.3f sky=%.3f exposure=%+.2f"),
+				EnvTuning.X, EnvTuning.Y, EnvTuning.Z);
+		}
+		else
+		{
+			UE_LOG(LogSolstice, Warning,
+				TEXT("SolsticeEnv needs three comma-separated numbers (sun,sky,exposure); got '%s'"),
+				*EnvSpec);
+		}
+	}
+
+	FString CelGainSpec;
+	if (FParse::Value(FCommandLine::Get(), TEXT("SolsticeCel="), CelGainSpec, false))
+	{
+		CelBaseGain = static_cast<float>(FCString::Atof(*CelGainSpec));
+		UE_LOG(LogSolstice, Display, TEXT("[diag] cel gain override %.2f"), CelBaseGain);
 	}
 }
 
@@ -877,6 +996,25 @@ void ASolsticeRealm::BuildSkyMesh()
 		const FLinearColor Tint = FMath::Lerp(NightSea, DaySea, Daylight);
 		SeaMID->SetVectorParameterValue(TEXT("SeaTint"),
 			FLinearColor(Tint.R * SkyDim, Tint.G * SkyDim, Tint.B * SkyDim, 1.0f));
+
+		// One-run override (`-SolsticeSea=`), so the diffuse/emissive split can be searched
+		// without a recompile per candidate. Order: diffuse, glow, shade, [foam], [specular],
+		// [sky reflection strength]; trailing entries may be omitted.
+		static const TCHAR* SeaParamNames[] = {
+			TEXT("WaterDiffuse"),
+			TEXT("WaterGlow"),
+			TEXT("WaveShadeAmount"),
+			TEXT("FoamAmount"),
+			TEXT("WaterSpecular"),
+			TEXT("SkyReflectStrength"),
+		};
+		for (int32 Index = 0; Index < SeaTuning.Num() && Index < UE_ARRAY_COUNT(SeaParamNames); ++Index)
+		{
+			if (SeaTuning[Index] >= 0.0f)
+			{
+				SeaMID->SetScalarParameterValue(SeaParamNames[Index], SeaTuning[Index]);
+			}
+		}
 	}
 	// Sections 1 and 2 held the world-space shell and its celestial bodies. The bodies are
 	// painted into the card now and there is no shell; stale sections would draw a dome that no
@@ -980,7 +1118,16 @@ void ASolsticeRealm::UpdateSun()
 	// Ambient follows too: a low sun means less sky light in the frame, and it must not be
 	// allowed to keep the ground at midday brightness on its own.
 	const float Ambient01 = FMath::Clamp((Sky.SolarAltitudeDeg + 6.0f) / 22.0f, 0.06f, 1.0f);
-	SkyLight->SetIntensity(SkyLightIntensity * Ambient01);
+			const float SkyScale = EnvTuning.Y >= 0.0 ? static_cast<float>(EnvTuning.Y) : 1.0f;
+	SkyLight->SetIntensity(SkyLightIntensity * Ambient01 * SkyScale);
+
+	if (CelBaseGain >= 0.0f)
+	{
+		if (UMaterialInstanceDynamic* CelMID = FCelMaterials::Get().CelMID)
+		{
+			CelMID->SetScalarParameterValue(TEXT("SurfaceBaseGain"), CelBaseGain);
+		}
+	}
 	SkyLight->SetLightColor(FMath::Lerp(
 		FLinearColor(0.42f, 0.50f, 0.72f),	// cold violet-blue at dusk
 		FLinearColor(0.86f, 0.90f, 1.00f),	// neutral daylight
@@ -993,7 +1140,8 @@ void ASolsticeRealm::UpdateSun()
 	// so light components cannot reach it at all. A fill light was added on 2026-10-18 for a dark
 	// dusk frame and changed exactly zero pixels - the dusk ramp lives in FCelMaterials::ApplySky.
 	SunLight->SetIntensity(
-		FMath::Lerp(0.15f, 1.0f, FMath::Clamp((Sky.SolarAltitudeDeg + 8.0f) / 18.0f, 0.0f, 1.0f)) * SunLightIntensity);
+		FMath::Lerp(0.15f, 1.0f, FMath::Clamp((Sky.SolarAltitudeDeg + 8.0f) / 18.0f, 0.0f, 1.0f)) * SunLightIntensity
+		* (EnvTuning.X >= 0.0 ? static_cast<float>(EnvTuning.X) : 1.0f));
 	const float Wet = FMath::Clamp(Sky.RainIntensity * 0.7f + Sky.CloudCover * 0.3f, 0.0f, 1.0f);
 	// The void outside the realm is pinned deep blue (WORLD SS1.1, #0B1431) in every weather -
 	// weather only pushes it slightly towards grey-blue, it never returns to pale fog grey.
@@ -1017,14 +1165,40 @@ void ASolsticeRealm::UpdateSun()
 	Fog->SetStartDistance(FitDistance * 0.12f);
 
 	// Throttled: this used to print every tick, which buried the log it was meant to help read.
+	// Post-increment so the *first* call prints: an offscreen capture at 1280x720 runs at a few
+	// frames per second, so "every 120 ticks" never fired inside a six-second shot and the
+	// diagnostic that was meant to explain a missing shadow never appeared.
 	static int32 DiagCalls = 0;
-	if ((++DiagCalls % 120) == 0)
+	if ((DiagCalls++ % 120) == 0)
 	{
 		const FLinearColor FogNow = Fog->FogInscatteringLuminance;
 		UE_LOG(LogSolstice, Log,
 			TEXT("[diag] sun: alt=%.1f intensity=%.2f fog=(%.3f,%.3f,%.3f) sunDir=(%.2f,%.2f,%.2f)"),
 			Sky.SolarAltitudeDeg, SunLight->Intensity, FogNow.R, FogNow.G, FogNow.B,
 			SunDir.X, SunDir.Y, SunDir.Z);
+
+		// Shadow plumbing. "The shadow is missing" has exactly four places to be wrong - the
+		// light does not cast, the mesh does not cast, the cascade range does not reach the
+		// subject, or the material is emissive and has nothing to shade - and printing all four
+		// costs less than one guess-and-rebuild cycle.
+		const float CamToCentre = [&]() -> float
+		{
+			if (const APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+			{
+				if (const APlayerCameraManager* Cam = PC->PlayerCameraManager)
+				{
+					return FVector::Dist(Cam->GetCameraLocation(), GetRealmCentre());
+				}
+			}
+			return -1.0f;
+		}();
+		UE_LOG(LogSolstice, Log,
+			TEXT("[diag] shadow: light_cast=%d light_dyn=%d range=%.0f cascades=%d ")
+			TEXT("chunk_cast=%d prop_cast=%d cam_to_centre=%.0f"),
+			SunLight->CastShadows ? 1 : 0, SunLight->CastDynamicShadows ? 1 : 0,
+			SunLight->DynamicShadowDistanceMovableLight, SunLight->DynamicShadowCascades,
+			(ChunkMeshes.Num() > 0 && ChunkMeshes[0]) ? (ChunkMeshes[0]->CastShadow ? 1 : 0) : -1,
+			PropMesh ? (PropMesh->CastShadow ? 1 : 0) : -1, CamToCentre);
 	}
 }
 

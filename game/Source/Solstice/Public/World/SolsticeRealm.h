@@ -88,6 +88,37 @@ protected:
 	Solstice::FMeshBuilder HullScratch;
 	Solstice::FMeshBuilder OutlineScratch;
 	int32 ChunksPerAxis = 2;
+
+	/**
+	 * Debug hook: `-SolsticeSea=<diffuse>,<glow>,<shade>[,<foam>[,<specular>[,<reflect>]]]`
+	 * overrides the water balance constants for one run. -1 leaves the authored value.
+	 *
+	 * The sea is the sum of two light paths - a lit base colour and an emissive body - and the
+	 * split between them decides how much of the island's shadow the water is able to show at
+	 * all. Searching that split by recompiling (25 s) and re-shooting (40 s) per candidate makes
+	 * a three-number search cost ten minutes; this turns it into one run per candidate.
+	 */
+	TArray<float> SeaTuning;
+
+	/**
+	 * Debug hook: `-SolsticeEnv=<sun>,<sky>,<exposure>` scales the two light intensities and adds
+	 * stops to the fixed exposure for one run. -1 keeps the shipped value.
+	 *
+	 * Sun and sky are not comparable quantities: the sun is set in lux-like units while the sky
+	 * is a multiplier on a real-time capture that is itself in physical units, so "sun 14 vs sky
+	 * 0.10" says nothing about which one owns the frame. Sweeping the ratio is the only way to
+	 * find out, and this makes each candidate one shot instead of one build.
+	 */
+	FVector EnvTuning = FVector(-1.0, -1.0, -1.0);
+
+	/**
+	 * Debug hook: `-SolsticeCel=<gain>` scales the ground's albedo for one run, -1 to leave it.
+	 *
+	 * See the SurfaceBaseGain parameter in M_Cel. This is the fastest way to tell "the ground is
+	 * lit but dark" apart from "the ground is not lit", which look identical on screen.
+	 */
+	float CelBaseGain = -1.0f;
+
 	float SkyAccumulator = 0.0f;
 	float PropAccumulator = 0.0f;
 	bool bStaticsBuilt = false;

@@ -61,7 +61,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 49;
+	constexpr int32 CelRecipeVersion = 56;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -90,6 +90,72 @@ namespace
 		Expr->MaterialExpressionEditorY = Y;
 		Material->GetExpressionCollection().AddExpression(Expr);
 		return Expr;
+	}
+
+	/**
+	 * Drop the graph *and* every output connection.
+	 *
+	 * `GetExpressionCollection().Empty()` removes the nodes and leaves every
+	 * `UMaterialEditorOnlyData` input still pointing at one of them, so a rebuild inherits the
+	 * previous run's wiring for any output it does not explicitly set. This is not theoretical:
+	 * after the unlit -> lit rewrite of M_Cel the asset reported `emissive=1` while the builder
+	 * only ever wrote BaseColor, the vertex colour was therefore both the albedo *and* the
+	 * emission, and the frame was the raw palette - the sun could be switched off entirely and
+	 * not one pixel changed (measured 2026-10-18, sun=0 sky=0 vs sun=14 sky=0.10: mean island
+	 * luminance 143.8 against 145.7).
+	 *
+	 * A material whose outputs still hold old links is worse than a stale asset: it *looks* lit
+	 * and responds to nothing, which is indistinguishable from a lighting bug.
+	 */
+	void ResetGraph(UMaterial* Material)
+	{
+		if (!Material)
+		{
+			return;
+		}
+		Material->GetExpressionCollection().Empty();
+
+		UMaterialEditorOnlyData* EditorData = Material->GetEditorOnlyData();
+		if (!EditorData)
+		{
+			return;
+		}
+		// Matched by struct name rather than by inheritance: these structs are declared
+		// `USTRUCT(noexport)` and hand-mirrored in MaterialShared.h, so IsChildOf is not reliable.
+		static const FName InputStructNames[] = {
+			FName(TEXT("ExpressionInput")),
+			FName(TEXT("ColorMaterialInput")),
+			FName(TEXT("ScalarMaterialInput")),
+			FName(TEXT("VectorMaterialInput")),
+			FName(TEXT("Vector2MaterialInput")),
+			FName(TEXT("MaterialAttributesInput")),
+		};
+		for (TFieldIterator<FStructProperty> It(UMaterialEditorOnlyData::StaticClass()); It; ++It)
+		{
+			FStructProperty* Property = *It;
+			if (!Property->Struct)
+			{
+				continue;
+			}
+			const FName StructName = Property->Struct->GetFName();
+			bool bIsInput = false;
+			for (const FName& Candidate : InputStructNames)
+			{
+				if (StructName == Candidate)
+				{
+					bIsInput = true;
+					break;
+				}
+			}
+			if (!bIsInput)
+			{
+				continue;
+			}
+			// The four input structs all begin with FExpressionInput's members.
+			FExpressionInput* Input = Property->ContainerPtrToValuePtr<FExpressionInput>(EditorData);
+			Input->Expression = nullptr;
+			Input->OutputIndex = 0;
+		}
 	}
 
 	bool SaveAsset(UObject* Asset, const FString& PackageName)
@@ -126,7 +192,7 @@ namespace
 		// Two-sided: the cut edge and the hull cards are seen from both sides.
 		Material->TwoSided = true;
 
-		Material->GetExpressionCollection().Empty();
+		ResetGraph(Material);
 
 		// ---- albedo -------------------------------------------------------
 		// 顶点色从「最终颜色」降级为「albedo」。生成器写进去的本来就是纯色（`TileColour`
@@ -145,11 +211,42 @@ namespace
 		Recipe->ParameterName = TEXT("RecipeVersion");
 		Recipe->DefaultValue = static_cast<float>(CelRecipeVersion);
 
+		// A live gain on the ground's albedo.
+		//
+		// The island's brightness is the product of three things that are all set far away from
+		// it - the palette, the sun intensity, and the exposure - so "the grass is too dark" has
+		// no single place to fix and every candidate costs a rebuild. This parameter lets one run
+		// answer which of the three is wrong: sweep it, and if the ground brightens the albedo is
+		// in range and the light is the problem; if nothing changes, the surface is not being lit
+		// at all and the search is in the wrong place entirely.
+		UMaterialExpressionScalarParameter* BaseGain = AddExpr<UMaterialExpressionScalarParameter>(Material, -600, 480);
+		BaseGain->ParameterName = TEXT("SurfaceBaseGain");
+		BaseGain->DefaultValue = 1.0f;
+
+		UMaterialExpressionMultiply* TintedBase = AddExpr<UMaterialExpressionMultiply>(Material, -400, -60);
+		TintedBase->A.Expression = VertexColour;
+		TintedBase->B.Expression = BaseGain;
+
 		if (UMaterialEditorOnlyData* EditorData = Material->GetEditorOnlyData())
 		{
-			EditorData->BaseColor.Expression = VertexColour;
+			EditorData->BaseColor.Expression = TintedBase;
 			EditorData->Roughness.Expression = Roughness;
 			EditorData->Specular.Expression = Specular;
+
+			// Read the graph back. "The ground ignores the sun" has three possible causes and
+			// they are indistinguishable from the frame: the asset is not the shading model the
+			// builder asked for, the base colour is not connected, or something is emitting.
+			UE_LOG(LogSolstice, Display,
+				TEXT("[diag] M_Cel model=%d blend=%d two_sided=%d base=%d emissive=%d rough=%d spec=%d nodes=%d gain=%.2f"),
+				static_cast<int32>(Material->GetShadingModels().GetShadingModelField()),
+				static_cast<int32>(Material->BlendMode),
+				Material->TwoSided ? 1 : 0,
+				EditorData->BaseColor.Expression ? 1 : 0,
+				EditorData->EmissiveColor.Expression ? 1 : 0,
+				EditorData->Roughness.Expression ? 1 : 0,
+				EditorData->Specular.Expression ? 1 : 0,
+				Material->GetExpressionCollection().Expressions.Num(),
+				BaseGain->DefaultValue);
 		}
 
 		Material->PostEditChange();
@@ -195,7 +292,7 @@ namespace
 		// out as flat sky-coloured water.
 		Material->TwoSided = false;
 
-		Material->GetExpressionCollection().Empty();
+		ResetGraph(Material);
 
 		UMaterialExpressionVertexColor* VertexColour = AddExpr<UMaterialExpressionVertexColor>(Material, -600, -60);
 
@@ -213,7 +310,13 @@ namespace
 
 		UMaterialExpressionScalarParameter* Specular = AddExpr<UMaterialExpressionScalarParameter>(Material, -600, 300);
 		Specular->ParameterName = TEXT("WaterSpecular");
-		Specular->DefaultValue = 0.45f;
+		// 0.16, not 0.45.
+		//
+		// At a 100-unit sun the sun glint at 0.45 covered the near sea in a white sheet: the
+		// sampled water band measured a midpoint of 0.682 against a 0.60 ceiling, and the water
+		// colour was nowhere in it. A broad but weak lobe keeps the glint as a highlight on the
+		// horizon line instead of a surface treatment.
+		Specular->DefaultValue = 0.16f;
 
 		UMaterialExpressionScalarParameter* Recipe = AddExpr<UMaterialExpressionScalarParameter>(Material, -600, 420);
 		Recipe->ParameterName = TEXT("RecipeVersion");
@@ -408,11 +511,25 @@ return float3(hn, foam, 0.0);
 		// 这样海的颜色就恒等于色板，和岛的受光色不再互相拉扯。
 		UMaterialExpressionScalarParameter* Scatter = AddExpr<UMaterialExpressionScalarParameter>(Material, -1200, 1160);
 		Scatter->ParameterName = TEXT("WaterGlow");
-		Scatter->DefaultValue = 1.0f;
+		// 0.80: the palette's lagoon is authored as a display colour, so at 1.0 the water sat a
+		// full step above the lit ground and the frame had no mid-tone ladder left. 0.8 puts the
+		// sea *below* the island in value, which is what makes the island read as the subject.
+		Scatter->DefaultValue = 0.80f;
 
 		UMaterialExpressionScalarParameter* Diffuse = AddExpr<UMaterialExpressionScalarParameter>(Material, -1200, 1080);
 		Diffuse->ParameterName = TEXT("WaterDiffuse");
-		Diffuse->DefaultValue = 0.18f;
+		// 0.05, not 0.18.
+		//
+		// The lit part of the sea is not there to light it - the body colour is emissive and stays
+		// exactly as authored - it is there so the surface still responds to the sun at all. At
+		// 0.18 and a 560-unit sun the lit term overwhelmed the authored colour and the whole sea
+		// went cyan-white (measured 2026-10-18). 0.05 keeps a little directional life and lets the
+		// palette own the water.
+		//
+		// Note what this means for shadows: an emissive surface cannot receive one. Island
+		// shadows will not land on the water in this style, and that is a deliberate trade - the
+		// alternative is a lit sea whose colour changes with the hour and blows out at noon.
+		Diffuse->DefaultValue = 0.05f;
 
 		UMaterialExpressionMultiply* ScatterColour = AddExpr<UMaterialExpressionMultiply>(Material, -900, 1160);
 		ScatterColour->A.Expression = TintedBase;
@@ -453,7 +570,9 @@ return float3(hn, foam, 0.0);
 
 		UMaterialExpressionScalarParameter* ReflectStrength = AddExpr<UMaterialExpressionScalarParameter>(Material, -1200, 1560);
 		ReflectStrength->ParameterName = TEXT("SkyReflectStrength");
-		ReflectStrength->DefaultValue = 0.75f;
+		// 0.50, not 0.75: the reflected horizon is near-white, and at 0.75 the grazing band along
+		// the waterline was brighter than the sky it was reflecting.
+		ReflectStrength->DefaultValue = 0.50f;
 
 		UMaterialExpressionMultiply* ReflectTerm = AddExpr<UMaterialExpressionMultiply>(Material, -780, 1420);
 		ReflectTerm->A.Expression = SkyRim;
@@ -511,9 +630,13 @@ return float3(hn, foam, 0.0);
 
 		UMaterialExpressionScalarParameter* FoamAmount = AddExpr<UMaterialExpressionScalarParameter>(Material, -700, 1380);
 		FoamAmount->ParameterName = TEXT("FoamAmount");
-		// 0.40: at 0.55 the foam covered 17.6% of the near sea and the framing midpoint rose to
-		// 0.618 against a 0.60 ceiling. Foam is a highlight, not a surface.
-		FoamAmount->DefaultValue = 0.32f;
+		// 0.15, not 0.32.
+		//
+		// On the entry framing the near sea is most of the lower half, and at 0.32 the foam read
+		// as *white horizontal banding across the whole surface* rather than as breaking crests -
+		// the single biggest reason the sea looked like painted silk instead of water. Foam is a
+		// punctuation mark: a few crests, not a texture.
+		FoamAmount->DefaultValue = 0.15f;
 
 		// Foam only belongs where the surface faces the eye. At grazing angles the water is a
 		// mirror and any white on it would read as a stripe of paint lying on the horizon.
@@ -567,7 +690,7 @@ return float3(hn, foam, 0.0);
 		// in the background - it is the one surface whose failure is a black frame.
 		Material->TwoSided = true;
 
-		Material->GetExpressionCollection().Empty();
+		ResetGraph(Material);
 
 		// ---- view direction -------------------------------------------------
 		// WorldPosition minus CameraPosition, not the vertex normal: the dome is a unit sphere
@@ -827,7 +950,7 @@ return sky;
 		Material->SetShadingModel(MSM_Unlit);
 		Material->TwoSided = false;
 
-		Material->GetExpressionCollection().Empty();
+		ResetGraph(Material);
 
 		UMaterialExpressionConstant3Vector* Ink = AddExpr<UMaterialExpressionConstant3Vector>(Material, -400, 0);
 		Ink->Constant = FLinearColor(0.055f, 0.048f, 0.042f, 1.0f);
@@ -860,7 +983,7 @@ return sky;
 		// Two-sided so the printed outline card reads from either side without winding games.
 		Material->TwoSided = true;
 
-		Material->GetExpressionCollection().Empty();
+		ResetGraph(Material);
 
 		UMaterialExpressionConstant3Vector* Ink = AddExpr<UMaterialExpressionConstant3Vector>(Material, -400, 0);
 		Ink->Constant = FLinearColor(0.055f, 0.048f, 0.042f, 1.0f);

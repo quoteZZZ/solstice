@@ -39,6 +39,17 @@ param(
     # 默认钉住与 bench 相同的 20261016。
     [int]$Seed = 20261016,
     [int]$TimeoutSeconds = 180,
+    # 水材质配平系数的单次覆盖：<diffuse>,<glow>,<shade>[,<foam>[,<specular>[,<reflect>]]]
+  # （-1 = 用材质默认值）。
+    # 水的亮度是「受光底面 + 自发光本体」两路之和，这个比例决定岛影能不能落到水面上。
+    # 有了它，一个候选只要抓一帧（40 s），不必为每个数重编译。
+    [string]$Sea,
+    # 光照比例的覆盖：<sun>,<sky>,<exposure>（-1 = 用出厂值）。
+    # 太阳的强度是天光「捕获反射」的乘数，两者单位不同、不能直接比大小 —— 要判断
+    # 「方向光到底有没有主导画面」，只能把比例扫一遍。
+    [string]$Env,
+    # 地表 albedo 的增益（-1 = 用材质默认 1.0）。用来区分「地被照亮但偏暗」与「地根本没受光」。
+    [string]$Cel,
     [string]$EngineRoot,
     [string]$Project
 )
@@ -120,6 +131,9 @@ if ($UI) { $shotArgs += '-SolsticeShotUI' }
 if ($Minute -ge 0) { $shotArgs += ("-SolsticeMinute={0}" -f $Minute) }
 # 钉种子：否则每次都是一个新世界，画面指标不可比。
 if ($Seed -gt 0) { $shotArgs += ("-SolsticeSeed={0}" -f $Seed) }
+if (-not [string]::IsNullOrWhiteSpace($Sea)) { $shotArgs += ("-SolsticeSea={0}" -f $Sea) }
+if (-not [string]::IsNullOrWhiteSpace($Env)) { $shotArgs += ("-SolsticeEnv={0}" -f $Env) }
+if (-not [string]::IsNullOrWhiteSpace($Cel)) { $shotArgs += ("-SolsticeCel={0}" -f $Cel) }
 
 Write-Host ("抓帧：preset={0} {1}x{2} seed={3} -> {4}{5}" -f $Preset, $Width, $Height, $Seed, $Out,
     $(if ($Minute -ge 0) { ("  (clock {0}:{1:D2})" -f [int][math]::Floor($Minute / 60), ($Minute % 60)) } else { '' })) -ForegroundColor Green
@@ -136,7 +150,10 @@ if (-not $exited) {
 if (Test-Path -LiteralPath $absLog) {
     # `Log` verbosity is in here on purpose: the [diag] lines that report the sun and the fog
     # are logged at Log, and leaving them out made "is the clock pinned at all?" unanswerable.
-    Select-String -LiteralPath $absLog -Pattern 'LogSolstice: (Display|Warning|Error|Log): \[(shot|diag)\]' |
+    # Log-level lines print as `LogSolstice: [diag] ...` with no severity word (only Warning and
+    # Error carry one), so the severity part has to be optional or every Log diagnostic is
+    # silently dropped.
+    Select-String -LiteralPath $absLog -Pattern 'LogSolstice: (Display|Warning|Error|Log): \[(shot|diag)\]|LogSolstice: \[(shot|diag)\]' |
         ForEach-Object { Write-Host ('  ' + $_.Line) }
 }
 
