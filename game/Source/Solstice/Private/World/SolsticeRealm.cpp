@@ -74,7 +74,7 @@ namespace
 	// The sea's albedo is the only lever that behaves like the land's: raise it and the same sun
 	// and the same exposure lift it. Raising emissive instead put the sea on a *second* lighting
 	// path, and the two immediately fought - the water stayed dark while the island blew out.
-	constexpr float OceanScreenGain = 0.62f;
+	constexpr float OceanScreenGain = 0.47f;
 	constexpr float SkyCardOverscan = 1.12f;
 
 	// Sun and moon are painted, not projected: at a 35 degree down-pitch a physically placed sun
@@ -831,7 +831,7 @@ void ASolsticeRealm::BuildSkyMesh()
 		// Coverage -> threshold. The noise is centred near 0.47 with a spread around 0.12, so a
 		// threshold of 0.58 is a barely-there sky and 0.36 is overcast; mapping the sim's 0..1
 		// coverage onto that band keeps "clear" clear and "overcast" actually overcast.
-		SkyMID->SetScalarParameterValue(TEXT("CloudThreshold"), 0.585f - 0.30f * Cloud);
+		SkyMID->SetScalarParameterValue(TEXT("CloudThreshold"), 0.60f - 0.28f * Cloud);
 		SkyMID->SetScalarParameterValue(TEXT("CloudScale"), 3.2f);
 		SkyMID->SetScalarParameterValue(TEXT("SunDiscCos"),
 			FMath::Cos(FMath::DegreesToRadians(SunAngularRadiusDeg)));

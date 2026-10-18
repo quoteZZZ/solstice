@@ -61,7 +61,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 38;
+	constexpr int32 CelRecipeVersion = 46;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -285,6 +285,106 @@ return normalize(float3(-g * WaveStrengthInput, 1.0));
 			WaveNormal->Inputs.Add(InScale);
 		}
 
+		// ---- wave height ---------------------------------------------------
+		// The normal alone is not enough.
+		//
+		// The near sea is 44% of the frame and sits 3-30 degrees below the eye, where Fresnel is
+		// near zero and the specular lobe points away: neither reflection nor highlight carries
+		// anything there, so the surface was one flat emissive colour. Measured on the frame, the
+		// near sea had a Laplacian variance of 0.37 against the island's 19.2 - fifty times less
+		// detail precisely where half the picture is.
+		//
+		// So the *colour* has to move with the waves too: crests lighter, troughs darker, and a
+		// band of white on the tallest crests. That is what stylised water does, and it is the
+		// only thing that can put information on a surface facing away from the light.
+		UMaterialExpressionCustom* WaveDetail = AddExpr<UMaterialExpressionCustom>(Material, -900, 880);
+		WaveDetail->Description = TEXT("WaveDetail");
+		WaveDetail->OutputType = CMOT_Float3;
+		// Same four waves as WaveNormal, same directions and phases (a height field and its
+		// gradient must agree or the highlight slides against the shading). Packed as
+		// (height, foam, 0) and unpacked with dot products, so no extra node type is needed.
+		WaveDetail->Code = TEXT(R"(
+float2 p = P.xy * Scale;
+float swell = 0.0;
+swell += sin(dot(p, normalize(float2( 0.86,  0.51))) * 1.00 * 6.28318 + T * 0.35) * 1.00;
+swell += sin(dot(p, normalize(float2(-0.42,  0.91))) * 1.70 * 6.28318 + T * 0.52) * 0.94;
+swell += sin(dot(p, normalize(float2( 0.97, -0.24))) * 2.90 * 6.28318 + T * 0.77) * 0.87;
+swell += sin(dot(p, normalize(float2( 0.31, -0.95))) * 4.30 * 6.28318 + T * 1.10) * 0.69;
+
+// Chop is *noise*, not more sine waves.
+//
+// Two more directional sines were the obvious next step and they failed for a structural
+// reason: every term is a plane wave, so they interfere into a single dominant direction.
+// Measured on the near sea, the horizontal gradient was 0.0018 against a vertical 0.0055 -
+// the ripples were horizontal bars, i.e. wood grain, and no amount of amplitude fixes a
+// direction that should not exist. Isotropic value noise (Hoskins hash, no `sin`) has no
+// preferred axis, which is what water looks like from above.
+float2 q = p * 3.1 + float2(T * 0.9, T * 0.35);
+float chop = 0.0;
+float camp = 0.5;
+for (int i = 0; i < 3; i++)
+{
+    float2 cell = floor(q);
+    float2 f = frac(q);
+    f = f * f * (3.0 - 2.0 * f);
+
+    float3 g0 = frac(float3(cell.x,        cell.y,        cell.x) * 0.1031);
+    float3 g1 = frac(float3(cell.x + 1.0,  cell.y,        cell.x + 1.0) * 0.1031);
+    float3 g2 = frac(float3(cell.x,        cell.y + 1.0,  cell.x) * 0.1031);
+    float3 g3 = frac(float3(cell.x + 1.0,  cell.y + 1.0,  cell.x + 1.0) * 0.1031);
+    g0 += dot(g0, g0.yzx + 33.33);
+    g1 += dot(g1, g1.yzx + 33.33);
+    g2 += dot(g2, g2.yzx + 33.33);
+    g3 += dot(g3, g3.yzx + 33.33);
+
+    float v0 = frac((g0.x + g0.y) * g0.z);
+    float v1 = frac((g1.x + g1.y) * g1.z);
+    float v2 = frac((g2.x + g2.y) * g2.z);
+    float v3 = frac((g3.x + g3.y) * g3.z);
+
+    chop += camp * lerp(lerp(v0, v1, f.x), lerp(v2, v3, f.x), f.y);
+    q = float2(q.x * 1.66 - q.y * 1.24, q.x * 1.24 + q.y * 1.66);
+    camp *= 0.5;
+}
+chop = (chop - 0.44) * 1.9;
+
+// Chop is weighted above the swell, not below it. These ripples are the only structure the
+// nearest 20% of the frame can show (the swell is longer than the view there), and at equal
+// weight they moved the picture by 8.6% brightness - under the noise floor of the swell.
+float hn = swell / 3.5 + chop;
+// Foam belongs to the swell's crests, not to the ripples riding on them, and it starts low:
+// at 0.42 only the rare tallest crest qualified and no white ever reached the frame.
+float foam = saturate((swell / 3.5 - 0.24) / 0.38);
+return float3(hn, foam, 0.0);
+)");
+		{
+			FCustomInput InPos;
+			InPos.InputName = TEXT("P");
+			InPos.Input.Expression = WorldPos;
+			FCustomInput InTime;
+			InTime.InputName = TEXT("T");
+			InTime.Input.Expression = Clock;
+			FCustomInput InScale;
+			InScale.InputName = TEXT("Scale");
+			InScale.Input.Expression = WaveScale;
+			WaveDetail->Inputs.Add(InPos);
+			WaveDetail->Inputs.Add(InTime);
+			WaveDetail->Inputs.Add(InScale);
+		}
+
+		UMaterialExpressionConstant3Vector* AxisHeight = AddExpr<UMaterialExpressionConstant3Vector>(Material, -700, 760);
+		AxisHeight->Constant = FLinearColor(1.0f, 0.0f, 0.0f, 1.0f);
+		UMaterialExpressionConstant3Vector* AxisFoam = AddExpr<UMaterialExpressionConstant3Vector>(Material, -700, 880);
+		AxisFoam->Constant = FLinearColor(0.0f, 1.0f, 0.0f, 1.0f);
+
+		UMaterialExpressionDotProduct* WaveHeight = AddExpr<UMaterialExpressionDotProduct>(Material, -520, 760);
+		WaveHeight->A.Expression = WaveDetail;
+		WaveHeight->B.Expression = AxisHeight;
+
+		UMaterialExpressionDotProduct* WaveFoam = AddExpr<UMaterialExpressionDotProduct>(Material, -520, 880);
+		WaveFoam->A.Expression = WaveDetail;
+		WaveFoam->B.Expression = AxisFoam;
+
 		// The ocean mesh is built once (it is 60 realm radii across), so its vertex colours are a
 		// photograph of noon. A tint parameter lets the hour move it without rebuilding 40k
 		// triangles: night sea is not "noon sea with the lights off", it is dark and blue.
@@ -373,8 +473,68 @@ return normalize(float3(-g * WaveStrengthInput, 1.0));
 		ReflectMix->A.Expression = SkyRim;
 		ReflectMix->B.Expression = ReflectStrength;
 
+		// ---- crest shading + foam -----------------------------------------
+		// Crests catch more light and stand higher out of the water; troughs sit in the body's
+		// own shade. A single multiply is enough because the water colour is authored, not lit:
+		// this only has to give the surface a gradient to read.
+		UMaterialExpressionScalarParameter* ShadeAmp = AddExpr<UMaterialExpressionScalarParameter>(Material, -700, 1020);
+		ShadeAmp->ParameterName = TEXT("WaveShadeAmount");
+		ShadeAmp->DefaultValue = 0.19f;
+
+		UMaterialExpressionMultiply* ShadeOffset = AddExpr<UMaterialExpressionMultiply>(Material, -520, 1020);
+		ShadeOffset->A.Expression = WaveHeight;
+		ShadeOffset->B.Expression = ShadeAmp;
+
+		UMaterialExpressionConstant* OneShade = AddExpr<UMaterialExpressionConstant>(Material, -520, 1140);
+		OneShade->R = 1.0f;
+
+		// At grazing angles the water is a mirror and its colour comes from the sky, so wave
+		// shading must fade out there or the far sea gets stripes of its own body colour.
+		UMaterialExpressionOneMinus* ShadeFacing = AddExpr<UMaterialExpressionOneMinus>(Material, -520, 1060);
+		ShadeFacing->Input.Expression = SkyRim;
+
+		UMaterialExpressionMultiply* ShadeGated = AddExpr<UMaterialExpressionMultiply>(Material, -380, 1020);
+		ShadeGated->A.Expression = ShadeOffset;
+		ShadeGated->B.Expression = ShadeFacing;
+
+		UMaterialExpressionAdd* ShadeScale = AddExpr<UMaterialExpressionAdd>(Material, -240, 1060);
+		ShadeScale->A.Expression = OneShade;
+		ShadeScale->B.Expression = ShadeGated;
+
+		UMaterialExpressionMultiply* ShadedBody = AddExpr<UMaterialExpressionMultiply>(Material, -100, 1140);
+		ShadedBody->A.Expression = ScatterColour;
+		ShadedBody->B.Expression = ShadeScale;
+
+		UMaterialExpressionVectorParameter* FoamColour = AddExpr<UMaterialExpressionVectorParameter>(Material, -700, 1260);
+		FoamColour->ParameterName = TEXT("FoamColour");
+		FoamColour->DefaultValue = FLinearColor(0.78f, 0.88f, 0.90f, 1.0f);
+
+		UMaterialExpressionScalarParameter* FoamAmount = AddExpr<UMaterialExpressionScalarParameter>(Material, -700, 1380);
+		FoamAmount->ParameterName = TEXT("FoamAmount");
+		// 0.40: at 0.55 the foam covered 17.6% of the near sea and the framing midpoint rose to
+		// 0.618 against a 0.60 ceiling. Foam is a highlight, not a surface.
+		FoamAmount->DefaultValue = 0.32f;
+
+		// Foam only belongs where the surface faces the eye. At grazing angles the water is a
+		// mirror and any white on it would read as a stripe of paint lying on the horizon.
+		UMaterialExpressionOneMinus* FacingEye = AddExpr<UMaterialExpressionOneMinus>(Material, -520, 1380);
+		FacingEye->Input.Expression = SkyRim;
+
+		UMaterialExpressionMultiply* FoamGate = AddExpr<UMaterialExpressionMultiply>(Material, -380, 1300);
+		FoamGate->A.Expression = WaveFoam;
+		FoamGate->B.Expression = FacingEye;
+
+		UMaterialExpressionMultiply* FoamAlpha = AddExpr<UMaterialExpressionMultiply>(Material, -240, 1300);
+		FoamAlpha->A.Expression = FoamGate;
+		FoamAlpha->B.Expression = FoamAmount;
+
+		UMaterialExpressionLinearInterpolate* BodyWithFoam = AddExpr<UMaterialExpressionLinearInterpolate>(Material, -80, 1180);
+		BodyWithFoam->A.Expression = ShadedBody;
+		BodyWithFoam->B.Expression = FoamColour;
+		BodyWithFoam->Alpha.Expression = FoamAlpha;
+
 		UMaterialExpressionLinearInterpolate* EmissiveTotal = AddExpr<UMaterialExpressionLinearInterpolate>(Material, -420, 1240);
-		EmissiveTotal->A.Expression = ScatterColour;
+		EmissiveTotal->A.Expression = BodyWithFoam;
 		EmissiveTotal->B.Expression = SkyReflect;
 		EmissiveTotal->Alpha.Expression = ReflectMix;
 
@@ -582,8 +742,21 @@ for (int j = 0; j < 3; j++)
     amp2 *= 0.5;
 }
 
-float mask = smoothstep(CloudThreshold, CloudThreshold + 0.115, n);
-float lit = saturate((n - m) * 10.0 + 0.45);
+// Coverage varies across the sky, so the deck forms clusters of large cloud and gaps of
+// small ones instead of an even field of identical puffs. `m` is the second sample (offset
+// toward the sun, so only weakly correlated with `n`) - reusing it here costs nothing.
+float cover = CloudThreshold + (m - 0.47) * 0.42;
+float mask = smoothstep(cover, cover + 0.15, n);
+
+// The difference between the two samples is the sun-facing slope, and it has to be amplified
+// hard to be worth anything: at the noise's own contrast it produced +-0.05, which is a flat
+// silhouette of a cloud rather than a lit one.
+float lit = saturate((n - m) * 26.0 + 0.46);
+
+// Bases sit in their own shadow. A cumulus has a flat, darker underside and a bright top;
+// without this the cloud is one value and reads as paper.
+lit *= 0.55 + 0.45 * smoothstep(0.0, 0.075, h);
+
 float3 cloudCol = lerp(CloudShadow, CloudLit, lit);
 
 // Thin the deck out as it approaches the horizon: the projection compresses it to sub-pixel
