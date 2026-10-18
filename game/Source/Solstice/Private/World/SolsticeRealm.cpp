@@ -272,7 +272,14 @@ ASolsticeRealm::ASolsticeRealm()
 	//
 	// 900 m covers the realm, the lagoon and the near shelf, which is everything close enough to
 	// read. Further out the fog has taken over anyway.
-	SunLight->DynamicShadowDistanceMovableLight = 90000.0f;
+	// 400 m, not 900.
+	//
+	// 900 was chosen when the camera sat 213 m out and the world was 128 m across; that is 900 m
+	// of cascades to cover a 240 m subject, and the shadow map resolution is spread over all of
+	// it (2048 texels over 900 m is 44 cm a texel - soft, and it makes small props disappear).
+	// The camera moved to 160 m, so 400 m covers the realm and its near shelf with margin and
+	// doubles the texel density at no cost.
+	SunLight->DynamicShadowDistanceMovableLight = 40000.0f;
 	SunLight->DynamicShadowCascades = 3;
 	// Push the cascade split towards the camera: the island is a compact object, and the default
 	// exponent spends most of the range on the far cascades where there is only water.
@@ -1122,8 +1129,20 @@ void ASolsticeRealm::RebuildProps()
 	OutlineScratch.Reset();
 	Gen::BuildLife(*Sim, Palette, Scratch, OutlineScratch);
 
+	const int32 PropTris = Scratch.Triangles.Num() / 3;
+	const int32 PropVerts = Scratch.Positions.Num();
 	Scratch.PushTo(PropMesh, 0, false);
 	OutlineScratch.PushTo(PropMesh, 1, false);
+
+	// Props are a separate mesh from the terrain, so they never show up in the per-chunk line.
+	// Without their own number, "did the tree change cost anything?" is unanswerable.
+	static int32 LastPropTris = -1;
+	if (PropTris != LastPropTris)
+	{
+		LastPropTris = PropTris;
+		UE_LOG(LogSolstice, Warning, TEXT("[diag] props: verts=%d tris=%d (outline %d)"),
+			PropVerts, PropTris, OutlineScratch.Triangles.Num() / 3);
+	}
 }
 
 void ASolsticeRealm::UpdateSun()
@@ -1289,6 +1308,21 @@ void ASolsticeRealm::UpdateSun()
 void ASolsticeRealm::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+	// Frame cost, every frame. Kept out of the throttled diagnostic block on purpose: inside it
+	// the sample rate collapses to one frame in a hundred and the average is meaningless.
+	{
+		static double TotalMs = 0.0;
+		static int32 Frames = 0;
+		TotalMs += FApp::GetDeltaTime() * 1000.0;
+		if (++Frames >= 30)
+		{
+			UE_LOG(LogSolstice, Warning, TEXT("[diag] perf: avg %.2f ms (%.1f fps) over %d frames"),
+				TotalMs / Frames, 1000.0 / (TotalMs / Frames), Frames);
+			TotalMs = 0.0;
+			Frames = 0;
+		}
+	}
 
 	// The sky card is re-placed every frame - the camera moves continuously when the player
 	// zooms - but it is only *repainted* when its content changes (see the signature gate below).

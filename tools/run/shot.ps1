@@ -122,6 +122,10 @@ $shotArgs = @(
     ("-SolsticeShotDelay={0}" -f $Delay),
     '-unattended',
     '-nosplash',
+    # Measure the frame, do not wait for the display. With vsync on, [diag] perf reports 16.13 ms
+    # at every quality level - the number is the monitor's refresh period, not the renderer's.
+    '-ExecCmds=r.VSync 0',
+
     '-NoLogTimes',
     ("-abslog={0}" -f $absLog)
 )

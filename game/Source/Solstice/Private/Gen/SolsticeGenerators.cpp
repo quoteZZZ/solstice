@@ -902,8 +902,13 @@ namespace Solstice
 					{
 						const float BaseR = 10.0f + 4.0f * CelGrain(X + 3, Y + 8);
 						const float TopR = BaseR * 0.62f;
-						const FLinearColor Bark = Palette.CutEdge * 0.52f;
-						const FLinearColor BarkTop = Palette.CutEdge * 0.68f;
+						// CutEdge is the pale paper-board tone used for cut edges everywhere else,
+						// and at 0.52 of it a trunk is a white stick with a green ball on top -
+						// the single thing that made every tree on the island read as a mushroom.
+						// Bark is not paper: it is dark, and at this sun a linear value near 0.03
+						// is what survives without clipping.
+						const FLinearColor Bark(0.030f, 0.019f, 0.011f, 1.0f);
+						const FLinearColor BarkTop(0.045f, 0.030f, 0.018f, 1.0f);
 						constexpr int32 TrunkSides = 6;
 						const FVector TrunkTop = Root + FVector(0.0f, 0.0f, TrunkHeight);
 						int32 BaseIdx[TrunkSides];
@@ -1319,9 +1324,17 @@ namespace Solstice
 				Rng.FRand() * 0.55f);
 			const FLinearColor LeafDark = Leaf * 0.72f;
 
-			AddTrunk(Out, Origin, Origin + Up.GetSafeNormal() * Height, TrunkRadius, 6, Bark);
+			// No trunk. `AddTrunk` used to be called unconditionally here, before the family was
+			// chosen, so every low bush was impaled on a 2-4 m pole - which is what those white
+			// sticks under the bushes were. A shrub is a bush, not a tree with its crown cut off.
+			// (The pole also rendered white, which sent the previous round chasing vertex colours
+			//  for an hour: the trunk was never the object being looked at.)
 
-			const int32 Family = Rng.RandRange(0, 2);
+			// Shrubs only. The tall trees are already built by BuildChunk - that pass owns the
+			// silhouette and the ink outline, and running a second tree generator on top of it
+			// doubled the triangle count to produce the same thing twice, slightly differently.
+			// What is left here is the low bush family, which BuildChunk does not make.
+			const int32 Family = 2;	// fixed: see above
 			if (Family == 0)
 			{
 				// Broadleaf: one big crown and a smaller one offset from it.
