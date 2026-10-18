@@ -61,7 +61,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 46;
+	constexpr int32 CelRecipeVersion = 49;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -660,40 +660,43 @@ sky += MoonCore * pow(saturate(cosM), 400.0) * MoonAlpha * 0.45;
 sky = lerp(sky, MoonCore, smoothstep(MoonDiscCos, MoonDiscCos + 0.00030, cosM) * MoonAlpha);
 
 // ---- clouds ----
-// Project the ray onto a flat deck: d.xy / h is the perspective-correct ground position, so
-// clouds converge toward the horizon on their own instead of being drawn at a constant size.
-// Soft denominator, not a clamp.
 //
-// The deck projection divides by the sine of the elevation, so it has a pole at the horizon.
-// Clamping the denominator (`max(h, 0.10)`) does not remove the pole, it *freezes* it: below
-// the clamp the pattern stops depending on elevation and becomes a function of azimuth alone,
-// which renders as hard vertical bars standing on the water. Adding a constant instead makes
-// the projection finite everywhere: it still converges toward the horizon like a real deck,
-// but it never divides by zero, so there is nothing to streak.
-float2 cp = (d.xy / (max(h, 0.0) + 0.22)) * CloudScale + float2(CloudDrift, CloudDrift * 0.37);
+// Two-dimensional value noise, projected onto a horizontal deck with a **soft denominator**.
+//
+// Two parameterisations were tried and rejected, and the reasons are worth keeping:
+//   - `d.xy / h` (pure deck projection) has a pole at the horizon; the noise stretches into
+//     long white slivers lying along the sky, and shaping the noise cannot fix a stretch that
+//     lives in the coordinate.
+//   - sampling 3D value noise at `d * scale` removes the pole but fails here for the opposite
+//     reason: the visible sky spans only about 7 degrees of elevation, so d.z moves through
+//     0..0.13 while d.xy moves across its whole range. The noise is effectively constant
+//     vertically and every cloud becomes a vertical column (measured, 2026-10-18).
+//
+// `d.xy / (h + c)` keeps the perspective convergence of a real deck and is finite everywhere.
+float2 cp = (d.xy / (max(h, 0.0) + 0.30)) * CloudScale + float2(CloudDrift, CloudDrift * 0.37);
 
-// Value noise with a *sin-free* hash.
-//
-// The usual `frac(sin(dot(i, k)) * 43758.5453)` breaks down here: the projected coordinate
-// reaches ~290 by the fourth octave, so the sine argument is ~1e5, where float32 has no
-// fractional precision left. The hash collapses to a constant, the FBM returns one value, and
-// the cloud mask came out exactly 0 over the whole sky - diagnosed by returning
-// float3(mask, fade, 0) and measuring pure black while fade read 1.0 (2026-10-18).
-//
-// This is Dave Hoskins' hash: multiply, frac, dot, frac. No transcendental, and stable.
+// Domain warp before sampling. Value noise lives on a square lattice, and after the deck
+// projection those squares become parallelograms: unfiltered, every cloud edge runs in a few
+// straight segments and the sky reads as folded paper. Pushing the sample point around with a
+// low-frequency sine pair bends the lattice and the edges come out irregular.
+float2 warp = float2(sin(cp.y * 0.61 + 1.3), sin(cp.x * 0.83 - 0.4));
+cp += warp * 0.55;
+
 float n = 0.0;
-float amp = 0.52;
-float2 off = cp;
-for (int i = 0; i < 4; i++)
+float camp = 0.55;
+for (int i = 0; i < 3; i++)
 {
-    float2 cell = floor(off);
-    float2 f = frac(off);
+    float2 cell = floor(cp);
+    float2 f = frac(cp);
     f = f * f * (3.0 - 2.0 * f);
 
-    float3 h0 = frac(float3(cell.x,                cell.y,                cell.x) * 0.1031);
-    float3 h1 = frac(float3(cell.x + 1.0,          cell.y,                cell.x + 1.0) * 0.1031);
-    float3 h2 = frac(float3(cell.x,                cell.y + 1.0,          cell.x) * 0.1031);
-    float3 h3 = frac(float3(cell.x + 1.0,          cell.y + 1.0,          cell.x + 1.0) * 0.1031);
+    // Hoskins hash. No `sin`: at these coordinates a sine argument loses its fractional
+    // precision in float32, the hash collapses to a constant and the cloud mask comes out
+    // exactly 0 over the whole sky.
+    float3 h0 = frac(float3(cell.x,        cell.y,        cell.x) * 0.1031);
+    float3 h1 = frac(float3(cell.x + 1.0,  cell.y,        cell.x + 1.0) * 0.1031);
+    float3 h2 = frac(float3(cell.x,        cell.y + 1.0,  cell.x) * 0.1031);
+    float3 h3 = frac(float3(cell.x + 1.0,  cell.y + 1.0,  cell.x + 1.0) * 0.1031);
     h0 += dot(h0, h0.yzx + 33.33);
     h1 += dot(h1, h1.yzx + 33.33);
     h2 += dot(h2, h2.yzx + 33.33);
@@ -704,29 +707,28 @@ for (int i = 0; i < 4; i++)
     float v2 = frac((h2.x + h2.y) * h2.z);
     float v3 = frac((h3.x + h3.y) * h3.z);
 
-    n += amp * lerp(lerp(v0, v1, f.x), lerp(v2, v3, f.x), f.y);
-    // Rotate between octaves. Scaling alone keeps every octave on the same axes, and the
-    // eye reads that as a tiled scale pattern rather than as cloud.
-    off = float2(off.x * 1.66 - off.y * 1.24, off.x * 1.24 + off.y * 1.66);
-    amp *= 0.5;
+    n += camp * lerp(lerp(v0, v1, f.x), lerp(v2, v3, f.x), f.y);
+    // Rotate between octaves: scaling alone keeps them on the same axes and the eye reads
+    // the result as a tiled scale pattern.
+    cp = float2(cp.x * 1.66 - cp.y * 1.24, cp.x * 1.24 + cp.y * 1.66);
+    camp *= 0.5;
 }
 
-// A second, cheaper sample offset toward the sun. Density rising sunward means this bit of
-// cloud faces the light; the difference is the whole shading model.
-float2 sunFlat = normalize(SunDir.xy + float2(1e-4, 0.0));
+// Sun-facing slope: the same field sampled a little further along the sun direction.
+float2 cp2 = (d.xy / (max(h, 0.0) + 0.30)) * CloudScale + float2(CloudDrift, CloudDrift * 0.37)
+	+ normalize(SunDir.xy + float2(1e-4, 0.0)) * 0.19;
 float m = 0.0;
-float amp2 = 0.52;
-float2 off2 = cp + sunFlat * 0.26;
-for (int j = 0; j < 3; j++)
+float camp2 = 0.55;
+for (int j = 0; j < 2; j++)
 {
-    float2 cell = floor(off2);
-    float2 f = frac(off2);
+    float2 cell = floor(cp2);
+    float2 f = frac(cp2);
     f = f * f * (3.0 - 2.0 * f);
 
-    float3 h0 = frac(float3(cell.x,                cell.y,                cell.x) * 0.1031);
-    float3 h1 = frac(float3(cell.x + 1.0,          cell.y,                cell.x + 1.0) * 0.1031);
-    float3 h2 = frac(float3(cell.x,                cell.y + 1.0,          cell.x) * 0.1031);
-    float3 h3 = frac(float3(cell.x + 1.0,          cell.y + 1.0,          cell.x + 1.0) * 0.1031);
+    float3 h0 = frac(float3(cell.x,        cell.y,        cell.x) * 0.1031);
+    float3 h1 = frac(float3(cell.x + 1.0,  cell.y,        cell.x + 1.0) * 0.1031);
+    float3 h2 = frac(float3(cell.x,        cell.y + 1.0,  cell.x) * 0.1031);
+    float3 h3 = frac(float3(cell.x + 1.0,  cell.y + 1.0,  cell.x + 1.0) * 0.1031);
     h0 += dot(h0, h0.yzx + 33.33);
     h1 += dot(h1, h1.yzx + 33.33);
     h2 += dot(h2, h2.yzx + 33.33);
@@ -737,33 +739,29 @@ for (int j = 0; j < 3; j++)
     float v2 = frac((h2.x + h2.y) * h2.z);
     float v3 = frac((h3.x + h3.y) * h3.z);
 
-    m += amp2 * lerp(lerp(v0, v1, f.x), lerp(v2, v3, f.x), f.y);
-    off2 = float2(off2.x * 1.66 - off2.y * 1.24, off2.x * 1.24 + off2.y * 1.66);
-    amp2 *= 0.5;
+    m += camp2 * lerp(lerp(v0, v1, f.x), lerp(v2, v3, f.x), f.y);
+    cp2 = float2(cp2.x * 1.66 - cp2.y * 1.24, cp2.x * 1.24 + cp2.y * 1.66);
+    camp2 *= 0.5;
 }
 
-// Coverage varies across the sky, so the deck forms clusters of large cloud and gaps of
-// small ones instead of an even field of identical puffs. `m` is the second sample (offset
-// toward the sun, so only weakly correlated with `n`) - reusing it here costs nothing.
-float cover = CloudThreshold + (m - 0.47) * 0.42;
-float mask = smoothstep(cover, cover + 0.15, n);
+// Coverage varies slowly across the sky, so the deck forms clusters of large cloud and gaps of
+// small ones instead of an even field of identical puffs. The modulation is gentle: at 0.42 it
+// cut the deck into shreds.
+float cover = CloudThreshold + (m - 0.42) * 0.22;
+float mask = smoothstep(cover, cover + 0.20, n);
 
-// The difference between the two samples is the sun-facing slope, and it has to be amplified
-// hard to be worth anything: at the noise's own contrast it produced +-0.05, which is a flat
-// silhouette of a cloud rather than a lit one.
-float lit = saturate((n - m) * 26.0 + 0.46);
+// The two samples differ along the sun direction, so their difference is the sun-facing slope.
+// Amplified hard: at the noise's own contrast it is a silhouette, not a lit volume.
+float lit = saturate((n - m) * 22.0 + 0.46);
 
-// Bases sit in their own shadow. A cumulus has a flat, darker underside and a bright top;
-// without this the cloud is one value and reads as paper.
-lit *= 0.55 + 0.45 * smoothstep(0.0, 0.075, h);
+// Bases sit in their own shade - a cumulus has a darker underside and a bright top.
+lit *= 0.55 + 0.45 * smoothstep(0.0, 0.09, h);
 
 float3 cloudCol = lerp(CloudShadow, CloudLit, lit);
 
-// Thin the deck out as it approaches the horizon: the projection compresses it to sub-pixel
-// there, and without this the far sky is a grey smear sitting on the water.
 // Fade the deck out over the last couple of degrees: at the horizon a cloud layer is a few
 // pixels tall and would only add noise.
-float fade = smoothstep(0.010, 0.055, h);
+float fade = smoothstep(0.012, 0.062, h);
 sky = lerp(sky, cloudCol, mask * fade);
 
 return sky;

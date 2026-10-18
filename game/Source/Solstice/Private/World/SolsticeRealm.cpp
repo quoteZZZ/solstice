@@ -137,10 +137,20 @@ namespace
 	// 5.5, not 9.0: at 9 the island's own albedo blew past the exposure - the framing
 	// midpoint measured 0.675 against a 0.45-0.60 target. The sea is emissive and does not
 	// take part, so this only affects the land.
-	constexpr float SunLightIntensity = 4.6f;
+	// 14, not 4.6, and the sky light below comes down with it.
+	//
+	// These two numbers do not set brightness - the exposure does - they set the *ratio*, and
+	// the ratio is what decides whether the frame has a light direction at all. A directional
+	// light of 4.6 against a captured sky at 0.25 looked reasonable on paper and measured as
+	// nothing: the island's large-scale shading had a direction concentration of R = 0.006,
+	// i.e. perfectly isotropic, so no face was brighter than any other and the world read as a
+	// flat illustration. Ambient was carrying the frame and the sun was decoration.
+	constexpr float SunLightIntensity = 14.0f;
 	const FLinearColor SunLightColour(1.0f, 0.97f, 0.92f);
 	// 1.0: a real-time captured sky light is already in physical units; anything else double-counts.
-	constexpr float SkyLightIntensity = 0.25f;
+	// 0.10: a captured sky is already in physical units (tens of thousands of nits), so this is a
+	// multiplier on something very large. At 0.25 it out-lit the sun on every surface facing up.
+	constexpr float SkyLightIntensity = 0.10f;
 
 	/**
 	 * R-41: fixed exposure, in stops of gain over the manual-mode default.
@@ -176,7 +186,7 @@ namespace
 	// The sun went from 9 to 100,000 lux - 13.4 stops - so the compensation comes down by the
 	// same 13.4: 0.75 - 13.4 = -12.65. Getting this wrong is not subtle: at +15 the frame is pure
 	// white, at 0 it is black.
-	constexpr float ExposureStops = 0.45f;
+	constexpr float ExposureStops = -1.15f;
 
 	// Fog depth (optical depth at one fit-camera-distance) for clear and fully overcast sky.
 	// Density is derived from these against the fit distance - see BuildStatics.
@@ -831,7 +841,7 @@ void ASolsticeRealm::BuildSkyMesh()
 		// Coverage -> threshold. The noise is centred near 0.47 with a spread around 0.12, so a
 		// threshold of 0.58 is a barely-there sky and 0.36 is overcast; mapping the sim's 0..1
 		// coverage onto that band keeps "clear" clear and "overcast" actually overcast.
-		SkyMID->SetScalarParameterValue(TEXT("CloudThreshold"), 0.60f - 0.28f * Cloud);
+		SkyMID->SetScalarParameterValue(TEXT("CloudThreshold"), 0.55f - 0.24f * Cloud);
 		SkyMID->SetScalarParameterValue(TEXT("CloudScale"), 3.2f);
 		SkyMID->SetScalarParameterValue(TEXT("SunDiscCos"),
 			FMath::Cos(FMath::DegreesToRadians(SunAngularRadiusDeg)));

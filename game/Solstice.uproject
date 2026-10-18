@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "{E11125EC-40C5-795E-8FE0-D0A9EB879AF8}",
+	"EngineAssociation": "5.8",
 	"Category": "Game",
 	"Description": "Solstice - a self-living paper diorama miniature world (perpetual god sandbox).",
 	"Modules": [
