@@ -1,0 +1,27 @@
+{
+  "id": "C",
+  "name_zh": "黄金时刻",
+  "reference": "Your Name x Hyrule",
+  "time_slot": "dusk",
+  "truth": "docs/art/PALETTE.md",
+  "colors": {
+    "sky_zenith": "#3B4E86",
+    "sky_mid": "#8A6FA8",
+    "sky_horizon": "#F5A76B",
+    "sun": "#FFE9B0",
+    "sun_glow": "#FF9E5E",
+    "sea_shallow": "#7FB2C4",
+    "sea_mid": "#3F6E8C",
+    "sea_deep": "#22384F",
+    "foam": "#FFEFE0",
+    "sand_dry": "#EFD2A8",
+    "sand_wet": "#B98E68",
+    "grass_light": "#C9C070",
+    "grass_mid": "#8A8A4E",
+    "grass_dark": "#4A5238",
+    "rock_light": "#C48F72",
+    "rock_dark": "#5B3F42",
+    "foliage_dark": "#333F35",
+    "foliage_lit": "#8FA05A"
+  }
+}

@@ -6,4 +6,6 @@ echo '[solstice] check-links ...'
 python tools/checks/check-links.py || exit 1
 echo '[solstice] validate-contracts ...'
 python tools/checks/validate-contracts.py || exit 1
+echo '[solstice] check-layers ...'
+python tools/checks/check-layers.py || exit 1
 exit 0

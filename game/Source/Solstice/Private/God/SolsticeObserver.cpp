@@ -29,7 +29,10 @@ ASolsticeObserver::ASolsticeObserver()
 	// A long lens compresses the realm the way a tilt-shift shot of a real diorama does. 38 is the
 	// compromise: at 28 the whole realm could not be framed without pushing the camera so far out
 	// that the height fog swallowed it, which is why the entry shot always looked cropped.
-	Camera->SetFieldOfView(38.0f);
+	// 50 degrees horizontal, not 38: at 16:9 the vertical field of 38 horizontal is only ~22
+	// degrees, and a horizon cannot sit inside that unless the camera is almost level. The
+	// landscape framing needs the sea's vanishing line about a third of the way down the frame.
+	Camera->SetFieldOfView(50.0f);
 
 	Apply();
 }

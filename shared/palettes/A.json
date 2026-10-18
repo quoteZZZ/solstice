@@ -1,0 +1,27 @@
+{
+  "id": "A",
+  "name_zh": "地中海正午",
+  "reference": "Wind Waker x Genshin",
+  "time_slot": "day",
+  "truth": "docs/art/PALETTE.md",
+  "colors": {
+    "sky_zenith": "#2E7FC2",
+    "sky_mid": "#62A9DC",
+    "sky_horizon": "#CFE6F2",
+    "sun": "#FFF3D0",
+    "sun_glow": "#FFD98A",
+    "sea_shallow": "#57C8C8",
+    "sea_mid": "#2E93B8",
+    "sea_deep": "#17527E",
+    "foam": "#F4FBF7",
+    "sand_dry": "#F0DCB0",
+    "sand_wet": "#C9A97A",
+    "grass_light": "#A8D45A",
+    "grass_mid": "#6FA83C",
+    "grass_dark": "#3E6B2E",
+    "rock_light": "#C9B79A",
+    "rock_dark": "#6E6152",
+    "foliage_dark": "#2F5A3A",
+    "foliage_lit": "#7FBF52"
+  }
+}

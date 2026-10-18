@@ -17,6 +17,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/PostProcessComponent.h"
 #include "Sim/SolsticeTypes.h"
 
 class UMaterialInterface;
@@ -35,10 +36,13 @@ namespace Solstice
 	{
 		UMaterialInterface* Cel = nullptr;
 		UMaterialInterface* Ink = nullptr;
+		/** One-sided ink for inverted hulls: the enlarged copy must show only its back faces. */
+		UMaterialInterface* InkHull = nullptr;
 		/** Pure vertex colour, no bands: the painted sky must arrive exactly as authored. */
 		UMaterialInterface* Sky = nullptr;
 		UMaterialInstanceDynamic* CelMID = nullptr;
 		UMaterialInstanceDynamic* InkMID = nullptr;
+		UMaterialInstanceDynamic* InkHullMID = nullptr;
 		UMaterialInstanceDynamic* SkyMID = nullptr;
 		/** True when our own master material was found and generated, false when we fell back. */
 		bool bAuthored = false;

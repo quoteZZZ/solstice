@@ -39,6 +39,31 @@ namespace
 	// smudge, not a matte.
 	// ------------------------------------------------------------------
 	constexpr float SkyCardGap = 1.35f;		// realm radii behind the realm centre
+
+	/**
+	 * How far the open sea runs, in realm radii.
+	 *
+	 * The sea has to leave the frame in every direction, otherwise the picture ends in blue nothing
+	 * and the island reads as a plate. 24 radii is past the frame edge at the landscape framing and
+	 * still inside the sky card, which is pushed out past it (see UpdateSkyView).
+	 */
+	constexpr float OceanRadiusRadii = 24.0f;
+	/**
+	 * Far water fades into this.
+	 *
+	 * It is the sky card's own "under the horizon" tone, not a colour of its own: the card is what
+	 * shows between the sea's far edge and the true horizon, so if the two differ by even a little
+	 * the frame gets a pale band lying on the water.
+	 */
+	const FLinearColor OceanHaze = Solstice::CelSrgb(0x8A, 0xB4, 0xD6);
+
+	/**
+	 * The sea is drawn with M_Sky (raw vertex colour), while the realm's own water goes through
+	 * M_Cel and picks up the lit band (~1.2x). Authoring the open sea at the same palette value as
+	 * the tile water therefore left a dark ring where they meet; this factor puts the two on the
+	 * same screen value without dragging the sea into the band/AO path.
+	 */
+	constexpr float OceanScreenGain = 1.22f;
 	constexpr float SkyCardOverscan = 1.12f;
 
 	// Sun and moon are painted, not projected: at a 35 degree down-pitch a physically placed sun
@@ -55,8 +80,8 @@ namespace
 	constexpr float SkyDriftRate = 0.02f;
 
 	/** sRGB tones of the three-band gradient, per time of day (art.md SS2.4). */
-	const FLinearColor DayZenith = Solstice::CelSrgb(0x2F, 0x63, 0xAE);
-	const FLinearColor DayMiddle = Solstice::CelSrgb(0x86, 0xB8, 0xE4);
+	const FLinearColor DayZenith = Solstice::CelSrgb(0x22, 0x55, 0xA8);
+	const FLinearColor DayMiddle = Solstice::CelSrgb(0x69, 0xA6, 0xDC);
 	// A shade under the art note's #EAF3FA: with no tone curve there is no shoulder, so the
 	// near-white has to be authored below the clip point or the band turns into flat paper.
 	const FLinearColor DayHorizon = Solstice::CelSrgb(0xE3, 0xEF, 0xF8);
@@ -76,13 +101,19 @@ namespace
 	const FLinearColor NightUnder = Solstice::CelSrgb(0x16, 0x28, 0x3C);
 
 	// ------------------------------------------------------------------
-	// Scene rig (docs/art/ART-STYLE.md SS2).
-	// The cel material is unlit and paints its own bands; these rigs only supply a light
-	// *direction*, a fill level, and the depth fog that sells the miniature scale.
+	// Scene rig.
+	//
+	// REBOOT B0 之前这里写着「cel 材质是 unlit，自己画色阶，灯只提供方向」——那句话是对的，
+	// 也是画面永远像贴纸的原因：方向光投下的影子没有人接收。
+	//
+	// 现在 M_Cel 是 DefaultLit，太阳真的照着世界。于是这组数字第一次有了物理含义：
+	// 太阳/天光的**比值**决定阴影可见度，比值太低时环境光会把影子洗掉（实测 3.2/0.4 时
+	// 树冠的投影几乎看不见）。9.0/0.25 ≈ 36:1 是晴天该有的量级，也是让接触阴影出得来的
+	// 最低比值。
 	// ------------------------------------------------------------------
-	constexpr float SunLightIntensity = 3.2f;
+	constexpr float SunLightIntensity = 9.0f;
 	const FLinearColor SunLightColour(1.0f, 0.97f, 0.92f);
-	constexpr float SkyLightIntensity = 0.4f;
+	constexpr float SkyLightIntensity = 0.25f;
 
 	/**
 	 * R-41: fixed exposure, in stops of gain over the manual-mode default.
@@ -312,6 +343,26 @@ void ASolsticeRealm::BuildStatics()
 	Gen::BuildBase(*Sim, Palette, Scratch);
 	Scratch.PushTo(BaseMesh, 0, false);
 
+	// ---- the open sea -------------------------------------------------------
+	// Section 2 of the base mesh, drawn with the sky material: pure vertex colour, no bands, no
+	// occlusion. It starts just under the realm's own water sheet (5 cm, so the two never z-fight)
+	// and runs 24 radii out, which is past the frame edge at the landscape framing.
+	{
+		const float Radius = FMath::Max(1000.0f, GetRealmRadiusUU());
+		Scratch.Reset();
+		FCelPalette OceanPalette = Palette;
+		OceanPalette.WaterDeep = Palette.WaterDeep * OceanScreenGain;
+		OceanPalette.WaterMid = Palette.WaterMid * OceanScreenGain;
+		OceanPalette.Water = Palette.Water * OceanScreenGain;
+		Gen::BuildOcean(Radius * 1.02f, Radius * OceanRadiusRadii,
+			Sim->GetSky().WaterLevel * MeterUU - 5.0f, OceanPalette, OceanHaze, Scratch);
+		Scratch.PushTo(BaseMesh, 2, false);
+		if (BaseMesh && FCelMaterials::Get().SkyMID)
+		{
+			BaseMesh->SetMaterial(2, FCelMaterials::Get().SkyMID);
+		}
+	}
+
 	BuildSkyMesh();
 
 	// The dome exists now, so the captured skylight finally has a sky to sample. Without this it
@@ -384,8 +435,10 @@ void ASolsticeRealm::UpdateSkyView()
 
 	// Behind the realm at every zoom: the far rim is one radius past the centre, and the extra
 	// gap keeps the card inside the sharp part of the depth-of-field band.
+	// The card has to sit *behind* the far edge of the sea, or the sea would be occluded by it.
 	SkyDistance = FMath::Max(1000.0f,
-		FVector::Dist(ViewLocation, GetRealmCentre()) + GetRealmRadiusUU() * SkyCardGap);
+		FMath::Max(FVector::Dist(ViewLocation, GetRealmCentre()) + GetRealmRadiusUU() * SkyCardGap,
+			GetRealmRadiusUU() * OceanRadiusRadii * 1.06f));
 
 	// Parent the card to the camera rather than re-placing it from the view point every tick.
 	// The camera manager only publishes its POV on its own tick, so a card placed from it is
@@ -480,7 +533,13 @@ void ASolsticeRealm::BuildSkyMesh()
 		ProjectV(Centre + Radial * (Radius * 0.52f) + FVector(0.0f, 0.0f, Radius * 0.62f), false);
 		ProjectV(Centre + Radial * (Radius * 0.30f) + FVector(0.0f, 0.0f, Radius * 0.80f), false);
 	}
-	const float HorizonV = FMath::Clamp(RimV + 0.02f, -0.75f, 0.92f);
+	// The horizon is where the *sea plane* vanishes, i.e. the camera's own horizontal direction.
+	// It used to be the terrain silhouette, which is right for a floating disc in a void and wrong
+	// the moment there is an ocean: a hill stands in front of the horizon, it does not define it.
+	// With the sea running past the frame, the bright band also has to sit exactly on that line or
+	// the far water and the sky meet in a seam.
+	const float HorizonV = FMath::Clamp(
+		FMath::Tan(FMath::DegreesToRadians(-SkyViewRotation.Pitch)) / FMath::Max(0.05f, SkyHalfTanV), -0.9f, 0.92f);
 	SkylineV = FMath::Max(SkylineV, HorizonV);
 
 	// ---- time of day ----------------------------------------------------
@@ -494,6 +553,7 @@ void ASolsticeRealm::BuildSkyMesh()
 
 	Gen::FSkyPaint Paint;
 	Paint.HorizonV = HorizonV;
+	Paint.VisibleTop = 1.0f / SkyCardOverscan;
 	Paint.Zenith = FMath::Lerp(FMath::Lerp(NightZenith, DayZenith, Daylight), DuskZenith, Golden * 0.75f);
 	Paint.Middle = FMath::Lerp(FMath::Lerp(NightMiddle, DayMiddle, Daylight), DuskMiddle, Golden * 0.75f);
 	Paint.Horizon = FMath::Lerp(FMath::Lerp(NightHorizon, DayHorizon, Daylight), DuskHorizon, Golden * 0.70f);
@@ -648,8 +708,13 @@ void ASolsticeRealm::RebuildDirtyChunks(int32 Budget)
 				continue;
 			}
 			Scratch.Reset();
-			Gen::BuildChunk(*Sim, ChunkX, ChunkY, Palette, Scratch);
+			HullScratch.Reset();
+			Gen::BuildChunk(*Sim, ChunkX, ChunkY, Palette, Scratch, HullScratch);
 			Scratch.PushTo(ChunkMeshes[Index], 0, true);
+			// Section 2 is the *one-sided* ink material: the inverted hull of every object in this
+			// chunk. One-sided is the whole trick - with the two-sided ink the enlarged front faces
+			// cover the object instead of ringing it. No collision: it exists to be a silhouette.
+			HullScratch.PushTo(ChunkMeshes[Index], 2, false);
 			UE_LOG(LogSolstice, Warning, TEXT("[diag] chunk %d,%d verts=%d tris=%d"),
 				ChunkX, ChunkY, Scratch.Num(), Scratch.Triangles.Num() / 3);
 			Sim->ClearRegionDirty(ChunkX, ChunkY);

@@ -37,12 +37,23 @@ namespace Solstice
 		int32 Num() const { return Positions.Num(); }
 		bool IsEmpty() const { return Triangles.Num() == 0; }
 
-		int32 Add(const FVector& Position, const FVector& Normal, const FVector2D& UV, const FLinearColor& Color)
+		/**
+		 * Add one vertex.
+		 *
+		 * `Occlusion` rides in the vertex colour's **alpha** channel: the cel material multiplies the
+		 * shading bands by it, which is how the world gets contact darkening without a shadow pass
+		 * (M_Cel is unlit, so a real shadow map never reaches the surface). 1 = open sky, 0.5 = a
+		 * crevice or the underside of a canopy.
+		 */
+		int32 Add(const FVector& Position, const FVector& Normal, const FVector2D& UV,
+			const FLinearColor& Color, float Occlusion = 1.0f)
 		{
 			const int32 Index = Positions.Add(Position);
 			Normals.Add(Normal);
 			UVs.Add(UV);
-			Colors.Add(Color);
+			FLinearColor Stored = Color;
+			Stored.A = FMath::Clamp(Occlusion, 0.0f, 1.0f);
+			Colors.Add(Stored);
 			return Index;
 		}
 
@@ -62,13 +73,14 @@ namespace Solstice
 
 		/** Add four corners and emit the quad. Corners run around the rim, not across it. */
 		void QuadP(const FVector& P0, const FVector& P1, const FVector& P2, const FVector& P3,
-			const FLinearColor& C0, const FLinearColor& C1, const FLinearColor& C2, const FLinearColor& C3)
+			const FLinearColor& C0, const FLinearColor& C1, const FLinearColor& C2, const FLinearColor& C3,
+			float Occlusion = 1.0f)
 		{
 			const FVector Normal = FVector::CrossProduct(P1 - P0, P3 - P0).GetSafeNormal();
-			const int32 A = Add(P0, Normal, FVector2D(0.0f, 0.0f), C0);
-			const int32 B = Add(P1, Normal, FVector2D(1.0f, 0.0f), C1);
-			const int32 C = Add(P2, Normal, FVector2D(1.0f, 1.0f), C2);
-			const int32 D2 = Add(P3, Normal, FVector2D(0.0f, 1.0f), C3);
+			const int32 A = Add(P0, Normal, FVector2D(0.0f, 0.0f), C0, Occlusion);
+			const int32 B = Add(P1, Normal, FVector2D(1.0f, 0.0f), C1, Occlusion);
+			const int32 C = Add(P2, Normal, FVector2D(1.0f, 1.0f), C2, Occlusion);
+			const int32 D2 = Add(P3, Normal, FVector2D(0.0f, 1.0f), C3, Occlusion);
 			Quad(A, B, C, D2);
 		}
 
@@ -85,12 +97,13 @@ namespace Solstice
 
 		/** A vertical ribbon between two rim points, spanning Z0..Z1. Used for paper cut edges. */
 		void Wall(const FVector& A, const FVector& B, float Z0, float Z1,
-			const FVector& Normal, const FLinearColor& BottomColor, const FLinearColor& TopColor)
+			const FVector& Normal, const FLinearColor& BottomColor, const FLinearColor& TopColor,
+			float BottomOcclusion = 1.0f, float TopOcclusion = 1.0f)
 		{
-			const int32 I0 = Add(FVector(A.X, A.Y, Z0), Normal, FVector2D(0.0f, 0.0f), BottomColor);
-			const int32 I1 = Add(FVector(B.X, B.Y, Z0), Normal, FVector2D(1.0f, 0.0f), BottomColor);
-			const int32 I2 = Add(FVector(B.X, B.Y, Z1), Normal, FVector2D(1.0f, 1.0f), TopColor);
-			const int32 I3 = Add(FVector(A.X, A.Y, Z1), Normal, FVector2D(0.0f, 1.0f), TopColor);
+			const int32 I0 = Add(FVector(A.X, A.Y, Z0), Normal, FVector2D(0.0f, 0.0f), BottomColor, BottomOcclusion);
+			const int32 I1 = Add(FVector(B.X, B.Y, Z0), Normal, FVector2D(1.0f, 0.0f), BottomColor, BottomOcclusion);
+			const int32 I2 = Add(FVector(B.X, B.Y, Z1), Normal, FVector2D(1.0f, 1.0f), TopColor, TopOcclusion);
+			const int32 I3 = Add(FVector(A.X, A.Y, Z1), Normal, FVector2D(0.0f, 1.0f), TopColor, TopOcclusion);
 			Quad(I0, I1, I2, I3);
 		}
 

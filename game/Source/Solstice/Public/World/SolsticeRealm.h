@@ -81,6 +81,8 @@ protected:
 
 	Solstice::FCelPalette Palette;
 	Solstice::FMeshBuilder Scratch;
+	/** Ink hulls for the chunk being rebuilt (section 1, ink material). */
+	Solstice::FMeshBuilder HullScratch;
 	Solstice::FMeshBuilder OutlineScratch;
 	int32 ChunksPerAxis = 2;
 	float SkyAccumulator = 0.0f;

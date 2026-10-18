@@ -593,7 +593,10 @@ void ASolsticePlayerController::ApplyCameraPreset(int32 Index)
 	switch (CameraPreset)
 	{
 	// 0 three-quarter isometric: the standard diorama read, whole world plus its sky
-	case 0:		Distance = Fit * 1.00f; Yaw = -45.0f; Pitch = -35.0f; AimLift = 0.13f; break;
+	// 0 is the landscape ("wallpaper") framing: low camera, sea running to the horizon, the realm
+	// sitting on the water. It replaced the 35 degree three-quarter in 2026-10-18: with an open
+	// ocean behind the world, a high camera only ever shows water and no sky.
+	case 0:		Distance = Fit * 0.98f; Yaw = -45.0f; Pitch = -11.0f; AimLift = 0.02f; break;
 	// 1 satellite survey: whole world from almost directly above
 	case 1:		Distance = Fit * 1.00f; Yaw = -52.0f; Pitch = -76.0f; break;
 	// 2 low ornament: whole world, camera just above the rim

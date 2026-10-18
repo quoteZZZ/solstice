@@ -73,8 +73,9 @@ namespace Solstice
 					Body[Index] = Transform.TransformPosition(Corners[Index]);
 					Rim[Index] = Transform.TransformPosition(Centre + (Corners[Index] - Centre) * OutlineScale - Normal * OutlinePush);
 				}
-				OutBody.QuadP(Body[0], Body[1], Body[2], Body[3], Card.Colour, Card.Colour, Card.Colour, Card.Colour);
-				OutOutline.QuadP(Rim[0], Rim[1], Rim[2], Rim[3], Ink, Ink, Ink, Ink);
+				// A standee stands *in* the grass: its lower edge is occluded by whatever it grows out of.
+				OutBody.QuadP(Body[0], Body[1], Body[2], Body[3], Card.Colour, Card.Colour, Card.Colour, Card.Colour, 0.80f);
+				OutOutline.QuadP(Rim[0], Rim[1], Rim[2], Rim[3], Ink, Ink, Ink, Ink, 0.80f);
 			}
 		}
 
@@ -150,6 +151,39 @@ namespace Solstice
 			const float West = FMath::Lerp(H00, H10, U);
 			const float East = FMath::Lerp(H01, H11, U);
 			return FMath::Lerp(West, East, V) * MeterUU;
+		}
+
+		/**
+		 * Copy the triangles of one object, scaled about its own pivot, as ink.
+		 *
+		 * `From`/`To` are vertex indices into `Src`, `TriFrom` a triangle index. Both are recorded
+		 * by the caller just before and after it emits the object, so this is exact - no normal
+		 * guessing, no re-tessellation.
+		 */
+		void EmitHull(const FMeshBuilder& Src, int32 From, int32 To, int32 TriFrom,
+			const FVector& Pivot, float Scale, const FLinearColor& Ink, FMeshBuilder& Hull)
+		{
+			if (To <= From)
+			{
+				return;
+			}
+			const int32 Base = Hull.Num();
+			for (int32 Index = From; Index < To; ++Index)
+			{
+				const FVector Position = Pivot + (Src.Positions[Index] - Pivot) * Scale;
+				Hull.Add(Position, Src.Normals[Index], Src.UVs[Index], Ink, 1.0f);
+			}
+			for (int32 Index = TriFrom; Index + 2 < Src.Triangles.Num(); Index += 3)
+			{
+				const int32 A = Src.Triangles[Index];
+				const int32 B = Src.Triangles[Index + 1];
+				const int32 C = Src.Triangles[Index + 2];
+				if (A < From || B < From || C < From || A >= To || B >= To || C >= To)
+				{
+					break;
+				}
+				Hull.Tri(Base + (A - From), Base + (B - From), Base + (C - From));
+			}
 		}
 
 		/** One vertex of the terrain sheet while it is being clipped. */
@@ -378,14 +412,17 @@ namespace Solstice
 			const float W = Wobble(Index);
 			const FVector Offset = AxisX * (CosA * RadiusUU * W) + AxisY * (SinA * RadiusUU * W);
 			const FVector Outward = (AxisX * CosA + AxisY * SinA + UpAxis * 0.25f).GetSafeNormal();
+			// Occlusion by ring: the skirt is in the object's own shade, the cap is open sky. This is
+			// the whole reason a canopy now reads as a volume instead of a flat green ball - M_Cel is
+			// unlit, so without it every ring is lit identically.
 			BaseRing[Index] = Out.Add(Centre + Offset, Outward,
-				FVector2D(0.5f + 0.5f * CosA, 0.5f + 0.5f * SinA), SideColour);
+				FVector2D(0.5f + 0.5f * CosA, 0.5f + 0.5f * SinA), SideColour, 0.58f);
 			TopRing[Index] = Out.Add(Centre + Offset * 0.72f + UpAxis * (HeightUU * 0.62f),
 				(Outward + UpAxis).GetSafeNormal(),
 				FVector2D(0.5f + 0.5f * CosA, 0.5f + 0.5f * SinA),
-				FMath::Lerp(SideColour, TopColour, 0.55f));
+				FMath::Lerp(SideColour, TopColour, 0.55f), 0.84f);
 		}
-		const int32 Cap = Out.Add(Centre + UpAxis * HeightUU, UpAxis, FVector2D(0.5f, 0.5f), TopColour);
+		const int32 Cap = Out.Add(Centre + UpAxis * HeightUU, UpAxis, FVector2D(0.5f, 0.5f), TopColour, 1.0f);
 		for (int32 Index = 0; Index < Sides; ++Index)
 		{
 			const int32 J = (Index + 1) % Sides;
@@ -473,7 +510,7 @@ namespace Solstice
 		return Base;
 	}
 
-	void Gen::BuildChunk(const FSimKernel& Kernel, int32 ChunkX, int32 ChunkY, const FCelPalette& Palette, FMeshBuilder& Out)
+	void Gen::BuildChunk(const FSimKernel& Kernel, int32 ChunkX, int32 ChunkY, const FCelPalette& Palette, FMeshBuilder& Out, FMeshBuilder& OutHull)
 	{
 		const int32 Size = Kernel.GetSize();
 		const int32 ChunkSize = Kernel.GetConfig().ChunkSize;
@@ -600,6 +637,20 @@ namespace Solstice
 					+ TileSurfaceOr(Kernel, X - 1, Y + 1, RealmRadiusSq, WaterLevel, Surface)
 					+ TileSurfaceOr(Kernel, X, Y + 1, RealmRadiusSq, WaterLevel, Surface));
 
+				// Curvature occlusion: a vertex that sits below the average of its own tile's corners
+				// is in a hollow, and gets darker. Cheap (no ray casts), stable between rebuilds, and
+				// it is what gives valleys and the foot of a ridge a readable crease.
+				const float LocalAvg = 0.25f * (H00 + H10 + H11 + H01) * MeterUU;
+				const auto GroundOcclusion = [LocalAvg, Tile](const FVector& P) -> float
+				{
+					if (Tile->IsWater())
+					{
+						return 1.0f;
+					}
+					const float Below = FMath::Max(0.0f, LocalAvg - P.Z);
+					return FMath::Clamp(1.0f - Below / 70.0f, 0.45f, 1.0f);
+				};
+
 				// The sim addresses the world in one-metre tiles, but that grid must not show up in
 				// the picture: one quad per tile leaves a 1 m facet everywhere and the realm reads as
 				// Minecraft. Subdividing each tile 3x3 with bilinear heights puts a 0.33 m facet on
@@ -654,10 +705,10 @@ namespace Solstice
 
 						if (!bClipped)
 						{
-							const int32 I00 = Out.Add(S00, PatchNormal(U0, V0), FVector2D(U0, V0), GroundColour(S00, PatchNormal(U0, V0)));
-							const int32 I10 = Out.Add(S10, PatchNormal(U1, V0), FVector2D(U1, V0), GroundColour(S10, PatchNormal(U1, V0)));
-							const int32 I11 = Out.Add(S11, PatchNormal(U1, V1), FVector2D(U1, V1), GroundColour(S11, PatchNormal(U1, V1)));
-							const int32 I01 = Out.Add(S01, PatchNormal(U0, V1), FVector2D(U0, V1), GroundColour(S01, PatchNormal(U0, V1)));
+							const int32 I00 = Out.Add(S00, PatchNormal(U0, V0), FVector2D(U0, V0), GroundColour(S00, PatchNormal(U0, V0)), GroundOcclusion(S00));
+							const int32 I10 = Out.Add(S10, PatchNormal(U1, V0), FVector2D(U1, V0), GroundColour(S10, PatchNormal(U1, V0)), GroundOcclusion(S10));
+							const int32 I11 = Out.Add(S11, PatchNormal(U1, V1), FVector2D(U1, V1), GroundColour(S11, PatchNormal(U1, V1)), GroundOcclusion(S11));
+							const int32 I01 = Out.Add(S01, PatchNormal(U0, V1), FVector2D(U0, V1), GroundColour(S01, PatchNormal(U0, V1)), GroundOcclusion(S01));
 
 							Out.Tri(I00, I10, I11);
 							Out.Tri(I00, I11, I01);
@@ -676,12 +727,12 @@ namespace Solstice
 							ClipPolyToDisc(Poly, 4, Torn, Clipped);
 							if (Clipped.Num() >= 3)
 							{
-								const int32 First = Out.Add(Clipped[0].P, Clipped[0].N, Clipped[0].UV, GroundColour(Clipped[0].P, Clipped[0].N));
-								int32 Prev = Out.Add(Clipped[1].P, Clipped[1].N, Clipped[1].UV, GroundColour(Clipped[1].P, Clipped[1].N));
+								const int32 First = Out.Add(Clipped[0].P, Clipped[0].N, Clipped[0].UV, GroundColour(Clipped[0].P, Clipped[0].N), GroundOcclusion(Clipped[0].P));
+								int32 Prev = Out.Add(Clipped[1].P, Clipped[1].N, Clipped[1].UV, GroundColour(Clipped[1].P, Clipped[1].N), GroundOcclusion(Clipped[1].P));
 								for (int32 Index = 2; Index < Clipped.Num(); ++Index)
 								{
 									const int32 Next = Out.Add(Clipped[Index].P, Clipped[Index].N, Clipped[Index].UV,
-										GroundColour(Clipped[Index].P, Clipped[Index].N));
+										GroundColour(Clipped[Index].P, Clipped[Index].N), GroundOcclusion(Clipped[Index].P));
 									Out.Tri(First, Prev, Next);
 									Prev = Next;
 								}
@@ -808,6 +859,8 @@ namespace Solstice
 				if (!bClipped && !Tile->IsWater() && Surface > 8.0f && Surface < 38.0f
 					&& CelGrain(X * 13 + 5, Y * 7 + 3) > 0.87f)
 				{
+					const int32 HullFrom = Out.Num();
+					const int32 HullTriFrom = Out.Triangles.Num();
 					const float TrunkHeight = 120.0f + 120.0f * CelGrain(X + 11, Y + 17);
 					const float CrownRadius = 90.0f + 70.0f * CelGrain(Y + 3, X + 29);
 					const FVector Root(Centre.X, Centre.Y, Surface * MeterUU);
@@ -827,8 +880,8 @@ namespace Solstice
 							const float Angle = 2.0f * PI * static_cast<float>(Side) / TrunkSides
 								+ CelGrain(X + Side, Y - Side) * 0.4f;
 							const FVector Dir(FMath::Cos(Angle), FMath::Sin(Angle), 0.0f);
-							BaseIdx[Side] = Out.Add(Root + Dir * BaseR, Dir, FVector2D(0.0f, 1.0f), Bark);
-							TopIdx[Side] = Out.Add(TrunkTop + Dir * TopR, Dir, FVector2D(0.0f, 0.0f), BarkTop);
+							BaseIdx[Side] = Out.Add(Root + Dir * BaseR, Dir, FVector2D(0.0f, 1.0f), Bark, 0.55f);
+							TopIdx[Side] = Out.Add(TrunkTop + Dir * TopR, Dir, FVector2D(0.0f, 0.0f), BarkTop, 0.85f);
 						}
 						for (int32 Side = 0; Side < TrunkSides; ++Side)
 						{
@@ -839,9 +892,13 @@ namespace Solstice
 					}
 
 					// Canopy: three cushions climbing and shrinking, each rotated off the last.
-					const FLinearColor LeafDark = Palette.Moss * (0.78f + 0.12f * CelGrain(X + 41, Y + 43));
-					const FLinearColor LeafMid = Palette.Moss * (0.98f + 0.14f * CelGrain(X + 17, Y + 5));
-					const FLinearColor LeafLit = Palette.Moss * (1.24f + 0.10f * CelGrain(X + 61, Y + 3));
+					// Canopies are a *darker, cooler* green than the grass, not the same green at another
+					// brightness: the prototype's tree palette note is explicit about this ("树冠要比草地
+					// 更深... 靠深绿的团和亮绿的草拉开层次"), and with one palette for both, an island of
+					// trees and grass reads as a single green carpet.
+					const FLinearColor LeafDark = CelSrgb(0x2A, 0x55, 0x30) * (0.94f + 0.10f * CelGrain(X + 41, Y + 43));
+					const FLinearColor LeafMid = CelSrgb(0x3C, 0x74, 0x38) * (0.96f + 0.10f * CelGrain(X + 17, Y + 5));
+					const FLinearColor LeafLit = CelSrgb(0x55, 0x95, 0x45) * (0.98f + 0.08f * CelGrain(X + 61, Y + 3));
 					const float LayerH = CrownRadius * 0.52f;
 					const float BaseZ = TrunkHeight * 0.82f;
 					Cushion(Out, Root + FVector(0.0f, 0.0f, BaseZ), 7, CrownRadius, LayerH,
@@ -850,6 +907,11 @@ namespace Solstice
 						LeafMid, LeafLit, (X + 9) * 31 + (Y + 4) * 7);
 					Cushion(Out, Root + FVector(0.0f, 0.0f, BaseZ + LayerH * 1.18f), 6, CrownRadius * 0.58f, LayerH * 0.70f,
 						LeafMid, LeafLit, (X + 17) * 31 + (Y + 11) * 7);
+
+					// Ink hull around the whole tree, pivoted at its root so the crown grows outward
+					// rather than sliding away from the trunk.
+					EmitHull(Out, HullFrom, Out.Num(), HullTriFrom,
+						Root + FVector(0.0f, 0.0f, TrunkHeight * 0.55f), 1.09f, Palette.InkWash, OutHull);
 				}
 
 				// ---- boulders -------------------------------------------------------------
@@ -859,6 +921,8 @@ namespace Solstice
 				if (!bClipped && !Tile->IsWater() && Surface > 10.0f
 					&& CelGrain(X * 29 + 7, Y * 19 + 5) > 0.915f)
 				{
+					const int32 HullFrom = Out.Num();
+					const int32 HullTriFrom = Out.Triangles.Num();
 					const float StoneR = 26.0f + 34.0f * CelGrain(X + 51, Y + 37);
 					const float StoneH = StoneR * (0.55f + 0.45f * CelGrain(X + 63, Y + 21));
 					const FLinearColor Stone(0.56f, 0.55f, 0.52f, 1.0f);
@@ -868,6 +932,9 @@ namespace Solstice
 					// above the hills (the "specks" that survived every edge fix, 2026-10-18).
 					Cushion(Out, FVector(Centre.X, Centre.Y, Surface * MeterUU), 6, StoneR, StoneH,
 						Stone, StoneTop, X * 53 + Y * 17);
+
+					EmitHull(Out, HullFrom, Out.Num(), HullTriFrom,
+						FVector(Centre.X, Centre.Y, Surface * MeterUU), 1.10f, Palette.InkWash, OutHull);
 				}
 
 				// The rim wall used to live here: one zero-height wall per tile edge, i.e. the very
@@ -992,7 +1059,11 @@ namespace Solstice
 			const float RimRadius = TornRadius(Radius, CosA, SinA);
 			const FVector2D Point(CosA * RimRadius, SinA * RimRadius);
 			Rim.Add(Point);
-			RimTop.Add(FMath::Max(Bottom, SheetHeightAt(Kernel, Point.X, Point.Y, WaterLevel)) + LipUU);
+			// The cut edge used to follow the ground up the hillside. With an open sea around the
+			// world that wall is a black ring on the water: keep the whole edge under the water
+			// line, so the land simply rises out of the sea.
+			const float UnderWater = WaterLevel * MeterUU - 90.0f;
+			RimTop.Add(FMath::Clamp(SheetHeightAt(Kernel, Point.X, Point.Y, WaterLevel) + LipUU, Bottom, UnderWater));
 		}
 
 		// Underside only. The top cap is gone with the exposed-plane bug: the sheet covers the top,
@@ -1019,6 +1090,64 @@ namespace Solstice
 			const FVector Normal = FVector::CrossProduct(P1 - P0, Up).GetSafeNormal();
 			// Single colour top to bottom: the spec calls the cut edge a flat dark band.
 			Out.Wall(P0, P1, Bottom, FMath::Max(RimTop[Index], RimTop[Next]), Normal, CutInk, CutInk);
+		}
+	}
+
+	void Gen::BuildOcean(float InnerRadiusUU, float OuterRadiusUU, float SeaLevelUU,
+		const FCelPalette& Palette, const FLinearColor& HorizonHaze, FMeshBuilder& Out)
+	{
+		constexpr int32 Segments = 160;
+		constexpr int32 Rings = 18;
+		const float Inner = FMath::Max(1.0f, InnerRadiusUU);
+		const float Outer = FMath::Max(Inner * 1.2f, OuterRadiusUU);
+
+		// Ring spacing grows with radius: the near water needs enough rows to carry the depth
+		// gradient, the far water is a colour wash and one row per kilometre is plenty.
+		TArray<float> Radii;
+		Radii.Reserve(Rings + 1);
+		for (int32 Ring = 0; Ring <= Rings; ++Ring)
+		{
+			const float T = static_cast<float>(Ring) / static_cast<float>(Rings);
+			Radii.Add(Inner + (Outer - Inner) * FMath::Pow(T, 2.2f));
+		}
+
+		const FVector Up(0.0f, 0.0f, 1.0f);
+		TArray<int32> Previous;
+		for (int32 Ring = 0; Ring <= Rings; ++Ring)
+		{
+			const float Radius = Radii[Ring];
+			const float T = static_cast<float>(Ring) / static_cast<float>(Rings);
+
+			// Open water only: the lagoon and the shelf are the realm's own tile water, and repeating
+			// them out here put a bright ring around the island where the two met.
+			// From the deep tone it fades into the horizon haze, slowly, so the far water and the
+			// sky meet without a seam.
+			const float HazeT = FMath::Clamp(T / 0.92f, 0.0f, 1.0f);
+			const FLinearColor Colour = FMath::Lerp(Palette.WaterDeep, HorizonHaze, FMath::Pow(HazeT, 1.6f));
+
+			TArray<int32> Current;
+			Current.Reserve(Segments);
+			for (int32 Index = 0; Index < Segments; ++Index)
+			{
+				const float Angle = 2.0f * PI * static_cast<float>(Index) / static_cast<float>(Segments);
+				const float CosA = FMath::Cos(Angle);
+				const float SinA = FMath::Sin(Angle);
+				Current.Add(Out.Add(FVector(CosA * Radius, SinA * Radius, SeaLevelUU), Up,
+					FVector2D(static_cast<float>(Index) / Segments, T), Colour, 1.0f));
+			}
+
+			if (Ring > 0)
+			{
+				for (int32 Index = 0; Index < Segments; ++Index)
+				{
+					const int32 Next = (Index + 1) % Segments;
+					// Wound so the face looks up; M_Sky is two-sided but the winding still matters
+					// for anything that ends up doing depth prepass work.
+					Out.Tri(Previous[Index], Current[Index], Current[Next]);
+					Out.Tri(Previous[Index], Current[Next], Previous[Next]);
+				}
+			}
+			Previous = MoveTemp(Current);
 		}
 	}
 
@@ -1112,8 +1241,14 @@ namespace Solstice
 		constexpr float CirrusZ = 0.9980f;
 		constexpr float CumulusZ = 0.9972f;
 
-		/** How high the bright horizon band sits, in card-height units. */
-		constexpr float HorizonBand = 0.07f;
+		/**
+		 * Thickness of the bright horizon band, in card-height units.
+		 *
+		 * 0.07 was a tenth of the frame of near-white. Once the sea runs to the horizon the band
+		 * reads as a fog bank lying on the water, and the sky above it turns into a pale wash: a
+		 * cel horizon is a *line*, not a band.
+		 */
+		constexpr float HorizonBand = 0.022f;
 
 		/**
 		 * The three-band gradient. Above the horizon band it walks Horizon -> Middle -> Zenith;
@@ -1126,16 +1261,18 @@ namespace Solstice
 
 			if (V >= H - HorizonBand * 0.5f)
 			{
-				const float Span = FMath::Max(0.10f, 1.0f - H);
+				const float Span = FMath::Max(0.10f, Paint.VisibleTop - H);
 				const float T = FMath::Clamp((V - H) / Span, 0.0f, 1.0f);
 				return (T < 0.58f)
 					? FMath::Lerp(Paint.Horizon, Paint.Middle, T / 0.58f)
 					: FMath::Lerp(Paint.Middle, Paint.Zenith, (T - 0.58f) / 0.42f);
 			}
 
+			// Below the horizon the sky darkens quickly: this is the far sea's backdrop, and a long
+			// ramp here was the pale wash that hid the water's own haze.
 			const float Span = FMath::Max(0.10f, H + 1.0f);
 			const float T = FMath::Clamp((H - V) / Span, 0.0f, 1.0f);
-			return FMath::Lerp(Paint.Horizon, Paint.Under, FMath::Min(1.0f, T / 0.55f));
+			return FMath::Lerp(Paint.Horizon, Paint.Under, FMath::Min(1.0f, T / 0.25f));
 		}
 
 		/**

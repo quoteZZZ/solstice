@@ -46,6 +46,8 @@ Solstice 的环境检测、安装、工程生成与构建脚本；PowerShell 部
 | 脚本 | 用途 | 示例 |
 |---|---|---|
 | `checks/check-links.py` | 扫描 `docs/` 与各 README 的相对链接，0 断链才提交；有断链退出码 1 | `python tools/checks/check-links.py` |
+| `checks/check-layers.py` | **层次防线**：①`Sim/` 只许 include 纯数学/容器头（禁 UObject/Tick/渲染/输入），否则内核就跑不了无头回归；②依赖方向 `Sim→Gen→Render→World→God/UI`，不许反向。已知例外写在脚本 `ALLOWED` 里，每条都注明谁来消除 | `python tools/checks/check-layers.py` |
+| `checks/grade-preview.py` | **色板验证**：拿当前帧按 `shared/palettes/*.json` 的精确 HEX 重绘，输出到 `tmp/review/palette/`。证明的是颜色结构（三档海 / 三段天 / 三层地），不是画质 | `python tools/checks/grade-preview.py` |
 | `checks/validate-contracts.py` | `shared/schema/` ↔ `game/Config/Solstice/Data/` 逐对校验 + 卡 / 物种 id 查重；并校验 `Localization/` 双语言 key 对齐（缺失 / 多余 key、占位符不一致、空值）；内置迷你 JSON Schema 子集，无需安装依赖 | `python tools/checks/validate-contracts.py` |
 
 **验收用的量具（不在上面两条链路里，需要 Pillow）**：

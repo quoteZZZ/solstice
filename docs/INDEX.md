@@ -25,6 +25,8 @@ owner: both
 | [`gameplay/INTERVENTION.md`](gameplay/INTERVENTION.md) | L1 | 玩家怎么用卡：手牌、实体池、余响规则、释放手感 |
 | [`tech/tech.md`](tech/tech.md) | L1 | 性能预算、模块依赖、仓库目录与命名、归位决策 |
 | [`plan/work.md`](plan/work.md) | L1 | **施工派单板 + 工单池 + 待裁决**（分析→开发的唯一交接口） |
+| [`plan/REBOOT.md`](plan/REBOOT.md) | L1 | **架构与画面重启方案 v2（draft，待确认）**：目录树与命名、依赖矩阵与扩展点、ToonRamp 参数化管线、性能分项预算、三套色板、文档重整清单 |
+| [`art/PALETTE.md`](art/PALETTE.md) | L1 | **色板唯一真源**：三条色彩法则（明度阶梯 / 冷暖对位 / 60-30-10）、三套成品 HEX、来源与"廉价感"自检清单 |
 | [`plan/ROADMAP.md`](plan/ROADMAP.md) | L2 | 三阶段切分与验收口径 |
 | [`charter/CHARTER.md`](charter/CHARTER.md) | L2 | **宪章**：定位 / 支柱 / 非目标 §1 · **已定口径表 58 轮** §5 · **待裁决与已否决** §6 |
 | [`CHANGELOG.md`](CHANGELOG.md) | L2 | **全仓唯一变更记录**：一行一条，倒序 |

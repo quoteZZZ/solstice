@@ -1,0 +1,27 @@
+{
+  "id": "B",
+  "name_zh": "北海道初夏",
+  "reference": "Ghibli x A Short Hike",
+  "time_slot": "overcast",
+  "truth": "docs/art/PALETTE.md",
+  "colors": {
+    "sky_zenith": "#5E97C4",
+    "sky_mid": "#9CC4DE",
+    "sky_horizon": "#E4EFEF",
+    "sun": "#FFF6E2",
+    "sun_glow": "#FFE0A8",
+    "sea_shallow": "#8FD3C4",
+    "sea_mid": "#4E9E9B",
+    "sea_deep": "#2B5F6B",
+    "foam": "#FBFDF8",
+    "sand_dry": "#F2E3C8",
+    "sand_wet": "#CBB18D",
+    "grass_light": "#C8DB8A",
+    "grass_mid": "#8FAE5C",
+    "grass_dark": "#55703F",
+    "rock_light": "#D6CEC0",
+    "rock_dark": "#7A7268",
+    "foliage_dark": "#3C5B45",
+    "foliage_lit": "#9CC46A"
+  }
+}

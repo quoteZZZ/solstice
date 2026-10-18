@@ -31,6 +31,16 @@
 #include "Materials/MaterialExpressionDotProduct.h"
 #include "Materials/MaterialExpressionMultiply.h"
 #include "Materials/MaterialExpressionSaturate.h"
+#include "Materials/MaterialExpressionOneMinus.h"
+#include "Materials/MaterialExpressionSubtract.h"
+#include "Materials/MaterialExpressionAdd.h"
+#include "Materials/MaterialExpressionMultiply.h"
+#include "Materials/MaterialExpressionDotProduct.h"
+#include "Materials/MaterialExpressionScalarParameter.h"
+#include "Materials/MaterialExpressionVectorParameter.h"
+#include "Materials/MaterialExpressionConstant.h"
+#include "Materials/MaterialExpressionFresnel.h"
+#include "Materials/MaterialExpressionLinearInterpolate.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionStep.h"
 #include "Materials/MaterialExpressionSubtract.h"
@@ -48,7 +58,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 3;
+	constexpr int32 CelRecipeVersion = 12;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -101,95 +111,42 @@ namespace
 
 		Material->MaterialDomain = MD_Surface;
 		Material->BlendMode = BLEND_Opaque;
-		Material->SetShadingModel(MSM_Unlit);
-		// Two-sided: the sky shell is seen from inside, the outline cards from behind.
+		// ★ B0：Lit，不是 Unlit。
+		//
+		// 这是整个 REBOOT 的地基。Unlit 表面收不到方向光的阴影、天光的漫射、SSAO 的
+		// 环境遮挡、SSR 的反射 —— 所以无论色板怎么调，世界永远像一张贴纸。
+		// 改成 DefaultLit 之后，明暗第一次由「光」而不是「顶点色里的常量」决定。
+		//
+		// 卡通感没有被丢掉：它现在由 B1 的后处理色阶（ToonRamp）承担，而不是由
+		// 顶点色伪造。两者只能选一个，而伪造的这个拿不到阴影。
+		Material->SetShadingModel(MSM_DefaultLit);
+		// Two-sided: the cut edge and the hull cards are seen from both sides.
 		Material->TwoSided = true;
 
 		Material->GetExpressionCollection().Empty();
 
-		// ---- inputs -------------------------------------------------------
-		UMaterialExpressionVertexNormalWS* Normal = AddExpr<UMaterialExpressionVertexNormalWS>(Material, -1400, -200);
+		// ---- albedo -------------------------------------------------------
+		// 顶点色从「最终颜色」降级为「albedo」。生成器写进去的本来就是纯色（`TileColour`
+		// 不带明暗），所以这一步不改任何一个色值，只改它的语义。
+		UMaterialExpressionVertexColor* VertexColour = AddExpr<UMaterialExpressionVertexColor>(Material, -600, -60);
 
-		UMaterialExpressionVectorParameter* SunVector = AddExpr<UMaterialExpressionVectorParameter>(Material, -1400, 0);
-		SunVector->ParameterName = TEXT("SunDirection");
-		SunVector->DefaultValue = FLinearColor(0.4f, 0.4f, 0.82f, 0.0f);
+		UMaterialExpressionScalarParameter* Roughness = AddExpr<UMaterialExpressionScalarParameter>(Material, -600, 180);
+		Roughness->ParameterName = TEXT("SurfaceRoughness");
+		Roughness->DefaultValue = 0.88f;
 
-		UMaterialExpressionVectorParameter* ShadowTint = AddExpr<UMaterialExpressionVectorParameter>(Material, -1400, 220);
-		ShadowTint->ParameterName = TEXT("ShadowTint");
-		ShadowTint->DefaultValue = FLinearColor(0.34f, 0.38f, 0.52f, 1.0f);
+		UMaterialExpressionScalarParameter* Specular = AddExpr<UMaterialExpressionScalarParameter>(Material, -600, 300);
+		Specular->ParameterName = TEXT("SurfaceSpecular");
+		Specular->DefaultValue = 0.10f;
 
-		UMaterialExpressionVectorParameter* MidTint = AddExpr<UMaterialExpressionVectorParameter>(Material, -1400, 400);
-		MidTint->ParameterName = TEXT("MidTint");
-		MidTint->DefaultValue = FLinearColor(0.78f, 0.78f, 0.78f, 1.0f);
-
-		UMaterialExpressionVectorParameter* LitTint = AddExpr<UMaterialExpressionVectorParameter>(Material, -1400, 580);
-		LitTint->ParameterName = TEXT("LitTint");
-		LitTint->DefaultValue = FLinearColor(1.0f, 0.98f, 0.94f, 1.0f);
-
-		// Band edges are parameters, not constants: SS2.1 calls 0.30 / 0.62 a starting point that
-		// gets retuned at the style gate, and retuning should not mean recompiling C++.
-		UMaterialExpressionScalarParameter* BandLow = AddExpr<UMaterialExpressionScalarParameter>(Material, -1400, 760);
-		BandLow->ParameterName = TEXT("BandLow");
-		BandLow->DefaultValue = 0.30f;
-
-		UMaterialExpressionScalarParameter* BandHigh = AddExpr<UMaterialExpressionScalarParameter>(Material, -1400, 900);
-		BandHigh->ParameterName = TEXT("BandHigh");
-		BandHigh->DefaultValue = 0.62f;
-
-		UMaterialExpressionScalarParameter* Recipe = AddExpr<UMaterialExpressionScalarParameter>(Material, -1400, 1040);
+		UMaterialExpressionScalarParameter* Recipe = AddExpr<UMaterialExpressionScalarParameter>(Material, -600, 420);
 		Recipe->ParameterName = TEXT("RecipeVersion");
 		Recipe->DefaultValue = static_cast<float>(CelRecipeVersion);
 
-		// ---- bands --------------------------------------------------------
-		UMaterialExpressionDotProduct* Dot = AddExpr<UMaterialExpressionDotProduct>(Material, -1120, -60);
-		Dot->A.Expression = Normal;
-		Dot->B.Expression = SunVector;
-
-		UMaterialExpressionSaturate* Facing = AddExpr<UMaterialExpressionSaturate>(Material, -920, -60);
-		Facing->Input.Expression = Dot;
-
-		UMaterialExpressionStep* AboveLow = AddExpr<UMaterialExpressionStep>(Material, -720, -120);
-		AboveLow->Y.Expression = BandLow;
-		AboveLow->X.Expression = Facing;
-
-		UMaterialExpressionStep* AboveHigh = AddExpr<UMaterialExpressionStep>(Material, -720, 40);
-		AboveHigh->Y.Expression = BandHigh;
-		AboveHigh->X.Expression = Facing;
-
-		UMaterialExpressionSubtract* MidRise = AddExpr<UMaterialExpressionSubtract>(Material, -520, -120);
-		MidRise->A.Expression = MidTint;
-		MidRise->B.Expression = ShadowTint;
-
-		UMaterialExpressionSubtract* LitRise = AddExpr<UMaterialExpressionSubtract>(Material, -520, 40);
-		LitRise->A.Expression = LitTint;
-		LitRise->B.Expression = MidTint;
-
-		UMaterialExpressionMultiply* MidStep = AddExpr<UMaterialExpressionMultiply>(Material, -320, -120);
-		MidStep->A.Expression = AboveLow;
-		MidStep->B.Expression = MidRise;
-
-		UMaterialExpressionMultiply* LitStep = AddExpr<UMaterialExpressionMultiply>(Material, -320, 40);
-		LitStep->A.Expression = AboveHigh;
-		LitStep->B.Expression = LitRise;
-
-		UMaterialExpressionAdd* ShadeMid = AddExpr<UMaterialExpressionAdd>(Material, -120, -60);
-		ShadeMid->A.Expression = ShadowTint;
-		ShadeMid->B.Expression = MidStep;
-
-		UMaterialExpressionAdd* Shade = AddExpr<UMaterialExpressionAdd>(Material, 80, -20);
-		Shade->A.Expression = ShadeMid;
-		Shade->B.Expression = LitStep;
-
-		// ---- albedo -------------------------------------------------------
-		UMaterialExpressionVertexColor* VertexColour = AddExpr<UMaterialExpressionVertexColor>(Material, 80, 180);
-
-		UMaterialExpressionMultiply* Result = AddExpr<UMaterialExpressionMultiply>(Material, 300, 60);
-		Result->A.Expression = VertexColour;
-		Result->B.Expression = Shade;
-
 		if (UMaterialEditorOnlyData* EditorData = Material->GetEditorOnlyData())
 		{
-			EditorData->EmissiveColor.Expression = Result;
+			EditorData->BaseColor.Expression = VertexColour;
+			EditorData->Roughness.Expression = Roughness;
+			EditorData->Specular.Expression = Specular;
 		}
 
 		Material->PostEditChange();
@@ -204,6 +161,7 @@ namespace
 	 * would multiply the gradient by a shading band picked from the card's normal, which is how a
 	 * near-white horizon turns into a blue-grey stripe depending on which way the camera faces.
 	 */
+
 	bool BuildSky()
 	{
 		const FString PackageName = TEXT("/Game/Core/M_Sky");
@@ -227,6 +185,45 @@ namespace
 		if (UMaterialEditorOnlyData* EditorData = Material->GetEditorOnlyData())
 		{
 			EditorData->EmissiveColor.Expression = VertexColour;
+		}
+
+		Material->PostEditChange();
+		return SaveAsset(Material, PackageName);
+	}
+
+	/**
+	 * M_InkHull - the ink for inverted hulls: **one-sided**.
+	 *
+	 * The hull is a slightly enlarged copy of an object. With a two-sided ink material its front
+	 * faces sit in front of the object and simply paint it black (measured: every canopy came out
+	 * a brown blob). One-sided + enlarged means only the back faces of the copy survive, and the
+	 * only part of them not hidden by the object is the ring outside its silhouette - which is
+	 * exactly the outline.
+	 *
+	 * The standee ink cards keep the two-sided M_Ink: they are flat cards and need both faces.
+	 */
+	bool BuildInkHull()
+	{
+		const FString PackageName = TEXT("/Game/Core/M_InkHull");
+		UMaterial* Material = FindOrCreateMaterial(PackageName);
+		if (!Material)
+		{
+			return false;
+		}
+
+		Material->MaterialDomain = MD_Surface;
+		Material->BlendMode = BLEND_Opaque;
+		Material->SetShadingModel(MSM_Unlit);
+		Material->TwoSided = false;
+
+		Material->GetExpressionCollection().Empty();
+
+		UMaterialExpressionConstant3Vector* Ink = AddExpr<UMaterialExpressionConstant3Vector>(Material, -400, 0);
+		Ink->Constant = FLinearColor(0.055f, 0.048f, 0.042f, 1.0f);
+
+		if (UMaterialEditorOnlyData* EditorData = Material->GetEditorOnlyData())
+		{
+			EditorData->EmissiveColor.Expression = Ink;
 		}
 
 		Material->PostEditChange();
@@ -306,6 +303,20 @@ bool FSolsticeCelMaterialBuilder::BuildAll()
 		else
 		{
 			UE_LOG(LogSolstice, Error, TEXT("could not generate /Game/Core/M_Cel"));
+			bOk = false;
+		}
+	}
+
+	const FString InkHullPath = FString(FPackageName::LongPackageNameToFilename(TEXT("/Game/Core/M_InkHull"), FPackageName::GetAssetPackageExtension()));
+	if (!FPaths::FileExists(InkHullPath))
+	{
+		if (BuildInkHull())
+		{
+			UE_LOG(LogSolstice, Display, TEXT("generated /Game/Core/M_InkHull"));
+		}
+		else
+		{
+			UE_LOG(LogSolstice, Error, TEXT("could not generate /Game/Core/M_InkHull"));
 			bOk = false;
 		}
 	}

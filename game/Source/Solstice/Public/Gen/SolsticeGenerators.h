@@ -157,11 +157,33 @@ namespace Solstice
 		 */
 		FLinearColor TileColour(const FTile& Tile, float HeightAboveSeaMetres, float Slope01, const FCelPalette& Palette);
 
-		/** One terrain chunk: plates, cut edges, contour ribbons and the water sheet. */
-		void BuildChunk(const FSimKernel& Kernel, int32 ChunkX, int32 ChunkY, const FCelPalette& Palette, FMeshBuilder& Out);
+		/**
+		 * One terrain chunk: the ground sheet, its vegetation and its stones.
+		 *
+		 * `OutHull` receives an enlarged ink copy of every *object* in the chunk (canopies, trunks,
+		 * boulders). That is art.md SS2.1's Inverted Hull: the copy is drawn behind with the ink
+		 * material, and only the ring where it escapes the original silhouette is visible. The
+		 * ground itself gets no hull - a scaled-up terrain would swallow the frame.
+		 */
+		void BuildChunk(const FSimKernel& Kernel, int32 ChunkX, int32 ChunkY, const FCelPalette& Palette,
+			FMeshBuilder& Out, FMeshBuilder& OutHull);
 
 		/** The kraft base slab that turns the terrain into a physical object. */
 		void BuildBase(const FSimKernel& Kernel, const FCelPalette& Palette, FMeshBuilder& Out);
+
+		/**
+		 * The open sea, out to `OuterRadius`.
+		 *
+		 * The realm's own water is tile-sized and stops at the rim; without this the frame ends in
+		 * the void and the world reads as a plate floating in blue nothing. The ocean is a separate
+		 * disc that runs past the frame edge, so the horizon is where the *water* ends, not where
+		 * the world does - which is the picture the prototype paints.
+		 *
+		 * Colour is radial: lagoon near the shore, mid blue, deep blue, then a long fade into the
+		 * sky's horizon tone so the two meet without a seam.
+		 */
+		void BuildOcean(float InnerRadiusUU, float OuterRadiusUU, float SeaLevelUU,
+			const FCelPalette& Palette, const FLinearColor& HorizonHaze, FMeshBuilder& Out);
 
 		/** Every living individual as a standee; printed outline cards land in OutOutline. */
 		void BuildLife(const FSimKernel& Kernel, const FCelPalette& Palette, FMeshBuilder& Out, FMeshBuilder& OutOutline);
@@ -188,6 +210,15 @@ namespace Solstice
 			 * of sitting on a fixed line in the frame.
 			 */
 			float HorizonV = 0.30f;
+
+			/**
+			 * Top of the *visible* card, in card units (1 / SkyCardOverscan).
+			 *
+			 * The gradient has to fill the strip that is actually on screen. Measuring it to the card's
+			 * own top edge squeezed the whole sky into the top 11% of the overscan, so the frame got a
+			 * pale band over blue with almost no gradient in between.
+			 */
+			float VisibleTop = 0.893f;
 
 			/** Three-band gradient: zenith is the deepest, the horizon is nearly white. */
 			FLinearColor Zenith = CelSrgb(0x2F, 0x63, 0xAE);
