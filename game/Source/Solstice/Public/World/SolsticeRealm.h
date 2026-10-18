@@ -20,6 +20,7 @@ class UExponentialHeightFogComponent;
 class UPostProcessComponent;
 class UProceduralMeshComponent;
 class USceneComponent;
+class USkyAtmosphereComponent;
 class USkyLightComponent;
 class USolsticeGameInstance;
 
@@ -75,6 +76,8 @@ protected:
 	UPROPERTY() TArray<TObjectPtr<UProceduralMeshComponent>> ChunkMeshes;
 	UPROPERTY() TObjectPtr<UDirectionalLightComponent> SunLight;
 	UPROPERTY() TObjectPtr<USkyLightComponent> SkyLight;
+	/** Real atmospheric scattering; replaces the painted sky card (REBOOT B2). */
+	UPROPERTY() TObjectPtr<USkyAtmosphereComponent> SkyAtmosphere;
 	UPROPERTY() TObjectPtr<UExponentialHeightFogComponent> Fog;
 	/** Unbound colour grade that gives the whole realm its warm-paper cast (see the constructor). */
 	UPROPERTY() TObjectPtr<UPostProcessComponent> PostProcess;

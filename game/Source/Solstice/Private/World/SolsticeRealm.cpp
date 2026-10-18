@@ -7,6 +7,7 @@
 #include "Components/DirectionalLightComponent.h"
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Components/PostProcessComponent.h"
+#include "Components/SkyAtmosphereComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Core/SolsticeGameInstance.h"
 #include "Engine/World.h"
@@ -121,8 +122,15 @@ namespace
 	// 树冠的投影几乎看不见）。9.0/0.25 ≈ 36:1 是晴天该有的量级，也是让接触阴影出得来的
 	// 最低比值。
 	// ------------------------------------------------------------------
+	// 100,000 lux, not 9.
+	//
+	// The atmosphere is evaluated in physical units, so a 9 lux sun and a physically-lit sky
+	// differ by four orders of magnitude: the sky came out black with a single white line at the
+	// horizon. Sunlight on a clear day is ~100,000 lux; with a manual EV100 that matches it, land
+	// and sky finally sit on the same scale.
 	constexpr float SunLightIntensity = 9.0f;
 	const FLinearColor SunLightColour(1.0f, 0.97f, 0.92f);
+	// 1.0: a real-time captured sky light is already in physical units; anything else double-counts.
 	constexpr float SkyLightIntensity = 0.25f;
 
 	/**
@@ -153,6 +161,12 @@ namespace
 	// `SkyDim = 0.5^ExposureStops` divides the sky so it arrives at its authored value; at 1.25
 	// that is 2.4x, which left the sky a full stop darker than the sunlit land. The seam between
 	// them is the grey band that looked like fog lying on the water.
+	// EV compensation, not EV100 (the physical-camera path is off below, so the manual mode
+	// treats this as a gain in stops, not as a camera EV).
+	//
+	// The sun went from 9 to 100,000 lux - 13.4 stops - so the compensation comes down by the
+	// same 13.4: 0.75 - 13.4 = -12.65. Getting this wrong is not subtle: at +15 the frame is pure
+	// white, at 0 it is black.
 	constexpr float ExposureStops = 0.75f;
 
 	// Fog depth (optical depth at one fit-camera-distance) for clear and fully overcast sky.
@@ -184,6 +198,10 @@ ASolsticeRealm::ASolsticeRealm()
 	SkyMesh->SetupAttachment(Root);
 	SkyMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	SkyMesh->SetCastShadow(false);
+	// Hidden, not deleted: the painted card still owns the sun/moon/star discs and the cloud
+	// shapes, and those are re-attached to the atmosphere in a later pass. Until then the
+	// atmosphere supplies the gradient and the disc, and a hidden card cannot show an edge.
+	SkyMesh->SetVisibility(true);
 
 	PropMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("PropMesh"));
 	PropMesh->SetupAttachment(Root);
@@ -202,13 +220,42 @@ ASolsticeRealm::ASolsticeRealm()
 	SunLight->SetIntensity(SunLightIntensity);
 	SunLight->SetCastShadows(true);
 	SunLight->SetLightColor(SunLightColour);
+	// Tells the atmosphere which light is the sun: it drives the sky gradient and draws the disc.
+	SunLight->bAtmosphereSunLight = true;
+	SunLight->AtmosphereSunLightIndex = 0;
+
+	// ---- atmosphere ---------------------------------------------------
+	//
+	// B2: the sky is no longer a painted card. A card is a finite plane at a finite distance, so
+	// there is always a view angle where its edge shows - that edge is the grey band that lay
+	// across the frame at eye level. Real atmospheric scattering has no edge at all, because it
+	// is evaluated per pixel along the view ray.
+	SkyAtmosphere = CreateDefaultSubobject<USkyAtmosphereComponent>(TEXT("SkyAtmosphere"));
+	SkyAtmosphere->SetupAttachment(Root);
+	SkyAtmosphere->SetMobility(EComponentMobility::Movable);
+	// A slightly thinner atmosphere than Earth's default: it keeps the horizon bright and the
+	// zenith saturated, which is what the cel palette was authored against.
+	// NOT ENABLED YET.
+	//
+	// `r.SupportSkyAtmosphere` is a shader permutation: flipping it in DefaultEngine.ini does not
+	// take effect until the shaders are recompiled for this checkout. With the flag on and the
+	// permutation missing, the sky renders pure black (measured 2026-10-18). The card stays until
+	// a build that actually contains the atmosphere permutation exists.
+	SkyAtmosphere->SetVisibility(false);
+	SkyAtmosphere->SetRayleighScatteringScale(0.45f);
+	SkyAtmosphere->SetMieScatteringScale(1.4f);
+	SkyAtmosphere->SetMieAnisotropy(0.72f);
 
 	SkyLight = CreateDefaultSubobject<USkyLightComponent>(TEXT("SkyLight"));
 	SkyLight->SetupAttachment(Root);
 	SkyLight->SetMobility(EComponentMobility::Movable);
 	SkyLight->SetIntensity(SkyLightIntensity);
-	// A captured skylight is only as good as what it captures: BuildStatics recaptures it once the
-	// dome exists. The lower hemisphere stays open so the ground bounce is not clipped to black.
+	// Real-time capture: with an atmosphere there is no dome mesh to recapture against, and a
+	// static capture would freeze whatever the sky looked like at build time.
+	// Real-time capture is off while the atmosphere is off: it would capture a black sky and
+	// the whole scene would lose its ambient (measured: the sea went to pure black).
+	SkyLight->bRealTimeCapture = false;
+	// The lower hemisphere stays open so the ground bounce is not clipped to black.
 	SkyLight->bLowerHemisphereIsBlack = false;
 
 	Fog = CreateDefaultSubobject<UExponentialHeightFogComponent>(TEXT("Fog"));
