@@ -953,7 +953,19 @@ void ASolsticeRealm::BuildSkyMesh()
 	// The geometry is a unit sphere and the component scale turns it into `SkyDistance`, so the
 	// shading has to be per-pixel - which is what M_Sky now is.
 	Scratch.Reset();
-	Gen::BuildSkyDome(128, 64, Scratch);
+	// 256x128, not 128x64.
+	//
+	// The sky shader derives its direction from normalize(WorldPosition - CameraPosition), and
+	// WorldPosition is interpolated linearly across each dome triangle. On a sphere that is a
+	// chord, not an arc: the interpolated point sits slightly *inside* the true surface, and the
+	// error is largest at the middle of a triangle and zero at its corners. So `d` is C0 but has
+	// a crease at every edge - invisible for a smooth gradient, fatal for anything thresholded.
+	//
+	// Measured on the frame: polygonal patches with straight edges in the upper right, roughly
+	// the size of one dome triangle, where the cloud mask flipped. Doubling both counts cuts the
+	// sagitta by 4x and the patches go under a pixel. 65k triangles of unlit white geometry is
+	// nothing next to the 185k the terrain already carries.
+	Gen::BuildSkyDome(256, 128, Scratch);
 	Scratch.PushTo(SkyMesh, 0, false);
 	SkyMesh->SetMeshSectionVisible(0, true);
 
@@ -978,8 +990,21 @@ void ASolsticeRealm::BuildSkyMesh()
 		// Coverage -> threshold. The noise is centred near 0.47 with a spread around 0.12, so a
 		// threshold of 0.58 is a barely-there sky and 0.36 is overcast; mapping the sim's 0..1
 		// coverage onto that band keeps "clear" clear and "overcast" actually overcast.
-		SkyMID->SetScalarParameterValue(TEXT("CloudThreshold"), 0.55f - 0.24f * Cloud);
-		SkyMID->SetScalarParameterValue(TEXT("CloudScale"), 3.2f);
+		// 0.47, not 0.55.
+		//
+		// The deck got larger when CloudScale dropped to 2.4 (one big cloud covers what three
+		// small ones did), so the same threshold left the frame with a handful of isolated puffs
+		// over 85% empty blue. Measured: cloud covered 14% of the sky. A landscape frame wants
+		// 30-45% - enough that the sky has structure, not so much that it becomes a ceiling.
+		SkyMID->SetScalarParameterValue(TEXT("CloudThreshold"), 0.44f - 0.24f * Cloud);
+		// 2.4, not 3.2: at 3.2 the deck broke into a scatter of small puffs with hard gaps
+		// between them, which is the "cotton wool stuck on a blue card" look. Cloud masses in a
+		// real sky are several times wider than they are tall, and the eye reads their *shape*
+		// long before it reads their texture.
+		// Sized so a cloud mass covers what it covered at the 0.30 denominator: the sample radius
+		// at mid-sky is (1-h^2)^0.5 / (h + 0.55), which is 1.46 at h = 0.13 against the 5.6 the
+		// old pair produced.
+		SkyMID->SetScalarParameterValue(TEXT("CloudScale"), 3.8f);
 		SkyMID->SetScalarParameterValue(TEXT("SunDiscCos"),
 			FMath::Cos(FMath::DegreesToRadians(SunAngularRadiusDeg)));
 

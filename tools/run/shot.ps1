@@ -50,6 +50,8 @@ param(
     [string]$Env,
     # 地表 albedo 的增益（-1 = 用材质默认 1.0）。用来区分「地被照亮但偏暗」与「地根本没受光」。
     [string]$Cel,
+    # 只输出量化结果，不回显引擎日志。抓帧时的 [diag] 行是给排查用的，平时是噪声。
+    [switch]$Quiet,
     [string]$EngineRoot,
     [string]$Project
 )
@@ -157,8 +159,10 @@ if (Test-Path -LiteralPath $absLog) {
     # Log-level lines print as `LogSolstice: [diag] ...` with no severity word (only Warning and
     # Error carry one), so the severity part has to be optional or every Log diagnostic is
     # silently dropped.
-    Select-String -LiteralPath $absLog -Pattern 'LogSolstice: (Display|Warning|Error|Log): \[(shot|diag)\]|LogSolstice: \[(shot|diag)\]' |
-        ForEach-Object { Write-Host ('  ' + $_.Line) }
+    if (-not $Quiet) {
+        Select-String -LiteralPath $absLog -Pattern 'LogSolstice: (Display|Warning|Error|Log): \[(shot|diag)\]|LogSolstice: \[(shot|diag)\]' |
+            ForEach-Object { Write-Host ('  ' + $_.Line) }
+    }
 }
 
 if (-not (Test-Path -LiteralPath $Out)) {

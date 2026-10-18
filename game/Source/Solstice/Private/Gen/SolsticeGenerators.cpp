@@ -833,7 +833,17 @@ namespace Solstice
 				// standing blades over the sheet. Without it the terrain is a coloured plane and no
 				// amount of light or grading makes it read as ground. Three crossed blades per land
 				// tile above the waterline, deterministic per tile so rebuilds never shimmer.
-				if (!bClipped && !Tile->IsWater() && Surface > 1.0f)
+				// 2.4 m, not 1.0 - and half as tall.
+				//
+				// Right at the waterline these blades were the worst thing in the frame: seen
+				// against water instead of against grass, three thin spikes per tile lined up
+				// along the shore read as a comb. Measured on a close crop (2026-10-18): a row of
+				// 20-30 px vertical needles along the whole coastline, with the sea visible
+				// between them. A beach is *sand*; grass starts inland.
+				//
+				// They are also shorter now. 0.34-0.96 m is waist-high on a 1 m tile, so at this
+				// framing every blade is taller than the trees are wide.
+				if (!bClipped && !Tile->IsWater() && Surface > 2.4f)
 				{
 					const FLinearColor Blade = Colour * 0.78f;
 					const FLinearColor TipColour = Colour * 1.12f;
@@ -841,16 +851,30 @@ namespace Solstice
 					{
 						const float JitterX = (CelGrain(X * 3 + Tuft, Y) - 0.5f) * MeterUU * 0.7f;
 						const float JitterY = (CelGrain(X, Y * 3 + Tuft) - 0.5f) * MeterUU * 0.7f;
-						const float Height = 34.0f + 62.0f * CelGrain(X + Tuft, Y + Tuft);
+						const float Height = 22.0f + 38.0f * CelGrain(X + Tuft, Y + Tuft);
 						const float Angle = CelGrain(X * 7 + Tuft, Y * 5 + Tuft) * PI;
 						const FVector Right(FMath::Cos(Angle), FMath::Sin(Angle), 0.0f);
 						const FVector Root(Centre.X + JitterX, Centre.Y + JitterY, Surface * MeterUU);
 						const FVector Tip = Root + FVector(0.0f, 0.0f, Height);
 
-						const int32 A = Out.Add(Root - Right * 6.0f, FVector(-Right.Y, Right.X, 0.35f), FVector2D(0.0f, 1.0f), Blade);
-						const int32 B = Out.Add(Root + Right * 6.0f, FVector(-Right.Y, Right.X, 0.35f), FVector2D(1.0f, 1.0f), Blade);
-						const int32 C2 = Out.Add(Tip, FVector(-Right.Y, Right.X, 0.35f), FVector2D(0.5f, 0.0f), TipColour);
-						Out.Tri(A, B, C2);
+						// Two crossed blades, not one.
+						//
+						// A single triangle is a line seen edge-on, so half the tufts on a round
+						// island disappear depending on which way they happen to be turned. The
+						// cross costs one extra triangle and makes every blade readable from every
+						// angle - the same reason the paper standees cross their strips.
+						const FVector Across(-Right.Y, Right.X, 0.0f);
+						for (int32 Cross = 0; Cross < 2; ++Cross)
+						{
+							const FVector Axis = (Cross == 0) ? Right : Across;
+							const int32 A = Out.Add(Root - Axis * 6.0f,
+								FVector(-Axis.Y, Axis.X, 0.35f), FVector2D(0.0f, 1.0f), Blade);
+							const int32 B = Out.Add(Root + Axis * 6.0f,
+								FVector(-Axis.Y, Axis.X, 0.35f), FVector2D(1.0f, 1.0f), Blade);
+							const int32 C2 = Out.Add(Tip,
+								FVector(-Axis.Y, Axis.X, 0.35f), FVector2D(0.5f, 0.0f), TipColour);
+							Out.Tri(A, B, C2);
+						}
 					}
 				}
 
@@ -889,13 +913,24 @@ namespace Solstice
 				// lighter than the last. The previous crossed-paper-strip trunk plus one flat
 				// eight-fan read as a cut-out at every angle; stacked irregular blobs hold a
 				// round, top-lit silhouette from the entry framing down to the close-up.
-				if (!bClipped && !Tile->IsWater() && Surface > 8.0f && Surface < 38.0f
+				// Stop the forest below the summit. The upper 6 m are bare rock (TileColour
+				// switches at 20 m), and a tree line that runs right up to the peak cancels the
+				// one place on the island where the eye can read height: the silhouette. A
+				// treeline is also the cheapest way to say "this is a mountain, not a bump".
+				if (!bClipped && !Tile->IsWater() && Surface > 8.0f && Surface < 24.0f
 					&& CelGrain(X * 13 + 5, Y * 7 + 3) > 0.87f)
 				{
 					const int32 HullFrom = Out.Num();
 					const int32 HullTriFrom = Out.Triangles.Num();
-					const float TrunkHeight = 120.0f + 120.0f * CelGrain(X + 11, Y + 17);
-					const float CrownRadius = 90.0f + 70.0f * CelGrain(Y + 3, X + 29);
+					// 90+80 and 130+100, not 120+120 and 90+70.
+					//
+					// The old numbers gave a 3.6 m tree with a 1.3 m crown: a lollipop, and at this
+					// framing a lollipop 20 px tall is a mushroom. Real broadleaf crowns are
+					// wider than the tree is tall; at 130+100 the crown is 2.3-4.6 m across against
+					// a 1.7-3.4 m trunk, so a tree reads as a mass of foliage on a stem rather
+					// than a stem with a ball on top.
+					const float TrunkHeight = 90.0f + 80.0f * CelGrain(X + 11, Y + 17);
+					const float CrownRadius = 130.0f + 100.0f * CelGrain(Y + 3, X + 29);
 					const FVector Root(Centre.X, Centre.Y, Surface * MeterUU);
 
 					// Tapered hexagonal trunk, one corner jitter per side so it is not a prism.
