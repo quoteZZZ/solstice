@@ -1210,6 +1210,146 @@ namespace Solstice
 		}
 	}
 
+	// ======================================================================
+	// Trees
+	// ======================================================================
+	//
+	// A tree used to be four rectangles: `StandeeRecipe(Shrub)` describes a paper silhouette,
+	// which is right for the animals (they only ever need to read from the side) and wrong for
+	// the thing that covers every slope on the island. At the entry framing the realm is a
+	// hillside of identical green mushrooms - the single most "placeholder" thing in the frame.
+	//
+	// These are real geometry at a deliberately low budget: a six-sided trunk and one to three
+	// rings of an eight-sided sphere. About 130 triangles a tree, 120 trees is under 16k, which
+	// is nothing next to the 200k the terrain already spends.
+	namespace
+	{
+		/** UV sphere with the poles on Z. Normals are the radial direction, so it shades as a ball. */
+		void AddSphere(FMeshBuilder& Out, const FVector& Centre, float Radius, int32 Segments,
+			int32 Rings, const FLinearColor& Colour, float Occlusion)
+		{
+			const int32 Base = Out.Positions.Num();
+			for (int32 Ring = 0; Ring <= Rings; ++Ring)
+			{
+				const float V = static_cast<float>(Ring) / Rings;
+				const float Phi = PI * V;
+				for (int32 Seg = 0; Seg <= Segments; ++Seg)
+				{
+					const float U = static_cast<float>(Seg) / Segments;
+					const float Theta = 2.0f * PI * U;
+					const FVector Normal(FMath::Sin(Phi) * FMath::Cos(Theta),
+						FMath::Sin(Phi) * FMath::Sin(Theta), FMath::Cos(Phi));
+					Out.Add(Centre + Normal * Radius, Normal, FVector2D(U, V), Colour, Occlusion);
+				}
+			}
+			for (int32 Ring = 0; Ring < Rings; ++Ring)
+			{
+				for (int32 Seg = 0; Seg < Segments; ++Seg)
+				{
+					const int32 A = Base + Ring * (Segments + 1) + Seg;
+					const int32 B = A + 1;
+					const int32 C = A + Segments + 1;
+					const int32 D = C + 1;
+					Out.Tri(A, C, D);
+					Out.Tri(A, D, B);
+				}
+			}
+		}
+
+		/** Tapered prism from Base to Top. */
+		void AddTrunk(FMeshBuilder& Out, const FVector& Base, const FVector& Top, float Radius,
+			int32 Sides, const FLinearColor& Colour)
+		{
+			const FVector Axis = (Top - Base).GetSafeNormal();
+			const FVector Right = FVector::CrossProduct(Axis, FVector::UpVector).GetSafeNormal();
+			const FVector RightSafe = Right.IsNearlyZero() ? FVector::ForwardVector : Right;
+			const FVector Forward = FVector::CrossProduct(Axis, RightSafe);
+			const float TopRadius = Radius * 0.72f;
+
+			TArray<FVector> Bottom;
+			TArray<FVector> Upper;
+			for (int32 Side = 0; Side < Sides; ++Side)
+			{
+				const float Angle = 2.0f * PI * Side / Sides;
+				const FVector Offset = RightSafe * FMath::Cos(Angle) + Forward * FMath::Sin(Angle);
+				Bottom.Add(Base + Offset * Radius);
+				Upper.Add(Top + Offset * TopRadius);
+			}
+			for (int32 Side = 0; Side < Sides; ++Side)
+			{
+				const int32 Next = (Side + 1) % Sides;
+				const FVector Normal = (RightSafe * FMath::Cos(2.0f * PI * (Side + 0.5f) / Sides)
+					+ Forward * FMath::Sin(2.0f * PI * (Side + 0.5f) / Sides)).GetSafeNormal();
+				const int32 A = Out.Add(Bottom[Side], Normal, FVector2D(0.0f, 0.0f), Colour, 0.85f);
+				const int32 B = Out.Add(Bottom[Next], Normal, FVector2D(1.0f, 0.0f), Colour, 0.85f);
+				const int32 C = Out.Add(Upper[Next], Normal, FVector2D(1.0f, 1.0f), Colour, 1.0f);
+				const int32 D = Out.Add(Upper[Side], Normal, FVector2D(0.0f, 1.0f), Colour, 1.0f);
+				Out.Tri(A, B, C);
+				Out.Tri(A, C, D);
+			}
+		}
+
+		/**
+		 * One tree. `Seed` picks the silhouette family so a hillside is not one clone repeated:
+		 * round broadleaf, tall conifer, or a low shrub.
+		 */
+		void AddTree(FMeshBuilder& Out, const FVector& Origin, float Scale, float Yaw, uint32 Seed,
+			const FCelPalette& Palette)
+		{
+			FRandomStream Rng(static_cast<int32>(Seed));
+			const float Lean = (Rng.FRandRange(-1.0f, 1.0f)) * 0.10f;
+			// Proportions matter more than polygon count here. A 1.8 m trunk under a 0.9 m crown
+			// is a lollipop; the crown has to start low and be wide enough to hide the top of the
+			// trunk, or the tree reads as a stick with a ball on it no matter how it is shaded.
+			const float Height = (2.2f + Rng.FRand() * 1.8f) * Scale;
+			const float TrunkRadius = (0.18f + Rng.FRand() * 0.06f) * Scale;
+			const FVector Up(Lean, Lean * 0.6f, 1.0f);
+
+			// Dark, and darker than it looks like it should be: at a 100-unit sun anything above
+			// about 0.10 linear albedo clips to white, and a white trunk under a green crown is
+			// exactly the mushroom silhouette this is trying to get away from.
+			// Written as a linear triple, not as sRGB hex times a factor.
+			//
+			// Every "make it darker" attempt that went through CelSrgb() stayed white: at this
+			// sun a linear albedo of 0.03 already lands at ~0.7 after the /pi and the exposure,
+			// so the trunk has to start an order of magnitude lower than a palette colour rather
+			// than a multiplier away from one.
+			const FLinearColor Bark(0.030f, 0.019f, 0.011f, 1.0f);
+			const FLinearColor Leaf = FMath::Lerp(Palette.Moss, Solstice::CelSrgb(0x6F, 0xA8, 0x4E),
+				Rng.FRand() * 0.55f);
+			const FLinearColor LeafDark = Leaf * 0.72f;
+
+			AddTrunk(Out, Origin, Origin + Up.GetSafeNormal() * Height, TrunkRadius, 6, Bark);
+
+			const int32 Family = Rng.RandRange(0, 2);
+			if (Family == 0)
+			{
+				// Broadleaf: one big crown and a smaller one offset from it.
+				const float Radius = (1.10f + Rng.FRand() * 0.45f) * Scale;
+				AddSphere(Out, Origin + FVector(0.0f, 0.0f, Height * 0.78f), Radius, 8, 5, Leaf, 1.0f);
+				AddSphere(Out, Origin + FVector(Radius * 0.60f, Radius * 0.38f, Height * 0.62f),
+					Radius * 0.66f, 7, 4, Leaf * 0.90f, 0.9f);
+			}
+			else if (Family == 1)
+			{
+				// Conifer: three rings, each smaller and higher, so the silhouette is a cone.
+				const float Radius = (1.00f + Rng.FRand() * 0.30f) * Scale;
+				AddSphere(Out, Origin + FVector(0.0f, 0.0f, Height * 0.50f), Radius, 8, 4, LeafDark, 0.85f);
+				AddSphere(Out, Origin + FVector(0.0f, 0.0f, Height * 0.74f), Radius * 0.76f, 8, 4, Leaf, 0.95f);
+				AddSphere(Out, Origin + FVector(0.0f, 0.0f, Height * 0.96f), Radius * 0.48f, 7, 3, Leaf, 1.0f);
+			}
+			else
+			{
+				// Low shrub: no visible trunk, one squashed crown.
+				const float Radius = (0.75f + Rng.FRand() * 0.35f) * Scale;
+				AddSphere(Out, Origin + FVector(0.0f, 0.0f, Radius * 0.50f),
+					Radius, 8, 4, Leaf * 0.86f, 0.95f);
+			}
+
+			(void)Yaw;
+		}
+	}
+
 	void Gen::BuildLife(const FSimKernel& Kernel, const FCelPalette& Palette, FMeshBuilder& Out, FMeshBuilder& OutOutline)
 	{
 		const float WaterLevel = Kernel.GetSky().WaterLevel;
@@ -1255,6 +1395,19 @@ namespace Solstice
 			const FVector Origin = TileToLocal(Kernel, TileX, TileY, 0.0f) + FVector(0.0f, 0.0f, Surface);
 			const FRotator Facing(0.0f, static_cast<float>(Individual.Facing) * 45.0f, 0.0f);
 			const FTransform Transform(Facing, Origin, FVector(1.0f));
+
+			// Shrubs are the island's actual vegetation, so they get real geometry instead of a
+			// paper silhouette (see AddTree above). Everything else - grazers, raptors, fish -
+			// stays a standee: they are characters that only have to read from the front.
+			if (Kind == ESpeciesKind::Shrub)
+			{
+				const uint32 Seed = static_cast<uint32>(Individual.Tile) * 2654435761u
+					^ static_cast<uint32>(Individual.Facing) * 40503u;
+				// MeterUU, not 1.0: Origin is in unreal units (it already carries Surface * MeterUU),
+			// so a scale of 1 would build a three-centimetre tree.
+			AddTree(Out, Origin, MeterUU, Facing.Yaw, Seed, Palette);
+				continue;
+			}
 
 			// The silhouette is data, not code - see Gen::StandeeRecipe.
 			const FStandeeRecipe& Recipe = StandeeRecipe(Kind);

@@ -63,7 +63,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 65;
+	constexpr int32 CelRecipeVersion = 67;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -350,12 +350,19 @@ float stone = saturate(1.0 - green - straw);
 float3 detail = G.rgb * green + S.rgb * straw + R.rgb * stone;
 float lum = dot(detail, float3(0.299, 0.587, 0.114));
 
+// Tree bark and anything else this dark is not terrain and must not be re-lit by a ground
+// map: the classification above calls a brown trunk "stone", pulls the rock map's brightness
+// over it, and a 0.03-linear albedo turns into a white stick under a green crown.
+float peak = max(max(C.r, C.g), C.b);
+float passthrough = step(peak, 0.055);
+
 // Neutral 0.52, and the divisor keeps the *mean* of the map at 1.0 so this never becomes an
 // exposure change that has to be re-tuned against the sun.
 // 0.20, not 0.52: the maps are sampled with sRGB on, so they arrive *linear* - a mid-green
 // authored at 0.50 sRGB is 0.21 here. Dividing by the sRGB number would darken the whole
 // island by half and the search would start all over again on the exposure.
 float mul = clamp(lum / 0.20, 0.45, 1.90);
+mul = lerp(mul, 1.0, passthrough);
 return float3(mul, mul, mul);
 )");
 		{
