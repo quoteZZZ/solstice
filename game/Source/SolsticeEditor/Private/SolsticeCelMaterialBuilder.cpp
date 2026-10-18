@@ -63,7 +63,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 78;
+	constexpr int32 CelRecipeVersion = 79;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -776,7 +776,7 @@ return float3(hn, foam, 0.0);
 		// reading, the island has no ground to stand on, and the whole frame flattens into two
 		// similar pale blues. Real sea sits well under the sky it reflects, because what the eye
 		// reads at this angle is the water column, not the surface.
-		Scatter->DefaultValue = 0.62f;
+		Scatter->DefaultValue = 0.60f;
 
 		UMaterialExpressionScalarParameter* Diffuse = AddExpr<UMaterialExpressionScalarParameter>(Material, -1200, 1080);
 		Diffuse->ParameterName = TEXT("WaterDiffuse");
@@ -824,7 +824,23 @@ return float3(hn, foam, 0.0);
 		// measured: the near sea and the far sea came out within 0.05 of each other. Stylised
 		// water uses a much steeper curve so the pale reflection is confined to the last few
 		// degrees above the horizon, where it belongs and where it hides the seam.
-		FresnelPower->DefaultValue = 9.0f;
+				// 6, not 9.
+		//
+		// Structure of the problem, measured on the frame: perspective compresses the visible
+		// near water into T = 0.154..0.210 of the ocean mesh's ring parameter - a 0.06 window.
+		// Every colour the palette can produce is squeezed through that window, so the whole
+		// lower third of the picture came out one flat #2E93B8 no matter what the palette said.
+		//
+		// The colour cannot vary with radius here, so it has to vary with *angle*, which is what
+		// Fresnel already does: near the camera the eye looks steeply down and sees the water
+		// column, far away it looks along the surface and sees the sky. At exponent 9 that
+		// transition is squeezed into the last two degrees and the frame never shows it. At 6 the
+		// band is wide enough to run across the near sea, and the surface gains a front-to-back
+		// gradient instead of being a fill.
+		// 7.2: 9 was a two-degree band that never reached the frame, 6 covered so much surface
+		// that the sea turned grey (measured: saturation 0.305 -> 0.272). The usable window is
+		// between those two, and it is narrow.
+		FresnelPower->DefaultValue = 7.2f;
 
 		UMaterialExpressionFresnel* SkyRim = AddExpr<UMaterialExpressionFresnel>(Material, -1000, 1380);
 		SkyRim->ExponentIn.Expression = FresnelPower;
@@ -834,7 +850,9 @@ return float3(hn, foam, 0.0);
 		ReflectStrength->ParameterName = TEXT("SkyReflectStrength");
 		// 0.50, not 0.75: the reflected horizon is near-white, and at 0.75 the grazing band along
 		// the waterline was brighter than the sky it was reflecting.
-		ReflectStrength->DefaultValue = 0.50f;
+				// 0.42, with the wider Fresnel band above: the reflection now covers a much larger part
+		// of the surface, so each unit of it has to be worth less or the sea becomes sky-coloured.
+		ReflectStrength->DefaultValue = 0.42f;
 
 		UMaterialExpressionMultiply* ReflectTerm = AddExpr<UMaterialExpressionMultiply>(Material, -780, 1420);
 		ReflectTerm->A.Expression = SkyRim;

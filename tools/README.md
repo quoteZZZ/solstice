@@ -55,6 +55,7 @@ Solstice 的环境检测、安装、工程生成与构建脚本；PowerShell 部
 
 | 脚本 | 用途 | 示例 |
 |---|---|---|
+| `checks/analyze-frame.py` | **画面诊断**（不是判据）：分区给亮度/饱和/拉普拉斯细节/色相占比/明度直方图，回答「gate 过了但画面还是平，缺的是哪一项」。判据是 `measure-frame.py`，这个是**读数**——明度三段（暗/中/高）、暖绿冷占比、`island/sea` 细节比都在这里，阈值写在文件头的 docstring | `python tools/checks/analyze-frame.py tmp/review/a.png [b.png]` |
 | `checks/measure-frame.py` | 把截图按 `art/art.md` §2.1 的 Cel 判据量化：平均饱和度、亮度中位数、`≥0.90` 高光占比，三项各给 PASS / FAIL，退出码 1 = 不达标。**取代"看图数明度带"这类主观验收**；世界区域的 `--box` 别自己估，用 `run/shot.ps1` 日志里的 `[shot] box=` | `python tools/checks/measure-frame.py tmp/review/r2_01.png --box 330,150,760,430` |
 
 ## hooks/ 与 CI — 自检自动执行

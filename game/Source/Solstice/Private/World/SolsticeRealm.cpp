@@ -153,14 +153,29 @@ namespace
 	// magnitude higher: measured at noon, island luminance 144.9 with every light off, 146.0 at
 	// sun=14, 180.8 at sun=140, and a readable mid-tone at sun=40 (560 in the units below).
 	constexpr float SunLightIntensity = 100.0f;
-	const FLinearColor SunLightColour(1.0f, 0.97f, 0.92f);
+	// Warmer than white, on purpose.
+	//
+	// Measured on the frame: 82% of the picture was cyan or blue and 0.9% was warm. A landscape
+	// with no warm light in it reads as a 3D render no matter how good the geometry is - the eye
+	// uses colour temperature, not just value, to decide that sunlight is real. (1, 0.94, 0.83)
+	// is roughly 4800 K, which is what a mid-morning sun actually is.
+	const FLinearColor SunLightColour(1.0f, 0.94f, 0.83f);
 	// 1.0, not 0.10.
 	//
 	// The same miscalibration: with the ground unlit, ambient could be switched off without
 	// changing a pixel (measured 1.3% over the whole island), so any value looked harmless. Now
 	// that the ground is really lit, 0.10 leaves the shaded side of every hill at black. 1.0 is
 	// the value at which the sky alone reads as skylight rather than as nothing.
-	constexpr float SkyLightIntensity = 1.0f;
+	// 0.75, not 1.0.
+	//
+	// Measured: cutting the skylight to 0.55 moved 17% off the island's mean brightness and
+	// took the darkest histogram bin from 0.0% to 0.6% - i.e. the ambient was doing what the sun
+	// should. A frame with 7% of its pixels below 0.3 has no shadows, and without shadows nothing
+	// sits in anything: the island reads as a sticker on the water.
+	//
+	// 0.75 is the half-step that darkens the shaded side without losing the softness that makes
+	// the cel look work.
+	constexpr float SkyLightIntensity = 0.85f;
 
 	/**
 	 * R-41: fixed exposure, in stops of gain over the manual-mode default.
@@ -391,7 +406,14 @@ ASolsticeRealm::ASolsticeRealm()
 		// bright sand and foam clipped to flat white and the frame read as raw linear output
 		// rather than an image. A little curve keeps the shoulder without eating the gradient.
 		PP.bOverride_ToneCurveAmount = true;
-		PP.ToneCurveAmount = 0.55f;
+		// 0.80, not 0.55.
+		//
+		// ToneCurveAmount lerps between ACES and a linear curve, and at 0.55 nearly half the
+		// image bypassed the shoulder and the toe. The cost is exactly what the histogram shows:
+		// 55% of the frame sat between 0.5 and 0.7 and only 7% below 0.3. ACES rolls the
+		// highlights off and pulls the toe down, which is what spreads a flat render into
+		// something that looks photographed.
+		PP.ToneCurveAmount = 0.80f;
 
 		// Grade: warm gain, a touch more saturation and contrast than neutral.
 		PP.bOverride_ColorSaturation = true;
@@ -403,7 +425,14 @@ ASolsticeRealm::ASolsticeRealm()
 		// already authored at full chroma. The result was pure green next to pure blue - the
 		// signature of a toy, not of a photograph. A wallpaper reads "expensive" because its
 		// colours sit slightly *below* full chroma and are separated by value, not by hue.
-		PP.ColorSaturation = FVector4(0.96f, 0.94f, 0.90f, 1.0f);
+		// Compensating for the tone curve, not decorating.
+		//
+		// ToneCurveAmount went 0.55 -> 0.80 in the same change, and ACES desaturates as it rolls
+		// the highlights off: measured saturation fell 0.305 -> 0.273 even though nothing about
+		// the colours had changed. Slightly above unity on red and blue puts the chroma back
+		// where the palette authored it, while green stays at 1.0 so the island's foliage does
+		// not go acid.
+		PP.ColorSaturation = FVector4(1.04f, 1.00f, 0.96f, 1.0f);
 		PP.bOverride_ColorContrast = true;
 		PP.ColorContrast = FVector4(1.04f, 1.03f, 1.01f, 1.0f);
 		PP.bOverride_ColorGamma = true;
@@ -833,7 +862,11 @@ void ASolsticeRealm::BuildSkyMesh()
 	// by 2.2, so night clouds arrived on screen at 0.93 and rendered as pure white in a dark sky.
 	// Measured on a 20:00 frame: the clouds were the brightest thing in the picture.
 	Paint.Cirrus = FMath::Lerp(FMath::Lerp(NightMiddle, FLinearColor::White, Daylight), DuskHorizon, Golden * 0.50f);
-	Paint.CumulusLit = FMath::Lerp(FMath::Lerp(CelSrgb(0x36, 0x4C, 0x68), CelSrgb(0xFF, 0xFC, 0xF5), Daylight),
+	// Warm white by day, not paper white. A sunlit cumulus is lit by the sun, so its highlight
+	// carries the sun's own colour - and this is the only large bright surface in the frame that
+	// is unlit, i.e. the one place a warm tone can be added without touching the lighting scheme.
+	// Measured before this: warm hues were 0.8% of the picture, all of it in the sand.
+	Paint.CumulusLit = FMath::Lerp(FMath::Lerp(CelSrgb(0x36, 0x4C, 0x68), CelSrgb(0xFF, 0xF1, 0xD8), Daylight),
 		DuskHorizon, Golden * 0.60f);
 	Paint.CumulusBase = FMath::Lerp(FMath::Lerp(CelSrgb(0x18, 0x28, 0x42), CelSrgb(0xAE, 0xC2, 0xDA), Daylight),
 		DuskZenith, Golden * 0.55f);
@@ -1032,7 +1065,17 @@ void ASolsticeRealm::BuildSkyMesh()
 	// Without this a dusk frame keeps a noon-blue sea under an orange sky.
 	if (UMaterialInstanceDynamic* SeaMID = FCelMaterials::Get().SeaMID)
 	{
-		SeaMID->SetVectorParameterValue(TEXT("SkyReflect"), Paint.Horizon);
+		// Between the horizon and the middle of the sky, not the horizon itself.
+		//
+		// A mirror at grazing incidence reflects what is at the horizon *line*, and that colour
+		// is by definition the brightest, palest part of the sky - it exists to hide the seam.
+		// Using it as the whole reflection meant 46% of a saturated turquoise surface was mixed
+		// with a near-white blue, and the sea arrived at a flat grey-cyan: measured saturation
+		// 0.305 -> 0.272 with the tone curve change on top. Mixing 45% of the mid sky puts real
+		// blue back into the reflection and keeps the horizon match where it matters, in the
+		// last few degrees of the frame.
+		SeaMID->SetVectorParameterValue(TEXT("SkyReflect"),
+			FMath::Lerp(Paint.Horizon, Paint.Middle, 0.45f));
 
 		// Night tint had to come down by a factor of three.
 		//
@@ -1054,8 +1097,14 @@ void ASolsticeRealm::BuildSkyMesh()
 		// The reflection has to come down at night. `SkyReflect` is the horizon colour, which the
 		// exposure compensation multiplies by 2.2 - correct for the sky it paints, but at night
 		// the grazing band reflected it as a bright white road across a dark sea.
+		// 0.42 by day, not 0.50 - and this line is the one that counts, not the material default.
+		//
+		// The Fresnel band widened from exponent 9 to 6 in this same change, so reflection now
+		// covers a far larger part of the surface; keeping the strength at 0.50 would have
+		// turned the sea into sky. Measured sensitivity: each 0.05 here is worth about 0.015 of
+		// midpoint across the lower half of the frame.
 		SeaMID->SetScalarParameterValue(TEXT("SkyReflectStrength"),
-			FMath::Lerp(0.22f, 0.50f, Daylight));
+			FMath::Lerp(0.20f, 0.46f, Daylight));
 
 		// The glint is a moon path at night, and a moon path has to be narrow. At the daytime
 		// 0.16 the 80-unit moon laid a continuous white road across the whole lower half of the
@@ -1243,6 +1292,33 @@ void ASolsticeRealm::UpdateSun()
 	// horizon was still lighting the ground at 15 - and because its rotation follows the sun, it
 	// was shining upward from below, lighting the underside of the island while the sky said it
 	// was night. Measured at 20:00: `alt=-30.5 intensity=15.00`.
+	// ---- exposure: adapt to the hour -----------------------------------
+	//
+	// ACES at ToneCurveAmount 0.80 has a far stronger toe than the 0.55 it replaced, and the
+	// sun's own intensity curve already falls off toward the horizon. Together they took the
+	// 16:30 frame from midpoint 0.516 to 0.435 - under the 0.45 floor, measured, a FAIL.
+	//
+	// The afternoon *is* darker in absolute terms; what the frame needs is the eye's adaptation.
+	// An observer standing there for an hour does not watch the picture get 15% darker at four
+	// o'clock - they see the same scene in warmer light. So the exposure opens as the sun drops,
+	// and only below 20 degrees, so the noon frame is untouched.
+	//
+	// This is also where `-SolsticeEnv=<sun>,<sky>,<exposure>` finally applies its third number:
+	// the parameter was parsed and logged since it was added and then never used, so every
+	// exposure experiment run through it was silently measuring nothing.
+	if (PostProcess)
+	{
+		// Linear, not squared. Squared gave 0.07 EV at the 13.7 degree sun of the 16:30 framing -
+		// worth +0.014 of midpoint against the 0.021 needed, i.e. still a FAIL at 0.449. Linear
+		// 0.50 gives 0.31 EV there and 0.5 EV at a five-degree sun, which is the range the
+		// afternoon actually needs.
+		constexpr float LowSunBoost = 0.50f;
+		const float LowSun = FMath::Clamp((20.0f - Sky.SolarAltitudeDeg) / 20.0f, 0.0f, 1.0f);
+		FPostProcessSettings& PP = PostProcess->Settings;
+		PP.AutoExposureBias = ExposureStops + LowSun * LowSunBoost
+			+ (EnvTuning.Z > -1.0 ? static_cast<float>(EnvTuning.Z) : 0.0f);
+	}
+
 	const float SunUp = FMath::Clamp((Sky.SolarAltitudeDeg + 3.0f) / 5.0f, 0.0f, 1.0f);
 	if (SunUp > 0.0f)
 	{

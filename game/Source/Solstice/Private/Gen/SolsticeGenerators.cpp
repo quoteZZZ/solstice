@@ -472,7 +472,18 @@ namespace Solstice
 			const float H = HeightAboveSeaMetres;
 			// Almost white, not ochre. A tropical shoreline is bleached coral sand; at #D9C292
 			// it read as wet mud and pulled the whole island warm-brown.
-			const FLinearColor Silt = CelSrgb(0xF2, 0xE6, 0xC8);
+			// #E8D5A6, not #F2E6C8. At the first value the beach rendered as a grey-white strip:
+			// a near-neutral albedo under a cold skylight plus ACES arrives at "wet concrete",
+			// and it was the only warm thing in a frame that measured 0.8% warm pixels.
+			//
+			// Two tones, not one. A single Silt threshold paints the whole shoreline one even
+			// value, and the result reads as a strip pasted around the island rather than as
+			// ground: measured on the frame, a uniform band 6-10 px wide following the coast.
+			// Wet sand at the waterline is darker and more saturated than the dry sand above it,
+			// which is a hard stop the eye can actually see - and hard stops are what the cel
+			// palette is built on.
+			const FLinearColor SiltWet = CelSrgb(0xC4, 0xA6, 0x72);
+			const FLinearColor Silt = CelSrgb(0xE8, 0xD5, 0xA6);
 			// The three greens are art.md SS2.3's own numbers (#7FBF5F / #5F9E4A / #3F7A3C), in
 			// that order: sunlit meadow, grass, and the shaded face of a slope.
 			const FLinearColor Meadow = CelSrgb(0x7F, 0xBF, 0x5F);
@@ -496,15 +507,30 @@ namespace Solstice
 			// island to give away; 20 m keeps it to the summit.
 			const bool bHigh = H >= 20.0f;
 			const bool bSteep = Slope01 > 0.42f;
+
+			// A cliff is the band where the island meets the sea *steeply*. It is the one place
+			// where stone belongs outside the summit, and without it the island has no edge at
+			// all: a green dome sliding smoothly into blue water reads as a mossy ball, which is
+			// exactly what the frame showed.
+			//
+			// Deliberately narrow - 1.2 to 3.2 m and only above slope 0.55. Painting every slope
+			// grey was tried on 2026-10-18 and turned the realm into a rock pile (saturation
+			// 0.351 -> 0.218); this is the one band where the stone is the point.
+			const bool bCliff = !bHigh && H >= 1.2f && H < 3.2f && Slope01 > 0.55f;
+
 			Base = bHigh
 				? (bSteep ? RockDark : Rock)
-				: (H < 0.6f)
-					? Silt
-					: (bSteep)
-						? GrassDark
-						: (H < 4.5f)
-							? Grass
-							: Meadow;
+				: bCliff
+					? RockDark
+					: (H < 0.55f)
+						? SiltWet
+						: (H < 1.4f)
+							? Silt
+							: (bSteep)
+								? GrassDark
+								: (H < 4.5f)
+									? Grass
+									: Meadow;
 		}
 
 		if (Tile.Vegetation > 0.01f)
@@ -917,8 +943,39 @@ namespace Solstice
 				// switches at 20 m), and a tree line that runs right up to the peak cancels the
 				// one place on the island where the eye can read height: the silhouette. A
 				// treeline is also the cheapest way to say "this is a mountain, not a bump".
+				//
+				// Density is *modulated by a low-frequency field*, not uniform. A per-tile hash
+				// gives a Poisson scatter - even, everywhere the same, which is the visual
+				// definition of "a texture applied to a surface" rather than "a landscape".
+				// Real vegetation clumps: stands of tall forest, clearings, a treeline thinning
+				// out at the top. Measured before this change, the island carried only 1.5x the
+				// detail of the sea next to it, and art.md wants the subject to be 3x the busiest
+				// thing in the frame.
+				//
+				// One octave of *interpolated* hash at a 6-tile period: the interpolation is what
+				// makes it a field instead of blocks (a plain `X / 6` hash gives visible 6x6
+				// squares, which is worse than no modulation at all).
+				float Forest = 0.5f;
+				{
+					const float BX = static_cast<float>(X) / 6.0f;
+					const float BY = static_cast<float>(Y) / 6.0f;
+					const int32 IX = FMath::FloorToInt(BX);
+					const int32 IY = FMath::FloorToInt(BY);
+					const float FX = BX - static_cast<float>(IX);
+					const float FY = BY - static_cast<float>(IY);
+					const float SX = FX * FX * (3.0f - 2.0f * FX);
+					const float SY = FY * FY * (3.0f - 2.0f * FY);
+					const float V00 = CelGrain(IX * 31 + 5, IY * 17 + 3);
+					const float V10 = CelGrain((IX + 1) * 31 + 5, IY * 17 + 3);
+					const float V01 = CelGrain(IX * 31 + 5, (IY + 1) * 17 + 3);
+					const float V11 = CelGrain((IX + 1) * 31 + 5, (IY + 1) * 17 + 3);
+					Forest = FMath::Lerp(FMath::Lerp(V00, V10, SX), FMath::Lerp(V01, V11, SX), SY);
+				}
+				// 4% in a clearing, 26% in a stand. The mean stays near the old 13%, so the
+				// triangle budget does not move much - what changes is where the trees are.
+				const float TreeChance = 0.04f + 0.22f * Forest;
 				if (!bClipped && !Tile->IsWater() && Surface > 8.0f && Surface < 24.0f
-					&& CelGrain(X * 13 + 5, Y * 7 + 3) > 0.87f)
+					&& CelGrain(X * 13 + 5, Y * 7 + 3) < TreeChance)
 				{
 					const int32 HullFrom = Out.Num();
 					const int32 HullTriFrom = Out.Triangles.Num();
@@ -929,8 +986,13 @@ namespace Solstice
 					// wider than the tree is tall; at 130+100 the crown is 2.3-4.6 m across against
 					// a 1.7-3.4 m trunk, so a tree reads as a mass of foliage on a stem rather
 					// than a stem with a ball on top.
-					const float TrunkHeight = 90.0f + 80.0f * CelGrain(X + 11, Y + 17);
-					const float CrownRadius = 130.0f + 100.0f * CelGrain(Y + 3, X + 29);
+					// Scale with the stand, not just with the tile: a tree in a clearing is a
+					// sapling, a tree in the middle of a stand competes for light and is taller.
+					// 0.75..1.30 of the base size, so a hillside has three visible sizes instead
+					// of one - which is what the density modulation is for.
+					const float Vigour = 0.75f + 0.55f * Forest;
+					const float TrunkHeight = (90.0f + 80.0f * CelGrain(X + 11, Y + 17)) * Vigour;
+					const float CrownRadius = (130.0f + 100.0f * CelGrain(Y + 3, X + 29)) * Vigour;
 					const FVector Root(Centre.X, Centre.Y, Surface * MeterUU);
 
 					// Tapered hexagonal trunk, one corner jitter per side so it is not a prism.
