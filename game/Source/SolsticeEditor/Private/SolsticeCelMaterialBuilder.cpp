@@ -28,6 +28,8 @@
 #include "Materials/MaterialExpressionCameraPositionWS.h"
 #include "Materials/MaterialExpressionCustom.h"
 #include "Materials/MaterialExpressionNormalize.h"
+#include "Materials/MaterialExpressionComponentMask.h"
+#include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "Materials/MaterialExpressionSubtract.h"
 #include "Materials/MaterialExpressionTime.h"
 #include "Materials/MaterialExpressionWorldPosition.h"
@@ -61,7 +63,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 63;
+	constexpr int32 CelRecipeVersion = 65;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -286,9 +288,93 @@ return lerp(Damp, Dry, n);
 			GroundDetail->Inputs.Add(Input);
 		}
 
+		// ---- tiled detail textures -----------------------------------------
+		//
+		// Everything above paints one flat colour per tile. This is the layer that turns that
+		// into a surface: three tileable albedo maps (grass / rock / sand) sampled in world
+		// space and selected by what the vertex colour already says the ground is.
+		//
+		// World-space UVs, not the mesh's: the terrain writes 0..1 into every quad, so the mesh
+		// UV would repeat the texture once per metre. Four metres per tile is the scale at which
+		// the entry framing reads grass as grass rather than as noise.
+		UMaterialExpressionScalarParameter* TileSize = AddExpr<UMaterialExpressionScalarParameter>(Material, -1600, 760);
+		TileSize->ParameterName = TEXT("GroundTileScale");
+		TileSize->DefaultValue = 0.0025f;	// 1/400 uu = one tile per 4 m
+
+		UMaterialExpressionMultiply* TileScale = AddExpr<UMaterialExpressionMultiply>(Material, -1400, 700);
+		TileScale->A.Expression = DetailPos;
+		TileScale->B.Expression = TileSize;
+
+		// Mask down to RG. A texture sample takes float2 and will *not* narrow a float3 for you:
+		// feeding the world position straight in fails the whole material with
+		// "Cannot cast from larger type float3 to smaller type float2", the asset falls back to
+		// the engine default material, and the island renders as a white cut-out that looks for
+		// all the world like a texture problem rather than a graph problem.
+		UMaterialExpressionComponentMask* TileUV = AddExpr<UMaterialExpressionComponentMask>(Material, -1250, 700);
+		TileUV->Input.Expression = TileScale;
+		TileUV->R = true;
+		TileUV->G = true;
+		TileUV->B = false;
+		TileUV->A = false;
+
+		UTexture2D* White = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EngineResources/WhiteSquareTexture.WhiteSquareTexture"));
+		auto SampleTex = [&](const TCHAR* Parameter, int32 X, int32 Y)
+		{
+			UMaterialExpressionTextureSampleParameter2D* Node =
+				AddExpr<UMaterialExpressionTextureSampleParameter2D>(Material, X, Y);
+			Node->ParameterName = Parameter;
+			Node->SamplerType = SAMPLERTYPE_Color;
+			Node->Texture = White;
+			Node->Coordinates.Expression = TileUV;
+			return Node;
+		};
+
+		UMaterialExpressionTextureSampleParameter2D* GrassTex = SampleTex(TEXT("GroundAlbedo"), -1200, 600);
+		UMaterialExpressionTextureSampleParameter2D* RockTex = SampleTex(TEXT("RockAlbedo"), -1200, 760);
+		UMaterialExpressionTextureSampleParameter2D* SandTex = SampleTex(TEXT("SandAlbedo"), -1200, 920);
+
+		UMaterialExpressionCustom* DetailBlend = AddExpr<UMaterialExpressionCustom>(Material, -900, 760);
+		DetailBlend->Description = TEXT("DetailBlend");
+		DetailBlend->OutputType = CMOT_Float3;
+		DetailBlend->Code = TEXT(R"(
+// Pick the map the vertex colour already voted for, then use it as brightness detail.
+//
+// The selection is a *classification*, not a blend weight: meadow green is grass, the
+// straw band is sand, everything else is rock. Blending all three everywhere would wash
+// the three surfaces into one grey average, which is the state this is meant to fix.
+float3 C = V.rgb;
+float green = saturate((C.g - max(C.r, C.b)) * 6.0);
+float straw = saturate((min(C.r, C.g) - C.b) * 5.0) * (1.0 - green);
+float stone = saturate(1.0 - green - straw);
+
+float3 detail = G.rgb * green + S.rgb * straw + R.rgb * stone;
+float lum = dot(detail, float3(0.299, 0.587, 0.114));
+
+// Neutral 0.52, and the divisor keeps the *mean* of the map at 1.0 so this never becomes an
+// exposure change that has to be re-tuned against the sun.
+// 0.20, not 0.52: the maps are sampled with sRGB on, so they arrive *linear* - a mid-green
+// authored at 0.50 sRGB is 0.21 here. Dividing by the sRGB number would darken the whole
+// island by half and the search would start all over again on the exposure.
+float mul = clamp(lum / 0.20, 0.45, 1.90);
+return float3(mul, mul, mul);
+)");
+		{
+			auto Add = [&DetailBlend](const TCHAR* Name, UMaterialExpression* Expression)
+			{
+				FCustomInput Input;
+				Input.InputName = Name;
+				Input.Input.Expression = Expression;
+				DetailBlend->Inputs.Add(Input);
+			};
+			Add(TEXT("G"), GrassTex);
+			Add(TEXT("R"), RockTex);
+			Add(TEXT("S"), SandTex);
+			Add(TEXT("V"), VertexColour);
+		}
+
 		UMaterialExpressionMultiply* DetailedBase = AddExpr<UMaterialExpressionMultiply>(Material, -200, -60);
 		DetailedBase->A.Expression = TintedBase;
-		DetailedBase->B.Expression = GroundDetail;
+		DetailedBase->B.Expression = DetailBlend;
 
 		if (UMaterialEditorOnlyData* EditorData = Material->GetEditorOnlyData())
 		{

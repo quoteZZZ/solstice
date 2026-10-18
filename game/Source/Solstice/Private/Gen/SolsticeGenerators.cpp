@@ -490,7 +490,11 @@ namespace Solstice
 			// shade of its own green, not stone. Painting every slope grey turned the realm into a
 			// rock pile at the first attempt (measured: saturation 0.351 → 0.218, 2026-10-18).
 			// Slope01 is 1 - N.z, so 1 m of rise over 2 m of ground is 0.11.
-			const bool bHigh = H >= 11.0f;
+			// 20 m, not 11. The peak is now 29.5 m (the profile was raised on 2026-10-18), so an
+			// 11 m threshold turned the top third of the island into bare rock - and rock, being
+			// dark, read as a burnt crater sitting on a meadow. A third of the height is a lot of
+			// island to give away; 20 m keeps it to the summit.
+			const bool bHigh = H >= 20.0f;
 			const bool bSteep = Slope01 > 0.42f;
 			Base = bHigh
 				? (bSteep ? RockDark : Rock)

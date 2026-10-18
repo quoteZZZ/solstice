@@ -27,7 +27,11 @@ public class Solstice : ModuleRules
 		{
 			"Slate",
 			"SlateCore",
-			"HTTP"
+			"HTTP",
+			// PNG decoding for the tileable detail textures (Render/SolsticeCelMaterial.cpp).
+			// Only this module is included from it; the list stays a whitelist of what is
+			// actually #included, not a wish list (JsonUtilities was removed for exactly that).
+			"ImageWrapper"
 		});
 
 		// Allow headers to be included as "Sim/SolsticeKernel.h" etc.

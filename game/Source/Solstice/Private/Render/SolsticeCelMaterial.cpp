@@ -2,8 +2,13 @@
 
 #include "Render/SolsticeCelMaterial.h"
 
+#include "IImageWrapperModule.h"
+#include "Modules/ModuleManager.h"
+#include "Engine/Texture2D.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "ProceduralMeshComponent.h"
 #include "Solstice.h"
 
@@ -244,6 +249,103 @@ namespace Solstice
 		{
 			Set.CelMID->SetScalarParameterValue(TEXT("BandLow"), BandLow);
 			Set.CelMID->SetScalarParameterValue(TEXT("BandHigh"), BandHigh);
+		}
+
+		// ---- detail textures -------------------------------------------------
+		//
+		// Decoded from PNG at startup instead of being imported as uassets.
+		//
+		// The repo does not store binary assets (docs/tech/STRUCTURE.md SS0) and an editor import
+		// pass cannot run headless on this machine, so the textures travel as the PNGs that
+		// `tools/art/gen-textures.py` writes and FImageUtils turns into Texture2D objects on the
+		// first Ensure(). That also means iterating on them costs a re-run of the python script
+		// and a new process - no rebuild, no asset reimport.
+		//
+		// Missing files are a warning, not an error: the material falls back to its flat vertex
+		// colour and the frame is merely dull, which is the state this project shipped in for
+		// weeks. Losing the whole realm to a missing PNG would be worse.
+		{
+			// Decode the PNG ourselves and fill a transient texture.
+			//
+			// FImageUtils::ImportBufferAsTexture2D looked like the obvious call and it is not:
+			// at this point in startup it returns a Texture2D whose platform mips are empty, so
+			// every sample comes back white. The symptom is spectacular and misleading - the
+			// island renders as a white paper cut-out with hard black tree shadows, and nothing
+			// in the log says anything is wrong (measured 2026-10-18).
+			auto LoadPng = [](const TCHAR* Relative) -> UTexture2D*
+			{
+				const FString Path = FPaths::ProjectDir() / Relative;
+				TArray<uint8> Compressed;
+				if (!FFileHelper::LoadFileToArray(Compressed, *Path))
+				{
+					UE_LOG(LogSolstice, Warning, TEXT("paper: texture missing %s"), *Path);
+					return nullptr;
+				}
+
+				IImageWrapperModule& Wrapper = FModuleManager::LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
+				const EImageFormat Format = Wrapper.DetectImageFormat(Compressed.GetData(), Compressed.Num());
+				TSharedPtr<IImageWrapper> Decoder = Wrapper.CreateImageWrapper(Format);
+				TArray64<uint8> Pixels;
+				if (!Decoder.IsValid() || !Decoder->SetCompressed(Compressed.GetData(), Compressed.Num())
+					|| !Decoder->GetRaw(ERGBFormat::BGRA, 8, Pixels))
+				{
+					UE_LOG(LogSolstice, Warning, TEXT("paper: could not decode %s"), *Path);
+					return nullptr;
+				}
+
+				const int32 Width = static_cast<int32>(Decoder->GetWidth());
+				const int32 Height = static_cast<int32>(Decoder->GetHeight());
+				UTexture2D* Texture = UTexture2D::CreateTransient(Width, Height, PF_B8G8R8A8);
+				if (!Texture)
+				{
+					return nullptr;
+				}
+				Texture->SRGB = true;
+				Texture->AddressX = TA_Wrap;
+				Texture->AddressY = TA_Wrap;
+				Texture->Filter = TF_Trilinear;
+				Texture->CompressionSettings = TC_Default;
+				Texture->NeverStream = true;
+
+				void* Dest = Texture->GetPlatformData()->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
+				FMemory::Memcpy(Dest, Pixels.GetData(), static_cast<SIZE_T>(Pixels.Num()));
+				Texture->GetPlatformData()->Mips[0].BulkData.Unlock();
+				Texture->UpdateResource();
+				Texture->AddToRoot();
+
+				UE_LOG(LogSolstice, Log, TEXT("paper: texture %s %dx%d mips=%d"),
+					*FPaths::GetCleanFilename(Path), Width, Height,
+					Texture->GetPlatformData()->Mips.Num());
+				return Texture;
+			};
+
+			if (!Set.GroundAlbedo) { Set.GroundAlbedo = LoadPng(TEXT("../tools/art/textures/ground_albedo.png")); }
+			if (!Set.RockAlbedo)   { Set.RockAlbedo = LoadPng(TEXT("../tools/art/textures/rock_albedo.png")); }
+			if (!Set.SandAlbedo)   { Set.SandAlbedo = LoadPng(TEXT("../tools/art/textures/sand_albedo.png")); }
+			if (!Set.WaterNormal)  { Set.WaterNormal = LoadPng(TEXT("../tools/art/textures/water_normal.png")); }
+
+			if (Set.CelMID)
+			{
+				if (Set.GroundAlbedo) { Set.CelMID->SetTextureParameterValue(TEXT("GroundAlbedo"), Set.GroundAlbedo); }
+				if (Set.RockAlbedo)   { Set.CelMID->SetTextureParameterValue(TEXT("RockAlbedo"), Set.RockAlbedo); }
+				if (Set.SandAlbedo)   { Set.CelMID->SetTextureParameterValue(TEXT("SandAlbedo"), Set.SandAlbedo); }
+			}
+			if (Set.SeaMID && Set.WaterNormal)
+			{
+				Set.SeaMID->SetTextureParameterValue(TEXT("WaterNormal"), Set.WaterNormal);
+			}
+
+			// Read back what the MID actually holds. A texture parameter that the material does
+			// not declare fails silently - the sample keeps whatever default the node carries
+			// (white, in our case), the ground renders as a paper cut-out, and every log line
+			// says everything was fine.
+			if (Set.CelMID)
+			{
+				UTexture* Bound = nullptr;
+				const bool bFound = Set.CelMID->GetTextureParameterValue(TEXT("GroundAlbedo"), Bound);
+				UE_LOG(LogSolstice, Log, TEXT("paper: cel GroundAlbedo declared=%d bound=%s"),
+					bFound ? 1 : 0, Bound ? *Bound->GetName() : TEXT("none"));
+			}
 		}
 
 		bResolved = true;
