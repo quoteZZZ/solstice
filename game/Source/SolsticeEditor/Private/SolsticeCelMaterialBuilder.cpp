@@ -57,7 +57,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 18;
+	constexpr int32 CelRecipeVersion = 21;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -154,13 +154,13 @@ namespace
 
 		UMaterialExpressionScalarParameter* WaveStrength = AddExpr<UMaterialExpressionScalarParameter>(Material, -1200, 920);
 		WaveStrength->ParameterName = TEXT("WaveNormalStrength");
-		WaveStrength->DefaultValue = 3.2f;
+		WaveStrength->DefaultValue = 4.6f;
 
 		UMaterialExpressionScalarParameter* WaveScale = AddExpr<UMaterialExpressionScalarParameter>(Material, -1200, 1040);
 		WaveScale->ParameterName = TEXT("WaveFrequencyScale");
 		// 1/1250 uu -> a wavelength of ~65 px at the entry framing. Smaller (finer waves) turns
 		// into aliasing noise; larger becomes a slow blotch.
-		WaveScale->DefaultValue = 0.0008f;
+		WaveScale->DefaultValue = 0.00045f;
 
 		UMaterialExpressionCustom* WaveNormal = AddExpr<UMaterialExpressionCustom>(Material, -900, 760);
 		WaveNormal->Description = TEXT("WaveNormal");
@@ -207,7 +207,7 @@ return normalize(float3(-g * WaveStrengthInput, 1.0));
 		// 水色，同时不干扰反射和高光。
 		UMaterialExpressionScalarParameter* Scatter = AddExpr<UMaterialExpressionScalarParameter>(Material, -1200, 1160);
 		Scatter->ParameterName = TEXT("WaterScatter");
-		Scatter->DefaultValue = 0.75f;
+		Scatter->DefaultValue = 0.55f;
 
 		UMaterialExpressionMultiply* ScatterColour = AddExpr<UMaterialExpressionMultiply>(Material, -900, 1160);
 		ScatterColour->A.Expression = VertexColour;
@@ -275,11 +275,11 @@ return normalize(float3(-g * WaveStrengthInput, 1.0));
 		// 0.06 turned the sea into a mirror of the sky: every pixel reflected the (pale) horizon
 		// and the water colour disappeared. 0.22 keeps a broad sun glint without letting the
 		// reflection own the surface.
-		Roughness->DefaultValue = 0.22f;
+		Roughness->DefaultValue = 0.14f;
 
 		UMaterialExpressionScalarParameter* Specular = AddExpr<UMaterialExpressionScalarParameter>(Material, -600, 300);
 		Specular->ParameterName = TEXT("WaterSpecular");
-		Specular->DefaultValue = 0.30f;
+		Specular->DefaultValue = 0.55f;
 
 		UMaterialExpressionScalarParameter* Recipe = AddExpr<UMaterialExpressionScalarParameter>(Material, -600, 420);
 		Recipe->ParameterName = TEXT("RecipeVersion");

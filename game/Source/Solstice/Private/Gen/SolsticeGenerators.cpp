@@ -1118,12 +1118,30 @@ namespace Solstice
 			const float Radius = Radii[Ring];
 			const float T = static_cast<float>(Ring) / static_cast<float>(Rings);
 
-			// Open water only: the lagoon and the shelf are the realm's own tile water, and repeating
-			// them out here put a bright ring around the island where the two met.
-			// From the deep tone it fades into the horizon haze, slowly, so the far water and the
-			// sky meet without a seam.
-			const float HazeT = FMath::Clamp(T / 0.92f, 0.0f, 1.0f);
-			const FLinearColor Colour = FMath::Lerp(Palette.WaterDeep, HorizonHaze, FMath::Pow(HazeT, 1.6f));
+			// Three legs, not one.
+			//
+			// The sea used to start at the deep tone and fade straight into haze. That is why the
+			// lower half of the frame was a flat slab: there was nothing between "the tile water
+			// around the island" and "deep ocean", so the eye had no depth cue at all. Real water
+			// reads as lagoon -> shelf -> deep -> haze, and each leg is a different colour.
+			//
+			//   T 0.00-0.14  lagoon       (matches the tile water the island sits in)
+			//   T 0.14-0.32  shelf        (where the bottom stops being visible)
+			//   T 0.32-1.00  deep -> haze (fades into the horizon band, no seam)
+			FLinearColor Colour;
+			if (T < 0.14f)
+			{
+				Colour = FMath::Lerp(Palette.Water, Palette.WaterMid, T / 0.14f);
+			}
+			else if (T < 0.32f)
+			{
+				Colour = FMath::Lerp(Palette.WaterMid, Palette.WaterDeep, (T - 0.14f) / 0.18f);
+			}
+			else
+			{
+				const float HazeT = FMath::Clamp((T - 0.32f) / 0.68f, 0.0f, 1.0f);
+				Colour = FMath::Lerp(Palette.WaterDeep, HorizonHaze, FMath::Pow(HazeT, 1.5f));
+			}
 
 			TArray<int32> Current;
 			Current.Reserve(Segments);
@@ -1248,7 +1266,9 @@ namespace Solstice
 		 * reads as a fog bank lying on the water, and the sky above it turns into a pale wash: a
 		 * cel horizon is a *line*, not a band.
 		 */
-		constexpr float HorizonBand = 0.022f;
+		// 0.010, not 0.022: measured on a 720p frame the band was 60 px of near-white - a stripe
+		// that cut the picture in three. A cel horizon is a line.
+		constexpr float HorizonBand = 0.010f;
 
 		/**
 		 * The three-band gradient. Above the horizon band it walks Horizon -> Middle -> Zenith;
@@ -1263,16 +1283,18 @@ namespace Solstice
 			{
 				const float Span = FMath::Max(0.10f, Paint.VisibleTop - H);
 				const float T = FMath::Clamp((V - H) / Span, 0.0f, 1.0f);
-				return (T < 0.58f)
-					? FMath::Lerp(Paint.Horizon, Paint.Middle, T / 0.58f)
-					: FMath::Lerp(Paint.Middle, Paint.Zenith, (T - 0.58f) / 0.42f);
+				// 0.30, not 0.58: at 0.58 the near-white horizon colour owned 40 px of sky above
+				// the line and the frame read as a white stripe with blue above it.
+				return (T < 0.30f)
+					? FMath::Lerp(Paint.Horizon, Paint.Middle, T / 0.30f)
+					: FMath::Lerp(Paint.Middle, Paint.Zenith, (T - 0.30f) / 0.70f);
 			}
 
 			// Below the horizon the sky darkens quickly: this is the far sea's backdrop, and a long
 			// ramp here was the pale wash that hid the water's own haze.
 			const float Span = FMath::Max(0.10f, H + 1.0f);
 			const float T = FMath::Clamp((H - V) / Span, 0.0f, 1.0f);
-			return FMath::Lerp(Paint.Horizon, Paint.Under, FMath::Min(1.0f, T / 0.25f));
+			return FMath::Lerp(Paint.Horizon, Paint.Under, FMath::Min(1.0f, T / 0.10f));
 		}
 
 		/**
@@ -1389,8 +1411,14 @@ namespace Solstice
 		// the frame so a rounding error in the viewport aspect can never leave a hairline of
 		// clear colour along the border.
 		{
-			constexpr int32 Cols = 40;
-			constexpr int32 Rows = 24;
+			// 64 x 96, not 40 x 24.
+			//
+			// The horizon transition is 0.010 of the card, and 24 rows meant one row spanned
+			// V = 0.083 - eight times the whole transition. The horizon was therefore quantised
+			// into a near-white row followed by a grey one: two hard bands where the reference
+			// has a line. Rows have to be dense enough that the band is thinner than a row.
+			constexpr int32 Cols = 64;
+			constexpr int32 Rows = 96;
 			constexpr float Panel = 1.08f;
 			for (int32 Row = 0; Row < Rows; ++Row)
 			{

@@ -47,7 +47,12 @@ namespace
 	 * and the island reads as a plate. 24 radii is past the frame edge at the landscape framing and
 	 * still inside the sky card, which is pushed out past it (see UpdateSkyView).
 	 */
-	constexpr float OceanRadiusRadii = 24.0f;
+	// 60 radii, not 24.
+	//
+	// At 24 the sea's far edge subtended 1.35 degrees below the horizon, which at the landscape
+	// framing is ~33 px - and in that gap the sky card showed through as a grey band lying on the
+	// water. 60 radii drops the edge to 0.54 degrees (~13 px) where the fog swallows it.
+	constexpr float OceanRadiusRadii = 60.0f;
 	/**
 	 * Far water fades into this.
 	 *
@@ -63,7 +68,12 @@ namespace
 	 * the tile water therefore left a dark ring where they meet; this factor puts the two on the
 	 * same screen value without dragging the sea into the band/AO path.
 	 */
-	constexpr float OceanScreenGain = 1.22f;
+	// 1.9, not 1.22.
+	//
+	// The sea's albedo is the only lever that behaves like the land's: raise it and the same sun
+	// and the same exposure lift it. Raising emissive instead put the sea on a *second* lighting
+	// path, and the two immediately fought - the water stayed dark while the island blew out.
+	constexpr float OceanScreenGain = 1.9f;
 	constexpr float SkyCardOverscan = 1.12f;
 
 	// Sun and moon are painted, not projected: at a 35 degree down-pitch a physically placed sun
@@ -138,7 +148,12 @@ namespace
 	// then the colour in the palette, which is the only way "tune the look" means "tune the
 	// palette" instead of "tune the pipeline until the palette reappears".
 	// ------------------------------------------------------------------
-	constexpr float ExposureStops = 1.25f;
+	// 0.75, not 1.25.
+	//
+	// `SkyDim = 0.5^ExposureStops` divides the sky so it arrives at its authored value; at 1.25
+	// that is 2.4x, which left the sky a full stop darker than the sunlit land. The seam between
+	// them is the grey band that looked like fog lying on the water.
+	constexpr float ExposureStops = 0.75f;
 
 	// Fog depth (optical depth at one fit-camera-distance) for clear and fully overcast sky.
 	// Density is derived from these against the fit distance - see BuildStatics.
@@ -149,7 +164,7 @@ namespace
 	// (#0B1431) field with distant stars, against which the lit disc reads as the only bright thing
 	// in frame - that contrast is half of why reference shots look composed and this one looked
 	// like a grey pancake floating in grey nothing.
-	const FLinearColor FogInscatteringColour(0.043f, 0.078f, 0.192f);
+	const FLinearColor FogInscatteringColour = Solstice::CelSrgb(0xCF, 0xE6, 0xF2);
 }
 
 ASolsticeRealm::ASolsticeRealm()
@@ -343,10 +358,18 @@ void ASolsticeRealm::BuildStatics()
 	// sea silently kept the sky material - a parameter change that produced zero pixel difference.
 	FCelMaterials::Ensure();
 
-	// The kraft base never changes once the realm size is fixed.
+	// The base is gone.
+	//
+	// It was a kraft plinth with an ink-dark cut edge - the "torn paper disc" of the old look.
+	// Under Lit it turned into a pure black ring around the island, which is exactly the read
+	// that was wrong: the land looked pasted onto a coaster instead of rising out of the sea.
+	// The terrain sheet already dips below the water line at its rim, so the sea covers the edge
+	// on its own; there is nothing left for a plinth to do.
 	Scratch.Reset();
-	Gen::BuildBase(*Sim, Palette, Scratch);
-	Scratch.PushTo(BaseMesh, 0, false);
+	if (BaseMesh)
+	{
+		BaseMesh->ClearMeshSection(0);
+	}
 
 	// ---- the open sea -------------------------------------------------------
 	// Section 2 of the base mesh, drawn with the sky material: pure vertex colour, no bands, no
@@ -580,6 +603,10 @@ void ASolsticeRealm::BuildSkyMesh()
 	Paint.Middle = FMath::Lerp(FMath::Lerp(NightMiddle, DayMiddle, Daylight), DuskMiddle, Golden * 0.75f);
 	Paint.Horizon = FMath::Lerp(FMath::Lerp(NightHorizon, DayHorizon, Daylight), DuskHorizon, Golden * 0.70f);
 	Paint.Under = FMath::Lerp(FMath::Lerp(NightUnder, DayUnder, Daylight), DuskUnder, Golden * 0.60f);
+	// The card's "below the horizon" strip is only ever seen in the sliver between the sea's far
+	// edge and the true horizon, so it must be the far sea's own colour. It used to be its own
+	// grey-blue, which is why a band of it read as fog lying on the water.
+	Paint.Under = FMath::Lerp(Paint.Under, OceanHaze, 0.78f);
 
 	// Clouds take the same hour: gold on top and violet underneath at dusk, white on white at
 	// noon, moonlit grey at night. Rain greys them without touching the sky above them.
@@ -804,8 +831,14 @@ void ASolsticeRealm::UpdateSun()
 	// weather only pushes it slightly towards grey-blue, it never returns to pale fog grey.
 	// This lerp used to stomp the build-time colour back to (0.70, 0.73, 0.78), which is why the
 	// surround stayed grey no matter what the constructor set.
-	const FLinearColor ClearVoid(0.043f, 0.078f, 0.192f);
-	const FLinearColor WetVoid(0.16f, 0.19f, 0.27f);
+	// The fog colour is the *horizon*, not the void.
+	//
+	// It used to be the deep-blue "nothing outside the realm" tone. That was correct when the
+	// world was a disc floating in empty space; now that the sea runs to the horizon, a fog of
+	// that colour painted the far water grey and the frame got a band lying across it at eye
+	// level. Fog is aerial perspective: it must be the colour of the air the sea disappears into.
+	const FLinearColor ClearVoid = Solstice::CelSrgb(0xCF, 0xE6, 0xF2);
+	const FLinearColor WetVoid = Solstice::CelSrgb(0xB4, 0xC6, 0xD4);
 	Fog->SetFogInscatteringColor(FMath::Lerp(ClearVoid, WetVoid, Wet));
 
 	// Density keeps the fit-distance calibration from BuildStatics; weather deepens the fog
