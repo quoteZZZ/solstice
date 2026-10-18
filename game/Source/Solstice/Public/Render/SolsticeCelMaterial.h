@@ -40,10 +40,19 @@ namespace Solstice
 		UMaterialInterface* InkHull = nullptr;
 		/** Pure vertex colour, no bands: the painted sky must arrive exactly as authored. */
 		UMaterialInterface* Sky = nullptr;
+		/**
+		 * Lit open water: vertex colour as albedo, very low roughness so the sun and the sky
+		 * actually reflect off it.
+		 *
+		 * Separate from M_Cel on purpose - the sea is one huge flat sheet, so it wants no
+		 * triplanar detail, no vertex AO and no per-tile bands; what it needs is a mirror finish.
+		 */
+		UMaterialInterface* Sea = nullptr;
 		UMaterialInstanceDynamic* CelMID = nullptr;
 		UMaterialInstanceDynamic* InkMID = nullptr;
 		UMaterialInstanceDynamic* InkHullMID = nullptr;
 		UMaterialInstanceDynamic* SkyMID = nullptr;
+		UMaterialInstanceDynamic* SeaMID = nullptr;
 		/** True when our own master material was found and generated, false when we fell back. */
 		bool bAuthored = false;
 	};

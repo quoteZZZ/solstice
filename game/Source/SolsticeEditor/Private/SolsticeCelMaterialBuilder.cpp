@@ -1,24 +1,20 @@
-// Solstice - editor module: the cel master material generator.
+// Solstice - editor module: the master materials are built from nodes in code.
 //
-// The material is built from nodes in code rather than authored in a .uasset, so a fresh clone
-// produces exactly the same shader every time. The graph is small and deliberate:
+// Nothing here is authored in a .uasset by hand: a fresh clone runs this generator and gets a
+// byte-identical shader. Five materials come out of it.
 //
-//   N       = VertexNormalWS
-//   L       = SunDirection          (parameter, pushed by the game each frame)
-//   d       = saturate(dot(N, L))
-//   t1      = step(BandLow,  d)     <- 0.30
-//   t2      = step(BandHigh, d)     <- 0.62
-//   shade   = Shadow + t1 * (Mid - Shadow) + t2 * (Lit - Mid)
-//   emissive= VertexColor * shade
+//   M_Cel      Lit. Vertex colour is the albedo; light does the rest. The palette is authored
+//              as albedo, so what you write in Gen::TileColour is what the sun multiplies.
+//              (It used to be Unlit with three painted bands. That looked flat no matter what
+//              the palette said, because an unlit surface cannot receive a shadow.)
+//   M_Sea      Lit, mirror-ish. Vertex colour + a procedural four-wave normal, so the sky
+//              reflection breaks into glints instead of one flat sheet of blue.
+//   M_Sky      Unlit. A matte painting: the horizon must arrive exactly as authored.
+//   M_Ink      Unlit, two-sided. The ink cards under the standees.
+//   M_InkHull  Unlit, one-sided. The inverted hulls; only their back faces may survive.
 //
-// Three stops, hard edges: d < BandLow is the shadow band, BandLow <= d < BandHigh the middle
-// one, above that the lit one. This is the whole cel recipe (docs/art/art.md SS2.1) and it is
-// authored here rather than left to the lighting model because a lit surface smooths every band
-// it is given - the steps have to be painted, not lit.
-//
-// Shading model is Unlit on purpose: real-time lights would fight the hard bands, and the
-// unlit path also makes the frame independent of eye adaptation, which is what kept washing the
-// palette out to white (R-41).
+// Every material carries a `RecipeVersion` scalar. BuildAll compares it against CelRecipeVersion
+// and rebuilds when it differs, so a graph change never leaves an old asset silently in place.
 
 #include "SolsticeEditor.h"
 
@@ -28,6 +24,9 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionAdd.h"
 #include "Materials/MaterialExpressionConstant3Vector.h"
+#include "Materials/MaterialExpressionCustom.h"
+#include "Materials/MaterialExpressionTime.h"
+#include "Materials/MaterialExpressionWorldPosition.h"
 #include "Materials/MaterialExpressionDotProduct.h"
 #include "Materials/MaterialExpressionMultiply.h"
 #include "Materials/MaterialExpressionSaturate.h"
@@ -58,7 +57,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 12;
+	constexpr int32 CelRecipeVersion = 18;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -142,11 +141,85 @@ namespace
 		Recipe->ParameterName = TEXT("RecipeVersion");
 		Recipe->DefaultValue = static_cast<float>(CelRecipeVersion);
 
+		// ---- wave normal ---------------------------------------------------
+		// 平静的水面就是一面镜子：物理上没错（低角度看海本来就反射天空），但读起来不是水。
+		// 真正让海成为海的是**法线扰动** —— 它把镜面反射打碎成一条条光带，也把天空的倒影
+		// 揉成波纹。所以这一步不是装饰，是「水」这个材质成立的唯一理由。
+		//
+		// 四层方向波用一段 HLSL 写在一个 Custom 节点里：连二十个节点做同样的事，改一次要动
+		// 半个图；这里改一个数字就行。参数（方向/频率/振幅/速度）取的是深海风浪的典型比值，
+		// 高频层振幅小、速度快，低频层决定大的起伏。
+		UMaterialExpressionWorldPosition* WorldPos = AddExpr<UMaterialExpressionWorldPosition>(Material, -1200, 640);
+		UMaterialExpressionTime* Clock = AddExpr<UMaterialExpressionTime>(Material, -1200, 800);
+
+		UMaterialExpressionScalarParameter* WaveStrength = AddExpr<UMaterialExpressionScalarParameter>(Material, -1200, 920);
+		WaveStrength->ParameterName = TEXT("WaveNormalStrength");
+		WaveStrength->DefaultValue = 3.2f;
+
+		UMaterialExpressionScalarParameter* WaveScale = AddExpr<UMaterialExpressionScalarParameter>(Material, -1200, 1040);
+		WaveScale->ParameterName = TEXT("WaveFrequencyScale");
+		// 1/1250 uu -> a wavelength of ~65 px at the entry framing. Smaller (finer waves) turns
+		// into aliasing noise; larger becomes a slow blotch.
+		WaveScale->DefaultValue = 0.0008f;
+
+		UMaterialExpressionCustom* WaveNormal = AddExpr<UMaterialExpressionCustom>(Material, -900, 760);
+		WaveNormal->Description = TEXT("WaveNormal");
+		WaveNormal->OutputType = CMOT_Float3;
+		// Written out longhand instead of with a #define: the material compiler wraps this text
+		// inside a function body, and a macro there was silently dropped (recipe v14 produced a
+		// perfectly flat sea).
+		WaveNormal->Code = TEXT(R"(
+float2 p = P.xy * WaveScaleInput;
+float2 g = float2(0.0, 0.0);
+float2 d0 = normalize(float2(0.86, 0.51));
+float2 d1 = normalize(float2(-0.42, 0.91));
+float2 d2 = normalize(float2(0.97, -0.24));
+float2 d3 = normalize(float2(0.31, -0.95));
+g += d0 * cos(dot(p, d0) * 1.00 * 6.28318 + Time * 0.35) * 1.00;
+g += d1 * cos(dot(p, d1) * 1.70 * 6.28318 + Time * 0.52) * 0.94;
+g += d2 * cos(dot(p, d2) * 2.90 * 6.28318 + Time * 0.77) * 0.87;
+g += d3 * cos(dot(p, d3) * 4.30 * 6.28318 + Time * 1.10) * 0.69;
+return normalize(float3(-g * WaveStrengthInput, 1.0));
+)");
+		{
+			FCustomInput InPos;
+			InPos.InputName = TEXT("P");
+			InPos.Input.Expression = WorldPos;
+			FCustomInput InTime;
+			InTime.InputName = TEXT("Time");
+			InTime.Input.Expression = Clock;
+			FCustomInput InStrength;
+			InStrength.InputName = TEXT("WaveStrengthInput");
+			InStrength.Input.Expression = WaveStrength;
+			FCustomInput InScale;
+			InScale.InputName = TEXT("WaveScaleInput");
+			InScale.Input.Expression = WaveScale;
+			WaveNormal->Inputs.Add(InPos);
+			WaveNormal->Inputs.Add(InTime);
+			WaveNormal->Inputs.Add(InStrength);
+			WaveNormal->Inputs.Add(InScale);
+		}
+
+		// ---- body scatter --------------------------------------------------
+		// 深水在物理上确实接近黑（albedo 只有几个百分点，太阳照上去也不反多少），但画面上
+		// 一片黑海不是「深」而是「没渲染」。真实海水那点幽蓝来自水体的**散射**——光进去、
+		// 散射回来。DefaultLit 没有 SSS，所以这里用一点自发光代替：它让海在自己身上保持
+		// 水色，同时不干扰反射和高光。
+		UMaterialExpressionScalarParameter* Scatter = AddExpr<UMaterialExpressionScalarParameter>(Material, -1200, 1160);
+		Scatter->ParameterName = TEXT("WaterScatter");
+		Scatter->DefaultValue = 0.75f;
+
+		UMaterialExpressionMultiply* ScatterColour = AddExpr<UMaterialExpressionMultiply>(Material, -900, 1160);
+		ScatterColour->A.Expression = VertexColour;
+		ScatterColour->B.Expression = Scatter;
+
 		if (UMaterialEditorOnlyData* EditorData = Material->GetEditorOnlyData())
 		{
 			EditorData->BaseColor.Expression = VertexColour;
 			EditorData->Roughness.Expression = Roughness;
 			EditorData->Specular.Expression = Specular;
+			EditorData->Normal.Expression = WaveNormal;
+			EditorData->EmissiveColor.Expression = ScatterColour;
 		}
 
 		Material->PostEditChange();
@@ -161,6 +234,67 @@ namespace
 	 * would multiply the gradient by a shading band picked from the card's normal, which is how a
 	 * near-white horizon turns into a blue-grey stripe depending on which way the camera faces.
 	 */
+
+	/**
+	 * M_Sea - the open water.
+	 *
+	 * This is the first *reflective* surface in the project: roughness 0.06 + high specular make
+	 * it pick the sky up through SSR and throw a sun glint, which is the entire difference between
+	 * "a blue sheet" and "water". DefaultLit's own Fresnel then does the rest for free - grazing
+	 * angles reflect and looking straight down does not, so the far water brightens toward the
+	 * horizon and the near water stays deep, exactly like the reference photographs.
+	 *
+	 * It shares nothing with M_Cel on purpose: no triplanar detail, no vertex AO, no bands. The
+	 * sea is one flat sheet, and detail on it would only moire.
+	 */
+	bool BuildSea()
+	{
+		const FString PackageName = TEXT("/Game/Core/M_Sea");
+		UMaterial* Material = FindOrCreateMaterial(PackageName);
+		if (!Material)
+		{
+			return false;
+		}
+
+		Material->MaterialDomain = MD_Surface;
+		Material->BlendMode = BLEND_Opaque;
+		Material->SetShadingModel(MSM_DefaultLit);
+		// Two-sided, and not for taste: the ocean ring's winding is the opposite of what a
+		// single-sided material expects, so with `false` the entire sea was backface-culled and
+		// what the frame showed below the horizon was the *sky card*, not water. Two-sided is the
+		// honest fix at this layer; correct the winding in Gen::BuildOcean when the water gets
+		// its own module (B1 proper).
+		Material->TwoSided = true;
+
+		Material->GetExpressionCollection().Empty();
+
+		UMaterialExpressionVertexColor* VertexColour = AddExpr<UMaterialExpressionVertexColor>(Material, -600, -60);
+
+		UMaterialExpressionScalarParameter* Roughness = AddExpr<UMaterialExpressionScalarParameter>(Material, -600, 180);
+		Roughness->ParameterName = TEXT("WaterRoughness");
+		// 0.06 turned the sea into a mirror of the sky: every pixel reflected the (pale) horizon
+		// and the water colour disappeared. 0.22 keeps a broad sun glint without letting the
+		// reflection own the surface.
+		Roughness->DefaultValue = 0.22f;
+
+		UMaterialExpressionScalarParameter* Specular = AddExpr<UMaterialExpressionScalarParameter>(Material, -600, 300);
+		Specular->ParameterName = TEXT("WaterSpecular");
+		Specular->DefaultValue = 0.30f;
+
+		UMaterialExpressionScalarParameter* Recipe = AddExpr<UMaterialExpressionScalarParameter>(Material, -600, 420);
+		Recipe->ParameterName = TEXT("RecipeVersion");
+		Recipe->DefaultValue = static_cast<float>(CelRecipeVersion);
+
+		if (UMaterialEditorOnlyData* EditorData = Material->GetEditorOnlyData())
+		{
+			EditorData->BaseColor.Expression = VertexColour;
+			EditorData->Roughness.Expression = Roughness;
+			EditorData->Specular.Expression = Specular;
+		}
+
+		Material->PostEditChange();
+		return SaveAsset(Material, PackageName);
+	}
 
 	bool BuildSky()
 	{
@@ -267,6 +401,7 @@ bool FSolsticeCelMaterialBuilder::BuildAll()
 	const FString CelPath = FString(FPackageName::LongPackageNameToFilename(TEXT("/Game/Core/M_Cel"), FPackageName::GetAssetPackageExtension()));
 	const FString InkPath = FString(FPackageName::LongPackageNameToFilename(TEXT("/Game/Core/M_Ink"), FPackageName::GetAssetPackageExtension()));
 	const FString SkyPath = FString(FPackageName::LongPackageNameToFilename(TEXT("/Game/Core/M_Sky"), FPackageName::GetAssetPackageExtension()));
+	const FString SeaPath = FString(FPackageName::LongPackageNameToFilename(TEXT("/Game/Core/M_Sea"), FPackageName::GetAssetPackageExtension()));
 
 	const bool bInkMissing = !FPaths::FileExists(InkPath);
 	const bool bSkyMissing = !FPaths::FileExists(SkyPath);
@@ -307,8 +442,43 @@ bool FSolsticeCelMaterialBuilder::BuildAll()
 		}
 	}
 
-	const FString InkHullPath = FString(FPackageName::LongPackageNameToFilename(TEXT("/Game/Core/M_InkHull"), FPackageName::GetAssetPackageExtension()));
-	if (!FPaths::FileExists(InkHullPath))
+	// M_Sea follows the same stamp rule as M_Cel: water is the surface most likely to be retuned
+	// (roughness, specular, the depth ramp), so "generated once and never again" would silently
+	// keep an old recipe forever.
+	bool bSeaNeedsRebuild = !FPaths::FileExists(SeaPath);
+	if (!bSeaNeedsRebuild)
+	{
+		if (UMaterial* Sea = LoadObject<UMaterial>(nullptr, TEXT("/Game/Core/M_Sea.M_Sea")))
+		{
+			float Found = -1.0f;
+			for (const TObjectPtr<UMaterialExpression>& Expression : Sea->GetExpressionCollection().Expressions)
+			{
+				if (const UMaterialExpressionScalarParameter* Scalar = Cast<UMaterialExpressionScalarParameter>(Expression))
+				{
+					if (Scalar->ParameterName == TEXT("RecipeVersion"))
+					{
+						Found = Scalar->DefaultValue;
+						break;
+					}
+				}
+			}
+			bSeaNeedsRebuild = FMath::RoundToInt(Found) != CelRecipeVersion;
+		}
+	}
+	if (bSeaNeedsRebuild)
+	{
+		if (BuildSea())
+		{
+			UE_LOG(LogSolstice, Display, TEXT("generated /Game/Core/M_Sea (recipe v%d)"), CelRecipeVersion);
+		}
+		else
+		{
+			UE_LOG(LogSolstice, Error, TEXT("could not generate /Game/Core/M_Sea"));
+			bOk = false;
+		}
+	}
+
+	const FString InkHullPath = FString(FPackageName::LongPackageNameToFilename(TEXT("/Game/Core/M_InkHull"), FPackageName::GetAssetPackageExtension()));	if (!FPaths::FileExists(InkHullPath))
 	{
 		if (BuildInkHull())
 		{

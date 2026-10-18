@@ -23,6 +23,14 @@ namespace Solstice
 		TArray<FVector> Normals;
 		TArray<FVector2D> UVs;
 		TArray<FLinearColor> Colors;
+		/**
+		 * Tangent basis, one per vertex.
+		 *
+		 * Without it UE cannot build a tangent frame, so *any* normal map or tangent-space
+		 * normal - including the procedural wave normal the sea needs - silently does nothing.
+		 * The sea is a flat sheet, so its tangent is just +X; the ground gets a sensible one too.
+		 */
+		TArray<FProcMeshTangent> Tangents;
 		TArray<int32> Triangles;
 
 		void Reset()
@@ -46,7 +54,8 @@ namespace Solstice
 		 * crevice or the underside of a canopy.
 		 */
 		int32 Add(const FVector& Position, const FVector& Normal, const FVector2D& UV,
-			const FLinearColor& Color, float Occlusion = 1.0f)
+			const FLinearColor& Color, float Occlusion = 1.0f,
+			const FVector& Tangent = FVector(1.0f, 0.0f, 0.0f))
 		{
 			const int32 Index = Positions.Add(Position);
 			Normals.Add(Normal);
@@ -54,6 +63,7 @@ namespace Solstice
 			FLinearColor Stored = Color;
 			Stored.A = FMath::Clamp(Occlusion, 0.0f, 1.0f);
 			Colors.Add(Stored);
+			Tangents.Add(FProcMeshTangent(Tangent, false));
 			return Index;
 		}
 
@@ -119,8 +129,9 @@ namespace Solstice
 				Component->ClearMeshSection(Section);
 				return;
 			}
-			static const TArray<FProcMeshTangent> NoTangents;
-			Component->CreateMeshSection_LinearColor(Section, Positions, Triangles, Normals, UVs, Colors, NoTangents, bCreateCollision);
+			// Empty is legal (UE then derives a frame), but a supplied basis is what makes the
+			// sea's normal map possible at all.
+			Component->CreateMeshSection_LinearColor(Section, Positions, Triangles, Normals, UVs, Colors, Tangents, bCreateCollision);
 		}
 
 		static void ClearSection(UProceduralMeshComponent* Component, int32 Section)

@@ -16,6 +16,7 @@ namespace Solstice
 		const TCHAR* InkAssetPath = TEXT("/Game/Core/M_Ink.M_Ink");
 		const TCHAR* InkHullAssetPath = TEXT("/Game/Core/M_InkHull.M_InkHull");
 		const TCHAR* SkyAssetPath = TEXT("/Game/Core/M_Sky.M_Sky");
+		const TCHAR* SeaAssetPath = TEXT("/Game/Core/M_Sea.M_Sea");
 
 		/** Engine fallbacks so the realm still renders before the assets exist. */
 		const TCHAR* CelFallbackPath = TEXT("/Engine/EngineDebugMaterials/VertexColorViewMode_ColorOnly.VertexColorViewMode_ColorOnly");
@@ -149,6 +150,7 @@ namespace Solstice
 		UMaterialInterface* Ink = LoadObject<UMaterialInterface>(nullptr, InkAssetPath);
 		UMaterialInterface* InkHull = LoadObject<UMaterialInterface>(nullptr, InkHullAssetPath);
 		UMaterialInterface* Sky = LoadObject<UMaterialInterface>(nullptr, SkyAssetPath);
+		UMaterialInterface* Sea = LoadObject<UMaterialInterface>(nullptr, SeaAssetPath);
 
 		// Exactly one attempt per builder install. SetBuilder resets the flag, so a builder that
 		// arrives late still gets its chance, but a builder that is still missing must not make us
@@ -174,6 +176,7 @@ namespace Solstice
 					Ink = Ink ? Ink : LoadObject<UMaterialInterface>(nullptr, InkAssetPath);
 					InkHull = InkHull ? InkHull : LoadObject<UMaterialInterface>(nullptr, InkHullAssetPath);
 					Sky = Sky ? Sky : LoadObject<UMaterialInterface>(nullptr, SkyAssetPath);
+					Sea = Sea ? Sea : LoadObject<UMaterialInterface>(nullptr, SeaAssetPath);
 				}
 			}
 		}
@@ -203,6 +206,8 @@ namespace Solstice
 		if (Set.InkHull) { Set.InkHull->RemoveFromRoot(); }
 		if (Set.InkHullMID) { Set.InkHullMID->RemoveFromRoot(); }
 		if (Set.Sky) { Set.Sky->RemoveFromRoot(); }
+		if (Set.Sea) { Set.Sea->RemoveFromRoot(); }
+		if (Set.SeaMID) { Set.SeaMID->RemoveFromRoot(); }
 		if (Set.CelMID) { Set.CelMID->RemoveFromRoot(); }
 		if (Set.InkMID) { Set.InkMID->RemoveFromRoot(); }
 		if (Set.SkyMID) { Set.SkyMID->RemoveFromRoot(); }
@@ -211,16 +216,20 @@ namespace Solstice
 		Set.Ink = Ink;
 		Set.InkHull = InkHull;
 		Set.Sky = Sky;
+		Set.Sea = Sea;
 		Set.CelMID = Cel ? UMaterialInstanceDynamic::Create(Cel, GetTransientPackage()) : nullptr;
 		Set.InkMID = Ink ? UMaterialInstanceDynamic::Create(Ink, GetTransientPackage()) : nullptr;
 		Set.InkHullMID = InkHull ? UMaterialInstanceDynamic::Create(InkHull, GetTransientPackage()) : nullptr;
 		Set.SkyMID = Sky ? UMaterialInstanceDynamic::Create(Sky, GetTransientPackage()) : nullptr;
+		Set.SeaMID = Sea ? UMaterialInstanceDynamic::Create(Sea, GetTransientPackage()) : nullptr;
 
 		if (Set.Cel) { Set.Cel->AddToRoot(); }
 		if (Set.Ink) { Set.Ink->AddToRoot(); }
 		if (Set.InkHull) { Set.InkHull->AddToRoot(); }
 		if (Set.InkHullMID) { Set.InkHullMID->AddToRoot(); }
 		if (Set.Sky) { Set.Sky->AddToRoot(); }
+		if (Set.Sea) { Set.Sea->AddToRoot(); }
+		if (Set.SeaMID) { Set.SeaMID->AddToRoot(); }
 		if (Set.CelMID) { Set.CelMID->AddToRoot(); }
 		if (Set.InkMID) { Set.InkMID->AddToRoot(); }
 		if (Set.SkyMID) { Set.SkyMID->AddToRoot(); }

@@ -338,6 +338,11 @@ void ASolsticeRealm::BuildStatics()
 		return;
 	}
 
+	// Resolve the materials *before* anything asks for a MID. `ApplySky` also calls Ensure, but it
+	// runs after BuildStatics, so on the first build every `Get().SeaMID` was still null and the
+	// sea silently kept the sky material - a parameter change that produced zero pixel difference.
+	FCelMaterials::Ensure();
+
 	// The kraft base never changes once the realm size is fixed.
 	Scratch.Reset();
 	Gen::BuildBase(*Sim, Palette, Scratch);
@@ -357,9 +362,22 @@ void ASolsticeRealm::BuildStatics()
 		Gen::BuildOcean(Radius * 1.02f, Radius * OceanRadiusRadii,
 			Sim->GetSky().WaterLevel * MeterUU - 5.0f, OceanPalette, OceanHaze, Scratch);
 		Scratch.PushTo(BaseMesh, 2, false);
-		if (BaseMesh && FCelMaterials::Get().SkyMID)
+		UE_LOG(LogSolstice, Warning, TEXT("[diag] sea mat: asset=%d mid=%d sky_mid=%d"),
+			FCelMaterials::Get().Sea ? 1 : 0,
+			FCelMaterials::Get().SeaMID ? 1 : 0,
+			FCelMaterials::Get().SkyMID ? 1 : 0);
+		// The open sea is *lit*: it is the one surface whose whole read comes from reflected
+		// sky and a sun glint. M_Sky would give it the flat vertex colour and nothing else.
+		if (BaseMesh)
 		{
-			BaseMesh->SetMaterial(2, FCelMaterials::Get().SkyMID);
+			if (FCelMaterials::Get().SeaMID)
+			{
+				BaseMesh->SetMaterial(2, FCelMaterials::Get().SeaMID);
+			}
+			else if (FCelMaterials::Get().SkyMID)
+			{
+				BaseMesh->SetMaterial(2, FCelMaterials::Get().SkyMID);
+			}
 		}
 	}
 
@@ -552,7 +570,11 @@ void ASolsticeRealm::BuildSkyMesh()
 	const float Wet = FMath::Clamp(Sky.RainIntensity, 0.0f, 1.0f);
 
 	Gen::FSkyPaint Paint;
-	Paint.HorizonV = HorizonV;
+	// HorizonV is measured against the *screen* half-tan; the card is overscanned, so in card
+	// coordinates the horizon sits lower by exactly that factor. Forgetting this division is why
+	// the gradient was correct but the card edge showed: the paint and the geometry disagreed
+	// about where the frame ended.
+	Paint.HorizonV = HorizonV / SkyCardOverscan;
 	Paint.VisibleTop = 1.0f / SkyCardOverscan;
 	Paint.Zenith = FMath::Lerp(FMath::Lerp(NightZenith, DayZenith, Daylight), DuskZenith, Golden * 0.75f);
 	Paint.Middle = FMath::Lerp(FMath::Lerp(NightMiddle, DayMiddle, Daylight), DuskMiddle, Golden * 0.75f);
@@ -621,15 +643,17 @@ void ASolsticeRealm::BuildSkyMesh()
 		// centre *above* the frame: at preset 0 the peak projects to ~0.9 of the card, so a body
 		// that clears it entirely ends up entirely off screen (2026-10-18 - the sun was drawn past
 		// the top edge and all that showed was its cold halo ring).
-		const float RadiusV = Radius / FMath::Max(0.05f, SkyHalfTanV);
-		const float RadiusU = Radius / FMath::Max(0.05f, SkyHalfTanH);
+		const float CardHalfV = SkyHalfTanV * SkyCardOverscan;
+		const float CardHalfH = SkyHalfTanH * SkyCardOverscan;
+		const float RadiusV = Radius / FMath::Max(0.05f, CardHalfV);
+		const float RadiusU = Radius / FMath::Max(0.05f, CardHalfH);
 		const float VTop = VisibleTop - 0.02f - RadiusV;
-		const float VBot = FMath::Min(SkylineV + 0.04f + RadiusV, VTop);
+		const float VBot = FMath::Min(SkylineV / SkyCardOverscan + 0.04f + RadiusV, VTop);
 		const float U = FMath::Clamp(FMath::Tan(YawDelta) / FMath::Tan(YawLimit), -1.0f, 1.0f)
 			* FMath::Max(0.20f, 0.84f - RadiusU);
 		const float Alt01 = FMath::Clamp(Direction.Z / FMath::Sin(FMath::DegreesToRadians(70.0f)), 0.0f, 1.0f);
 		const float V = FMath::Clamp(FMath::Lerp(VBot, VTop, Alt01), VBot, FMath::Max(VBot, VTop));
-		OutPos = FVector2D(U * SkyHalfTanH, V * SkyHalfTanV);
+		OutPos = FVector2D(U * CardHalfH, V * CardHalfV);
 		bVisible = true;
 	};
 
@@ -674,7 +698,10 @@ void ASolsticeRealm::BuildSkyMesh()
 	Paint.Star *= SkyDim;
 
 	Scratch.Reset();
-	Gen::BuildSkyCard(SkyHalfTanH, SkyHalfTanV, Paint, Scratch);
+	// The card is 12% larger than the viewport. Without this the card ended exactly at the frame
+	// edge and every rounding error showed it: the grey band across the sea at preset 0 was the
+	// card's own bottom edge, not fog.
+	Gen::BuildSkyCard(SkyHalfTanH * SkyCardOverscan, SkyHalfTanV * SkyCardOverscan, Paint, Scratch);
 	Scratch.PushTo(SkyMesh, 0, false);
 	SkyMesh->SetMeshSectionVisible(0, true);
 	// Sections 1 and 2 held the world-space shell and its celestial bodies. The bodies are

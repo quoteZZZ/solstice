@@ -53,9 +53,9 @@ namespace Solstice
 		 * dark blue, not a muted slate. Deep stays clearly lighter than the void (#0B1431) so the
 		 * disc does not read as "the world ends here".
 		 */
-		FLinearColor Water = CelSrgb(0x6B, 0xDC, 0xD6);
-		FLinearColor WaterMid = CelSrgb(0x1A, 0x8F, 0xC7);
-		FLinearColor WaterDeep = CelSrgb(0x08, 0x38, 0x85);
+		FLinearColor Water = CelSrgb(0x57, 0xC8, 0xC8);	// PALETTE A sea_shallow
+		FLinearColor WaterMid = CelSrgb(0x2E, 0x93, 0xB8);	// PALETTE A sea_mid
+		FLinearColor WaterDeep = CelSrgb(0x17, 0x52, 0x7E);	// PALETTE A sea_deep
 		/** Surf: the pale rim on the water side of a shoreline (art.md SS2.3). */
 		FLinearColor Surf = CelSrgb(0xDC, 0xF0, 0xF8);
 		/** Ripple strokes on open water. */
