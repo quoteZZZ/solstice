@@ -61,7 +61,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 56;
+	constexpr int32 CelRecipeVersion = 58;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -871,7 +871,19 @@ for (int j = 0; j < 2; j++)
 // small ones instead of an even field of identical puffs. The modulation is gentle: at 0.42 it
 // cut the deck into shreds.
 float cover = CloudThreshold + (m - 0.42) * 0.22;
-float mask = smoothstep(cover, cover + 0.20, n);
+// 0.24, not 0.20 - and never wider than the noise itself.
+//
+// The band is measured in noise units and the three-octave field only spans about 0.30 of them
+// in practice. A first attempt at 0.34 was wider than the whole signal, so `mask` could never
+// reach 1: every cloud became a translucent sheet and the sky turned into fog. 0.24 softens the
+// rim without capping coverage.
+float mask = smoothstep(cover, cover + 0.24, n);
+
+// How far past the threshold this pixel is, 0 at the rim and 1 in the thickest core. A cloud is
+// not a flat cut-out: the rim is a thin sheet you can nearly see through, and only the core has
+// enough body to cast its own shade. Without this the whole silhouette gets the same internal
+// contrast and reads as painted cardboard.
+float density = saturate((n - cover) / 0.30);
 
 // The two samples differ along the sun direction, so their difference is the sun-facing slope.
 // Amplified hard: at the noise's own contrast it is a silhouette, not a lit volume.
@@ -879,6 +891,10 @@ float lit = saturate((n - m) * 22.0 + 0.46);
 
 // Bases sit in their own shade - a cumulus has a darker underside and a bright top.
 lit *= 0.55 + 0.45 * smoothstep(0.0, 0.09, h);
+
+// Thin edges let light through; they should read brighter than the body, not darker. This is the
+// second half of the volume cue - the first is the internal shade above.
+lit = saturate(lit + (1.0 - density) * 0.14);
 
 float3 cloudCol = lerp(CloudShadow, CloudLit, lit);
 
