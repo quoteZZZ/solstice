@@ -65,6 +65,17 @@ public:
 	void ToggleLanguage();
 
 	// ---- panel visibility (the HUD also flips these) ----
+	/**
+	 * The full read-out (clock detail + realm census).
+	 *
+	 * Off by default: the two panels are 24 rows of numbers and they were covering a third of the
+	 * frame, which is the whole reason the first screen after "new game" read as a debug overlay
+	 * instead of as a place. The one-line status capsule carries what a player actually glances
+	 * at; T opens the rest.
+	 */
+	void ToggleDetails() { bShowDetails = !bShowDetails; }
+	bool IsDetailsOpen() const { return bShowDetails; }
+
 	void ToggleChronicle() { bShowChronicle = !bShowChronicle; }
 	void TogglePool() { bShowPool = !bShowPool; }
 	void TogglePacks() { bShowPacks = !bShowPacks; }
@@ -96,6 +107,7 @@ private:
 
 	int32 SelectedSlot = 0;
 	bool bSettleAsEntity = false;
+	bool bShowDetails = false;
 	bool bShowChronicle = false;
 	bool bShowPool = false;
 	bool bShowPacks = false;

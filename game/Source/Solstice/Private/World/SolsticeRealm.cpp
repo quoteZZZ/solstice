@@ -814,10 +814,15 @@ void ASolsticeRealm::BuildSkyMesh()
 
 	// Clouds take the same hour: gold on top and violet underneath at dusk, white on white at
 	// noon, moonlit grey at night. Rain greys them without touching the sky above them.
+	//
+	// The night value is authored in sRGB like every other colour here, not as a linear guess.
+	// It used to be the literal (0.42, 0.46, 0.54) - a *linear* value that SkyDim then multiplies
+	// by 2.2, so night clouds arrived on screen at 0.93 and rendered as pure white in a dark sky.
+	// Measured on a 20:00 frame: the clouds were the brightest thing in the picture.
 	Paint.Cirrus = FMath::Lerp(FMath::Lerp(NightMiddle, FLinearColor::White, Daylight), DuskHorizon, Golden * 0.50f);
-	Paint.CumulusLit = FMath::Lerp(FMath::Lerp(FLinearColor(0.42f, 0.46f, 0.54f), CelSrgb(0xFF, 0xFC, 0xF5), Daylight),
+	Paint.CumulusLit = FMath::Lerp(FMath::Lerp(CelSrgb(0x36, 0x4C, 0x68), CelSrgb(0xFF, 0xFC, 0xF5), Daylight),
 		DuskHorizon, Golden * 0.60f);
-	Paint.CumulusBase = FMath::Lerp(FMath::Lerp(NightMiddle, CelSrgb(0xAE, 0xC2, 0xDA), Daylight),
+	Paint.CumulusBase = FMath::Lerp(FMath::Lerp(CelSrgb(0x18, 0x28, 0x42), CelSrgb(0xAE, 0xC2, 0xDA), Daylight),
 		DuskZenith, Golden * 0.55f);
 	Paint.SunCore = FMath::Lerp(FLinearColor(1.0f, 0.97f, 0.90f), CelSrgb(0xFF, 0xC8, 0x6E), Golden * 0.80f);
 	Paint.SunHalo = FMath::Lerp(CelSrgb(0xFF, 0xE6, 0x9E), DuskHorizon, Golden * 0.70f);
@@ -991,7 +996,14 @@ void ASolsticeRealm::BuildSkyMesh()
 	{
 		SeaMID->SetVectorParameterValue(TEXT("SkyReflect"), Paint.Horizon);
 
-		const FLinearColor NightSea(0.20f, 0.26f, 0.42f, 1.0f);
+		// Night tint had to come down by a factor of three.
+		//
+		// The sea is emissive, so it does not care that the sun has set: the only thing standing
+		// between a noon lagoon and a night sea is this multiplier. At (0.20, 0.26, 0.42) the
+		// water arrived at roughly three times the sky's own luminance - the night frame read as
+		// a bright sea under a dark sky, which is upside down. Deep water at night is one of the
+		// darkest things in nature; it should sit below the sky, not above it.
+		const FLinearColor NightSea(0.05f, 0.09f, 0.17f, 1.0f);
 		const FLinearColor DaySea(1.0f, 1.0f, 1.0f, 1.0f);
 		const FLinearColor Tint = FMath::Lerp(NightSea, DaySea, Daylight);
 		SeaMID->SetVectorParameterValue(TEXT("SeaTint"),
@@ -1000,6 +1012,36 @@ void ASolsticeRealm::BuildSkyMesh()
 		// One-run override (`-SolsticeSea=`), so the diffuse/emissive split can be searched
 		// without a recompile per candidate. Order: diffuse, glow, shade, [foam], [specular],
 		// [sky reflection strength]; trailing entries may be omitted.
+		//
+		// The reflection has to come down at night. `SkyReflect` is the horizon colour, which the
+		// exposure compensation multiplies by 2.2 - correct for the sky it paints, but at night
+		// the grazing band reflected it as a bright white road across a dark sea.
+		SeaMID->SetScalarParameterValue(TEXT("SkyReflectStrength"),
+			FMath::Lerp(0.22f, 0.50f, Daylight));
+
+		// The glint is a moon path at night, and a moon path has to be narrow. At the daytime
+		// 0.16 the 80-unit moon laid a continuous white road across the whole lower half of the
+		// frame - the eye reads that as a painted stripe, not as water. 0.05 keeps a hint of it.
+		// 0.010 by day, not 0.16 and not 0.08.
+		//
+		// Measured sensitivity of the sampled water band's midpoint to this one number, at 09:30
+		// where the sun is low enough that its reflection points at the camera: 0.16 -> 0.912,
+		// 0.08 -> 0.792, 0.02 -> 0.633, 0.01 -> 0.576, 0.00 -> 0.424. It is linear and it is the
+		// whole difference between "the sea" and "a white sheet".
+		//
+		// The cost is real and worth stating: at a 100-unit sun there is almost no sun glitter
+		// left on the water. The glint has to be bought back some other way - a lower sun with a
+		// lower intensity, or a separate additive glint term that is deliberately clamped - not
+		// by turning this back up.
+		//
+		// This override is what the material actually sees: setting WaterSpecular in the builder
+		// while this line pushes a different number every frame is how a measured, well-reasoned
+		// material value turns into a no-op. At 0.16 the noon frame passed only because the noon
+		// sun is nearly overhead and its reflection misses the camera; at 09:30 the same lobe
+		// pointed straight down the view axis and the sea went to (255,255,255) - measured at
+		// (900,450): (183,224,242) at noon against (255,255,255) at 09:30.
+		SeaMID->SetScalarParameterValue(TEXT("WaterSpecular"),
+			FMath::Lerp(0.006f, 0.010f, Daylight));
 		static const TCHAR* SeaParamNames[] = {
 			TEXT("WaterDiffuse"),
 			TEXT("WaterGlow"),
@@ -1117,7 +1159,13 @@ void ASolsticeRealm::UpdateSun()
 
 	// Ambient follows too: a low sun means less sky light in the frame, and it must not be
 	// allowed to keep the ground at midday brightness on its own.
-	const float Ambient01 = FMath::Clamp((Sky.SolarAltitudeDeg + 6.0f) / 22.0f, 0.06f, 1.0f);
+	// The floor is 0.20, not 0.06.
+	//
+	// 0.06 is right as a *physical* ratio between night sky and noon sun, but the ground only has
+	// two lights: this one and the moon. With a 0.06 floor the side of the island facing away
+	// from the moon was pure black - a hole in the frame rather than a dark island. Night in a
+	// stylised world still has to be readable, and skyglow is what makes it readable.
+	const float Ambient01 = FMath::Clamp((Sky.SolarAltitudeDeg + 6.0f) / 22.0f, 0.20f, 1.0f);
 			const float SkyScale = EnvTuning.Y >= 0.0 ? static_cast<float>(EnvTuning.Y) : 1.0f;
 	SkyLight->SetIntensity(SkyLightIntensity * Ambient01 * SkyScale);
 
@@ -1139,9 +1187,39 @@ void ASolsticeRealm::UpdateSun()
 	// ground is shaded by LitTint/MidTint/ShadowTint plus a band threshold on dot(normal, sun),
 	// so light components cannot reach it at all. A fill light was added on 2026-10-18 for a dark
 	// dusk frame and changed exactly zero pixels - the dusk ramp lives in FCelMaterials::ApplySky.
-	SunLight->SetIntensity(
-		FMath::Lerp(0.15f, 1.0f, FMath::Clamp((Sky.SolarAltitudeDeg + 8.0f) / 18.0f, 0.0f, 1.0f)) * SunLightIntensity
-		* (EnvTuning.X >= 0.0 ? static_cast<float>(EnvTuning.X) : 1.0f));
+	// Below the horizon the sun is gone, and a moon takes over the same lamp.
+	//
+	// The intensity curve used to bottom out at Lerp(0.15, ...), so a sun 30 degrees *under* the
+	// horizon was still lighting the ground at 15 - and because its rotation follows the sun, it
+	// was shining upward from below, lighting the underside of the island while the sky said it
+	// was night. Measured at 20:00: `alt=-30.5 intensity=15.00`.
+	const float SunUp = FMath::Clamp((Sky.SolarAltitudeDeg + 3.0f) / 5.0f, 0.0f, 1.0f);
+	if (SunUp > 0.0f)
+	{
+		SunLight->SetIntensity(
+			SunUp * FMath::Lerp(0.15f, 1.0f, FMath::Clamp((Sky.SolarAltitudeDeg + 8.0f) / 18.0f, 0.0f, 1.0f))
+			* SunLightIntensity * (EnvTuning.X >= 0.0 ? static_cast<float>(EnvTuning.X) : 1.0f));
+	}
+	else
+	{
+		// Moonlight: the anti-solar point is roughly where a full moon sits, so the lamp keeps a
+		// direction instead of leaving the island as a flat silhouette. Cold, and dim enough that
+		// it reads as night without hiding the land.
+		// 80, and the number comes from measurement, not from a moonlight ratio.
+		//
+		// A physically correct moon is 1/400,000 of the sun, and at any such value the island is
+		// a black hole in the frame - which is what "night is ugly" actually was. Measured green
+		// (island) luminance: 84 at noon against 65 at 20:00 with a 30-unit moon, and most of the
+		// island had dropped below the threshold where its colour reads at all. 80 puts the night
+		// island within a few points of the day one; the colour temperature is what says "night",
+		// not the exposure.
+		constexpr float MoonLightIntensity = 80.0f;
+		const FVector MoonDir = -SunDir;
+		SunLight->SetWorldRotation((-MoonDir).Rotation());
+		SunLight->SetLightColor(FLinearColor(0.54f, 0.66f, 0.94f));
+		SunLight->SetIntensity(MoonLightIntensity
+			* (EnvTuning.X >= 0.0 ? static_cast<float>(EnvTuning.X) : 1.0f));
+	}
 	const float Wet = FMath::Clamp(Sky.RainIntensity * 0.7f + Sky.CloudCover * 0.3f, 0.0f, 1.0f);
 	// The void outside the realm is pinned deep blue (WORLD SS1.1, #0B1431) in every weather -
 	// weather only pushes it slightly towards grey-blue, it never returns to pale fog grey.

@@ -800,6 +800,10 @@ void ASolsticePlayerController::Tick(float DeltaSeconds)
 
 	// Tab lives outside the bShowUI gate: a hidden HUD must still be able to unhide itself.
 	if (WasInputKeyJustPressed(EKeys::Tab)) { ToggleUI(); }
+	// T opens the full read-out. Outside the gate for the same reason as Tab, but also because
+	// the capsule that replaces it is the only thing on screen in the default view: a player who
+	// cannot find the numbers would otherwise have no way to ask for them.
+	if (WasInputKeyJustPressed(EKeys::T)) { ToggleDetails(); }
 
 	if (bShowUI)
 	{

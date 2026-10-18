@@ -266,11 +266,23 @@ namespace Solstice
 			const FDateTime RealNow = FDateTime::Now();
 			int32 MinuteOfDay = RealNow.GetHour() * 60 + RealNow.GetMinute();
 
-			// ...but a fresh realm should not open in the dark. Between 22:00 and 05:00 the real
-			// clock would drop you into the night tints, so the world starts at dawn instead and
-			// runs forward from there; the date is still the real one and the clock catches up.
-			constexpr int32 DawnMinute = 6 * 60 + 30;
-			constexpr int32 DuskMinute = 20 * 60 + 30;
+			// ...but a fresh realm should not open in the dark, and "dark" starts much earlier
+			// than the clock suggests. The window used to be 06:30-20:30, which allowed 20:00 -
+			// a time this sky model puts 30 degrees *below* the horizon, i.e. fully night. A
+			// player who opened the game at nine in the evening got a black sea, a silhouette
+			// for an island, and concluded the renderer was broken (2026-10-18, exactly that).
+			//
+			// 17:30 is the last minute with the sun still low and warm; 08:30 is the first minute
+			// that reads as morning rather than as dawn. Outside that band the world opens at
+			// 08:30 and runs forward; the date is still the real one.
+			//
+			// The band is 09:30-16:00 for now, not 08:30-17:30. Measured at 08:30 on a clear
+			// day: the sky's horizon band and the sea that mirrors it both washed out to white -
+			// the low-sun palette has not been calibrated since the ground became lit, and until
+			// it is, opening a fresh world there would be a worse first impression than a plain
+			// high sun. Widen this once the morning and evening grades are re-measured.
+			constexpr int32 DawnMinute = 9 * 60 + 30;
+			constexpr int32 DuskMinute = 16 * 60;
 			if (MinuteOfDay < DawnMinute || MinuteOfDay > DuskMinute)
 			{
 				MinuteOfDay = DawnMinute;

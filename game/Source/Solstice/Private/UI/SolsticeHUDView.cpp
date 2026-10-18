@@ -121,6 +121,17 @@ namespace
 	FText Dec1(float In) { return FText::FromString(FString::Printf(TEXT("%.1f"), In)); }
 	FText Percent(float In) { return FText::FromString(FString::Printf(TEXT("%d%%"), FMath::RoundToInt(In * 100.0f))); }
 
+	/** Weather as one word. Shared by the status capsule and the full clock panel. */
+	FText WeatherLabel(const Solstice::FSkyState& Sky)
+	{
+		const TCHAR* Key =
+			Sky.GetWeather() == Solstice::EWeather::Clear ? TEXT("weather.clear") :
+			Sky.GetWeather() == Solstice::EWeather::Cloudy ? TEXT("weather.cloudy") :
+			Sky.GetWeather() == Solstice::EWeather::LightRain ? TEXT("weather.light_rain") :
+			Sky.GetWeather() == Solstice::EWeather::Storm ? TEXT("weather.storm") : TEXT("weather.fog");
+		return FText::FromString(Solstice::Loc(Key));
+	}
+
 	TSharedRef<STextBlock> Txt(const FText& Text, int32 Size = 12, const FLinearColor& Colour = Ink, bool bBold = false)
 	{
 		return SNew(STextBlock)
@@ -259,17 +270,38 @@ void SSolsticeHUDView::Construct(const FArguments& InArgs)
 			return (!PlayerCtl || PlayerCtl->IsUIOpen()) ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed;
 		}))
 
-		// ---- top left: clock -------------------------------------------------
+		// ---- top left: one-line status, full read-out on demand ---------------
+		//
+		// The capsule is always there; the two panels behind it are not. They are 24 rows of
+		// numbers in two 244px cards, and on the first screen after "new game" they covered the
+		// left third of the frame - which is why the game read as a debug overlay rather than as
+		// a place. T opens them for anyone who wants the numbers.
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(FMargin(14.0f))
 		[
 			SNew(SVerticalBox)
-			+ SVerticalBox::Slot().AutoHeight().Padding(0.0f, 0.0f, 0.0f, 6.0f)
-			[
-				BuildClockPanel()
-			]
 			+ SVerticalBox::Slot().AutoHeight()
 			[
-				BuildRealmPanel()
+				BuildStatusCapsule()
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.0f, 8.0f, 0.0f, 0.0f)
+			[
+				SNew(SBox)
+				.Visibility(TAttribute<EVisibility>::CreateLambda([this]()
+				{
+					ASolsticePlayerController* PlayerCtl = PC();
+					return (PlayerCtl && PlayerCtl->IsDetailsOpen()) ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed;
+				}))
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot().AutoHeight().Padding(0.0f, 0.0f, 0.0f, 6.0f)
+					[
+						BuildClockPanel()
+					]
+					+ SVerticalBox::Slot().AutoHeight()
+					[
+						BuildRealmPanel()
+					]
+				]
 			]
 		]
 
@@ -376,6 +408,55 @@ void SSolsticeHUDView::Construct(const FArguments& InArgs)
 // ======================================================================
 // Panels
 // ======================================================================
+
+TSharedRef<SWidget> SSolsticeHUDView::BuildStatusCapsule()
+{
+	// Three facts and nothing else: what season it is, what time it is, and what the sky is
+	// doing. Everything the old two panels carried is still one key away (T) - it is just not
+	// standing between the player and the island any more.
+	TSharedRef<SHorizontalBox> Row3 = SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+		[
+			TxtL(TAttribute<FText>::CreateLambda([this]()
+			{
+				FSimKernel* Kernel = Sim();
+				if (!Kernel) { return FText(); }
+				return FText::FromString(Kernel->GetSeasonString());
+			}), 12, InkSoft)
+		]
+		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(8.0f, 0.0f, 0.0f, 0.0f)
+		[
+			TxtL(TAttribute<FText>::CreateLambda([this]()
+			{
+				FSimKernel* Kernel = Sim();
+				if (!Kernel) { return FText(); }
+				return FText::FromString(FString::Printf(TEXT("%02d:%02d"),
+					Kernel->GetWorldHour(), Kernel->GetWorldMinuteOfHour()));
+			}), 14, Ink, true)
+		]
+		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(10.0f, 0.0f, 0.0f, 0.0f)
+		[
+			TxtL(TAttribute<FText>::CreateLambda([this]()
+			{
+				FSimKernel* Kernel = Sim();
+				if (!Kernel) { return FText(); }
+				const FString Weather = WeatherLabel(Kernel->GetSky()).ToString();
+				return FText::FromString(FString::Printf(TEXT("%s  %.0f°"),
+					*Weather, Kernel->GetSky().AirTempC));
+			}), 12, InkSoft)
+		];
+
+	return SNew(SBox)
+		.Visibility(EVisibility::SelfHitTestInvisible)
+		[
+			SNew(SBorder)
+			.BorderImage(PanelBrush())
+			.Padding(FMargin(14.0f, 7.0f))
+			[
+				Row3
+			]
+		];
+}
 
 TSharedRef<SWidget> SSolsticeHUDView::BuildClockPanel()
 {

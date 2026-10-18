@@ -36,6 +36,13 @@ private:
 	USolsticeGameInstance* GI() const;
 	Solstice::FSimKernel* Sim() const;
 
+	/**
+	 * The only thing the default view shows on the left: season, clock and weather in one line.
+	 *
+	 * It replaces two panels of twenty-four rows that together covered a third of the frame.
+	 * Everything it leaves out is one keystroke away (T); nothing a player glances at is.
+	 */
+	TSharedRef<SWidget> BuildStatusCapsule();
 	TSharedRef<SWidget> BuildClockPanel();
 	TSharedRef<SWidget> BuildRealmPanel();
 	TSharedRef<SWidget> BuildEchoPanel();

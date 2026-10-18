@@ -61,7 +61,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 58;
+	constexpr int32 CelRecipeVersion = 60;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -306,17 +306,19 @@ namespace
 		// A tight lobe turns every wave crest into its own little sun: the sea reads as a field of
 		// bright squiggles floating on flat colour (the "oil on water" look measured 2026-10-18).
 		// A broad lobe merges them into one sheen and lets the water colour carry the surface.
-		Roughness->DefaultValue = 0.38f;
+		Roughness->DefaultValue = 0.46f;
 
 		UMaterialExpressionScalarParameter* Specular = AddExpr<UMaterialExpressionScalarParameter>(Material, -600, 300);
 		Specular->ParameterName = TEXT("WaterSpecular");
-		// 0.16, not 0.45.
+		// 0.08, not 0.45 and not 0.16.
 		//
-		// At a 100-unit sun the sun glint at 0.45 covered the near sea in a white sheet: the
-		// sampled water band measured a midpoint of 0.682 against a 0.60 ceiling, and the water
-		// colour was nowhere in it. A broad but weak lobe keeps the glint as a highlight on the
-		// horizon line instead of a surface treatment.
-		Specular->DefaultValue = 0.16f;
+		// At 0.45 the glint covered the near sea in a white sheet (midpoint 0.682 against a 0.60
+		// ceiling). At 0.16 the noon frame passed - but only because the noon sun sits almost
+		// overhead and its reflection misses the camera. At 09:30 the same 0.16 put the glare
+		// straight down the view axis and blew the whole lower half to white (midpoint 0.841,
+		// headroom 0.45 - both FAIL). The glint has to survive being aimed at the camera, and
+		// that is what 0.08 is for.
+		Specular->DefaultValue = 0.01f;
 
 		UMaterialExpressionScalarParameter* Recipe = AddExpr<UMaterialExpressionScalarParameter>(Material, -600, 420);
 		Recipe->ParameterName = TEXT("RecipeVersion");
