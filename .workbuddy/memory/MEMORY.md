@@ -43,6 +43,9 @@
 - **`tools/art/textures/*.png` 必须写 sRGB 编码后的字节**（`gen-textures.py::save()` 已处理）。
   运行时 `LoadPng` 一律 `Texture->SRGB = true`，写线性值等于多解一次 gamma：草地 0.58 → 0.30。
   法线图同理（它是数据，但走同一条 sRGB 取样路径）。
+- **PMC 落点标记三坑**：构造函数里建的组件是 Static（`SetWorldLocation` 无效，要 `SetMobility(Movable)`）；
+  Z 不能低于 `WaterLevel*MeterUU`（潟湖地面在水下，会被不透明海面挡住）；M_Cel 的 `SurfaceBaseGain` 要 6.0 才亮得起来。
+- **`FParse::Value` 默认在逗号处截断**，解析 `x,y` 这类参数必须传 `bShouldStopOnComma=false`。
 - **HUD 的度量只有一个源**：`SolsticeHUDView.cpp` 全按 1080p 书写，`GUiScale = clamp(视口高/1080, 0.85, 2.0)`
   统一缩放（字号 `Font()`、间距 `Px()`）。Slate 的 DPI 曲线对直接挂到 viewport 的 widget **无效**，
   缺这层就会"窗口越大字越小"。新增控件必须用 `Px()` 包住所有 padding / 宽高。
