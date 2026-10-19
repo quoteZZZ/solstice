@@ -1125,7 +1125,10 @@ namespace Solstice
 
 	void FSimKernel::StepEcology()
 	{
-		const float DeltaHours = 0.0667f * 4.0f;	// four world minutes per eco step
+		// 4 world minutes per eco step, in hours. This used to read `0.0667f * 4.0f` and several
+		// rates multiplied by another 4 on top of it, so the whole ecology ran 16x fast: shrubs
+		// burned their fertility and woody cover died out inside a day. One number, one unit.
+		const float DeltaHours = 0.0667f;
 		const float VegMean = GetVegetationMean();
 		const int32 TotalIndividuals = Individuals.Num();
 		const bool bWet = Sky.RainIntensity > 0.01f;
@@ -1134,6 +1137,10 @@ namespace Solstice
 		const int32 MossIndex = Catalog.FindSpecies(static_cast<uint8>(ESpeciesKind::MossGrass));
 		if (MossIndex != INDEX_NONE)
 		{
+			// GrowthPerHour is a per-hour rate, but the species table was tuned against the old
+			// 16x-fast step. Keep the food supply where the balance expects it with an explicit
+			// gain rather than by hiding a second factor inside the step length.
+			constexpr float MossGrowthGain = 4.0f;
 			const FSpeciesDef& Moss = Catalog.Species[MossIndex];
 			for (int32 Index = 0; Index < Tiles.Num(); ++Index)
 			{
@@ -1148,7 +1155,7 @@ namespace Solstice
 					&& Temp > 0.0f && Temp < 38.0f)
 				{
 					const float TempFactor = (Temp >= 10.0f && Temp <= 28.0f) ? 1.0f : 0.35f;
-					const float Growth = Moss.GrowthPerHour * DeltaHours * TempFactor * Light * Tile.Fertility * 4.0f;
+					const float Growth = Moss.GrowthPerHour * MossGrowthGain * DeltaHours * TempFactor * Light * Tile.Fertility;
 					const float Capacity = 0.35f + Tile.Fertility * 0.65f;
 					if (Tile.Vegetation < Capacity)
 					{
@@ -1159,7 +1166,7 @@ namespace Solstice
 				}
 				else if (Temp < 0.0f || Temp > 38.0f)
 				{
-					Tile.Vegetation = FMath::Max(0.0f, Tile.Vegetation - 0.004f * DeltaHours * 4.0f);
+					Tile.Vegetation = FMath::Max(0.0f, Tile.Vegetation - 0.004f * DeltaHours);
 				}
 			}
 		}
@@ -1170,7 +1177,9 @@ namespace Solstice
 		const int32 Budget = Tuning::IndividualBudgetSmall;
 		const bool bSpring = (GetWorldDay() % 90) < 30;
 
-		for (int32 Index = 0; Index < Individuals.Num(); ++Index)
+		// Backwards: KillIndividual() removes from this very array, so a forward loop skips
+		// the next creature and holds a reference into storage that just moved.
+		for (int32 Index = Individuals.Num() - 1; Index >= 0; --Index)
 		{
 			FIndividual& Creature = Individuals[Index];
 			const int32 SpeciesIndex = Catalog.FindSpecies(Creature.Kind);
@@ -1179,7 +1188,7 @@ namespace Solstice
 				continue;
 			}
 			const FSpeciesDef& Def = Catalog.Species[SpeciesIndex];
-			Creature.AgeDays += 0.0028f * 4.0f;
+			Creature.AgeDays += DeltaHours / 24.0f;
 
 			switch (Creature.GetKind())
 			{
@@ -1198,7 +1207,7 @@ namespace Solstice
 					// No water in reach: dehydration clock starts.
 					if (Creature.RestTimer > 0.0f)
 					{
-						Creature.RestTimer -= 0.0028f * 4.0f;
+						Creature.RestTimer -= DeltaHours;
 					}
 					else
 					{
@@ -1333,7 +1342,7 @@ namespace Solstice
 				if (!Current.IsWater())
 				{
 					// Stranding: one world day out of water is fatal (SPECIES SS2.1).
-					Creature.RestTimer -= 0.0028f * 4.0f;
+					Creature.RestTimer -= DeltaHours;
 					if (Creature.RestTimer <= 0.0f)
 					{
 						KillIndividual(Index, EDeathCause::Drowned);
@@ -1343,13 +1352,13 @@ namespace Solstice
 				else
 				{
 					Creature.RestTimer = 1.0f;
-					if (Current.LocalTempC < 4.0f || Current.LocalTempC > 26.0f)
+					if (Current.LocalTempC < -2.0f || Current.LocalTempC > 30.0f)
 					{
 						KillIndividual(Index, EDeathCause::Frozen);
 						++Deaths;
 						break;
 					}
-					Creature.Energy = FMath::Min(Def.EnergyMax, Creature.Energy + 0.4f * DeltaHours * 4.0f);
+					Creature.Energy = FMath::Min(Def.EnergyMax, Creature.Energy + 1.6f * DeltaHours);
 					if (bSpring && Current.LocalTempC > 15.0f && Rng.Stream(ERngStream::Eco).Chance(0.05f)
 						&& Births < 40 && (TotalIndividuals + Births) < Budget)
 					{
@@ -1377,15 +1386,25 @@ namespace Solstice
 			{
 				Creature.Energy = Def.EnergyMax;
 				FTile& Spot = Tiles[Creature.Tile];
-				if (Spot.LocalTempC < 0.0f || Spot.Moisture < 0.15f)
+				// Drought is dormancy, not death.
+				//
+				// The old rule killed a shrub the moment its tile dropped below 0.15 moisture.
+				// The default world rolls "steppe", most of its land sits near that line, and the
+				// result was a world with no woody cover at all - measured as 228 triangles of
+				// props on a whole island, and no shade for anything that eats.
+				if (Spot.LocalTempC < -2.0f)
 				{
 					KillIndividual(Index, EDeathCause::Frozen);
 					++Deaths;
 					break;
 				}
-				Spot.Moisture = FMath::Clamp(Spot.Moisture + 0.05f * 0.0028f * 4.0f, 0.0f, 1.0f);
-				Spot.Fertility = FMath::Max(0.0f, Spot.Fertility - Def.FertilityCostPerHour * DeltaHours * 2.0f);
-				Spot.Vegetation = FMath::Min(1.0f, Spot.Vegetation + 0.01f * DeltaHours * 4.0f);
+				const bool bDormant = (Spot.Moisture < 0.15f);
+				if (!bDormant)
+				{
+					Spot.Moisture = FMath::Clamp(Spot.Moisture + 0.05f * DeltaHours, 0.0f, 1.0f);
+					Spot.Fertility = FMath::Max(0.0f, Spot.Fertility - Def.FertilityCostPerHour * DeltaHours);
+					Spot.Vegetation = FMath::Min(1.0f, Spot.Vegetation + 0.04f * DeltaHours);
+				}
 				break;
 			}
 			default:
@@ -1484,52 +1503,69 @@ namespace Solstice
 
 	void FSimKernel::SeedLifeFromBiomes()
 	{
-		// docs/LATER.md SS4: biome x species set.
-		const int32 Size = Config.Size;
-		int32 Placed = 0;
-		for (int32 Index = 0; Index < Tiles.Num() && Placed < 120; ++Index)
+		// Biome x species, with a **per-species quota**.
+		//
+		// The old loop had one shared "Placed < 120" cap and walked tiles in index order, which
+		// starts with the sea. On any lake-heavy roll the whole budget went to fish; when the
+		// water temperature sat a tenth of a degree under the fish's hard threshold they all
+		// died on day one and the world finished the week with two grazers. A global cap makes
+		// the opening population a property of iteration order, which is not a design.
+		const int32 Budget = Tuning::IndividualBudgetSmall;
+		int32 Quota[static_cast<int32>(ESpeciesKind::Count)] = {};
+		Quota[static_cast<int32>(ESpeciesKind::Shrub)] = FMath::RoundToInt(Budget * 0.40f);
+		Quota[static_cast<int32>(ESpeciesKind::Grazer)] = FMath::RoundToInt(Budget * 0.30f);
+		Quota[static_cast<int32>(ESpeciesKind::StreamFish)] = FMath::RoundToInt(Budget * 0.15f);
+		Quota[static_cast<int32>(ESpeciesKind::Raptor)] = FMath::RoundToInt(Budget * 0.10f);
+
+		int32 Placed[static_cast<int32>(ESpeciesKind::Count)] = {};
+		const auto TryPlace = [&](ESpeciesKind Kind, int32 Index)
+		{
+			const int32 Slot = static_cast<int32>(Kind);
+			if (Placed[Slot] >= Quota[Slot])
+			{
+				return;
+			}
+			SpawnIndividual(Kind, Index);
+			++Placed[Slot];
+		};
+
+		for (int32 Index = 0; Index < Tiles.Num(); ++Index)
 		{
 			const FTile& Tile = Tiles[Index];
 			if (Tile.IsWater())
 			{
-				if (Tile.WaterBody == static_cast<uint8>(EWaterBody::Lake) && Rng.Stream(ERngStream::Eco).Chance(0.06f))
+				if (Tile.WaterBody == static_cast<uint8>(EWaterBody::Lake) && Rng.Stream(ERngStream::Eco).Chance(0.04f))
 				{
-					SpawnIndividual(ESpeciesKind::StreamFish, Index);
-					++Placed;
+					TryPlace(ESpeciesKind::StreamFish, Index);
 				}
 				continue;
 			}
 			switch (Tile.GetBiome())
 			{
 			case EBiome::Grass:
-				if (Rng.Stream(ERngStream::Eco).Chance(0.01f))
+				if (Rng.Stream(ERngStream::Eco).Chance(0.012f))
 				{
-					SpawnIndividual(ESpeciesKind::Grazer, Index);
-					++Placed;
+					TryPlace(ESpeciesKind::Grazer, Index);
 				}
 				else if (Rng.Stream(ERngStream::Eco).Chance(0.004f))
 				{
-					SpawnIndividual(ESpeciesKind::Raptor, Index);
-					++Placed;
+					TryPlace(ESpeciesKind::Raptor, Index);
 				}
 				break;
 			case EBiome::Woodland:
-				if (Rng.Stream(ERngStream::Eco).Chance(0.02f))
+				if (Rng.Stream(ERngStream::Eco).Chance(0.012f))
 				{
-					SpawnIndividual(ESpeciesKind::Shrub, Index);
-					++Placed;
+					TryPlace(ESpeciesKind::Shrub, Index);
 				}
-				if (Rng.Stream(ERngStream::Eco).Chance(0.008f))
+				if (Rng.Stream(ERngStream::Eco).Chance(0.006f))
 				{
-					SpawnIndividual(ESpeciesKind::Grazer, Index);
-					++Placed;
+					TryPlace(ESpeciesKind::Grazer, Index);
 				}
 				break;
 			case EBiome::RockSlope:
-				if (Rng.Stream(ERngStream::Eco).Chance(0.01f))
+				if (Rng.Stream(ERngStream::Eco).Chance(0.006f))
 				{
-					SpawnIndividual(ESpeciesKind::Raptor, Index);
-					++Placed;
+					TryPlace(ESpeciesKind::Raptor, Index);
 				}
 				break;
 			default:
@@ -1539,7 +1575,7 @@ namespace Solstice
 		bChaosState = (Individuals.Num() == 0);
 	}
 
-	void FSimKernel::SpawnIndividual(ESpeciesKind Kind, int32 Tile)
+		void FSimKernel::SpawnIndividual(ESpeciesKind Kind, int32 Tile)
 	{
 		if (!Tiles.IsValidIndex(Tile))
 		{
@@ -1569,6 +1605,7 @@ namespace Solstice
 		Mark.Cause = static_cast<uint8>(Cause);
 		Mark.TimeToLive = 6.0f;
 		DeathMarks.Add(Mark);
+		++DeathCauseCounts[static_cast<int32>(Cause)];
 
 		// Decompose into fertility: the loop closes (SPECIES SS3).
 		if (Tiles.IsValidIndex(Tile))
@@ -2674,6 +2711,12 @@ namespace Solstice
 			return TEXT("秋");
 		}
 		return TEXT("冬");
+	}
+
+	int32 FSimKernel::GetDeathsByCause(EDeathCause Cause) const
+	{
+		const int32 Index = static_cast<int32>(Cause);
+		return (Index >= 0 && Index < static_cast<int32>(EDeathCause::Count)) ? DeathCauseCounts[Index] : 0;
 	}
 
 	int32 FSimKernel::GetPopulation(ESpeciesKind Kind) const

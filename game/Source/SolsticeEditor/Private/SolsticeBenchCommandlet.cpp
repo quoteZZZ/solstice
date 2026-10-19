@@ -54,6 +54,11 @@ namespace
 		int32 DiscTiles = 0;			// tiles inside the world disc (the census denominator)
 		int32 OutsideDisc = 0;
 		int32 ShoreTiles = 0;					// water tile with at least one land neighbour
+		/** Chaos / Water / Grass / Woodland / RockSlope. A dead world is usually a biome census problem, not an ecology one. */
+		int32 BiomeCounts[5] = {};
+		float MinTempC = 999.0f;
+		float MaxTempC = -999.0f;
+
 		float MinHeight = 0.0f;
 		float MaxHeight = 0.0f;
 	};
@@ -67,6 +72,8 @@ namespace
 		int32 Individuals = 0;
 		int32 ChronicleEntries = 0;
 		int32 DeathMarks = 0;
+		int32 DeathByCause[7] = {};
+		int32 SeededPopulation = 0;
 		float PaintedFraction = 0.0f;
 		int32 Echo = 0;
 		double Seconds = 0.0;
@@ -82,6 +89,30 @@ namespace
 
 		Solstice::FSimKernel Kernel;
 		Kernel.Initialize(Config, Catalog);
+
+		// Seeding diagnostics: how many creatures the world opens with, and what it is made of.
+		// "population 2 after two days" was indistinguishable from "seeding never placed anything"
+		// until this line existed.
+		{
+			int32 BiomeCounts[5] = {};
+
+			for (int32 Y = 0; Y < Config.Size; ++Y)
+			{
+				for (int32 X = 0; X < Config.Size; ++X)
+				{
+					if (const Solstice::FTile* Tile = Kernel.TileAt(X, Y))
+					{
+						const int32 B = static_cast<int32>(Tile->GetBiome());
+						if (B >= 0 && B < 5) { ++BiomeCounts[B]; }
+					}
+				}
+			}
+			Run.SeededPopulation = Kernel.GetIndividuals().Num();
+			UE_LOG(LogSolstice, Display,
+				TEXT("bench: seeded pop %d (unrest %d / water %d / grass %d / woodland %d / rock %d)"),
+				Kernel.GetIndividuals().Num(), BiomeCounts[0], BiomeCounts[1], BiomeCounts[2],
+				BiomeCounts[3], BiomeCounts[4]);
+		}
 
 		// Virtual time, speed index 2 = the 4x preset. Derive the real-seconds-per-world-minute
 		// from the kernel itself rather than hard-coding it, so this keeps working if the pace
@@ -131,6 +162,10 @@ namespace
 		Run.Individuals = Kernel.GetIndividualCount();
 		Run.ChronicleEntries = Kernel.GetChronicle().Num();
 		Run.DeathMarks = Kernel.GetDeathMarks().Num();
+		for (int32 Cause = 0; Cause < 7; ++Cause)
+		{
+			Run.DeathByCause[Cause] = Kernel.GetDeathsByCause(static_cast<Solstice::EDeathCause>(Cause));
+		}
 		Run.PaintedFraction = Kernel.GetPaintedFraction();
 		Run.Roll = Kernel.GetWorldRoll();
 		Run.TerrainPeak = Kernel.GetTerrainPeakMeters();
@@ -161,6 +196,8 @@ namespace
 						continue;
 					}
 					++Run.Census.DiscTiles;
+					Run.Census.MinTempC = FMath::Min(Run.Census.MinTempC, Tile->LocalTempC);
+					Run.Census.MaxTempC = FMath::Max(Run.Census.MaxTempC, Tile->LocalTempC);
 					Run.Census.MinHeight = FMath::Min(Run.Census.MinHeight, Tile->Height);
 					Run.Census.MaxHeight = FMath::Max(Run.Census.MaxHeight, Tile->Height);
 					const int32 Band = FMath::Clamp(
@@ -170,6 +207,15 @@ namespace
 					if (Tile->IsWater())
 					{
 						++Run.Census.WaterTiles;
+					}
+					Run.Census.MinTempC = FMath::Min(Run.Census.MinTempC, Tile->LocalTempC);
+					Run.Census.MaxTempC = FMath::Max(Run.Census.MaxTempC, Tile->LocalTempC);
+					{
+						const int32 BiomeIndex = static_cast<int32>(Tile->GetBiome());
+						if (BiomeIndex >= 0 && BiomeIndex < 5)
+						{
+							++Run.Census.BiomeCounts[BiomeIndex];
+						}
 					}
 				}
 			}
@@ -293,6 +339,10 @@ int32 USolsticeBenchCommandlet::Main(const FString& Params)
 		B.WorldMinutes, B.Seconds, B.PopulationTotal, B.Individuals,
 		B.ChronicleEntries, B.DeathMarks, B.PaintedFraction * 100.0f, B.Echo);
 	UE_LOG(LogSolstice, Display,
+		TEXT("bench: deaths starved %d / predated %d / frozen %d / drowned %d / aged %d / desiccated %d"),
+		A.DeathByCause[1], A.DeathByCause[2], A.DeathByCause[3],
+		A.DeathByCause[4], A.DeathByCause[5], A.DeathByCause[6]);
+	UE_LOG(LogSolstice, Display,
 		TEXT("bench: species A moss %d, shrub %d, grazer %d, raptor %d, fish %d"),
 		A.PopulationByKind[0], A.PopulationByKind[1], A.PopulationByKind[2], A.PopulationByKind[3], A.PopulationByKind[4]);
 	UE_LOG(LogSolstice, Display, TEXT("bench: digest A %016llX (%d mixed) / digest B %016llX (%d mixed)"),
@@ -326,6 +376,12 @@ int32 USolsticeBenchCommandlet::Main(const FString& Params)
 				Roll.Provinces.Num(), A.TerrainPeak);
 		}
 		FString Bands;
+		UE_LOG(LogSolstice, Display, TEXT("bench: local temp %.1f .. %.1f C"),
+			A.Census.MinTempC, A.Census.MaxTempC);
+		UE_LOG(LogSolstice, Display,
+			TEXT("bench: biomes unrest %d / water %d / grass %d / woodland %d / rock %d"),
+			A.Census.BiomeCounts[0], A.Census.BiomeCounts[1], A.Census.BiomeCounts[2],
+			A.Census.BiomeCounts[3], A.Census.BiomeCounts[4]);
 		for (int32 Band = 0; Band < FTerrainCensus::Bands; ++Band)
 		{
 			Bands += FString::Printf(TEXT("%s%d-%d:%.1f%%"), Band > 0 ? TEXT(" ") : TEXT(""),

@@ -627,7 +627,19 @@ void ASolsticePlayerController::ApplyCameraStop(bool bAnimate)
 
 	// Distance is the one continuous axis: a stop change keeps whatever dolly the player set,
 	// clamped to the two bounds that are defined in world units (ART SS7).
-	const float Distance = FMath::Clamp(ObserverPawn->GetDistance(), 2500.0f, Fit * 1.6f);
+	// Default framing is 0.72 of the fitting distance at the two survey stops.
+	//
+	// `Fit` frames the whole disc, which on a 128 m world leaves two thirds of the picture as
+	// open sea and turns every tree into an eight-pixel dot. 0.72 still shows the realm's edge
+	// and lets the disc span ~70% of the frame.
+	//
+	// Only the *snap* applies it: once the player has dollied, changing elevation must keep
+	// their distance (distance is the one continuous axis), so an animated stop change clamps
+	// whatever they had instead of resetting it.
+	const float DefaultDistance = (PitchIndex <= 1) ? Fit * 0.72f : Fit;
+	const float Distance = bAnimate
+		? FMath::Clamp(ObserverPawn->GetDistance(), 2500.0f, Fit * 1.6f)
+		: FMath::Clamp(DefaultDistance, 2500.0f, Fit * 1.6f);
 
 	// A low camera needs its aim lifted or the world fills the frame edge to edge and the sky is
 	// a seam; the high survey stops want the realm centred. This is the only per-stop offset.
@@ -702,7 +714,7 @@ void ASolsticePlayerController::Tick(float DeltaSeconds)
 				ObserverPawn->SetFocus(RealmActor->GetRealmCentre());
 				// The intro lands on the default grid stop, not on a bespoke angle: the entry shot is
 				// one of the 32 poses the art gate checks, so it can never drift into an unchecked one.
-				ObserverPawn->PlayIntro(Fit, YawForAzimuth(AzimuthIndex),
+				ObserverPawn->PlayIntro(Fit * 0.72f, YawForAzimuth(AzimuthIndex),
 					-CameraPitchDegrees[PitchIndex]);
 				bCameraFramed = true;
 

@@ -119,6 +119,8 @@ namespace Solstice
 		// Realm readouts
 		// ------------------------------------------------------------------
 
+		/** Cumulative deaths by cause. DeathMarks are transient, so they cannot answer "what kills this world". */
+		int32 GetDeathsByCause(EDeathCause Cause) const;
 		int32 GetPopulation(ESpeciesKind Kind) const;
 		int32 GetPopulationTotal() const;
 		float GetVegetationMean() const;
@@ -246,6 +248,7 @@ namespace Solstice
 		FRealitySample Reality;
 		TArray<FIndividual> Individuals;
 		TArray<FDeathMark> DeathMarks;
+		int32 DeathCauseCounts[static_cast<int32>(EDeathCause::Count)] = {};
 		TArray<FChronicleEntry> Chronicle;
 		FEchoLedger Ledger;
 		TArray<int32> Hand;

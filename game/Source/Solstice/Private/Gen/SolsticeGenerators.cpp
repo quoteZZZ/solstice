@@ -1041,7 +1041,11 @@ namespace Solstice
 				// it: the crowns touch, the ink hulls touch, and the hillside becomes one solid
 				// mass with no grass showing - which removes the only value contrast the island
 				// has. A forest reads as a forest because of the gaps, not the trees.
-				const float TreeChance = 0.03f + 0.15f * Forest;
+				// 0.03 + 0.15 * Forest covered 18% of the tiles, and once the trees were life-size
+				// (5-9 m crowns) that is complete canopy: no meadow, no beach, no readable hillside.
+				// A forest is defined by its clearings; 2.4% of tiles leaves stands with grass
+				// between them and keeps the silhouette of the land visible.
+				const float TreeChance = 0.001f + 0.010f * Forest;
 				if (!bClipped && !Tile->IsWater() && Surface > 8.0f && Surface < 24.0f
 					&& CelGrain(X * 13 + 5, Y * 7 + 3) < TreeChance)
 				{
@@ -1108,14 +1112,24 @@ namespace Solstice
 					// green sponge rather than as trees. 1.5-2.5 m crowns at 1.0-1.75 m trunks
 					// close the gaps and let the crowns overlap into stands, which is what the
 					// density modulation was written for.
-					const float TrunkHeight = (95.0f + 80.0f * CelGrain(X + 11, Y + 17)) * Vigour * HeightMul;
-					const float CrownRadius = (150.0f + 95.0f * CelGrain(Y + 3, X + 29)) * Vigour * CrownMul;
+					// Tree size, in world units.
+					//
+					// The spec says a tree is 0.10-0.22 R (WORLD SS1.1); at R = 64 m that is 6-14 m.
+					// These were authored at 0.95-1.75 m trunks - a tenth of the spec - which is
+					// why the forest read as green speckle rather than as trees at the standard
+					// framing: an 8-pixel dot has no silhouette. 5x trunk and 1.8x crown puts a
+					// tree at 5-9 m with a 5-8 m crown, i.e. back inside the spec and, more to the
+					// point, large enough to cast the shadows that make a hillside read.
+					constexpr float TreeScale = 4.0f;
+					constexpr float CrownScale = 1.4f;
+					const float TrunkHeight = (95.0f + 80.0f * CelGrain(X + 11, Y + 17)) * Vigour * HeightMul * TreeScale;
+					const float CrownRadius = (150.0f + 95.0f * CelGrain(Y + 3, X + 29)) * Vigour * CrownMul * CrownScale;
 					const FVector Root(Centre.X, Centre.Y, Surface * MeterUU);
 
 					// Tapered hexagonal trunk, one corner jitter per side so it is not a prism.
 					if (Family != 4)
 					{
-						const float BaseR = 9.0f + 4.0f * CelGrain(X + 3, Y + 8);
+						const float BaseR = (9.0f + 4.0f * CelGrain(X + 3, Y + 8)) * 2.2f;
 						const float TopR = BaseR * 0.62f;
 						// CutEdge is the pale paper-board tone used for cut edges everywhere else,
 						// and at 0.52 of it a trunk is a white stick with a green ball on top -
@@ -1179,8 +1193,8 @@ namespace Solstice
 					// The material now has real three-band shading on dot(N, sun), and two value systems
 					// on one crown can only fight - the albedo asserts "this side is dark" regardless of
 					// where the light is. The crown carries one albedo; the band decides which side is lit.
-					const FLinearColor LeafMid = CelSrgb(0x68, 0xA8, 0x4A) * Shade;
-					const FLinearColor LeafLit = CelSrgb(0x94, 0xC8, 0x5E) * Shade * 1.04f;
+					const FLinearColor LeafMid = CelSrgb(0x74, 0xB4, 0x54) * Shade;
+					const FLinearColor LeafLit = CelSrgb(0xA4, 0xD4, 0x6C) * Shade * 1.06f;
 					const uint32 FamilySeed = static_cast<uint32>(X * 31 + Y * 7);
 					// 0.62, not 0.80. The crown starts where the trunk ends; at 0.80 of the trunk
 					// height the bottom fifth of every tree on the island was a bare black stick
