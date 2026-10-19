@@ -539,11 +539,20 @@ TSharedRef<SWidget> SSolsticeHUDView::BuildStatusCapsule()
 			Kernel->GetWorldHour(), Kernel->GetWorldMinuteOfHour()));
 	}), 22, Ink, true);
 
+	// Season plus the day count.
+	//
+	// The clock says what time it is inside a day but never which day it is, so a session has no
+	// sense of progress at all: the island can be a week old and nothing on screen says so.
 	TSharedRef<SWidget> SeasonLine = TxtL(TAttribute<FText>::CreateLambda([this]()
 	{
 		FSimKernel* Kernel = Sim();
 		if (!Kernel) { return FText(); }
-		return FText::FromString(Kernel->GetSeasonString());
+		// Loc2, not a format key: UE 5.8's Printf requires a literal format string, so a
+		// translated "%d" cannot be passed through it.
+		const FString Day = Solstice::Loc2(
+			FString::Printf(TEXT("第 %d 天"), Kernel->GetWorldDay()),
+			FString::Printf(TEXT("day %d"), Kernel->GetWorldDay()));
+		return FText::FromString(FString::Printf(TEXT("%s · %s"), *Kernel->GetSeasonString(), *Day));
 	}), 11, InkSoft);
 
 	TSharedRef<SWidget> WeatherLine = TxtL(TAttribute<FText>::CreateLambda([this]()

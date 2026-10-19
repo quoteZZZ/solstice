@@ -267,6 +267,18 @@ ASolsticeRealm::ASolsticeRealm()
 	// atmosphere supplies the gradient and the disc, and a hidden card cannot show an edge.
 	SkyMesh->SetVisibility(true);
 
+	// The landing marker. No collision, no shadow, and it starts hidden: it is a cursor, not
+	// part of the world, and a stray ring left on the paper is worse than no ring at all.
+	CursorMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("CursorMesh"));
+	CursorMesh->SetupAttachment(Root);
+	// Movable, or SetWorldLocation is ignored: a Static component created in the constructor
+	// cannot be moved at runtime, and the marker stays at the world origin forever.
+	CursorMesh->SetMobility(EComponentMobility::Movable);
+	CursorMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	CursorMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
+	CursorMesh->SetCastShadow(false);
+	CursorMesh->SetVisibility(false);
+
 	PropMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("PropMesh"));
 	PropMesh->SetupAttachment(Root);
 	PropMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -551,6 +563,8 @@ void ASolsticeRealm::BeginPlay()
 		UE_LOG(LogSolstice, Error, TEXT("realm has no kernel; check that SolsticeGameInstance is set"));
 		return;
 	}
+
+	BuildCursorMesh();
 
 	ChunksPerAxis = FMath::Max(1, Sim->GetChunksPerAxis());
 
@@ -1730,4 +1744,152 @@ int32 ASolsticeRealm::PickTile(APlayerController* Controller, FVector& OutHitLoc
 	OutHitLocation = Hit.ImpactPoint;
 	int32 Tile = INDEX_NONE;
 	return WorldToTile(Hit.ImpactPoint, Tile) ? Tile : INDEX_NONE;
+}
+
+void ASolsticeRealm::BuildCursorMesh()
+{
+	if (!CursorMesh)
+	{
+		return;
+	}
+
+	// A ring and a dot, drawn flat.
+	//
+	// Sizes are in world units: the realm is 64 m in radius and a tile is 1 m, so a 2.2 m ring
+	// is about two tiles across - big enough to find on a 1440p frame, small enough that it still
+	// reads as "this tile". The ring is 48 segments because at a shallow camera angle a coarser
+	// one shows its corners along the far edge.
+	constexpr int32 Segments = 48;
+	constexpr float Inner = 300.0f;
+	constexpr float Outer = 410.0f;
+	constexpr float DotRadius = 120.0f;
+	// 25 cm, not 4.
+	//
+	// The camera sits 190 m away and the depth buffer covers a 6 km far plane: at 4 cm the
+	// marker loses the depth test to the terrain it lies on, tile by tile, and reads as "the
+	// marker does not render at all".
+	const float Lift = 25.0f;
+
+	TArray<FVector> Verts;
+	TArray<int32> Tris;
+	TArray<FVector> Normals;
+	TArray<FVector2D> UVs;
+	TArray<FLinearColor> Colours;
+	TArray<FProcMeshTangent> Tangents;
+
+	const FVector Up(0.0f, 0.0f, 1.0f);
+	const FLinearColor White(1.0f, 1.0f, 1.0f, 1.0f);
+
+	for (int32 Index = 0; Index <= Segments; ++Index)
+	{
+		const float Angle = 2.0f * PI * static_cast<float>(Index) / static_cast<float>(Segments);
+		const float CosA = FMath::Cos(Angle);
+		const float SinA = FMath::Sin(Angle);
+		Verts.Add(FVector(CosA * Inner, SinA * Inner, Lift));
+		Verts.Add(FVector(CosA * Outer, SinA * Outer, Lift));
+		for (int32 Side = 0; Side < 2; ++Side)
+		{
+			Normals.Add(Up);
+			UVs.Add(FVector2D(static_cast<float>(Index) / Segments, Side == 0 ? 0.0f : 1.0f));
+			Colours.Add(White);
+			Tangents.Add(FProcMeshTangent(1.0f, 0.0f, 0.0f));
+		}
+	}
+	for (int32 Index = 0; Index < Segments; ++Index)
+	{
+		const int32 A = Index * 2;
+		const int32 B = A + 1;
+		const int32 C = A + 2;
+		const int32 D = A + 3;
+		Tris.Append({ A, B, D });
+		Tris.Append({ A, D, C });
+	}
+
+	// Centre dot, so the exact tile is unambiguous even when the ring covers three of them.
+	const int32 DotCentre = Verts.Num();
+	Verts.Add(FVector(0.0f, 0.0f, Lift));
+	Normals.Add(Up);
+	UVs.Add(FVector2D(0.5f, 0.5f));
+	Colours.Add(White);
+	Tangents.Add(FProcMeshTangent(1.0f, 0.0f, 0.0f));
+	for (int32 Index = 0; Index < Segments; ++Index)
+	{
+		const float Angle = 2.0f * PI * static_cast<float>(Index) / static_cast<float>(Segments);
+		const float AngleNext = 2.0f * PI * static_cast<float>(Index + 1) / static_cast<float>(Segments);
+		Verts.Add(FVector(FMath::Cos(Angle) * DotRadius, FMath::Sin(Angle) * DotRadius, Lift));
+		Normals.Add(Up);
+		UVs.Add(FVector2D(0.5f, 0.5f));
+		Colours.Add(White);
+		Tangents.Add(FProcMeshTangent(1.0f, 0.0f, 0.0f));
+		const int32 This = DotCentre + 1 + Index;
+		const int32 Next = DotCentre + 1 + (Index + 1) % Segments;
+		Tris.Append({ DotCentre, This, Next });
+	}
+
+	CursorMesh->CreateMeshSection_LinearColor(0, Verts, Tris, Normals, UVs, Colours, Tangents, false);
+
+	// M_Cel, with its albedo gain doing the valid/invalid difference: the material multiplies
+	// its emissive fill by the albedo, so one scalar moves the whole marker between "cream" and
+	// "dim", and nothing has to be rebuilt to change it.
+	if (FCelMaterials::Get().Cel)
+	{
+		CursorMID = UMaterialInstanceDynamic::Create(FCelMaterials::Get().Cel, this);
+		if (CursorMID)
+		{
+			CursorMesh->SetMaterial(0, CursorMID);
+		}
+	}
+}
+
+void ASolsticeRealm::SetCursorTile(int32 TileIndex, bool bValid)
+{
+	if (!CursorMesh)
+	{
+		return;
+	}
+
+	CursorTile = TileIndex;
+	if (TileIndex == INDEX_NONE)
+	{
+		CursorMesh->SetVisibility(false);
+		return;
+	}
+
+	FSimKernel* Sim = Kernel();
+	const int32 Size = Sim ? Sim->GetSize() : 0;
+	if (!Sim || Size <= 0)
+	{
+		CursorMesh->SetVisibility(false);
+		return;
+	}
+
+	const int32 TileX = TileIndex % Size;
+	const int32 TileY = TileIndex / Size;
+	const FTile* Tile = Sim->TileAt(TileX, TileY);
+	if (!Tile)
+	{
+		CursorMesh->SetVisibility(false);
+		return;
+	}
+
+	// Sit on the surface, not on the seabed under it: a ring sunk into a hill is invisible.
+	FVector Location = TileSurfaceWorld(TileX, TileY);
+	// Never below the sea surface.
+	//
+	// `TileSurfaceWorld` returns the paper, and the paper is allowed to sit under the water (a
+	// lagoon floor is 12 m down). A marker drawn there is under an opaque ocean plane and looks
+	// like nothing at all - which is exactly what happened on the first four attempts to see it.
+	Location.Z = FMath::Max(Location.Z, Sim->GetSky().WaterLevel * MeterUU) + 6.0f;
+	CursorMesh->SetWorldLocation(Location);
+	CursorMesh->SetVisibility(true);
+
+
+	if (CursorMID)
+	{
+		// 6.0 is not a typo. M_Cel multiplies its albedo by a detail map before the emissive fill,
+		// and the fill never reaches 1.0 - at 1.9 the marker measured as a faint dark outline on
+		// grass, i.e. invisible. 6.0 lands it at a pale cream ring; 0.6 is a dim smudge that says
+		// "not here".
+		CursorMID->SetScalarParameterValue(TEXT("SurfaceBaseGain"), bValid ? 6.0f : 0.6f);
+	}
 }

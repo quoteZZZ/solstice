@@ -196,6 +196,43 @@ void ASolsticePlayerController::CycleSlot(int32 Delta)
 	}
 }
 
+void ASolsticePlayerController::UpdateCursor()
+{
+	ASolsticeRealm* RealmActor = Realm();
+	if (!RealmActor)
+	{
+		return;
+	}
+
+	// Only while there is something to place. A marker under the cursor with an empty hand is a
+	// promise the game cannot keep.
+	const FSimKernel* Sim = Game() ? &Game()->Kernel() : nullptr;
+	const bool bHasCard = Sim && Sim->GetHandCardIndex(SelectedSlot) != INDEX_NONE;
+	if (!bHasCard)
+	{
+		RealmActor->SetCursorTile(INDEX_NONE, true);
+		return;
+	}
+
+	// An offscreen capture has no pointer, so a shot may name a tile instead.
+	int32 Tile = INDEX_NONE;
+	const FIntPoint ShotCursor = Solstice::Shot::CursorTile();
+	if (Solstice::Shot::Enabled() && ShotCursor.X >= 0 && Sim)
+	{
+		const int32 Size = Sim->GetSize();
+		if (ShotCursor.X < Size && ShotCursor.Y < Size)
+		{
+			Tile = ShotCursor.Y * Size + ShotCursor.X;
+		}
+	}
+	else
+	{
+		Tile = TileUnderCursor();
+	}
+
+	RealmActor->SetCursorTile(Tile, Tile != INDEX_NONE);
+}
+
 void ASolsticePlayerController::ReleaseSelectedAtCursor()
 {
 	const int32 Tile = TileUnderCursor();
@@ -234,9 +271,15 @@ void ASolsticePlayerController::ReleaseSelectedAt(int32 TileIndex)
 	const FString NameZh = CardBefore ? CardBefore->NameZh : FString();
 	const FString NameEn = CardBefore ? CardBefore->NameEn : FString();
 
+	// "落差 0.72" was the kernel's impact score. A player cannot do anything with a float; what
+	// they need to know is whether the card bit, and what it paid.
+	const TCHAR* GradeZh = Result.Offset >= 0.75f ? TEXT("这道口子开得很大")
+		: (Result.Offset >= 0.45f ? TEXT("落地有声") : TEXT("轻轻擦了一下"));
+	const TCHAR* GradeEn = Result.Offset >= 0.75f ? TEXT("it tore open")
+		: (Result.Offset >= 0.45f ? TEXT("it landed hard") : TEXT("it barely touched"));
 	SetStatus(
-		FString::Printf(TEXT("「%s」释放 · 回响 +%d · 落差 %.2f"), *NameZh, Result.EchoGained, Result.Offset),
-		FString::Printf(TEXT("%s released - echo +%d - offset %.2f"), *NameEn, Result.EchoGained, Result.Offset));
+		FString::Printf(TEXT("「%s」%s · 回响 +%d"), *NameZh, GradeZh, Result.EchoGained),
+		FString::Printf(TEXT("%s - %s - echo +%d"), *NameEn, GradeEn, Result.EchoGained));
 
 	if (Result.bCanUndo)
 	{
@@ -904,6 +947,16 @@ void ASolsticePlayerController::Tick(float DeltaSeconds)
 
 	if (bShowUI)
 	{
+		UpdateCursor();
 		PollCommands(DeltaSeconds);
+	}
+	else
+	{
+		// Ornament mode draws no chrome, so it draws no cursor either - a ring left on the paper
+		// in a screenshot is exactly the thing P exists to avoid.
+		if (ASolsticeRealm* RealmActor = Realm())
+		{
+			RealmActor->SetCursorTile(INDEX_NONE, true);
+		}
 	}
 }

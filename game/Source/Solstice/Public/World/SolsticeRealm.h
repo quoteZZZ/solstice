@@ -51,11 +51,24 @@ public:
 	/** Trace from the cursor into the paper. Returns INDEX_NONE when nothing is hit. */
 	int32 PickTile(APlayerController* Controller, FVector& OutHitLocation) const;
 
+	/**
+	 * Draw the landing marker on a tile, or hide it (INDEX_NONE).
+	 *
+	 * The player had no way to know where a card would land: the click raycast resolved a tile
+	 * and applied the card, with nothing on screen between the cursor and the paper. That is the
+	 * single largest usability gap in the loop - a placement game where you cannot see the
+	 * placement.
+	 */
+	void SetCursorTile(int32 TileIndex, bool bValid);
+
+	int32 GetCursorTile() const { return CursorTile; }
+
 	FVector GetRealmCentre() const;
 	float GetRealmRadiusUU() const;
 
 protected:
 	void BuildStatics();
+	void BuildCursorMesh();
 	void BuildSkyMesh();
 
 	/**
@@ -72,6 +85,9 @@ protected:
 	UPROPERTY() TObjectPtr<UProceduralMeshComponent> BaseMesh;
 	UPROPERTY() TObjectPtr<UProceduralMeshComponent> SkyMesh;
 	UPROPERTY() TObjectPtr<UProceduralMeshComponent> PropMesh;
+	/** Landing marker: a ring drawn flat on the paper under the cursor. */
+	UPROPERTY() TObjectPtr<UProceduralMeshComponent> CursorMesh;
+	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> CursorMID;
 	UPROPERTY() TArray<TObjectPtr<UProceduralMeshComponent>> ChunkMeshes;
 	UPROPERTY() TObjectPtr<UDirectionalLightComponent> SunLight;
 	UPROPERTY() TObjectPtr<USkyLightComponent> SkyLight;
@@ -86,6 +102,7 @@ protected:
 	Solstice::FMeshBuilder HullScratch;
 	Solstice::FMeshBuilder OutlineScratch;
 	int32 ChunksPerAxis = 2;
+	int32 CursorTile = INDEX_NONE;
 
 	/**
 	 * Debug hook: `-SolsticeSea=<diffuse>,<glow>,<shade>[,<foam>[,<specular>[,<reflect>]]]`

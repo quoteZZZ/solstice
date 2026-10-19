@@ -35,6 +35,8 @@ param(
     [switch]$UI,
     [switch]$NoMeasure,
     [int]$Azimuth = 0,
+    # 落点标记的格坐标（"x,y"）。离屏抓帧没有鼠标，悬停类的东西默认拍不到。
+    [string]$Cursor,
     [int]$Minute = -1,
     # 世界种子。world.json 的 seed:0 = 每次开局摇一个新世界，那样两张“同一机位”其实是两个世界，数值不可比。
     # 默认钉住与 bench 相同的 20261016。
@@ -149,6 +151,7 @@ if ($UI) { $shotArgs += '-SolsticeShotUI' }
 if ($Minute -ge 0) { $shotArgs += ("-SolsticeMinute={0}" -f $Minute) }
 # 钉种子：否则每次都是一个新世界，画面指标不可比。
 if ($Seed -gt 0) { $shotArgs += ("-SolsticeSeed={0}" -f $Seed) }
+if (-not [string]::IsNullOrWhiteSpace($Cursor)) { $shotArgs += ("-SolsticeShotCursor={0}" -f $Cursor) }
 if (-not [string]::IsNullOrWhiteSpace($Sea)) { $shotArgs += ("-SolsticeSea={0}" -f $Sea) }
 if (-not [string]::IsNullOrWhiteSpace($Env)) { $shotArgs += ("-SolsticeEnv={0}" -f $Env) }
 if (-not [string]::IsNullOrWhiteSpace($Cel)) { $shotArgs += ("-SolsticeCel={0}" -f $Cel) }

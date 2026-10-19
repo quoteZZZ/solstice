@@ -31,6 +31,16 @@ namespace Solstice::Shot
 	/** Camera azimuth stop (0-7, 45 degrees each); INDEX_NONE keeps the entry azimuth. */
 	int32 Azimuth();
 
+	/**
+	 * Tile (X, Y) to park the landing marker on, or (-1, -1).
+	 *
+	 * An offscreen capture has no mouse: the pointer sits at (0,0), the pick ray misses the
+	 * island, and anything that depends on hover is invisible in every screenshot ever taken.
+	 * This exists so the marker can be shown in a capture - and so a doc frame can point at the
+	 * spot it is talking about.
+	 */
+	FIntPoint CursorTile();
+
 	/** Seconds to wait before capturing: the intro move alone is 2.6 s. */
 	float Delay();
 

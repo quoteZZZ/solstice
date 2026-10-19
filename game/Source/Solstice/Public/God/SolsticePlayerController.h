@@ -114,6 +114,8 @@ public:
 
 private:
 	void PollCamera(float DeltaSeconds);
+	/** Keep the landing marker under the cursor while a card is selected. */
+	void UpdateCursor();
 	void PollCommands(float DeltaSeconds);
 	void SetStatus(const FString& Zh, const FString& En);
 
