@@ -52,23 +52,40 @@ void ASolsticeObserver::SetDefaults(float InDistance, float InYaw, float InPitch
 	Apply();
 }
 
-void ASolsticeObserver::Orbit(float DeltaYaw, float DeltaPitch)
+void ASolsticeObserver::Zoom(float DeltaDistance)
 {
-	Yaw += DeltaYaw;
-	Pitch = FMath::Clamp(Pitch + DeltaPitch, -88.0f, -1.0f);
+	Distance = FMath::Clamp(Distance + DeltaDistance, NearDistance, FarDistance);
 	Apply();
 }
 
-void ASolsticeObserver::Zoom(float DeltaDistance)
+void ASolsticeObserver::SetDistanceLimits(float NearUU, float FarUU)
 {
-	Distance = FMath::Clamp(Distance + DeltaDistance, 2500.0f, 60000.0f);
+	NearDistance = FMath::Max(100.0f, NearUU);
+	FarDistance = FMath::Max(NearDistance + 100.0f, FarUU);
+	Distance = FMath::Clamp(Distance, NearDistance, FarDistance);
 	Apply();
 }
 
 void ASolsticeObserver::SetDistance(float InDistance)
 {
-	Distance = FMath::Clamp(InDistance, 2500.0f, 600000.0f);
+	Distance = FMath::Clamp(InDistance, NearDistance, FarDistance);
 	Apply();
+}
+
+/** One eased move between two poses. Every camera change in the game funnels through here. */
+void ASolsticeObserver::MoveTo(float InDistance, float InYaw, float InPitch, float Duration)
+{
+	FromDistance = Distance;
+	FromYaw = Yaw;
+	FromPitch = Pitch;
+	ToDistance = FMath::Clamp(InDistance, NearDistance, FarDistance);
+	ToYaw = InYaw;
+	ToPitch = FMath::Clamp(InPitch, -88.0f, -1.0f);
+	MoveDuration = FMath::Max(0.02f, Duration);
+	MoveTime = 0.0f;
+	bOutro = false;
+	bIntroDip = false;
+	bMoving = true;
 }
 
 void ASolsticeObserver::Apply()
@@ -87,15 +104,18 @@ void ASolsticeObserver::Apply()
 // curve is a single hump - per-segment easing was what made the first draft stutter at every
 // keyframe.
 
-void ASolsticeObserver::PlayIntro(float TargetDistance)
+void ASolsticeObserver::PlayIntro(float TargetDistance, float TargetYaw, float TargetPitch)
 {
 	FromDistance = TargetDistance * 2.35f;
-	ToDistance = TargetDistance;
-	FromYaw = -86.0f;  ToYaw = -52.0f;
-	FromPitch = -30.0f; ToPitch = -50.0f;
+	ToDistance = FMath::Clamp(TargetDistance, NearDistance, FarDistance);
+	FromYaw = TargetYaw - 34.0f;
+	ToYaw = TargetYaw;
+	FromPitch = -30.0f;
+	ToPitch = FMath::Clamp(TargetPitch, -88.0f, -1.0f);
 	MoveDuration = 2.6f;
 	MoveTime = 0.0f;
 	bOutro = false;
+	bIntroDip = true;
 	bMoving = true;
 
 	Distance = FromDistance;
@@ -113,6 +133,7 @@ void ASolsticeObserver::PlayOutro(float TargetDistance)
 	MoveDuration = 1.8f;
 	MoveTime = 0.0f;
 	bOutro = true;
+	bIntroDip = false;
 	bMoving = true;
 }
 
@@ -131,6 +152,7 @@ void ASolsticeObserver::CancelMove()
 		Apply();
 	}
 	bMoving = false;
+	bIntroDip = false;
 }
 
 void ASolsticeObserver::TickMove(float DeltaSeconds)
@@ -154,7 +176,7 @@ void ASolsticeObserver::TickMove(float DeltaSeconds)
 
 	float P = FMath::Lerp(FromPitch, ToPitch, E);
 	// A 1.2 degree dip and recovery in the last 9%: the shot "lands" instead of stopping.
-	if (!bOutro && U > 0.91f)
+	if (bIntroDip && U > 0.91f)
 	{
 		P += 1.2f * FMath::Sin((U - 0.91f) / 0.09f * PI);
 	}

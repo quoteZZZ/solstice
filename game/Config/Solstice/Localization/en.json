@@ -173,13 +173,14 @@
 	"help.slots": "1-0 / Q-E: pick a slot / step through the hand",
 	"help.x": "X: recycle the selected card",
 	"help.r": "R: reroll the hand",
-	"help.orbit": "Middle drag: orbit",
+	"help.orbit": "Middle drag: dolly",
 	"help.wheel": "Wheel: distance",
-	"help.f1": "F1: wide framing",
-	"help.f2": "F2: satellite framing",
-	"help.f3": "F3: low framing",
-	"help.f4": "F4: top-down framing",
-	"help.y": "Y: automatic orbit",
+	"help.f1": "F1: low 14 deg",
+	"help.f2": "F2: standard 35 deg",
+	"help.f3": "F3: survey 62 deg",
+	"help.f4": "F4: plan 88 deg",
+	"help.y": "Y: tour the stops (3 s each)",
+	"help.azimuth": "[ / ]: step the azimuth 45 deg",
 	"help.t": "T: virtual / real time",
 	"help.k": "K: pause",
 	"help.j": "J: speed",
@@ -190,5 +191,5 @@
 	"help.h": "H: help panel",
 	"help.p": "P: ornament / screenshot mode",
 	"help.tab": "Tab: show / hide the interface",
-	"help.esc": "Esc: quit"
+	"help.esc": "Esc: quit (inactive in the editor)"
 }

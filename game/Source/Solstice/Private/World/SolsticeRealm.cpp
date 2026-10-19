@@ -7,7 +7,6 @@
 #include "Components/DirectionalLightComponent.h"
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Components/PostProcessComponent.h"
-#include "Components/SkyAtmosphereComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Core/SolsticeGameInstance.h"
 #include "Engine/World.h"
@@ -322,31 +321,12 @@ ASolsticeRealm::ASolsticeRealm()
 	SunLight->ContactShadowLength = 0.0f;
 	SunLight->ContactShadowLengthInWS = false;
 
-	// Tells the atmosphere which light is the sun: it drives the sky gradient and draws the disc.
-	SunLight->bAtmosphereSunLight = true;
-	SunLight->AtmosphereSunLightIndex = 0;
-
-	// ---- atmosphere ---------------------------------------------------
+	// ---- sky ----------------------------------------------------------
 	//
-	// B2: the sky is no longer a painted card. A card is a finite plane at a finite distance, so
-	// there is always a view angle where its edge shows - that edge is the grey band that lay
-	// across the frame at eye level. Real atmospheric scattering has no edge at all, because it
-	// is evaluated per pixel along the view ray.
-	SkyAtmosphere = CreateDefaultSubobject<USkyAtmosphereComponent>(TEXT("SkyAtmosphere"));
-	SkyAtmosphere->SetupAttachment(Root);
-	SkyAtmosphere->SetMobility(EComponentMobility::Movable);
-	// A slightly thinner atmosphere than Earth's default: it keeps the horizon bright and the
-	// zenith saturated, which is what the cel palette was authored against.
-	// NOT ENABLED YET.
-	//
-	// `r.SupportSkyAtmosphere` is a shader permutation: flipping it in DefaultEngine.ini does not
-	// take effect until the shaders are recompiled for this checkout. With the flag on and the
-	// permutation missing, the sky renders pure black (measured 2026-10-18). The card stays until
-	// a build that actually contains the atmosphere permutation exists.
-	SkyAtmosphere->SetVisibility(false);
-	SkyAtmosphere->SetRayleighScatteringScale(0.45f);
-	SkyAtmosphere->SetMieScatteringScale(1.4f);
-	SkyAtmosphere->SetMieAnisotropy(0.72f);
+	// No SkyAtmosphere component. The sky is a camera-attached sphere drawn by M_Sky per pixel
+	// (gradient, sun, moon, stars and the two cloud decks in one Custom node) - see BuildSkyMesh.
+	// The atmosphere route was tried and removed: it is a shader permutation that renders black
+	// until the permutation is compiled, and it cannot draw a hand-painted cloud band anyway.
 
 	SkyLight = CreateDefaultSubobject<USkyLightComponent>(TEXT("SkyLight"));
 	SkyLight->SetupAttachment(Root);
@@ -461,8 +441,16 @@ ASolsticeRealm::ASolsticeRealm()
 		PP.BloomIntensity = 0.45f;
 		PP.bOverride_BloomThreshold = true;
 		PP.BloomThreshold = 1.15f;
+		// 0.03, not 0.
+		//
+		// The sea and the sky are both very slow radial/linear gradients, and an 8-bit frame
+		// quantises them into visible contour bands - measured as eight concentric teal rings
+		// around the island and diagonal stripes across the sky. A little grain is the cheapest
+		// dither there is: at 3% it is below the noise floor of a compressed screenshot and it
+		// moves every pixel across the quantisation boundary, which is exactly what kills a
+		// contour. "No grain" is correct for a photograph and wrong for a flat gradient.
 		PP.bOverride_FilmGrainIntensity = true;
-		PP.FilmGrainIntensity = 0.0f;
+		PP.FilmGrainIntensity = 0.03f;
 
 		// Shallow band: the far rim and the near foreground go soft, the realm stays sharp. The
 		// focal distance itself is driven every tick from the actual camera distance (see Tick), so

@@ -1287,11 +1287,26 @@ namespace Solstice
 					const float StoneH = StoneR * (0.55f + 0.45f * CelGrain(X + 63, Y + 21));
 					const FLinearColor Stone(0.56f, 0.55f, 0.52f, 1.0f);
 					const FLinearColor StoneTop(0.74f, 0.73f, 0.68f, 1.0f);
+					// Two cushions, not one.
+					//
+					// A single six-sided cushion is a faceted dome - at this size it reads as a
+					// low-poly ball, which is exactly the "cheap model" note the frame keeps
+					// earning. A second, smaller lobe offset by ~40% of the radius gives the
+					// outcrop an asymmetric shoulder and a broken top edge for four extra quads,
+					// and the two silhouettes never repeat because both seeds come from the tile.
 					// Centre already carries the tile surface height in Z - adding it again put every
 					// boulder at twice its ground height, i.e. a ring of pale cubes hanging in the sky
 					// above the hills (the "specks" that survived every edge fix, 2026-10-18).
-					Cushion(Out, FVector(Centre.X, Centre.Y, Surface * MeterUU), 6, StoneR, StoneH,
-						Stone, StoneTop, X * 53 + Y * 17);
+					const FVector StoneBase(Centre.X, Centre.Y, Surface * MeterUU);
+					Cushion(Out, StoneBase, 8, StoneR, StoneH, Stone, StoneTop, X * 53 + Y * 17);
+					const float Shoulder = 0.38f + 0.22f * CelGrain(X + 71, Y + 89);
+					Cushion(Out,
+						StoneBase + FVector(
+							(CelGrain(X + 91, Y + 13) - 0.5f) * StoneR * 1.3f,
+							(CelGrain(Y + 61, X + 43) - 0.5f) * StoneR * 1.3f,
+							StoneH * 0.34f),
+						7, StoneR * Shoulder, StoneH * Shoulder * 0.9f,
+						Stone * 0.94f, StoneTop * 0.96f, X * 59 + Y * 23 + 7);
 
 					EmitHull(Out, HullFrom, Out.Num(), HullTriFrom,
 						FVector(Centre.X, Centre.Y, Surface * MeterUU), 1.10f, Palette.InkWash, OutHull);
@@ -1457,8 +1472,8 @@ namespace Solstice
 	void Gen::BuildOcean(float InnerRadiusUU, float OuterRadiusUU, float SeaLevelUU,
 		const FCelPalette& Palette, const FLinearColor& HorizonHaze, FMeshBuilder& Out)
 	{
-		constexpr int32 Segments = 160;
-		constexpr int32 Rings = 18;
+		constexpr int32 Segments = 192;
+		constexpr int32 Rings = 40;
 		const float Inner = FMath::Max(1.0f, InnerRadiusUU);
 		const float Outer = FMath::Max(Inner * 1.2f, OuterRadiusUU);
 

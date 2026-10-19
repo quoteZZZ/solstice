@@ -67,7 +67,7 @@ status: active
 | 项 | 代码现状 | 动作 |
 |---|---|---|
 | 混沌 / 生命种子 | `bChaosStart` / `bWithLifeSeed` 全链路还在（types.h:413、Kernel:404、GameInstance:114、HUDView:605） | 删字段与分支；`Painted` 恒 1.0 并改语义为季节插值 |
-| 相机自由环绕 | 鼠标 Orbit + 匀速自动环绕仍在（PlayerController:441/447） | 按 ART §7 改 32 格点 + 对数推拉 |
+| ~~相机自由环绕~~ | ✅ 已改为 8 方位 × 4 俯仰，中键只推拉（2026-10-19） | — |
 | 纸雕残留 | 源码 6 处 / 文案 20 处 / uproject 描述 | `grep "纸" game/Config` 清零 |
 
 ### P-04 让纪律可执行（P0）
@@ -99,20 +99,18 @@ status: active
 |---|---|---|
 | G-01 | 三项画面指标与目标脱节 | `measure-frame.py`；见 P-01 |
 | G-02 | 混沌 / 生命种子仍在 | `SolsticeTypes.h:413`、`SolsticeKernel.cpp:404`、`SolsticeGameInstance.cpp:114`、`SolsticeHUDView.cpp:605` |
-| G-03 | 相机存在连续环绕入口（违反红线 4） | `SolsticePlayerController.cpp:20/441/447` |
-| G-04 | 摆件模式相机失灵：`PollInput` 整段被 `if (bShowUI)` 门控 | `SolsticePlayerController.cpp:815` |
 | G-05 | HUD 无 DPI 下限，窄窗口卡名 7–9 px | `SolsticeHUDView.cpp`（字号全字面量；全仓无 `DPI`/`UIScale`） |
 | G-06 | 纸雕残留 26 处 | 源码 6 / 文案 20 / `Solstice.uproject` 描述 |
 | G-07 | `world.json` 尺寸 128，而规格目标 512；六轴字段大量未消费 | `world.json` 的 `_wiring` 自述"NOT read yet" |
 | G-08 | 512² 性能全部未测 | `ROADMAP` 旧表 |
 | G-09 | `README.md` 过期（纸雕 / `M_Paper` / 旧 digest） | 已重写，见仓库根 |
-| G-10 | PIE 里按 `Esc` 会连编辑器一起关 | `SolsticePlayerController.cpp:544-558`（`ConsoleCommand("quit")`） |
 | G-11 | `SolsticeRealm.cpp` 有 9 个 U+FFFD（中文注释编码损坏） | `grep -P "\x{FFFD}"` |
 | G-12 | 10-19 的 8 个提交没有一条更新 `CHANGELOG` | `git log --since=2026-10-19 -- docs/CHANGELOG.md` 为空 |
 | G-13 | 无 LOD / 无 ISM；`MarkAllDirtyEveryWorldMinutes=360` 定时全量重建 | 全仓 `InstancedStaticMesh` 零命中 |
 | G-14 | 零自动化测试 | `IMPLEMENT_*_AUTOMATION_TEST` 零命中 |
 | G-15 | 打包版读不到运行时 JSON | 走 `ProjectConfigDir()`，UAT 不 stage；见 TECH §8 |
 | G-16 | 雾被云量驱动 | `SolsticeRealm.cpp` 的 `Wet = Rain*0.7 + Cloud*0.3` |
+| G-17 | **海面出现 8 圈同心等高环**（35° 机位，圆心接近相机垂足） | 实测排除：加网格环 18→40 无效、海面加 0.6% 世界坐标抖动无效、加 3% 胶片颗粒无效 → 不是网格、不是 8bit 量化。嫌疑集中在距离项（`WaveNormal` 的 `CamDist/NearFade`、`SeaHazeStart/Span`）或 `SkyRim` 菲涅尔。下一步：逐个置零定位，再决定用渐变重映射还是加噪 |
 
 ---
 
@@ -126,6 +124,8 @@ status: active
 
 | 日期 | 事项 |
 |---|---|
+| 2026-10-19 | 相机改 32 格点（8 方位 × 4 俯仰），中键改推拉、`Y` 改档间巡游；修掉摆件模式相机被 UI 门控、`T` 键双绑定、PIE 里 `Esc` 关编辑器三个缺陷 |
+| 2026-10-19 | 管线统一：移除未启用的 SkyAtmosphere 组件与 Lumen/Nanite 开关；海面环数 18→40、加世界坐标抖动；石块改双瓣；`M_Cel` 分带边界接受贴图细节（`BandBump`）；实测 128²/720p 16.1 ms |
 | 2026-10-19 | 文档体系重构：31 份 → 9 份（6 本域文档 + 入口 + 计划 + 运维），删除重复与失效内容，修正与代码不符的口径 |
 | 2026-10-18 | 天空改逐像素穹顶；海面三档水色 + 波法线 + 泡沫；材质改 `MSM_DefaultLit` 并把分带移入 Emissive |
 | 2026-10-17 | `bench` 确定性修复（钉死种子 / 日 / 时刻）；画面量具 `measure-frame.py`；无人值守抓帧 `shot.ps1` |

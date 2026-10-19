@@ -64,7 +64,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 129;
+	constexpr int32 CelRecipeVersion = 131;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -515,6 +515,15 @@ return lerp(C, night, saturate(Desat));
 			// overshoots into neon, 1.0 leaves it at the 90 it sat at for three rounds.
 			UMaterialExpressionScalarParameter* CelFillParam =
 				ScaParam(TEXT("CelFill"), 1.45f, -900, 1080);
+			// How far the surface detail is allowed to move the band edge.
+			//
+			// Without it every band boundary is a perfectly smooth curve following the vertex
+			// normals, so a 64 m hillside is four flat colour fields no matter how good the
+			// albedo texture is - the "flat / low-poly" read is the *shading* being smooth, not
+			// the mesh being coarse. 0.05 of a cosine is about 3 degrees of tilt: enough to
+			// roughen the edge, far too little to turn the bands into a gradient.
+			UMaterialExpressionScalarParameter* BandBumpParam =
+				ScaParam(TEXT("BandBump"), 0.05f, -900, 1140);
 
 			UMaterialExpressionCustom* ToonBand = AddExpr<UMaterialExpressionCustom>(Material, -620, 560);
 			ToonBand->Description = TEXT("ToonBand");
@@ -524,6 +533,10 @@ return lerp(C, night, saturate(Desat));
 // lit colour, and a narrow mid band between. A soft ramp here is what makes "cel-shaded" renders
 // look like ordinary PBR with the saturation turned down.
 float ndl = dot(normalize(N), normalize(S));
+// Surface detail nudges the band edge. `Detail` is the same albedo detail the base colour
+// uses, so the band boundary and the texture describe the same surface.
+float det = dot(Detail, float3(0.299, 0.587, 0.114));
+ndl += (det - 0.5) * Bump;
 float lo = smoothstep(BandLow - 0.05, BandLow + 0.05, ndl);
 float hi = smoothstep(BandHigh - 0.05, BandHigh + 0.05, ndl);
 return lerp(lerp(Shadow, Mid, lo), Lit, hi);
@@ -538,6 +551,8 @@ return lerp(lerp(Shadow, Mid, lo), Lit, hi);
 				};
 				Add(TEXT("N"), ToonNormal);
 				Add(TEXT("S"), SunDirParam);
+				Add(TEXT("Detail"), DetailBlend);
+				Add(TEXT("Bump"), BandBumpParam);
 				Add(TEXT("Lit"), LitTintParam);
 				Add(TEXT("Mid"), MidTintParam);
 				Add(TEXT("Shadow"), ShadowTintParam);
@@ -580,6 +595,8 @@ return lerp(lerp(Shadow, Mid, lo), Lit, hi);
 // fill is now the only thing drawing the form. `Sh * 0.55` against `Lit * 1.05` is a 3:1 value
 // ratio at the same hue, which is what a cel band has to be to read at all.
 float ndl = dot(normalize(N), normalize(S));
+float det = dot(Detail, float3(0.299, 0.587, 0.114));
+ndl += (det - 0.5) * Bump;
 float hi = smoothstep(BandHigh - 0.05, BandHigh + 0.05, ndl);
 float3 fillTint = lerp(Sh * 0.80, Lit * 1.05, hi);
 return A * fillTint * Fill;
@@ -595,6 +612,8 @@ return A * fillTint * Fill;
 				Add(TEXT("A"), DesatNode);
 				Add(TEXT("N"), ToonNormal);
 				Add(TEXT("S"), SunDirParam);
+				Add(TEXT("Detail"), DetailBlend);
+				Add(TEXT("Bump"), BandBumpParam);
 				Add(TEXT("Sh"), ShadowTintParam);
 				Add(TEXT("Lit"), LitTintParam);
 				Add(TEXT("BandHigh"), BandHighParam);
@@ -1335,13 +1354,40 @@ return col;
 		EmissiveTotal->B.Expression = SkyReflect;
 		EmissiveTotal->Alpha.Expression = ReflectMix;
 
+		// ---- dither ------------------------------------------------------
+		//
+		// The sea is one enormous, very smooth radial gradient (shallow -> deep -> haze). At 8
+		// bits a gradient that slow quantises into concentric contour rings around the island -
+		// measured on the 35 degree shot as eight evenly spaced teal bands. No amount of colour
+		// tuning removes them, because the ringing is in the *encoding*, not the shading.
+		// A stable +/-0.6% world-space dither pushes each pixel across the quantisation boundary
+		// unpredictably; it is far below the visible noise floor but breaks every contour.
+		UMaterialExpressionWorldPosition* DitherPos = AddExpr<UMaterialExpressionWorldPosition>(Material, -640, 1360);
+		UMaterialExpressionCustom* SeaDither = AddExpr<UMaterialExpressionCustom>(Material, -200, 1320);
+		SeaDither->Description = TEXT("SeaDither");
+		SeaDither->OutputType = CMOT_Float3;
+		SeaDither->Code = TEXT(R"(
+float n = frac(sin(dot(P.xy, float2(12.9898, 78.233))) * 43758.5453);
+return C * (1.0 + (n - 0.5) * 0.012);
+)");
+		{
+			FCustomInput InC;
+			InC.InputName = TEXT("C");
+			InC.Input.Expression = EmissiveTotal;
+			SeaDither->Inputs.Add(InC);
+			FCustomInput InP;
+			InP.InputName = TEXT("P");
+			InP.Input.Expression = DitherPos;
+			SeaDither->Inputs.Add(InP);
+		}
+
 		if (UMaterialEditorOnlyData* EditorData = Material->GetEditorOnlyData())
 		{
 			EditorData->BaseColor.Expression = DiffuseBase;
 			EditorData->Roughness.Expression = Roughness;
 			EditorData->Specular.Expression = Specular;
 			EditorData->Normal.Expression = WaveNormal;
-			EditorData->EmissiveColor.Expression = EmissiveTotal;
+			EditorData->EmissiveColor.Expression = SeaDither;
 		}
 
 		Material->PostEditChange();

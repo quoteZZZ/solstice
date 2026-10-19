@@ -25,8 +25,11 @@ namespace Solstice::Shot
 	/** Absolute path to write, or empty when disabled. */
 	const FString& Path();
 
-	/** Camera preset to jump to before capturing; INDEX_NONE keeps the entry framing. */
+	/** Camera elevation stop (0-3: 14 / 35 / 62 / 88 degrees); INDEX_NONE keeps the entry framing. */
 	int32 Preset();
+
+	/** Camera azimuth stop (0-7, 45 degrees each); INDEX_NONE keeps the entry azimuth. */
+	int32 Azimuth();
 
 	/** Seconds to wait before capturing: the intro move alone is 2.6 s. */
 	float Delay();

@@ -92,7 +92,7 @@ game/Source/
 | 首载 | 512² <5 s；128² <3 s |
 | 快进 | 512² ≥1 世界日 / 10 s；128² ≥30 世界日 / 10 s（算法回归口径） |
 
-**已有实测**：128² 2 世界日 0.50 s（约 5773 世界分钟/秒）。
+**已有实测**：① 128² 逻辑 2880 世界分钟 0.35 s（约 9430 世界分钟/秒）；② 128² / 1280×720 / 35° 机位 **16.1 ms（62 fps）**，抓帧时同一场景的两次 30 帧窗口都是 16.13 ms。
 **缺**：512² 的任何数字（帧率 / 内存 / 首载 / 分块重建尖峰）。**在拿到 512² 数字之前不要按 512² 做内容决策。**
 
 ---
@@ -107,9 +107,10 @@ game/Source/
 | GI | **SSGI**（`DynamicGlobalIlluminationMethod=2`） | **Lumen 在此工程无效**：ProceduralMesh 没有 Surface Cache / 距离场，Lumen 里没有场景表示，帧时间一位不涨 |
 | 阴影 | CSM（`r.Shadow.Virtual.Enable=0`） | VSM 同样依赖 Nanite / 距离场，实测零参与 |
 | 反射 | SSR | 海面另有自定义菲涅尔 |
-| 天空 | 相机子挂单位球 + `M_Sky` 逐像素 | 平面卡片有边；Sky Atmosphere 出不来手绘云带 |
+| 天空 | 相机子挂单位球 + `M_Sky` 逐像素 | 平面卡片有边；`SkyAtmosphere` 组件已移除（permutation 未编译时渲染纯黑，且画不出手绘云带） |
 | 雾 | 指数雾（过渡方案） | 目标形态是三层平面；上限压住（能见度 ≥0.6 R） |
-| 禁用 | Motion Blur / Lens Flare / Film Grain / Lumen / Nanite 网格 / 体积云 / 体积雾 | 卡通风杀手或依赖不存在的场景表示 |
+| 禁用 | Motion Blur / Lens Flare / Lumen / Nanite / 体积云 / 体积雾 | 卡通风杀手或依赖不存在的场景表示（`r.Nanite.ProjectEnabled=False`） |
+| 颗粒 | **FilmGrain 0.03**（唯一保留的噪点） | 海与天都是极慢的渐变，8 bit 下会出等高线；3% 是看不见的抖动 |
 
 > **给下一个接手的人**：改 ini 里的 `r.SupportSkyAtmosphere` 之类**shader permutation** 开关不会立刻生效，必须先重编 permutation，否则天空会渲染成纯黑（已踩过一次并回退）。
 > **Nanite.ProjectEnabled=True 只是为"烘焙成 StaticMesh 后再说"留的开关**，当前没有 Nanite 网格。

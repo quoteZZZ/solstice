@@ -173,13 +173,14 @@
 	"help.slots": "1–0 / Q·E：选卡与切槽",
 	"help.x": "X：回收当前卡",
 	"help.r": "R：换一手",
-	"help.orbit": "中键拖动：环绕",
+	"help.orbit": "中键拖动：推拉",
 	"help.wheel": "滚轮：远近",
-	"help.f1": "F1：全景机位",
-	"help.f2": "F2：卫星机位",
-	"help.f3": "F3：低角机位",
-	"help.f4": "F4：顶视机位",
-	"help.y": "Y：自动环绕",
+	"help.f1": "F1：低角 14°",
+	"help.f2": "F2：标准 35°",
+	"help.f3": "F3：巡界 62°",
+	"help.f4": "F4：图纸 88°",
+	"help.y": "Y：档间巡游（每档 3 秒）",
+	"help.azimuth": "[ / ]：转 45° 方位",
 	"help.t": "T：虚拟 / 现实时间",
 	"help.k": "K：暂停",
 	"help.j": "J：倍速",
@@ -190,5 +191,5 @@
 	"help.h": "H：帮助面板",
 	"help.p": "P：摆件 / 截图模式",
 	"help.tab": "Tab：显示 / 隐藏界面",
-	"help.esc": "Esc：退出"
+	"help.esc": "Esc：退出（编辑器内无效）"
 }

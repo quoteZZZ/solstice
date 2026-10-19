@@ -17,20 +17,30 @@ using namespace Solstice;
 
 namespace
 {
-	constexpr float OrbitSensitivity = 0.55f;
 	/** One wheel notch moves this fraction of the current distance (proportional zoom). */
 	constexpr float ZoomPerNotch = 0.12f;
 	/** WASD covers this fraction of the current view per second (proportional pan). */
 	constexpr float PanPerSecond = 0.35f;
+	/** Middle-drag dolly: full screen height of travel is ~0.8 of the current distance. */
+	constexpr float MiddleDragDolly = 0.004f;
+
+	/** The four elevations, degrees above the horizon (docs/ART.md SS7). */
+	constexpr float CameraPitchDegrees[4] = { 14.0f, 35.0f, 62.0f, 88.0f };
+	/** Where the eight azimuth stops start: -45 puts a three-quarter view on stop 0. */
+	constexpr float AzimuthBase = -45.0f;
+	constexpr float AzimuthStep = 45.0f;
+
+	float YawForAzimuth(int32 Index)
+	{
+		return AzimuthBase + AzimuthStep * static_cast<float>(Index % 8);
+	}
 
 	/**
 		Distance at which a disc of RealmRadius exactly fills the camera's vertical field.
 
-		The lens is deliberately long - ASolsticeObserver sets 28 degrees for the tilt-shift
-		diorama read - and that makes every "radius * N" framing wrong: at 2.1 radii a 28 degree
-		lens covers about 6.7k of height against a 12.8k wide realm, so the entry shot showed the
-		middle half of the world. Solving the field instead keeps the shot correct whatever lens
-		and world size the project ends up with.
+		The lens is deliberately long - ASolsticeObserver sets 50 degrees horizontal for the
+		tilt-shift diorama read - and that makes every "radius * N" framing wrong: solving the
+		field keeps the shot correct whatever lens and world size the project ends up with.
 	*/
 	float FitDistance(const ASolsticeObserver* Observer, float RealmRadius)
 	{
@@ -41,6 +51,17 @@ namespace
 		const float HalfH = FMath::DegreesToRadians(FMath::Max(10.0f, FovH) * 0.5f);
 		const float HalfV = FMath::Atan(FMath::Tan(HalfH) / (16.0f / 9.0f));
 		return RealmRadius * 1.09f / FMath::Max(0.03f, FMath::Tan(HalfV));
+	}
+
+	/** Is this process the editor running PIE? `quit` there closes the whole editor (G-10). */
+	bool IsPlayInEditor(const UWorld* World)
+	{
+#if WITH_EDITOR
+		return World && World->WorldType == EWorldType::PIE;
+#else
+		(void)World;
+		return false;
+#endif
 	}
 }
 
@@ -65,15 +86,17 @@ void ASolsticePlayerController::BeginPlay()
 		if (ASolsticeRealm* RealmActor = Realm())
 		{
 			const float Radius = RealmActor->GetRealmRadiusUU();
-			// Whole realm in frame on entry. The old "radius * 2.1" was written against the square
-			// board and cropped the world in half once the lens was fixed at 28 degrees.
-			ObserverPawn->SetDefaults(FitDistance(ObserverPawn, Radius), -52.0f, -50.0f);
+			const float Fit = FitDistance(ObserverPawn, Radius);
+			// Far clamp follows the world: 512 tiles needs ~144k uu at the fitting distance, and a
+			// hard 60k made the wide shot unrecoverable after one wheel notch (G-03 / R-36).
+			ObserverPawn->SetDistanceLimits(2500.0f, Fit * 1.6f);
 			ObserverPawn->SetFocus(RealmActor->GetRealmCentre());
+			ApplyCameraStop(false);
 		}
 	}
 
-	SetStatus(TEXT("左键在纸面上释放手牌；Z 可撤回刚落地的实体。"),
-		TEXT("Left-click the paper to release a card; Z takes back an entity that just landed."));
+	SetStatus(TEXT("左键在纸面上释放手牌；三秒内实体还湿着，可以点回收回。"),
+		TEXT("Left-click the paper to release a card; an entity stays wet for three seconds and can be taken back."));
 }
 
 ASolsticeRealm* ASolsticePlayerController::Realm() const
@@ -422,7 +445,7 @@ void ASolsticePlayerController::ToggleLanguage()
 // Input
 // ======================================================================
 
-void ASolsticePlayerController::PollInput(float DeltaSeconds)
+void ASolsticePlayerController::PollCamera(float DeltaSeconds)
 {
 	ASolsticeObserver* ObserverPawn = Observer();
 	if (!ObserverPawn)
@@ -430,37 +453,34 @@ void ASolsticePlayerController::PollInput(float DeltaSeconds)
 		return;
 	}
 
-	// ---- camera ------------------------------------------------------
+	// ---- dolly: the only continuous axis ---------------------------------
 	float MouseX = 0.0f;
 	float MouseY = 0.0f;
 	GetInputMouseDelta(MouseX, MouseY);
+	(void)MouseX;	// horizontal drag is deliberately unused: yaw is a stop, not a slider
 
 	const bool bMiddleDown = IsInputKeyDown(EKeys::MiddleMouseButton);
 	if (bMiddleDown)
 	{
-		ObserverPawn->Orbit(MouseX * OrbitSensitivity, -MouseY * OrbitSensitivity);
-	}
-
-	// Satellite mode: the camera keeps circling what it looks at, slowly, until you take over.
-	if (bAutoOrbit)
-	{
-		ObserverPawn->Orbit(AutoOrbitDegPerSecond * DeltaSeconds, 0.0f);
+		// Middle drag *pulls* the camera in and out; it does not rotate. Any continuous yaw or
+		// pitch entry is a regression (red line 4): the whole point of 32 stops is that nobody
+		// can end up at an angle the art was never checked against.
+		ObserverPawn->Zoom(MouseY * ObserverPawn->GetDistance() * MiddleDragDolly);
 	}
 
 	const float Wheel = GetInputAnalogKeyState(EKeys::MouseWheelAxis);
 	if (!FMath::IsNearlyZero(Wheel))
 	{
-		// Proportional: a notch is 12% of wherever you are, so framing the whole diorama (29k) and
-		// reading the paper edge (3k) feel the same. A fixed 1400 step needed twenty-one notches to
-		// get from the entry shot to a close-up.
+		// Proportional: a notch is 12% of wherever you are, so framing the whole diorama and
+		// reading the paper edge feel the same.
 		ObserverPawn->Zoom(-Wheel * ObserverPawn->GetDistance() * ZoomPerNotch);
 	}
 
-	// Any deliberate camera input hands control back instantly. An intro that keeps fighting the
-	// player is worse than no intro at all.
+	// Any deliberate input hands control back from the intro move instantly. An intro that keeps
+	// fighting the player is worse than no intro at all.
 	const bool bPlayerTookOver =
 		IsInputKeyDown(EKeys::LeftMouseButton) || IsInputKeyDown(EKeys::RightMouseButton) ||
-		IsInputKeyDown(EKeys::MiddleMouseButton) || !FMath::IsNearlyZero(Wheel) ||
+		bMiddleDown || !FMath::IsNearlyZero(Wheel) ||
 		IsInputKeyDown(EKeys::W) || IsInputKeyDown(EKeys::A) ||
 		IsInputKeyDown(EKeys::S) || IsInputKeyDown(EKeys::D);
 	if (ObserverPawn->IsMoving() && bPlayerTookOver)
@@ -468,6 +488,7 @@ void ASolsticePlayerController::PollInput(float DeltaSeconds)
 		ObserverPawn->CancelMove();
 	}
 
+	// ---- pan: WASD moves the look-at point, never the angle ---------------
 	FVector Focus = ObserverPawn->GetFocus();
 	const float Pan = ObserverPawn->GetDistance() * PanPerSecond * DeltaSeconds;
 	const float YawRad = FMath::DegreesToRadians(ObserverPawn->GetYaw());
@@ -479,6 +500,28 @@ void ASolsticePlayerController::PollInput(float DeltaSeconds)
 	if (IsInputKeyDown(EKeys::A)) { Focus -= Right * Pan; }
 	ObserverPawn->SetFocus(Focus);
 
+	// ---- tour: 3 s at a stop, 0.8 s between stops -------------------------
+	// Not a continuous orbit. The tour exists so a player can find the world's best face, and
+	// stopping is what makes each stop readable (CHARTER round 59).
+	if (bTouring)
+	{
+		TourTimer -= DeltaSeconds;
+		if (TourTimer <= 0.0f)
+		{
+			StepAzimuth(1);
+			TourTimer = TourDwellSeconds;
+		}
+	}
+}
+
+void ASolsticePlayerController::PollCommands(float DeltaSeconds)
+{
+	ASolsticeObserver* ObserverPawn = Observer();
+	if (!ObserverPawn)
+	{
+		return;
+	}
+
 	// ---- commands ----------------------------------------------------
 	const bool bLeftDown = IsInputKeyDown(EKeys::LeftMouseButton);
 	if (bLeftDown && !bWasLeftDown)
@@ -486,7 +529,6 @@ void ASolsticePlayerController::PollInput(float DeltaSeconds)
 		ReleaseSelectedAtCursor();
 	}
 	bWasLeftDown = bLeftDown;
-	bWasMiddleDown = bMiddleDown;
 
 	if (WasInputKeyJustPressed(EKeys::RightMouseButton)) { ToggleSettle(); }
 	if (WasInputKeyJustPressed(EKeys::SpaceBar)) { ReleaseSelectedAtCursor(); }
@@ -496,8 +538,9 @@ void ASolsticePlayerController::PollInput(float DeltaSeconds)
 	// the hard constraint - the three-second window is "the paper is still wet", not a take-back.
 	// The binding, the button and the function itself are all gone now (structure cleanup), so
 	// nothing can quietly re-expose an undo path.
-	// V walks the six framings (F1-F4 still jump straight to the four core ones).
-	if (WasInputKeyJustPressed(EKeys::V)) { CycleCameraPreset(); }
+	if (WasInputKeyJustPressed(EKeys::V)) { CyclePitchStop(); }
+	if (WasInputKeyJustPressed(EKeys::LeftBracket)) { StepAzimuth(-1); }
+	if (WasInputKeyJustPressed(EKeys::RightBracket)) { StepAzimuth(1); }
 	if (WasInputKeyJustPressed(EKeys::Q)) { CycleSlot(-1); }
 	if (WasInputKeyJustPressed(EKeys::E)) { CycleSlot(1); }
 
@@ -524,11 +567,11 @@ void ASolsticePlayerController::PollInput(float DeltaSeconds)
 	if (WasInputKeyJustPressed(EKeys::P)) { bShowUI = false; }	// 摆件模式第一步：隐藏界面，Tab 复原
 
 	// ---- camera --------------------------------------------------------------
-	if (WasInputKeyJustPressed(EKeys::F1)) { ApplyCameraPreset(0); }
-	if (WasInputKeyJustPressed(EKeys::F2)) { ApplyCameraPreset(1); }
-	if (WasInputKeyJustPressed(EKeys::F3)) { ApplyCameraPreset(2); }
-	if (WasInputKeyJustPressed(EKeys::F4)) { ApplyCameraPreset(3); }
-	if (WasInputKeyJustPressed(EKeys::Y)) { ToggleAutoOrbit(); }
+	if (WasInputKeyJustPressed(EKeys::F1)) { SetPitchStop(0); }
+	if (WasInputKeyJustPressed(EKeys::F2)) { SetPitchStop(1); }
+	if (WasInputKeyJustPressed(EKeys::F3)) { SetPitchStop(2); }
+	if (WasInputKeyJustPressed(EKeys::F4)) { SetPitchStop(3); }
+	if (WasInputKeyJustPressed(EKeys::Y)) { ToggleTour(); }
 
 	// ---- time & language ------------------------------------------------------
 	if (WasInputKeyJustPressed(EKeys::T)) { ToggleTimeMode(); }
@@ -545,22 +588,30 @@ void ASolsticePlayerController::PollInput(float DeltaSeconds)
 
 	if (WasInputKeyJustPressed(EKeys::Escape))
 	{
-		// Quit through the exit move instead of cutting to black: the same 1.8 s pull-back the
-		// preview shows, and the process ends when it has played out.
-		ASolsticeRealm* EscapeRealm = Realm();
-		if (ObserverPawn && EscapeRealm)
+		// In PIE, `quit` closes the editor, not the game - that is G-10, and it is why play
+		// sessions kept "crashing". Esc is a no-op in the editor; the standalone build keeps the
+		// 1.8 s pull-back exit.
+		if (IsPlayInEditor(GetWorld()))
 		{
-			ObserverPawn->PlayOutro(FitDistance(ObserverPawn, EscapeRealm->GetRealmRadiusUU()));
-			QuitCountdown = 1.9f;
+			SetStatus(TEXT("编辑器内 Esc 不退出（会连编辑器一起关）"), TEXT("Esc does nothing in PIE - it would close the editor"));
 		}
 		else
 		{
-			ConsoleCommand(TEXT("quit"));
+			ASolsticeRealm* EscapeRealm = Realm();
+			if (ObserverPawn && EscapeRealm)
+			{
+				ObserverPawn->PlayOutro(FitDistance(ObserverPawn, EscapeRealm->GetRealmRadiusUU()));
+				QuitCountdown = 1.9f;
+			}
+			else
+			{
+				ConsoleCommand(TEXT("quit"));
+			}
 		}
 	}
 }
 
-void ASolsticePlayerController::ApplyCameraPreset(int32 Index)
+void ASolsticePlayerController::ApplyCameraStop(bool bAnimate)
 {
 	ASolsticeObserver* ObserverPawn = Observer();
 	ASolsticeRealm* RealmActor = Realm();
@@ -569,66 +620,63 @@ void ASolsticePlayerController::ApplyCameraPreset(int32 Index)
 		return;
 	}
 
-	// Four framings for a diorama, all of them inside the shell: wide three-quarter, satellite
-	// survey, low tilt-shift close-up, and a straight map view. Distance is expressed in realm
-	// radii, so a world of any size frames the same way.
 	const float Radius = RealmActor->GetRealmRadiusUU();
-	CameraPreset = FMath::Clamp(Index, 0, 5);
-
-	// All four framings are fractions of the fitting distance, so they stay correct when the lens
-	// or the world size changes - the old radius multiples cropped the realm badly under the 28
-	// degree lens. F1 is the whole diorama, F2 surveys, F3 gets close for the paper edge, F4 is
-	// the map view.
-	// Framings are fractions of the *fitting* distance, never multiples of the realm radius: a
-	// radius multiple cannot know the lens, and at 38 degrees a disc needs roughly 5.6 radii to
-	// fit, so every radius-based preset cropped the world. Fit already means "the whole realm in
-	// frame", so 1.00 is literally the full world at that pitch.
 	const float Fit = FitDistance(ObserverPawn, Radius);
-	float Distance = Fit;
-	float Yaw = -52.0f;
-	float Pitch = -50.0f;
-	// Aim height, in realm radii above the centre. Only the landscape framings lift the aim:
-	// survey, map and close-up want the realm centred, and lifting those just crops the base.
-	float AimLift = 0.0f;
-	switch (CameraPreset)
-	{
-	// 0 three-quarter isometric: the standard diorama read, whole world plus its sky
-	// 0 is the landscape ("wallpaper") framing: low camera, sea running to the horizon, the realm
-	// sitting on the water. It replaced the 35 degree three-quarter in 2026-10-18: with an open
-	// ocean behind the world, a high camera only ever shows water and no sky.
-	//
-	// 0.60, not 0.80, and 2.6 degrees off the horizontal rather than 1.8.
-	//
-	// At 0.80 the island was a third of the frame width and the eye read it as something far
-	// away that the camera happened to be pointed at - a backdrop, not a subject. 0.60 puts the
-	// coastline and its surf inside the sharp part of the depth-of-field band and lets the hill
-	// fill the middle third, which is what makes the frame a picture of a place.
-	case 0:		Distance = Fit * 0.60f; Yaw = -45.0f; Pitch = -2.6f; AimLift = 0.02f; break;
-	// 1 satellite survey: whole world from almost directly above
-	case 1:		Distance = Fit * 1.00f; Yaw = -52.0f; Pitch = -76.0f; break;
-	// 2 low ornament: whole world, camera just above the rim
-	case 2:		Distance = Fit * 0.94f; Yaw = -28.0f; Pitch = -14.0f; AimLift = 0.12f; break;
-	// 3 blueprint: whole world, straight down
-	case 3:		Distance = Fit * 1.00f; Yaw = -90.0f; Pitch = -87.0f; break;
-	// 4 far establishing: the realm plus the sky around it
-	case 4:		Distance = Fit * 1.45f; Yaw = -135.0f; Pitch = -32.0f; AimLift = 0.08f; break;
-	// 5 single-tile close-up: materials, standees, paper edges
-	default:	Distance = Fit * 0.30f; Yaw = -30.0f; Pitch = -22.0f; break;
-	}
+	const float Yaw = YawForAzimuth(AzimuthIndex);
+	const float Pitch = -CameraPitchDegrees[FMath::Clamp(PitchIndex, 0, ElevationStops - 1)];
 
-	ObserverPawn->SetDefaults(Distance, Yaw, Pitch);
-	// Aiming above the centre is what turns an aerial survey into a landscape: the world sits in
-	// the lower part of the frame and the sky gets a band above it. The prototype does the same
-	// thing (its camera target is `[0, 0.10R, 0]`); without the lift the realm fills the frame
-	// edge to edge and the sky is a two-pixel seam.
+	// Distance is the one continuous axis: a stop change keeps whatever dolly the player set,
+	// clamped to the two bounds that are defined in world units (ART SS7).
+	const float Distance = FMath::Clamp(ObserverPawn->GetDistance(), 2500.0f, Fit * 1.6f);
+
+	// A low camera needs its aim lifted or the world fills the frame edge to edge and the sky is
+	// a seam; the high survey stops want the realm centred. This is the only per-stop offset.
+	const float AimLift = (PitchIndex == 0) ? 0.10f : ((PitchIndex == 1) ? 0.03f : 0.0f);
 	ObserverPawn->SetFocus(RealmActor->GetRealmCentre() + FVector(0.0f, 0.0f, Radius * AimLift));
+
+	if (bAnimate)
+	{
+		ObserverPawn->MoveTo(Distance, Yaw, Pitch, TourTransitionSeconds);
+	}
+	else
+	{
+		ObserverPawn->SetDefaults(Distance, Yaw, Pitch);
+	}
 }
 
-void ASolsticePlayerController::CycleCameraPreset()
+void ASolsticePlayerController::StepAzimuth(int32 Delta)
 {
-	// V walks the six framings so one key is enough to find "the whole world" without remembering
-	// which function key it lives on. F1-F4 still jump straight to the four core ones.
-	ApplyCameraPreset((CameraPreset + 1) % 6);
+	AzimuthIndex = ((AzimuthIndex + Delta) % AzimuthStops + AzimuthStops) % AzimuthStops;
+	ApplyCameraStop(true);
+}
+
+void ASolsticePlayerController::SetPitchStop(int32 Index)
+{
+	PitchIndex = FMath::Clamp(Index, 0, ElevationStops - 1);
+	ApplyCameraStop(true);
+}
+
+void ASolsticePlayerController::CyclePitchStop()
+{
+	SetPitchStop((PitchIndex + 1) % ElevationStops);
+}
+
+void ASolsticePlayerController::ToggleTour()
+{
+	bTouring = !bTouring;
+	TourTimer = TourDwellSeconds;
+}
+
+void ASolsticePlayerController::ApplyCameraPreset(int32 Index)
+{
+	// Unattended capture (tools/run/shot.ps1) names the four elevations 0-3. Older callers passed
+	// 4 and 5 for extra framings; those stops no longer exist, so they are ignored rather than
+	// silently mapped onto an angle the art gate never checks.
+	if (Index >= 0 && Index < ElevationStops)
+	{
+		PitchIndex = Index;
+		ApplyCameraStop(false);
+	}
 }
 
 void ASolsticePlayerController::Tick(float DeltaSeconds)
@@ -652,7 +700,10 @@ void ASolsticePlayerController::Tick(float DeltaSeconds)
 			{
 				const float Fit = FitDistance(ObserverPawn, RealmActor->GetRealmRadiusUU());
 				ObserverPawn->SetFocus(RealmActor->GetRealmCentre());
-				ObserverPawn->PlayIntro(Fit);
+				// The intro lands on the default grid stop, not on a bespoke angle: the entry shot is
+				// one of the 32 poses the art gate checks, so it can never drift into an unchecked one.
+				ObserverPawn->PlayIntro(Fit, YawForAzimuth(AzimuthIndex),
+					-CameraPitchDegrees[PitchIndex]);
 				bCameraFramed = true;
 
 				// Diagnostics, not decoration: every framing bug in this loop came from a number
@@ -720,9 +771,17 @@ void ASolsticePlayerController::Tick(float DeltaSeconds)
 				// takes over).
 				ObserverPawn->CancelMove();
 			}
+			if (Solstice::Shot::Azimuth() != INDEX_NONE)
+			{
+				AzimuthIndex = ((Solstice::Shot::Azimuth() % AzimuthStops) + AzimuthStops) % AzimuthStops;
+			}
 			if (Solstice::Shot::Preset() != INDEX_NONE)
 			{
 				ApplyCameraPreset(Solstice::Shot::Preset());
+			}
+			else
+			{
+				ApplyCameraStop(false);
 			}
 		}
 		if (ShotAge >= Solstice::Shot::Delay())
@@ -810,10 +869,16 @@ void ASolsticePlayerController::Tick(float DeltaSeconds)
 	// T opens the full read-out. Outside the gate for the same reason as Tab, but also because
 	// the capsule that replaces it is the only thing on screen in the default view: a player who
 	// cannot find the numbers would otherwise have no way to ask for them.
-	if (WasInputKeyJustPressed(EKeys::T)) { ToggleDetails(); }
+	// I, not T: T is the time-mode key (A-01). Two actions on one key meant every press changed
+	// the clock and the read-out together.
+	if (WasInputKeyJustPressed(EKeys::I)) { ToggleDetails(); }
+
+	// Camera input is outside the UI gate: hiding the HUD (P) must not freeze the dolly or the
+	// stops - that was G-04, where ornament mode left the player unable to move at all.
+	PollCamera(DeltaSeconds);
 
 	if (bShowUI)
 	{
-		PollInput(DeltaSeconds);
+		PollCommands(DeltaSeconds);
 	}
 }

@@ -20,6 +20,7 @@ namespace
 		bool bEnabled = false;
 		FString Path;
 		int32 Preset = INDEX_NONE;
+		int32 Azimuth = INDEX_NONE;
 		float Delay = 4.0f;
 		bool bWithUI = false;
 	};
@@ -55,6 +56,7 @@ namespace
 		Cached.Path = Requested;
 
 		FParse::Value(Cmd, TEXT("SolsticeShotPreset="), Cached.Preset);
+		FParse::Value(Cmd, TEXT("SolsticeShotAzimuth="), Cached.Azimuth);
 		FParse::Value(Cmd, TEXT("SolsticeShotDelay="), Cached.Delay);
 		Cached.bWithUI = FParse::Param(Cmd, TEXT("SolsticeShotUI"));
 
@@ -79,6 +81,11 @@ namespace Solstice::Shot
 	int32 Preset()
 	{
 		return Options().Preset;
+	}
+
+	int32 Azimuth()
+	{
+		return Options().Azimuth;
 	}
 
 	float Delay()

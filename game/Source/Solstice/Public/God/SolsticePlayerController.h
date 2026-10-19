@@ -48,8 +48,21 @@ public:
 	void ReleaseSelectedAt(int32 TileIndex);
 	void RecycleSelected();
 	void RerollHand();
-	/** Step through the fixed framings (V). Nothing here takes the camera back from the player. */
-	void CycleCameraPreset();
+
+	// ---- camera: eight azimuths x four elevations ----------------------------
+	// Fixed stops, not free look. `[` / `]` step the azimuth, `V` steps the elevation,
+	// F1-F4 jump straight to the four elevations, `Y` tours the azimuths (3 s dwell).
+	void StepAzimuth(int32 Delta);
+	void SetPitchStop(int32 Index);
+	void CyclePitchStop();
+	void ToggleTour();
+	bool IsTourOn() const { return bTouring; }
+	int32 GetAzimuthIndex() const { return AzimuthIndex; }
+	int32 GetPitchIndex() const { return PitchIndex; }
+	/** Snap the camera onto the current stop (used by shot.ps1 and on entry). */
+	void ApplyCameraStop(bool bAnimate);
+	/** 0-3 map to the four elevations; anything else is ignored (shot.ps1 compatibility). */
+	void ApplyCameraPreset(int32 Index);
 
 	void OpenPack(Solstice::EPackKind Kind);
 	void OpenPackForElement(Solstice::EElement Element);
@@ -100,7 +113,8 @@ public:
 	bool HasStatus() const { return StatusAge < 6.0f; }
 
 private:
-	void PollInput(float DeltaSeconds);
+	void PollCamera(float DeltaSeconds);
+	void PollCommands(float DeltaSeconds);
 	void SetStatus(const FString& Zh, const FString& En);
 
 	ASolsticeRealm* CachedRealm = nullptr;
@@ -116,11 +130,15 @@ private:
 	bool bShowUI = true;
 
 	bool bWasLeftDown = false;
-	bool bWasMiddleDown = false;
 
 	// ---- camera ----------------------------------------------------------
-	bool bAutoOrbit = false;
-	int32 CameraPreset = 0;
+	/** 0..7, each 45 degrees, -45 is stop 0 (the three-quarter view). */
+	int32 AzimuthIndex = 0;
+	/** 0..3 into `CameraPitchDegrees` (14 / 35 / 62 / 88 above the horizon). */
+	int32 PitchIndex = 1;
+	bool bTouring = false;
+	/** Seconds until the tour advances to the next azimuth stop. */
+	float TourTimer = 0.0f;
 	/** Set once the entry framing has been applied; the realm may not exist on the first frames. */
 	bool bCameraFramed = false;
 	/** Seconds left before the quit lands; negative means "not quitting". */
@@ -129,14 +147,10 @@ private:
 	float ShotAge = 0.0f;
 	bool bShotCaptured = false;
 	bool bShotPresetApplied = false;
-	static constexpr float AutoOrbitDegPerSecond = 3.5f;
-
-public:
-	/** Jump to one of the fixed diorama framings (0 全景 / 1 卫星 / 2 低角摆件 / 3 正顶视). */
-	void ApplyCameraPreset(int32 Index);
-	/** Slow automatic orbit, the way a satellite circles what it photographs. */
-	void ToggleAutoOrbit() { bAutoOrbit = !bAutoOrbit; }
-	bool IsAutoOrbitOn() const { return bAutoOrbit; }
+	static constexpr int32 AzimuthStops = 8;
+	static constexpr int32 ElevationStops = 4;
+	static constexpr float TourDwellSeconds = 3.0f;
+	static constexpr float TourTransitionSeconds = 0.8f;
 
 private:
 

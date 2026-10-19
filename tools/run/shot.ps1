@@ -27,13 +27,14 @@
 #>
 [CmdletBinding()]
 param(
-    [int]$Preset = 0,
+    [int]$Preset = 1,
     [float]$Delay = 4.0,
     [int]$Width = 1280,
     [int]$Height = 720,
     [string]$Out,
     [switch]$UI,
     [switch]$NoMeasure,
+    [int]$Azimuth = 0,
     [int]$Minute = -1,
     # 世界种子。world.json 的 seed:0 = 每次开局摇一个新世界，那样两张“同一机位”其实是两个世界，数值不可比。
     # 默认钉住与 bench 相同的 20261016。
@@ -124,6 +125,7 @@ $shotArgs = @(
     ("-ResY={0}" -f $Height),
     ("-SolsticeShot={0}" -f $Out),
     ("-SolsticeShotPreset={0}" -f $Preset),
+    ("-SolsticeShotAzimuth={0}" -f $Azimuth),
     ("-SolsticeShotDelay={0}" -f $Delay),
     '-unattended',
     '-nosplash',
@@ -146,7 +148,7 @@ if (-not [string]::IsNullOrWhiteSpace($Cel)) { $shotArgs += ("-SolsticeCel={0}" 
 # 追加的 cvar 排在 VSync 之后执行，用来做渲染特性 A/B（不用重编译）。
 if (-not [string]::IsNullOrWhiteSpace($Cmd)) { $shotArgs += ('-ExecCmds=' + $Cmd) }
 
-Write-Host ("抓帧：preset={0} {1}x{2} seed={3} -> {4}{5}" -f $Preset, $Width, $Height, $Seed, $Out,
+Write-Host ("抓帧：elev={0} azimuth={1} {2}x{3} seed={4} -> {5}{6}" -f $Preset, $Azimuth, $Width, $Height, $Seed, $Out,
     $(if ($Minute -ge 0) { ("  (clock {0}:{1:D2})" -f [int][math]::Floor($Minute / 60), ($Minute % 60)) } else { '' })) -ForegroundColor Green
 
 $proc = Start-Process -FilePath $editorExe -ArgumentList $shotArgs -PassThru -WindowStyle Hidden
