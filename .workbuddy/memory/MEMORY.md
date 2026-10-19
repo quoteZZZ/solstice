@@ -1,13 +1,14 @@
 # Solstice 项目长期记忆
 
-> 只记「不看代码就会踩坑」的东西；规格一律以 `docs/` 为准（入口 `docs/INDEX.md`）。
+> 只记「不看代码就会踩坑」的东西；规格一律以 `docs/` 为准（入口 `docs/README.md`）。
 
 ## 硬性纪律
 - **单工作树**：`D:/GitCode/solstice` 是唯一检出，停在 **main**。原先 WorkBuddy 在
   `C:/Users/.../Worktrees/solstice/main-2296c354` 的第二工作树（分支 `workbuddy/main-2296c354`，领先 14 个提交）
   已于 2026-10-19 快进合并进 `main` 并删除，分支名仅留作标记。不要再按「提交了 ≠ main 上有」的前提做事；
   推送用 `git push origin HEAD:main`。
-- **任何文档增删改（含版本号、状态列）必须同次更新 `docs/INDEX.md`**，否则视为缺陷。
+- **文档只有 9 份**（`docs/README` + CHARTER/WORLD/CARDS/ART/TECH/PLAN/OPS/LATER）。改内容只改正文 +
+  `docs/CHANGELOG.md` 一行；**新增/作废文档**才改 `docs/README.md` §2 的表。**不建索引页、不抄规格副本**。
 - **改画面必须量，不许看图**：`& tools/run/shot.ps1 -Preset 0 -Delay 5` 无人值守抓一帧（写出
   `tmp/review/shot.png`），日志里的 `[shot] box=` 是世界圆盘的屏幕包围盒，脚本自动喂给
   `tools/checks/measure-frame.py` 判 PASS/FAIL。基线：修曝光前 0.095/0.910/0.597 三项全 FAIL，
@@ -18,7 +19,7 @@
 - 改表现层后必跑 `& tools/run/bench.ps1 -Days 2` → 期望 `digest A == digest B`。
 - `docs/archive/**` 无约束力；不要把已作废形态（动态壁纸 / 场景引擎 / 卡牌收集 / 自走棋 / 2.5D / Tauri / WebGL）带回方案或文档。
 
-## 本机构建（三条必踩坑，详见 `docs/ops/ENV.md` §2.4.1）
+## 本机构建（三条必踩坑，详见 `tools/docs/ENVIRONMENT.md` §2.4.1）
 1. **必须关 UBA** → `tools/build/build.ps1` 已默认追加 `-NoUBA`（`-UseUBA` 可换回）。
 2. **不要直接跑 `UnrealBuildTool.exe`**（本机只有 .NET 8/9 → `EXIT=150`）；用引擎自带
    `Engine\Binaries\ThirdParty\DotNet\10.0\win-x64\dotnet.exe` 挂 `UnrealBuildTool.dll`（`tools/build/gen-projectfiles.ps1` 已内置）。
@@ -36,8 +37,7 @@
 - **`Sim/` 零渲染依赖**：不得 include UObject / Tick / 渲染 / 输入头——这是 `SolsticeBench` 能无头跑的前提。
 - **`Sim/` 里不许读真实时钟**：`FSimKernel::Initialize` 见 `Config.Seed == 0` 会摇新种子、开局
   `WorldMinute` 取 `FDateTime::Now()`。这两处曾让 `bench` "永远 NON-DETERMINISTIC"（它在比两个随机世界）。
-  bench 侧必须钉 `Seed / StartingDayOfYear / StartingMinuteOfDay`（已钉：20261016 / 80 / 06:30，
-  digest `CE8B0D7BE6489900`）。新增任何 `FDateTime::Now()` 到 Sim 路径前，先想 bench 怎么钉住它。
+  bench 侧必须钉 `Seed / StartingDayOfYear / StartingMinuteOfDay`（已钉：20261016 / 80 / 06:30；digest 以 bench 实测为准，2026-10-19 为 `ECCC4EAC4EFDBE58`）。新增任何 `FDateTime::Now()` 到 Sim 路径前，先想 bench 怎么钉住它。
 - **目视取色的常量一律走 `CelSrgb()`**（`Gen/SolsticeGenerators.h`）。把 sRGB 数值直接塞进
   `FLinearColor` 等于 gamma 两次，草地 0.40 出屏 0.66——整界"发灰"的元凶就是它。
 - **`tools/art/textures/*.png` 必须写 sRGB 编码后的字节**（`gen-textures.py::save()` 已处理）。
@@ -57,7 +57,7 @@
 ## 工具配置位置（不在仓库里）
 - CodeBuddy 全局设置 `~/.codebuddy/settings.json`（插件集 = `enabledPlugins`，当前 11 个）；
   `CODEBUDDY_API_KEY` 已改为**用户级环境变量**，不写在文件里；改完需**重启**才生效。
-- 插件取舍理由记在 `docs/ops/AI-TOOLING.md` §3.1；VSCode 扩展真源是 `.vscode/extensions.json`。
+- 插件取舍理由记在 `tools/docs/ENVIRONMENT.md` §3.1；VSCode 扩展真源是 `.vscode/extensions.json`。
 - CodeBuddy 侧已配置 `unreal-mcp`（`http://127.0.0.1:8000/mcp`，需用户在编辑器启用插件后才通）。
 
 ## 协作

@@ -15,7 +15,7 @@ status: frozen
 | 物种 | 5 → 8 物种模板、种群动力、因果可读性 | `archive/m1-specs/SPECIES.md` |
 | 物理 | 15 材质 × 13 参数、相变、三类基础能力 | `archive/m1-specs/PHYSICS.md` |
 | 触发 | 律卡的 WHEN-THEN 词表（12 条上限、后写覆盖） | `archive/m1-specs/TRIGGERS.md` |
-| 界面 | S0–S9 全屏清单与线框（HUD 版式已在本仓现行文档之外，M1 补 `tech/ui.md`） | `archive/m1-specs/UI-UX.md` · `archive/m1-specs/SCREENS.md` |
+| 界面 | S0–S9 全屏清单与线框（HUD 版式与键位当前只有 OPS §5 速查，M1 补 `tech/ui.md`） | `archive/m1-specs/UI-UX.md` · `archive/m1-specs/SCREENS.md` |
 | 创世面板 | 9 组参数、锁轴、世界配方库全量 | `archive/m1-specs/CUSTOMIZE.md` |
 | 存档 | 双槽轮换 + 写前备份 + 崩溃恢复；**M0 需要的只是"种子 + 指令流"的确定性重放** | `shared/schema/save.schema.json`（信封已就位） |
 | 音频 | 四条总线（Master / Environment / UI / SFX）+ 环境床 + 纸声仪式感 | — |
