@@ -106,12 +106,26 @@ namespace Solstice
 		constexpr float ChaosShadowStrength = 0.45f;
 
 		/**
-		 * Band edges, straight from art.md SS2.1: below 0.30 the surface takes the shadow colour,
-		 * above 0.62 the lit one. Pushed onto the material instance rather than baked into the
-		 * asset so retuning them at the style gate costs a rebuild of nothing.
+		 * Band edges, straight from art.md SS2.1: below the low edge the surface takes the shadow
+		 * colour, above the high edge the lit one. Pushed onto the material instance rather than
+		 * baked into the asset so retuning them at the style gate costs a rebuild of nothing.
+		 *
+		 * 0.52 / 0.24, not 0.62 / 0.30.
+		 *
+		 * The sun at the entry hour sits about 55 degrees up, so flat ground has ndl = 0.82 and
+		 * clears 0.62 easily - but the island is not flat. A hillside tilted 20 degrees away
+		 * from the sun is already at 0.57, i.e. in the *mid* band, and one tilted 35 degrees
+		 * drops into shadow. Measured on the frame: the land's median linear luminance was 0.046
+		 * against the sky's 0.213 and the sea's 0.170 - the island was four times darker than
+		 * everything around it, which is why it read as a dark lump rather than as a subject.
+		 *
+		 * The edge is a *terminator*, not a fill light: 0.52 still leaves a hard, readable band
+		 * at the same place (a 58-degree tilt), it just stops calling two thirds of a gentle
+		 * island "shadow". The shadow band is where the cel look lives; it cannot also be where
+		 * most of the island lives.
 		 */
-		constexpr float BandLow = 0.30f;
-		constexpr float BandHigh = 0.62f;
+		constexpr float BandLow = 0.24f;
+		constexpr float BandHigh = 0.52f;
 
 		/** Tanner Helland's approximation, mapped to linear so the emissive term behaves. */		FLinearColor KelvinToLinearColour(float Kelvin)
 		{

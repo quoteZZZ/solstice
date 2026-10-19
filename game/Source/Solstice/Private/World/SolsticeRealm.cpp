@@ -1053,7 +1053,7 @@ void ASolsticeRealm::BuildSkyMesh()
 		//
 		// (Before the normalisation the mean drifted with the octave count, so every retune of
 		// the noise invalidated the threshold and the two had to be searched together.)
-		SkyMID->SetScalarParameterValue(TEXT("CloudThreshold"), 0.505f - 0.20f * Cloud);
+		SkyMID->SetScalarParameterValue(TEXT("CloudThreshold"), 0.548f - 0.16f * Cloud);
 
 		// ---- cloud frequency ----------------------------------------------
 		//
@@ -1061,11 +1061,14 @@ void ASolsticeRealm::BuildSkyMesh()
 		// projected deck (see the sky-coordinate note in BuildSky - the deck projection sheared
 		// the noise lattice into radial wedges and that is what the long straight seams were).
 		//
-		// The entry framing spans 50 degrees, i.e. 0.139 of a turn, so 25 here puts about 3.5
-		// cells across the visible sky. Elevation is scaled by 0.20 inside the shader, which
-		// makes a cell roughly 12 degrees wide and 2.5 tall - wide, low masses, the way a
-		// cumulus band along a horizon actually reads.
-		SkyMID->SetScalarParameterValue(TEXT("CloudScale"), 55.0f);
+		// The entry framing spans 50 degrees, i.e. 0.139 of a turn. At 90 the visible sky carries
+		// about thirteen cells across and nine up, which is 100 by 35 pixels at 1280x720: a
+		// cumulus three cells wide is then about 280 px, i.e. a subject rather than a texture.
+		//
+		// 150 was tried first and overshot - the sky became a regular field of 40 px squares,
+		// which is the lattice showing through the threshold. The lattice is bent by the domain
+		// warp in BuildSky now, so the frequency only has to set the cloud *size*.
+		SkyMID->SetScalarParameterValue(TEXT("CloudScale"), 75.0f);
 		SkyMID->SetScalarParameterValue(TEXT("SunDiscCos"),
 			FMath::Cos(FMath::DegreesToRadians(SunAngularRadiusDeg)));
 

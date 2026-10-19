@@ -81,8 +81,24 @@ def normal_from_height(height: np.ndarray, strength: float) -> np.ndarray:
 
 
 def save(name: str, rgb: np.ndarray) -> None:
+    """Write a *linear* float image as an sRGB-encoded PNG.
+
+    The encoding is not cosmetic and it is not a preference: the runtime loader in
+    `SolsticeCelMaterial.cpp` creates every one of these textures with `SRGB = true`, so the
+    hardware decodes each texel through the sRGB curve before the shader ever sees it. Writing
+    the linear value straight into the byte (which this function used to do) therefore applied
+    a *second* gamma in the wrong direction: the grass tile was authored at 0.58 linear, stored
+    as byte 148, decoded back to 0.30, and the ground has been rendering at half the albedo
+    every number in the material was tuned against. Measured 2026-10-19: the meadow landed at
+    0.106 linear where the material graph computes 0.32, a factor of 3 across the whole island.
+
+    Encoding here means decode(store(x)) == x, so the shader gets exactly what was authored.
+    Normal maps take the same path - their 0..1 encoded vector is *data*, not colour, but the
+    loader marks them sRGB too, so they need the same round trip to survive.
+    """
     OUT.mkdir(parents=True, exist_ok=True)
-    data = np.clip(rgb * 255.0 + 0.5, 0, 255).astype(np.uint8)
+    encoded = np.where(rgb <= 0.0031308, rgb * 12.92, 1.055 * np.power(np.clip(rgb, 0, None), 1 / 2.4) - 0.055)
+    data = np.clip(encoded * 255.0 + 0.5, 0, 255).astype(np.uint8)
     Image.fromarray(data, mode="RGB").save(OUT / name, optimize=True)
     print(f"  {name:24s} {data.shape[1]}x{data.shape[0]}")
 

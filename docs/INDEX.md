@@ -20,7 +20,7 @@ owner: both
 | [`CONSTANTS.md`](CONSTANTS.md) | L0 | **跨文档数字的唯一索引**：值 / 真源 / 还有谁在用 |
 | [`setting/WORLD.md`](setting/WORLD.md) | L1 | **世界形态与生成**：界形态判据、尺度、生态域、世界骰六轴与七条判据、地块与水体模型、环境曲线与天气、生成流程、年表结构 |
 | [`setting/LORE.md`](setting/LORE.md) | L1 | **世界怎么说**：术语表与命名 id、文案与本地化规范、叙事原则、留档设定（相合 / 异质）。**施工不读，写文案时读** |
-| [`art/art.md`](art/art.md) | L1 | 动画赛璐璐配方（着色 / 天空 / 地形水植被 / 昼夜）、**取景与机位**（§2.6）、资产生产与登记 |
+| [`art/art.md`](art/art.md) | L1 | 动画赛璐璐配方（三档着色**落在自发光**/ 天空 / 地形水植被 / 昼夜）、**取景与机位**（§2.6）、资产生产与登记 |
 | [`setting/cards.md`](setting/cards.md) | L1 | 卡的三轴与生克、卡种字段、M0 36 格清单、价值表、240 功能位 |
 | [`gameplay/INTERVENTION.md`](gameplay/INTERVENTION.md) | L1 | 玩家怎么用卡：手牌、实体池、余响规则、释放手感 |
 | [`tech/tech.md`](tech/tech.md) | L1 | 性能预算、模块依赖、仓库目录与命名、归位决策 |

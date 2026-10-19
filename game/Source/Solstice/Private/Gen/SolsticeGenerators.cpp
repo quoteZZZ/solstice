@@ -523,7 +523,18 @@ namespace Solstice
 			// Deliberately narrow - 1.2 to 3.2 m and only above slope 0.55. Painting every slope
 			// grey was tried on 2026-10-18 and turned the realm into a rock pile (saturation
 			// 0.351 -> 0.218); this is the one band where the stone is the point.
-			const bool bCliff = !bHigh && H >= 1.2f && H < 3.2f && Slope01 > 0.55f;
+			// 0.8-7.0 m and slope 0.38, not 1.2-3.2 m and 0.55.
+			//
+			// The band was authored to paint "the one place where stone belongs", and then sized
+			// so narrowly that it almost never fired: thirty-two degrees of slope over a 2 m
+			// window covers about forty pixels at the entry framing, hidden behind the sand strip
+			// in front of it. The frame showed a green dome sliding into blue water with a pale
+			// rim - a mossy ball, which is what the comment above was trying to prevent.
+			//
+			// 0.38 is roughly 52 degrees: still a face, not a slope. 7 m lets a cliff run up the
+			// whole lower island instead of only the waterline, which is what gives the coastline
+			// a black-and-white edge instead of a soft green-to-sand gradient.
+			const bool bCliff = !bHigh && H >= 0.8f && H < 7.0f && Slope01 > 0.38f;
 
 			Base = bHigh
 				? (bSteep ? RockDark : Rock)
@@ -1042,7 +1053,15 @@ namespace Solstice
 					// separates crowns at 20 px - a forest where every crown has the same value
 					// is a green blanket no matter how varied its silhouettes are.
 					const float Vigour = 0.70f + 0.60f * Forest;
-					const float Shade = 0.78f + 0.44f * CelGrain(X * 3 + 9, Y * 5 + 2);
+					// 0.86..1.14, not 0.78..1.22.
+					//
+					// The spread was doing the job of separating neighbouring crowns, but it did
+					// it by multiplying an already-dark albedo by as little as 0.78 - and on the
+					// top of the island, where forty crowns overlap, those dark draws are the
+					// ones the eye lands on. The result measured as one black mass with a green
+					// rim. The separation now comes from the hue steps below, which stay visible
+					// at 20 px without pushing any crown into near-black.
+					const float Shade = 0.86f + 0.28f * CelGrain(X * 3 + 9, Y * 5 + 2);
 					const float TrunkHeight = (85.0f + 70.0f * CelGrain(X + 11, Y + 17)) * Vigour * HeightMul;
 					const float CrownRadius = (120.0f + 80.0f * CelGrain(Y + 3, X + 29)) * Vigour * CrownMul;
 					const FVector Root(Centre.X, Centre.Y, Surface * MeterUU);
@@ -1088,9 +1107,22 @@ namespace Solstice
 					// near-black - which is why the island read as a dark lump rather than as a
 					// forest. Stylised foliage sits a full step higher and lets the *shading* do
 					// the darkening, not the albedo.
-					const FLinearColor LeafDark = CelSrgb(0x2E, 0x5C, 0x36) * Shade;
-					const FLinearColor LeafMid = CelSrgb(0x46, 0x80, 0x3C) * Shade;
-					const FLinearColor LeafLit = CelSrgb(0x76, 0xB2, 0x52) * Shade * 1.06f;
+					// Albedo, not a lighting value.
+					//
+					// #2E5C36 is sRGB 0.18/0.36/0.21, i.e. a *linear* luminance near 0.07. Feeding
+					// that to DefaultLit - which is what M_Cel is - means the crown reflects 7% of
+					// the light it receives, and then the material's shadow band multiplies it by
+					// another 0.3. At 0.02 the canopy is indistinguishable from the ink hull, so
+					// the forest rendered as a silhouette with a lit green rim: the "black lump on
+					// the hill" the frame kept showing.
+					//
+					// A stylised canopy lives at 0.10-0.45 linear, the same order as the grass
+					// (#7FBF5F is 0.21/0.52/0.11). Foliage is *one step* deeper than the meadow,
+					// not three: the darkness between crowns is the material's job (bands, the
+					// skirt occlusion, the cast shadows), not the albedo's.
+					const FLinearColor LeafDark = CelSrgb(0x4E, 0x8C, 0x42) * Shade;
+					const FLinearColor LeafMid = CelSrgb(0x68, 0xA8, 0x4A) * Shade;
+					const FLinearColor LeafLit = CelSrgb(0x94, 0xC8, 0x5E) * Shade * 1.04f;
 					const uint32 FamilySeed = static_cast<uint32>(X * 31 + Y * 7);
 					const float BaseZ = TrunkHeight * (Family == 4 ? 0.15f : 0.80f);
 
@@ -1163,16 +1195,28 @@ namespace Solstice
 						Root + FVector(0.0f, 0.0f, TrunkHeight * 0.55f), 1.035f, Palette.InkWash, OutHull);
 				}
 
-				// ---- boulders -------------------------------------------------------------
-				// Cold grey paper stones anchor the meadow the way Tiny Glade's ruins do: low
-				// irregular cushions, one tile in twelve above the silt band, clustered by the
-				// shared hash so they read as outcrops rather than sprinkles.
-				if (!bClipped && !Tile->IsWater() && Surface > 10.0f
-					&& CelGrain(X * 29 + 7, Y * 19 + 5) > 0.915f)
+			// ---- boulders -------------------------------------------------------------
+			// Cold grey paper stones anchor the meadow the way Tiny Glade's ruins do: low
+			// irregular cushions, one tile in twelve above the silt band, clustered by the
+			// shared hash so they read as outcrops rather than sprinkles.
+			//
+			// Two bands, not one. `Surface > 10 m` is a *hillside* filter, so every stone on the
+			// island sat above the tree line and the shoreline - the one place a diorama needs
+			// something breaking its outline - had nothing on it at all. A coast of smooth sand
+			// meeting smooth water has no scale reference and no silhouette, which is a large
+			// part of why the island read as a plastic model.
+			if (!bClipped && !Tile->IsWater())
+			{
+				const bool bUpland = Surface > 10.0f && CelGrain(X * 29 + 7, Y * 19 + 5) > 0.915f;
+				const bool bShore = Surface > 0.5f && Surface < 7.0f
+					&& CelGrain(X * 41 + 13, Y * 23 + 7) > 0.86f;
+				if (bUpland || bShore)
 				{
 					const int32 HullFrom = Out.Num();
 					const int32 HullTriFrom = Out.Triangles.Num();
-					const float StoneR = 26.0f + 34.0f * CelGrain(X + 51, Y + 37);
+					// Shore stones are half the size: a 60 uu boulder on a beach is a house.
+					const float StoneR = (bUpland ? 26.0f : 11.0f)
+						+ (bUpland ? 34.0f : 19.0f) * CelGrain(X + 51, Y + 37);
 					const float StoneH = StoneR * (0.55f + 0.45f * CelGrain(X + 63, Y + 21));
 					const FLinearColor Stone(0.56f, 0.55f, 0.52f, 1.0f);
 					const FLinearColor StoneTop(0.74f, 0.73f, 0.68f, 1.0f);
@@ -1185,6 +1229,7 @@ namespace Solstice
 					EmitHull(Out, HullFrom, Out.Num(), HullTriFrom,
 						FVector(Centre.X, Centre.Y, Surface * MeterUU), 1.10f, Palette.InkWash, OutHull);
 				}
+			}
 
 				// The rim wall used to live here: one zero-height wall per tile edge, i.e. the very
 				// comb it was written to avoid, kept alive by a comment claiming the cut was drawn

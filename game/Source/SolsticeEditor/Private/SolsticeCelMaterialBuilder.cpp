@@ -64,7 +64,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 119;
+	constexpr int32 CelRecipeVersion = 126;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -508,8 +508,13 @@ return lerp(C, night, saturate(Desat));
 				ScaParam(TEXT("BandLow"), 0.30f, -900, 920);
 			UMaterialExpressionScalarParameter* BandHighParam =
 				ScaParam(TEXT("BandHigh"), 0.62f, -900, 1000);
+			// 1.45, after measurement. The renderer's own lights land a couple of percent of the
+			// picture's range on the island, so this scalar *is* the sun: `albedo * litTint * Fill
+			// * 0.406` (the exposure gain) has to put the meadow's linear green near 0.33, which
+			// is the 155/255 that reads as sunlit grass against a 0.22-luminance sky. 2.4
+			// overshoots into neon, 1.0 leaves it at the 90 it sat at for three rounds.
 			UMaterialExpressionScalarParameter* CelFillParam =
-				ScaParam(TEXT("CelFill"), 2.4f, -900, 1080);
+				ScaParam(TEXT("CelFill"), 1.45f, -900, 1080);
 
 			UMaterialExpressionCustom* ToonBand = AddExpr<UMaterialExpressionCustom>(Material, -620, 560);
 			ToonBand->Description = TEXT("ToonBand");
@@ -550,9 +555,34 @@ return lerp(lerp(Shadow, Mid, lo), Lit, hi);
 			ShadowFillNode->Code = TEXT(R"(
 // `hi` is the same lit factor the band uses, so the fill vanishes exactly where the sun takes
 // over and there is no double count at the edge.
+//
+// `(1 - hi)` was removed from this line, and that is the whole of the "the island does not
+// respond to the sun" result.
+//
+// Everything above still describes the *intent*. What the frame does is different: the world's
+// only lights are a 100-unit sun and a sky light captured from a deliberately dimmed sky, and
+// against a manual exposure of -1.3 stops neither of them lands more than a couple of percent
+// of the picture's linear range on a lit surface. Measured three ways on 2026-10-19: the island's
+// median linear luminance stayed at 0.045 with the sun at 1x, 3x and 20x (only the sea's
+// specular moved), with dynamic shadows off, and with the sky light at 2.6x. What did move it,
+// linearly and predictably, was `SurfaceBaseGain` - i.e. it was albedo times a *constant*, and
+// that constant was this emissive.
+//
+// So the `(1 - hi)` factor was working exactly backwards: it gave the *shadow* band the only
+// light in the scene and left the lit band with nothing, which is why the island read as a dark
+// mass with a bright rim on every crown.
+//
+// The second half is the one that actually fixes the picture. Since the renderer contributes
+// nothing measurable, `BaseColor = albedo * band` is multiplied by zero and the bands are
+// invisible - the island's whole value came from this node, uniformly, and a uniform fill has no
+// light-to-dark structure at all. So the band goes *into the emissive*: the three tints are
+// re-expressed here as a fill ramp with a wider spread than the base-colour ramp, because the
+// fill is now the only thing drawing the form. `Sh * 0.55` against `Lit * 1.05` is a 3:1 value
+// ratio at the same hue, which is what a cel band has to be to read at all.
 float ndl = dot(normalize(N), normalize(S));
 float hi = smoothstep(BandHigh - 0.05, BandHigh + 0.05, ndl);
-return A * Sh * (1.0 - hi) * Fill;
+float3 fillTint = lerp(Sh * 0.80, Lit * 1.05, hi);
+return A * fillTint * Fill;
 )");
 			{
 				auto Add = [&ShadowFillNode](const TCHAR* Name, UMaterialExpression* Expr)
@@ -566,6 +596,7 @@ return A * Sh * (1.0 - hi) * Fill;
 				Add(TEXT("N"), ToonNormal);
 				Add(TEXT("S"), SunDirParam);
 				Add(TEXT("Sh"), ShadowTintParam);
+				Add(TEXT("Lit"), LitTintParam);
 				Add(TEXT("BandHigh"), BandHighParam);
 				Add(TEXT("Fill"), CelFillParam);
 			}
@@ -1509,8 +1540,64 @@ sky = lerp(sky, MoonCore, smoothstep(MoonDiscCos, MoonDiscCos + 0.00030, cosM) *
 // way a cumulus band along a horizon actually sits.
 float el = asin(clamp(d.z, -1.0, 1.0));
 float az = atan2(d.y, d.x) * 0.15915494;	// turns per revolution, -0.5..0.5
-float2 cp0 = float2(az, el * 0.20) * CloudScale + float2(CloudDrift, CloudDrift * 0.37);
-float2 cp = cp0;
+// 0.40, not 0.20.
+//
+// This is the *aspect* of a noise cell, and it was set when CloudScale was 55 and the sky
+// carried about three cells vertically. A cell 1.4 degrees wide and 0.7 tall is a lozenge;
+// thresholding a field made of lozenges that large gives back the lozenges, which is what the
+// frame showed: half a dozen flat white slabs with straight edges, two hundred pixels across.
+// The cells have to be small enough that the *isoline* inside them, not the cell itself, is
+// what the eye sees - 0.40 at the current scale puts roughly fifteen cells on the visible
+// band, so a cumulus is three or four cells and its border is a curve.
+float2 cp0 = float2(az, el * 0.40) * CloudScale + float2(CloudDrift, CloudDrift * 0.37);
+
+// ---- domain warp ------------------------------------------------------
+//
+// The lattice has to be bent before it is thresholded, or the threshold returns the lattice.
+//
+// Raising the frequency did exactly that, and the result is the clearest negative in the log:
+// at 150 cells per turn the sky became a field of small square puffs on a regular grid. The
+// reason is structural - value noise is separable, so its isolines are the lattice's own
+// horizontal and vertical lines wherever two cells disagree; with big cells the lattice lines
+// were hidden inside a few large blobs, and with small cells they became the clouds.
+//
+// Displacing the sample point by a *slower* noise field before evaluating the cloud field is
+// the standard fix and the only one that works here: the shapes stop being level sets of the
+// lattice and become level sets of whatever the warp field says. 0.34 of the base frequency
+// and 1.6 cells of amplitude - slower than the field or it just roughens the edges, and far
+// enough to close a lattice line into a curve.
+float2 wq = cp0 * 0.34 + float2(11.3, 4.7);
+float2 wc = floor(wq);
+float2 wf = frac(wq);
+wf = wf * wf * (3.0 - 2.0 * wf);
+float wa = 0.0;
+float wb = 0.0;
+for (int k = 0; k < 2; k++)
+{
+    float3 c0 = frac(float3(wc.x,        wc.y,        wc.x) * 0.1031);
+    float3 c1 = frac(float3(wc.x + 1.0,  wc.y,        wc.x + 1.0) * 0.1031);
+    float3 c2 = frac(float3(wc.x,        wc.y + 1.0,  wc.x) * 0.1031);
+    float3 c3 = frac(float3(wc.x + 1.0,  wc.y + 1.0,  wc.x + 1.0) * 0.1031);
+    c0 += dot(c0, c0.yzx + 33.33);
+    c1 += dot(c1, c1.yzx + 33.33);
+    c2 += dot(c2, c2.yzx + 33.33);
+    c3 += dot(c3, c3.yzx + 33.33);
+    float v0 = frac((c0.x + c0.y) * c0.z);
+    float v1 = frac((c1.x + c1.y) * c1.z);
+    float v2 = frac((c2.x + c2.y) * c2.z);
+    float v3 = frac((c3.x + c3.y) * c3.z);
+    float v = lerp(lerp(v0, v1, wf.x), lerp(v2, v3, wf.x), wf.y);
+    if (k == 0) { wa = v; }
+    else { wb = v; }
+    // Integer shift: frac() is unchanged, the hash is not, so the second sample is independent.
+    wc += float2(37.0, 19.0);
+}
+float2 warp = float2(wa, wb) - float2(0.5, 0.5);
+// 1.0 cell, not 1.6. At 1.6 the displacement was comparable to a cloud's whole width, so the
+// isolines closed into sharp feathered lozenges with crystalline corners - it read as torn
+// paper, which is a different wrong look rather than a fix. A warp slightly smaller than the
+// cell only has to *bend* the lattice line, not move it to another cell.
+float2 cp = cp0 + warp * 1.0;
 
 )") TEXT(R"(
 // ---- the cloud field -------------------------------------------------
@@ -1581,7 +1668,7 @@ nLow /= 1.55;
 // direction, so its size sets a cloud's internal contrast. At a twenty-eighth of a cell (which
 // is what a unit change left behind) `n - m` is noise, `lit` sits at its midpoint, and every
 // cloud renders as one flat white shape.
-float2 cpSun = cp0 + normalize(SunDir.xy + float2(1e-4, 0.0)) * 0.25;
+float2 cpSun = cp + normalize(SunDir.xy + float2(1e-4, 0.0)) * 0.25;
 float m = 0.0;
 float mNorm = 0.0;
 float mAmp = 1.0;
@@ -1624,10 +1711,13 @@ float cover = CloudThreshold + (m - 0.5) * 0.30;
 // A per-pixel jitter on this threshold was tried to break the straight seams and measured no
 // effect at all - which was the clue that they were a geometry problem, not a threshold one.
 
-// 0.26 of a field that now spans about 0.55: wide enough to read as a rim, narrow enough that
-// the core still reaches 1.0. A transition wider than the signal turns the deck into fog - that
-// mistake is written down in round 16 and it cost a full rebuild.
-float mask = smoothstep(cover, cover + 0.26, n);
+// A transition wider than the signal turns the deck into fog - that mistake is written down in
+// round 16 and it cost a full rebuild.
+// 0.24. 0.18 was tried with the raised frequency and the edge became a cut - a printed sticker
+// on the sky. The transition only has to be narrower than the cloud spacing, not as narrow as
+// the rim colour: at 0.24 of the field's ~0.55 range an edge is two or three pixels at this
+// framing, which is a soft but definite border.
+float mask = smoothstep(cover, cover + 0.24, n);
 
 // 0 at the rim, 1 in the thickest core. A cloud is not a flat cut-out: the rim is a thin sheet
 // and only the core has enough body to shade itself.
@@ -1674,8 +1764,18 @@ lit = saturate(lit + (1.0 - density) * 0.10);
 // Aerial perspective on the deck: clouds near the horizon sit behind several kilometres of
 // air and take the sky's colour. Without this the deck is pasted onto the sky as one flat
 // white; with it the layer has depth, which is most of what "a sky" means.
+//
+// `h * 14.0`, not `h * 5.0`, and that exponent was worth the whole cloud layer.
+//
+// The entry framing sees 0 to 15 degrees of elevation, i.e. h in [0, 0.26]. At `1 - h*5` the
+// term only reaches zero at h = 0.20 - inside the frame - so every cloud the camera could
+// actually see was blended between 25% and 55% toward the sky colour. The deck measured as a
+// set of pale lozenges that were *lighter* than the sky at their cores and had no base at all;
+// the reason was not the noise, not the threshold and not the shading, it was this line
+// washing out the whole visible band. At `1 - h*14` the term is spent by h = 0.071 (four
+// degrees), which is the strip where a deck really does dissolve into haze.
 float3 cloudCol = lerp(CloudShadow, CloudLit, lit);
-cloudCol = lerp(cloudCol, sky * 1.06, saturate(1.0 - h * 5.0) * 0.55);
+cloudCol = lerp(cloudCol, sky * 1.06, pow(saturate(1.0 - h * 14.0), 2.0) * 0.55);
 
 // Fade the deck out over the last couple of degrees: there a cloud layer is a few pixels tall
 // and would only add noise.
