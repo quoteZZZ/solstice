@@ -63,7 +63,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 95;
+	constexpr int32 CelRecipeVersion = 106;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -881,8 +881,115 @@ return float3(hn, foam, 0.0);
 		SeaTint->ParameterName = TEXT("SeaTint");
 		SeaTint->DefaultValue = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
+		// ---- depth gradient from the island out -----------------------------
+		//
+		// The mesh carries a lagoon -> shelf -> deep ramp in its vertex colours, and it is
+		// invisible: perspective squeezes the whole visible near sea into T = 0.15..0.21 of the
+		// ring parameter, so a third of the palette is compressed into fifteen percent of one
+		// ring. The lower half of the frame therefore came out one flat cyan, and no palette
+		// value could change that - the problem is the parameterisation, not the colour.
+		//
+		// So the gradient is computed from world distance to the island centre instead. That is
+		// what actually governs water colour in the real thing anyway: the column depth. Shallow
+		// water over a reef is bright turquoise, the shelf edge is where it turns, and open ocean
+		// is a dark saturated blue. Every tropical-island photograph in existence has that ring.
+		UMaterialExpressionWorldPosition* SeaPos = AddExpr<UMaterialExpressionWorldPosition>(Material, -1600, -260);
+		UMaterialExpressionCameraPositionWS* SeaCam = AddExpr<UMaterialExpressionCameraPositionWS>(Material, -1600, -400);
+
+		auto Vec = [&](const TCHAR* Name, const FLinearColor& Value, int32 X, int32 Y)
+		{
+			UMaterialExpressionVectorParameter* Node = AddExpr<UMaterialExpressionVectorParameter>(Material, X, Y);
+			Node->ParameterName = Name;
+			Node->DefaultValue = Value;
+			return Node;
+		};
+		auto Sca = [&](const TCHAR* Name, float Value, int32 X, int32 Y)
+		{
+			UMaterialExpressionScalarParameter* Node = AddExpr<UMaterialExpressionScalarParameter>(Material, X, Y);
+			Node->ParameterName = Name;
+			Node->DefaultValue = Value;
+			return Node;
+		};
+
+		UMaterialExpressionVectorParameter* SeaShallow = Vec(TEXT("SeaShallow"), FLinearColor(0.045f, 0.360f, 0.395f, 1.0f), -1600, -540);
+		UMaterialExpressionVectorParameter* SeaMid = Vec(TEXT("SeaMid"), FLinearColor(0.018f, 0.150f, 0.185f, 1.0f), -1600, -610);
+		UMaterialExpressionVectorParameter* SeaDeep = Vec(TEXT("SeaDeep"), FLinearColor(0.004f, 0.038f, 0.135f, 1.0f), -1600, -680);
+		UMaterialExpressionScalarParameter* SeaShallowR = Sca(TEXT("SeaShallowRadius"), 16000.0f, -1600, -820);
+		UMaterialExpressionScalarParameter* SeaDeepR = Sca(TEXT("SeaDeepRadius"), 120000.0f, -1600, -960);
+		UMaterialExpressionScalarParameter* SeaHaze = Sca(TEXT("SeaHazeSpan"), 340000.0f, -1600, -1100);
+		UMaterialExpressionScalarParameter* SeaHazeStart = Sca(TEXT("SeaHazeStart"), 90000.0f, -1600, -1030);
+		// Its own parameter rather than reusing SkyReflect: that node is declared further down
+		// the graph, and a Custom input cannot reference a node that does not exist yet.
+		UMaterialExpressionVectorParameter* SeaHazeColour =
+			Vec(TEXT("SeaHazeColour"), FLinearColor(0.62f, 0.78f, 0.86f, 1.0f), -1600, -1240);
+
+		UMaterialExpressionCustom* SeaDepth = AddExpr<UMaterialExpressionCustom>(Material, -1100, -400);
+		SeaDepth->Description = TEXT("SeaDepth");
+		SeaDepth->OutputType = CMOT_Float3;
+		SeaDepth->Code = TEXT(R"(
+// r is the horizontal distance to the island; the realm sits at the origin.
+float r = length(P.xy);
+
+// The realm sits at the world origin, so this is the distance to the island. Note that the
+// interesting quantity is NOT how far the water is from the island in metres - it is how much of
+// the *frame* a given band of metres occupies, and near a low camera that is violently non-linear
+// (see the radii note in PaintSea).
+float t = saturate((r - NearRadius) / max(FarRadius - NearRadius, 1000.0));
+
+// Three stops, not two, and the reason is compositional.
+//
+// A two-stop ramp puts its transition wherever the radii say, and at this framing the *entire*
+// visible sea sits inside 200 m of the island - the bottom of the frame is the water between the
+// camera and the shore, so "near the island" and "near the viewer" are the same thing. A single
+// ramp therefore paints either the whole sea bright or the whole sea dark.
+//
+// The three legs are the ones a real tropical coast has: a narrow brilliant ring over the sand
+// shelf, a wide teal body where the bottom is still visible, and then cobalt where it is not.
+// Only the first leg is allowed to be bright, which is what makes it read as a reef rather than
+// as a floodlit swimming pool.
+float3 col = t < 0.20
+	? lerp(Shallow, Mid, smoothstep(0.0, 0.20, t))
+	: lerp(Mid, Deep, smoothstep(0.20, 0.72, t));
+
+// The break. A one-pixel-scale bright line exactly at the shelf edge is what the eye uses to
+// read the island's size, and every aerial photograph of a reef has one.
+float reef = (1.0 - abs(t - 0.20) / 0.05);
+col = lerp(col, Shallow * 1.20 + float3(0.02, 0.05, 0.04), saturate(reef) * 0.45);
+
+// Aerial perspective. The sea runs to 3.8 km and the eye expects it to lose contrast and
+// take the sky's colour with distance; without this the horizon is a hard line between two
+// fully saturated fields.
+// A smoothstep, not a linear ramp from zero. The first version divided straight by the span,
+// so water 200 m away was already 60% horizon colour and the whole sea came out one flat pale
+// turquoise - the gradient was there, buried under the haze. Near water has to keep its colour;
+// haze is for the last kilometre.
+float d = length(P - CamPos.xyz);
+col = lerp(col, Haze, smoothstep(HazeStart, max(HazeSpan, HazeStart + 1.0), d) * 0.55);
+
+return col;
+)");
+		{
+			auto Add = [&SeaDepth](const TCHAR* Name, UMaterialExpression* Expr)
+			{
+				FCustomInput In;
+				In.InputName = Name;
+				In.Input.Expression = Expr;
+				SeaDepth->Inputs.Add(In);
+			};
+			Add(TEXT("P"), SeaPos);
+			Add(TEXT("CamPos"), SeaCam);
+			Add(TEXT("Shallow"), SeaShallow);
+			Add(TEXT("Mid"), SeaMid);
+			Add(TEXT("Deep"), SeaDeep);
+			Add(TEXT("NearRadius"), SeaShallowR);
+			Add(TEXT("FarRadius"), SeaDeepR);
+			Add(TEXT("HazeSpan"), SeaHaze);
+			Add(TEXT("HazeStart"), SeaHazeStart);
+			Add(TEXT("Haze"), SeaHazeColour);
+		}
+
 		UMaterialExpressionMultiply* TintedBase = AddExpr<UMaterialExpressionMultiply>(Material, -420, -60);
-		TintedBase->A.Expression = VertexColour;
+		TintedBase->A.Expression = SeaDepth;
 		TintedBase->B.Expression = SeaTint;
 
 		// ---- 水体色：走自发光，不走光照 --------------------------------
@@ -920,7 +1027,14 @@ return float3(hn, foam, 0.0);
 		// Note what this means for shadows: an emissive surface cannot receive one. Island
 		// shadows will not land on the water in this style, and that is a deliberate trade - the
 		// alternative is a lit sea whose colour changes with the hour and blows out at noon.
-		Diffuse->DefaultValue = 0.05f;
+		//
+		// 0.010, not 0.05, and the measurement is dramatic: 0.05 -> 0.001 moved the frame's
+		// midpoint from 0.706 to 0.510, i.e. *the lit path was the sea's dominant brightness*,
+		// not the emissive body it is supposed to be a garnish on. The reason is the skylight:
+		// it is a captured sky in physical units, so albedo x 0.05 is still enormous next to an
+		// emissive that is authored as a display colour. Every previous attempt to darken the
+		// water by editing the palette was fighting a term that had nothing to do with it.
+		Diffuse->DefaultValue = 0.010f;
 
 		UMaterialExpressionMultiply* ScatterColour = AddExpr<UMaterialExpressionMultiply>(Material, -900, 1160);
 		ScatterColour->A.Expression = TintedBase;
@@ -1045,7 +1159,7 @@ return float3(hn, foam, 0.0);
 		// as *white horizontal banding across the whole surface* rather than as breaking crests -
 		// the single biggest reason the sea looked like painted silk instead of water. Foam is a
 		// punctuation mark: a few crests, not a texture.
-		FoamAmount->DefaultValue = 0.15f;
+		FoamAmount->DefaultValue = 0.09f;
 
 		// Foam only belongs where the surface faces the eye. At grazing angles the water is a
 		// mirror and any white on it would read as a stripe of paint lying on the horizon.
@@ -1255,22 +1369,26 @@ sky = lerp(sky, MoonCore, smoothstep(MoonDiscCos, MoonDiscCos + 0.00030, cosM) *
 // works without marching rays.
 //
 // `d.xy / (h + c)` keeps the perspective convergence of a real deck and is finite everywhere.
-float2 cp = (d.xy / (max(h, 0.0) + 0.55)) * CloudScale + float2(CloudDrift, CloudDrift * 0.37);
+// ---- deck coordinate ------------------------------------------------
+//
+// A plane-parallel layer at height Hc projects to `d.xy * Hc / h`, i.e. radius ~1/h. The
+// `+ 0.55` bounds the pole at the horizon. Two other parameterisations were tried and rejected
+// in earlier rounds and the reasons still hold: a pure `d.xy / h` stretches the noise into
+// slivers along the horizon, and 3D sampling at `d * scale` gives vertical columns because the
+// visible sky only spans 0-15 degrees of elevation.
+float2 cp0 = (d.xy / (max(h, 0.0) + 0.55)) * CloudScale + float2(CloudDrift, CloudDrift * 0.37);
 
-// Domain warp before sampling. Value noise lives on a square lattice, and after the deck
-// projection those squares become parallelograms: unfiltered, every cloud edge runs in a few
-// straight segments and the sky reads as folded paper. Pushing the sample point around with a
-// low-frequency sine pair bends the lattice and the edges come out irregular.
-// The warp has to be *noise*, not any arrangement of sines.
+// ---- one warp field, shared by every sample of this cloud -----------
 //
-// Two rounds were spent on sines and both left parallel strokes across the sky, because
-// sin(a*y) * sin(b*x) is 0.5*(cos(ay-bx) - cos(ay+bx)) - it is still two plane waves, just
-// rotated onto the diagonals. Any sum of sinusoids has an axis, and any axis shows up as
-// streaks once the result is thresholded.
+// The warp has to be *noise*, not any arrangement of sines: `sin(a*y)*sin(b*x)` is
+// 0.5*(cos(ay-bx) - cos(ay+bx)) - still two plane waves, just rotated onto the diagonals - and
+// any sum of sinusoids leaves streaks once the result is thresholded.
 //
-// One octave of value noise has no axis at all. Four hashes and a quintic lerp buy a warp field
-// that bends the lattice differently in every direction, and the streaks go with it.
-float2 wq = cp * 0.45;
+// The offset is computed ONCE and added to every sample below. That matters: an earlier version
+// warped the cloud field but sampled the sun-direction field unwarped, so their difference (the
+// thing that decides which side of a cloud is lit) contained the whole warp gradient and the
+// clouds came out shaded by where the warp happened to be, not by the sun.
+float2 wq = cp0 * 0.45;
 float2 wc = floor(wq);
 float2 wf = frac(wq);
 wf = wf * wf * wf * (wf * (wf * 6.0 - 15.0) + 10.0);
@@ -1289,30 +1407,43 @@ float2 ob = float2(frac((wb.x + wb.y) * wb.z), frac((wb.x + wb.z) * wb.y)) - 0.5
 float2 od = float2(frac((wd.x + wd.y) * wd.z), frac((wd.x + wd.z) * wd.y)) - 0.5;
 float2 oe = float2(frac((we.x + we.y) * we.z), frac((we.x + we.z) * we.y)) - 0.5;
 
-cp += 1.6 * lerp(lerp(oa, ob, wf.x), lerp(od, oe, wf.x), wf.y);
+float2 warp = 1.30 * lerp(lerp(oa, ob, wf.x), lerp(od, oe, wf.x), wf.y);
 
-float2 cpBase = cp;
+float2 cp = cp0 + warp;
 
+)") TEXT(R"(
+// ---- the cloud field -------------------------------------------------
+//
+// Four octaves, and the reason is a shape bug that took three rounds to name.
+//
+// The field used to be three octaves at a base frequency that put the *entire visible sky*
+// inside about two lattice cells. A bilinear/quintic patch has a saddle wherever two opposite
+// corners are high and the other two low, and the level set of a saddle is two curves that
+// cross. With only two cells on screen, one saddle was the whole picture: the sky grew a
+// perfectly straight X forty percent of the frame wide, and no amount of softening the
+// threshold could help, because a threshold cannot remove a feature of the field itself.
+//
+// The fix is not "more filter", it is "the large scale must not be one cell". The base
+// frequency is raised 2.2x (see CloudScale in SolsticeRealm) so the sky spans six cells, and
+// four octaves put detail inside each one, so the level sets are broken curves rather than
+// straight ones. The sum is normalised, which matters for every threshold below: without the
+// division the mean drifted with the octave count and each retune invalidated the last.
 float n = 0.0;
-float camp = 0.55;
-for (int i = 0; i < 3; i++)
+float nLow = 0.0;
+float norm = 0.0;
+float amp = 1.0;
+float2 q = cp;
+for (int i = 0; i < 4; i++)
 {
-    float2 cell = floor(cp);
-    float2 f = frac(cp);
-    // Quintic, not smoothstep.
-    //
-    // smoothstep interpolation of a value-noise lattice is C1 but not C2: the second derivative
-    // jumps at every lattice line, and along those lines the *gradient* of the field is
-    // discontinuous. A threshold on such a field produces edges that snap to the lattice, so a
-    // cloud larger than a cell comes out as a tilted quadrilateral - measured on the frame as
-    // long straight seams running diagonally across the sky, worse than the folded-paper look
-    // this warp was added to fix. Quintic is C2, the lattice vanishes, and the cells cost the
-    // same.
+    float2 cell = floor(q);
+    float2 f = frac(q);
+    // Quintic, not smoothstep: smoothstep is C1 but not C2, the second derivative jumps on
+    // every lattice line, and a threshold follows those lines. See above - the straight-X
+    // problem is the same family of bug.
     f = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
 
     // Hoskins hash. No `sin`: at these coordinates a sine argument loses its fractional
-    // precision in float32, the hash collapses to a constant and the cloud mask comes out
-    // exactly 0 over the whole sky.
+    // precision in float32, the hash collapses to a constant and the mask comes out exactly 0.
     float3 h0 = frac(float3(cell.x,        cell.y,        cell.x) * 0.1031);
     float3 h1 = frac(float3(cell.x + 1.0,  cell.y,        cell.x + 1.0) * 0.1031);
     float3 h2 = frac(float3(cell.x,        cell.y + 1.0,  cell.x) * 0.1031);
@@ -1327,22 +1458,33 @@ for (int i = 0; i < 3; i++)
     float v2 = frac((h2.x + h2.y) * h2.z);
     float v3 = frac((h3.x + h3.y) * h3.z);
 
-    n += camp * lerp(lerp(v0, v1, f.x), lerp(v2, v3, f.x), f.y);
-    // Rotate between octaves: scaling alone keeps them on the same axes and the eye reads
-    // the result as a tiled scale pattern.
-    cp = float2(cp.x * 1.66 - cp.y * 1.24, cp.x * 1.24 + cp.y * 1.66);
-    camp *= 0.5;
+    float v = lerp(lerp(v0, v1, f.x), lerp(v2, v3, f.x), f.y);
+    n += amp * v;
+    if (i < 2) { nLow += amp * v; }
+    norm += amp;
+    // Rotate between octaves: scaling alone keeps them on the same axes and the eye reads the
+    // result as a tiled scale pattern.
+    q = float2(q.x * 1.62 - q.y * 1.19, q.x * 1.19 + q.y * 1.62);
+    amp *= 0.55;
 }
+n /= norm;
+nLow /= 1.55;
 
-// Sun-facing slope: the same field sampled a little further along the sun direction.
-float2 cp2 = (d.xy / (max(h, 0.0) + 0.55)) * CloudScale + float2(CloudDrift, CloudDrift * 0.37)
-	+ normalize(SunDir.xy + float2(1e-4, 0.0)) * 0.19;
+)") TEXT(R"(
+// ---- sun-facing slope -------------------------------------------------
+//
+// The same deck sampled a little further along the sun direction. Only the two low octaves are
+// used: they carry the shape, so their difference is the slope of the cloud, whereas the fine
+// octaves would add a per-pixel difference that has nothing to do with where the light is.
+float2 cpSun = cp0 + warp + normalize(SunDir.xy + float2(1e-4, 0.0)) * 0.22;
 float m = 0.0;
-float camp2 = 0.55;
+float mNorm = 0.0;
+float mAmp = 1.0;
+float2 qs = cpSun;
 for (int j = 0; j < 2; j++)
 {
-    float2 cell = floor(cp2);
-    float2 f = frac(cp2);
+    float2 cell = floor(qs);
+    float2 f = frac(qs);
     f = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
 
     float3 h0 = frac(float3(cell.x,        cell.y,        cell.x) * 0.1031);
@@ -1359,73 +1501,52 @@ for (int j = 0; j < 2; j++)
     float v2 = frac((h2.x + h2.y) * h2.z);
     float v3 = frac((h3.x + h3.y) * h3.z);
 
-    m += camp2 * lerp(lerp(v0, v1, f.x), lerp(v2, v3, f.x), f.y);
-    cp2 = float2(cp2.x * 1.66 - cp2.y * 1.24, cp2.x * 1.24 + cp2.y * 1.66);
-    camp2 *= 0.5;
+    m += mAmp * lerp(lerp(v0, v1, f.x), lerp(v2, v3, f.x), f.y);
+    mNorm += mAmp;
+    qs = float2(qs.x * 1.62 - qs.y * 1.19, qs.x * 1.19 + qs.y * 1.62);
+    mAmp *= 0.55;
 }
+m /= mNorm;
 
-)") TEXT(R"(
-// Coverage varies slowly across the sky, so the deck forms clusters of large cloud and gaps of
-// small ones instead of an even field of identical puffs. The modulation is gentle: at 0.42 it
-// cut the deck into shreds.
-float cover = CloudThreshold + (m - 0.42) * 0.22;
+// Coverage varies slowly across the sky: the deck forms clusters and gaps rather than an even
+// field of identical puffs. Driven by the low-frequency part of the field itself, so a cluster
+// is where the field is high - the two stay registered.
+float cover = CloudThreshold + (m - 0.5) * 0.30;
 
-// Break the long straight seams.
-//
-// The cloud mask is a threshold, and a threshold turns any small discontinuity in the sampled
-// direction into a crisp edge along that discontinuity. The dome's triangle edges are exactly
-// such lines: WorldPosition is interpolated linearly across each triangle, so the reconstructed
-// direction bends slightly at every edge, and where the bent field crosses the threshold the
-// cloud gets a dead-straight border hundreds of pixels long. At 1280x720 they read as
-// "slightly hard"; at 2560x1440 they are the single most artificial thing in the frame.
-//
-// A per-pixel jitter on the threshold costs one hash and turns each seam into a ragged edge,
-// which is what a cloud border should be anyway. Amplitude is deliberately small (0.05 of the
-// mask range) so this reads as irregularity, not as noise.
+// A small per-pixel jitter on the threshold. A threshold turns any residual straightness into a
+// crisp edge, and the human eye finds straight lines in sky immediately. One hash, and the
+// border becomes ragged the way a cloud border is.
 float jitter = frac(sin(dot(d.xy * 241.0, float2(12.9898, 78.233))) * 43758.5453);
-cover += (jitter - 0.5) * 0.05;
-// 0.24, not 0.20 - and never wider than the noise itself.
-//
-// The band is measured in noise units and the three-octave field only spans about 0.30 of them
-// in practice. A first attempt at 0.34 was wider than the whole signal, so `mask` could never
-// reach 1: every cloud became a translucent sheet and the sky turned into fog. 0.24 softens the
-// rim without capping coverage.
-// 0.28: 0.24 still left visible corners on the larger clouds. The ceiling is the noise's own
-// dynamic range (~0.30); wider than that and `mask` can never reach 1, which turns the deck
-// into fog - that mistake is recorded above and it cost a full round.
-float mask = smoothstep(cover, cover + 0.28, n);
+cover += (jitter - 0.5) * 0.035;
 
-// How far past the threshold this pixel is, 0 at the rim and 1 in the thickest core. A cloud is
-// not a flat cut-out: the rim is a thin sheet you can nearly see through, and only the core has
-// enough body to cast its own shade. Without this the whole silhouette gets the same internal
-// contrast and reads as painted cardboard.
+// 0.26 of a field that now spans about 0.55: wide enough to read as a rim, narrow enough that
+// the core still reaches 1.0. A transition wider than the signal turns the deck into fog - that
+// mistake is written down in round 16 and it cost a full rebuild.
+float mask = smoothstep(cover, cover + 0.26, n);
+
+// 0 at the rim, 1 in the thickest core. A cloud is not a flat cut-out: the rim is a thin sheet
+// and only the core has enough body to shade itself.
 float density = saturate((n - cover) / 0.30);
 
-// The two samples differ along the sun direction, so their difference is the sun-facing slope.
-// Amplified hard: at the noise's own contrast it is a silhouette, not a lit volume.
-// 10, not 22.
-//
-// At 22 the slope term was clipped at both ends across most of every cloud, so the lit result
-// was effectively binary: one flat white body and one flat grey rim, with the middle of the
-// range never appearing. The eye reads that as a stencil. 10 keeps the term inside its range so
-// the body has a gradient from the sunward side to the shadowed one.
-float lit = saturate((n - m) * 10.0 + 0.48);
+// 14, not 10: with the field normalised the low-octave difference is smaller, so the same
+// response needs more gain. Clamped inside its range on purpose - the earlier 22 clipped at
+// both ends and made every cloud a two-tone stencil.
+float lit = saturate((nLow - m) * 14.0 + 0.50);
 
 )") TEXT(R"(
 // ---- vertical body -------------------------------------------------
 //
 // The term that turns a white shape into a cloud with thickness.
 //
-// `lit` above is the sun-facing slope: it says which side of a cloud the light is on, but it
-// says nothing about where you are *inside* the cloud, so a whole cumulus comes out one value
-// and reads as a cut-out, however good its rim is.
+// `lit` above is the sun-facing slope: it says which side of a cloud the light is on, but
+// nothing about where you are *inside* the cloud, so a whole cumulus comes out one value and
+// reads as a cut-out however good its rim is.
 //
 // A cumulus is thicker at the top and thinner underneath, so sampling the same field a little
-// higher (a slightly smaller deck radius, i.e. the same d.xy divided by a larger height) and
-// differencing tells you where this pixel sits in the column: positive means the cloud thins
-// above it, so this is the top and it catches the light; negative means there is more cloud
-// above it, so this is the shaded base.
-float2 cpu = cpBase * 0.92;
+// higher up the column (a smaller deck radius, i.e. the same d.xy over a larger height) and
+// differencing says where this pixel sits: positive means the cloud thins above it, so it is a
+// top and catches the light; negative means there is more cloud above it, so it is a base.
+float2 cpu = cp * 0.90;
 float3 cu0 = frac(float3(floor(cpu).x, floor(cpu).y, floor(cpu).x) * 0.1031);
 float3 cu1 = frac(float3(floor(cpu).x + 1.0, floor(cpu).y, floor(cpu).x + 1.0) * 0.1031);
 float3 cu2 = frac(float3(floor(cpu).x, floor(cpu).y + 1.0, floor(cpu).x) * 0.1031);
@@ -1439,17 +1560,20 @@ cf = cf * cf * cf * (cf * (cf * 6.0 - 15.0) + 10.0);
 float nu = lerp(lerp(frac((cu0.x + cu0.y) * cu0.z), frac((cu1.x + cu1.y) * cu1.z), cf.x),
                 lerp(frac((cu2.x + cu2.y) * cu2.z), frac((cu3.x + cu3.y) * cu3.z), cf.x), cf.y);
 
-float body = saturate((n - nu) * 16.0 + 0.50);
-lit *= lerp(0.52, 1.06, body);
+float body = saturate((n - nu) * 18.0 + 0.50);
+lit *= lerp(0.46, 1.08, body);
 
-// Thin edges let light through; they should read brighter than the body, not darker. This is the
-// second half of the volume cue - the first is the internal shade above.
-lit = saturate(lit + (1.0 - density) * 0.14);
+// Thin edges let light through; they read brighter than the body, not darker.
+lit = saturate(lit + (1.0 - density) * 0.10);
 
+// Aerial perspective on the deck: clouds near the horizon sit behind several kilometres of
+// air and take the sky's colour. Without this the deck is pasted onto the sky as one flat
+// white; with it the layer has depth, which is most of what "a sky" means.
 float3 cloudCol = lerp(CloudShadow, CloudLit, lit);
+cloudCol = lerp(cloudCol, sky * 1.06, saturate(1.0 - h * 5.0) * 0.55);
 
-// Fade the deck out over the last couple of degrees: at the horizon a cloud layer is a few
-// pixels tall and would only add noise.
+// Fade the deck out over the last couple of degrees: there a cloud layer is a few pixels tall
+// and would only add noise.
 float fade = smoothstep(0.012, 0.062, h);
 sky = lerp(sky, cloudCol, mask * fade);
 

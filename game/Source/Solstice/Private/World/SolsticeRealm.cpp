@@ -1039,24 +1039,28 @@ void ASolsticeRealm::BuildSkyMesh()
 		SetColour(TEXT("SunCore"), Paint.SunCore);
 		SetColour(TEXT("SunHalo"), Paint.SunHalo);
 
-		// Coverage -> threshold. The noise is centred near 0.47 with a spread around 0.12, so a
-		// threshold of 0.58 is a barely-there sky and 0.36 is overcast; mapping the sim's 0..1
-		// coverage onto that band keeps "clear" clear and "overcast" actually overcast.
-		// 0.47, not 0.55.
+		// ---- coverage ---------------------------------------------------
 		//
-		// The deck got larger when CloudScale dropped to 2.4 (one big cloud covers what three
-		// small ones did), so the same threshold left the frame with a handful of isolated puffs
-		// over 85% empty blue. Measured: cloud covered 14% of the sky. A landscape frame wants
-		// 30-45% - enough that the sky has structure, not so much that it becomes a ceiling.
-		SkyMID->SetScalarParameterValue(TEXT("CloudThreshold"), 0.44f - 0.24f * Cloud);
-		// 2.4, not 3.2: at 3.2 the deck broke into a scatter of small puffs with hard gaps
-		// between them, which is the "cotton wool stuck on a blue card" look. Cloud masses in a
-		// real sky are several times wider than they are tall, and the eye reads their *shape*
-		// long before it reads their texture.
-		// Sized so a cloud mass covers what it covered at the 0.30 denominator: the sample radius
-		// at mid-sky is (1-h^2)^0.5 / (h + 0.55), which is 1.46 at h = 0.13 against the 5.6 the
-		// old pair produced.
-		SkyMID->SetScalarParameterValue(TEXT("CloudScale"), 3.8f);
+		// The field in M_Sky is now normalised: it means 0.5 with a spread of about +/-0.12,
+		// so this single number *is* the sky's cloudiness. 0.62 leaves a few wisps, 0.50 is a
+		// half-covered sky, 0.38 is a ceiling. The sim's 0..1 `Cloud` maps across that.
+		//
+		// (Before the normalisation the mean drifted with the octave count, so every retune of
+		// the noise invalidated the threshold and the two had to be searched together.)
+		SkyMID->SetScalarParameterValue(TEXT("CloudThreshold"), 0.500f - 0.20f * Cloud);
+
+		// ---- deck frequency ----------------------------------------------
+		//
+		// 8.5, and the number is a *shape* constraint rather than a taste one.
+		//
+		// At the old 3.8 the whole visible sky - 0 to 15 degrees of elevation, which after the
+		// deck projection is 2.2 noise lattice cells - fitted inside two cells. A lattice cell
+		// has a saddle wherever two opposite corners are high and the other two low, and a
+		// saddle's level set is two lines that cross: that is the straight X that used to run
+		// across the sky for forty percent of the frame. Raising the frequency puts six cells
+		// on screen, and the four octaves inside each cell break the contour up, so a saddle is
+		// now a 200 px feature instead of the whole sky.
+		SkyMID->SetScalarParameterValue(TEXT("CloudScale"), 8.5f);
 		SkyMID->SetScalarParameterValue(TEXT("SunDiscCos"),
 			FMath::Cos(FMath::DegreesToRadians(SunAngularRadiusDeg)));
 
@@ -1109,6 +1113,41 @@ void ASolsticeRealm::BuildSkyMesh()
 		SeaMID->SetVectorParameterValue(TEXT("SeaTint"),
 			FLinearColor(Tint.R * SkyDim, Tint.G * SkyDim, Tint.B * SkyDim, 1.0f));
 
+		// ---- depth: lagoon -> reef -> open ocean ------------------------
+		//
+		// The mesh's own vertex ramp is unusable at this framing (perspective squeezes the
+		// visible water into 6% of one ring), so the gradient is driven from world distance to
+		// the island and these four numbers are the whole of it. They are radii as multiples of
+		// the realm radius, which is the only scale in the scene that means anything: 1.35 is
+		// "just outside the beach" and 9 is "far enough that the bottom is irrelevant".
+		//
+		// The two colours are authored as display values and go straight to the emissive body,
+		// so they are what the frame shows (times the palette's own Scatter gain).
+		SeaMID->SetVectorParameterValue(TEXT("SeaShallow"), Solstice::CelSrgb(0x67, 0xDF, 0xCF));
+		SeaMID->SetVectorParameterValue(TEXT("SeaMid"), Solstice::CelSrgb(0x18, 0x8C, 0x99));
+		SeaMID->SetVectorParameterValue(TEXT("SeaDeep"), Solstice::CelSrgb(0x0B, 0x3A, 0x6E));
+
+		// The radii are a *screen* constraint, not a geography one, and that is the whole trick.
+		//
+		// With the camera 30 m above the water, the surface 64 m away (the beach) sits 25 degrees
+		// below the horizon and the surface 384 m away sits 4.5 degrees below it. So the water
+		// from the shore to 6 island radii covers 20 degrees of the picture, while everything
+		// from there to the 3.8 km edge of the ocean covers only the last 4.5 - measured with a
+		// red/blue probe: the sea came out uniformly red with blue confined to a two-pixel band.
+		//
+		// The gradient therefore has to complete inside ~2.7 radii, which is where a real reef
+		// drop-off is anyway. Beyond that the deep colour simply fills the rest of the surface up
+		// to the haze.
+		const float SeaR = FMath::Max(1000.0f, GetRealmRadiusUU());
+		SeaMID->SetScalarParameterValue(TEXT("SeaShallowRadius"), SeaR * 1.02f);
+		SeaMID->SetScalarParameterValue(TEXT("SeaDeepRadius"), SeaR * 4.0f);
+		SeaMID->SetScalarParameterValue(TEXT("SeaHazeStart"), 50000.0f);
+		SeaMID->SetScalarParameterValue(TEXT("SeaHazeSpan"), 300000.0f);
+		// Aerial perspective reaches the sky's own horizon colour, so the far water and the sky
+		// meet at the same value and the seam needs no separate tuning.
+		SeaMID->SetVectorParameterValue(TEXT("SeaHazeColour"),
+			FMath::Lerp(Paint.Horizon, Paint.Middle, 0.30f));
+
 		// One-run override (`-SolsticeSea=`), so the diffuse/emissive split can be searched
 		// without a recompile per candidate. Order: diffuse, glow, shade, [foam], [specular],
 		// [sky reflection strength]; trailing entries may be omitted.
@@ -1123,7 +1162,7 @@ void ASolsticeRealm::BuildSkyMesh()
 		// turned the sea into sky. Measured sensitivity: each 0.05 here is worth about 0.015 of
 		// midpoint across the lower half of the frame.
 		SeaMID->SetScalarParameterValue(TEXT("SkyReflectStrength"),
-			FMath::Lerp(0.20f, 0.46f, Daylight));
+			FMath::Lerp(0.16f, 0.30f, Daylight));
 
 		// The glint is a moon path at night, and a moon path has to be narrow. At the daytime
 		// 0.16 the 80-unit moon laid a continuous white road across the whole lower half of the
