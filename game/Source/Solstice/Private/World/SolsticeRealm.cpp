@@ -175,7 +175,14 @@ namespace
 	//
 	// 0.75 is the half-step that darkens the shaded side without losing the softness that makes
 	// the cel look work.
-	constexpr float SkyLightIntensity = 0.85f;
+	// 1.05, not 0.85, and the reason is structural rather than aesthetic.
+	//
+	// SSGI replaced the flat ambient with a screen-space bounce, which is a large improvement
+	// (the canopy now lights itself), but it can only gather what is *on screen*. A hillside's
+	// shaded face looks away from the camera's view of the sky, so it receives almost nothing
+	// and the frame went to 24% of pixels below 0.05 - darker than the reference look wants.
+	// With no Lumen this ambient term is the only thing that can fill that gap.
+	constexpr float SkyLightIntensity = 1.05f;
 
 	/**
 	 * R-41: fixed exposure, in stops of gain over the manual-mode default.

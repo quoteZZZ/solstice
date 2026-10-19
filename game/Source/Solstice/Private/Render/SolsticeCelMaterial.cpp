@@ -306,6 +306,11 @@ namespace Solstice
 				Texture->Filter = TF_Trilinear;
 				Texture->CompressionSettings = TC_Default;
 				Texture->NeverStream = true;
+				// `CreateTransient` leaves these at values meant for a texture that will be
+				// filled in by the editor pipeline; a runtime texture with hand-built mips has to
+				// say so explicitly or the renderer keeps treating it as single-level.
+				Texture->MipGenSettings = TMGS_FromTextureGroup;
+				Texture->LODGroup = TEXTUREGROUP_World;
 
 				void* Dest = Texture->GetPlatformData()->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
 				FMemory::Memcpy(Dest, Pixels.GetData(), static_cast<SIZE_T>(Pixels.Num()));
@@ -480,6 +485,13 @@ namespace Solstice
 		Set.CelMID->SetVectorParameterValue(TEXT("LitTint"), Lit);
 		Set.CelMID->SetVectorParameterValue(TEXT("MidTint"), Mid);
 		Set.CelMID->SetVectorParameterValue(TEXT("ShadowTint"), Shadow);
+
+		// Night vision is scotopic: below roughly a third of full daylight the eye has almost no
+		// cone response, so the ground loses its hue and keeps only its value. Without this the
+		// island's trees stayed a saturated green under a blue moon - no lit tint can fix that,
+		// because the hue is in the albedo. See the note on NightDesat in the material builder.
+		const float NightDesat = FMath::Clamp(1.0f - Daylight * 1.6f, 0.0f, 0.62f);
+		Set.CelMID->SetScalarParameterValue(TEXT("NightDesat"), NightDesat);
 	}
 
 	void FCelMaterials::ApplyToMesh(UProceduralMeshComponent* Mesh)

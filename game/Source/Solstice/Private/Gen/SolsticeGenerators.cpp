@@ -908,12 +908,18 @@ namespace Solstice
 				// Tiny Glade's meadow carries a sprinkle of white and ochre flecks that turn the
 				// grass band into texture at mid distance. Two crossed horizontal diamonds per
 				// flower, deterministic per tile, roughly one meadow tile in six.
+				// 0.90, not 0.84, and a dimmer white.
+				//
+				// From the survey camera the meadow came out speckled like snow: one flower per six
+				// tiles at #F5F0DB is, at 43 uu per pixel, a three-pixel white dot every twelve
+				// pixels, and the eye reads that as texture noise rather than as flowers. One in
+				// ten and a paper-cream tone keeps them as accent.
 				if (!bClipped && !Tile->IsWater() && Surface > 6.0f && Surface < 32.0f
-					&& CelGrain(X * 17 + 3, Y * 11 + 9) > 0.84f)
+					&& CelGrain(X * 17 + 3, Y * 11 + 9) > 0.90f)
 				{
 					const bool White = CelGrain(X * 5 + 1, Y * 9 + 4) > 0.5f;
 					const FLinearColor Petal = White
-						? CelSrgb(0xF5, 0xF0, 0xDB)
+						? CelSrgb(0xDD, 0xD6, 0xBE)
 						: CelSrgb(0xE0, 0xA8, 0x33);
 					const float JitterX = (CelGrain(X * 23, Y * 7) - 0.5f) * MeterUU * 0.8f;
 					const float JitterY = (CelGrain(X * 7, Y * 23) - 0.5f) * MeterUU * 0.8f;

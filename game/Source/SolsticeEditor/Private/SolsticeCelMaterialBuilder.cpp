@@ -63,7 +63,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 89;
+	constexpr int32 CelRecipeVersion = 95;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -242,6 +242,9 @@ namespace
 		// 6 m) that breaks the silhouette of a single slope. It multiplies the albedo, so it
 		// survives any lighting change and costs one extra shader pair.
 		UMaterialExpressionWorldPosition* DetailPos = AddExpr<UMaterialExpressionWorldPosition>(Material, -1200, 640);
+		// Distance is the only reliable anti-aliasing input in this material - `ddx` was measured
+		// to come back unusable (see the note in the sea's WaveNormal).
+		UMaterialExpressionCameraPositionWS* DetailCam = AddExpr<UMaterialExpressionCameraPositionWS>(Material, -1400, 520);
 
 		UMaterialExpressionCustom* GroundDetail = AddExpr<UMaterialExpressionCustom>(Material, -900, 640);
 		GroundDetail->Description = TEXT("GroundDetail");
@@ -255,10 +258,13 @@ namespace
 // not M_Sea at all: the survey framing covers 24000 uu and the world is 12800 uu across, so
 // what fills the frame is these tiles.
 //
-// Same remedy as the water shader: count lattice cells per pixel and fade out before aliasing.
-float2 fdx = abs(ddx(P.xy)) + abs(ddy(P.xy));
-const float CellSpan = max(fdx.x, fdx.y) * 0.018;
-const float DetailFade = 1.0 - smoothstep(0.25, 0.55, CellSpan);
+// Same remedy as the water shader, and the same lesson: `ddx` measured no effect here either,
+// so the input is camera distance. The entry framing sits 160 m from the island and keeps all
+// of it; past 140 m the fine pattern fades out before it can alias into a checkerboard. 140 and
+// not 180 because the survey camera sits at 260 m: at 180 the fade had only reached 67% there
+// and the checkerboard was still legible.
+const float DetailCamDist = length(P - CamPos.xyz);
+const float DetailFade = 1.0 - saturate((DetailCamDist - 14000.0) / 14000.0);
 
 float2 p = P.xy * 0.018;
 float n = 0.0;
@@ -299,6 +305,10 @@ return lerp(float3(1.0, 1.0, 1.0), lerp(Damp, Dry, n), DetailFade);
 			Input.InputName = TEXT("P");
 			Input.Input.Expression = DetailPos;
 			GroundDetail->Inputs.Add(Input);
+			FCustomInput InCam;
+			InCam.InputName = TEXT("CamPos");
+			InCam.Input.Expression = DetailCam;
+			GroundDetail->Inputs.Add(InCam);
 		}
 
 		// ---- tiled detail textures -----------------------------------------
@@ -355,6 +365,12 @@ return lerp(float3(1.0, 1.0, 1.0), lerp(Damp, Dry, n), DetailFade);
 // The selection is a *classification*, not a blend weight: meadow green is grass, the
 // straw band is sand, everything else is rock. Blending all three everywhere would wash
 // the three surfaces into one grey average, which is the state this is meant to fix.
+// Custom nodes are separate function bodies: a local defined in GroundDetail does not exist
+// here. This cost one full rebuild - the first attempt referenced `DetailFade` from the other
+// node, M_Cel failed to compile, fell back to DefaultMaterial, and the island disappeared.
+const float BlendCamDist = length(VW - CamPos.xyz);
+const float BlendFade = 1.0 - saturate((BlendCamDist - 14000.0) / 14000.0);
+
 float3 C = V.rgb;
 float green = saturate((C.g - max(C.r, C.b)) * 6.0);
 float straw = saturate((min(C.r, C.g) - C.b) * 5.0) * (1.0 - green);
@@ -376,6 +392,9 @@ float passthrough = step(peak, 0.055);
 // island by half and the search would start all over again on the exposure.
 float mul = clamp(lum / 0.20, 0.45, 1.90);
 mul = lerp(mul, 1.0, passthrough);
+// Fade the *texture* too, not just the noise: the 4 m checkerboard seen from a survey camera is
+// this sample repeating, and it is the half of the pattern that survived every other attempt.
+mul = lerp(1.0, mul, BlendFade);
 return float3(mul, mul, mul);
 )");
 		{
@@ -390,6 +409,8 @@ return float3(mul, mul, mul);
 			Add(TEXT("R"), RockTex);
 			Add(TEXT("S"), SandTex);
 			Add(TEXT("V"), VertexColour);
+			Add(TEXT("VW"), DetailPos);
+			Add(TEXT("CamPos"), DetailCam);
 		}
 
 		UMaterialExpressionMultiply* DetailedBase = AddExpr<UMaterialExpressionMultiply>(Material, -200, -60);
@@ -398,7 +419,44 @@ return float3(mul, mul, mul);
 
 		if (UMaterialEditorOnlyData* EditorData = Material->GetEditorOnlyData())
 		{
-			EditorData->BaseColor.Expression = DetailedBase;
+			// ---- night desaturation --------------------------------------
+			//
+			// Under moonlight the island's foliage stayed *green* - saturated, almost luminous,
+			// like moss lit by a UV lamp. The cause is multiplicative: a lit tint of
+			// (0.40, 0.50, 0.80) multiplied by leaf green (0.02, 0.09, 0.03) still leaves green
+			// dominant (0.008, 0.045, 0.024), so no amount of cooling the light removes the hue.
+			//
+			// Real night vision is scotopic: the cones stop contributing and the world goes to
+			// luminance with a slight blue cast. That is a change to the *surface*, not the
+			// light, so it belongs here, driven by a scalar the hour controls.
+			UMaterialExpressionScalarParameter* NightDesat = AddExpr<UMaterialExpressionScalarParameter>(Material, -420, 120);
+			NightDesat->ParameterName = TEXT("NightDesat");
+			NightDesat->DefaultValue = 0.0f;
+
+			UMaterialExpressionCustom* DesatNode = AddExpr<UMaterialExpressionCustom>(Material, -220, 120);
+			DesatNode->Description = TEXT("NightDesat");
+			DesatNode->OutputType = CMOT_Float3;
+			DesatNode->Code = TEXT(R"(
+float l = dot(C, float3(0.299, 0.587, 0.114));
+// Value AND hue. Desaturating alone turned the canopy into pale grey - the foliage's lit band
+// is bright enough that a neutral version of it reads as snow at night. Scotopic vision loses
+// roughly two stops of sensitivity along with the cones, so the grey has to be darker than the
+// colour it replaces, not merely colourless.
+float3 night = float3(l, l, l) * float3(0.60, 0.66, 0.84);
+return lerp(C, night, saturate(Desat));
+)");
+			{
+				FCustomInput InColour;
+				InColour.InputName = TEXT("C");
+				InColour.Input.Expression = DetailedBase;
+				DesatNode->Inputs.Add(InColour);
+				FCustomInput InDesat;
+				InDesat.InputName = TEXT("Desat");
+				InDesat.Input.Expression = NightDesat;
+				DesatNode->Inputs.Add(InDesat);
+			}
+
+			EditorData->BaseColor.Expression = DesatNode;
 			EditorData->Roughness.Expression = Roughness;
 			EditorData->Specular.Expression = Specular;
 
@@ -1311,6 +1369,21 @@ for (int j = 0; j < 2; j++)
 // small ones instead of an even field of identical puffs. The modulation is gentle: at 0.42 it
 // cut the deck into shreds.
 float cover = CloudThreshold + (m - 0.42) * 0.22;
+
+// Break the long straight seams.
+//
+// The cloud mask is a threshold, and a threshold turns any small discontinuity in the sampled
+// direction into a crisp edge along that discontinuity. The dome's triangle edges are exactly
+// such lines: WorldPosition is interpolated linearly across each triangle, so the reconstructed
+// direction bends slightly at every edge, and where the bent field crosses the threshold the
+// cloud gets a dead-straight border hundreds of pixels long. At 1280x720 they read as
+// "slightly hard"; at 2560x1440 they are the single most artificial thing in the frame.
+//
+// A per-pixel jitter on the threshold costs one hash and turns each seam into a ragged edge,
+// which is what a cloud border should be anyway. Amplitude is deliberately small (0.05 of the
+// mask range) so this reads as irregularity, not as noise.
+float jitter = frac(sin(dot(d.xy * 241.0, float2(12.9898, 78.233))) * 43758.5453);
+cover += (jitter - 0.5) * 0.05;
 // 0.24, not 0.20 - and never wider than the noise itself.
 //
 // The band is measured in noise units and the three-octave field only spans about 0.30 of them
