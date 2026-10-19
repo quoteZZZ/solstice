@@ -43,6 +43,8 @@
 - **`tools/art/textures/*.png` 必须写 sRGB 编码后的字节**（`gen-textures.py::save()` 已处理）。
   运行时 `LoadPng` 一律 `Texture->SRGB = true`，写线性值等于多解一次 gamma：草地 0.58 → 0.30。
   法线图同理（它是数据，但走同一条 sRGB 取样路径）。
+- **相机只有 32 格点**（8 方位 × 4 俯仰 14/35/62/88），`Orbit()` 已删，中键只推拉；`shot.ps1 -Preset` 指俯仰档（默认 1）、`-Azimuth 0–7`。
+- **基线（2026-10-19）**：128² 逻辑 9430 世界分钟/秒（0.35 s / 2 日）；128²@720p 16.1 ms / 62 fps；digest `ECCC4EAC4EFDBE58`。
 - **M_Cel 的三档着色切在 `Emissive` 里，不在 `BaseColor` 里**。这个世界只有一盏 100 单位方向光
   和天光捕获，在 `-1.3` 档手动曝光下它们对地面的贡献≈0（实测太阳 ×20、天光 ×2.6、关阴影，
   岛的中位线性亮度恒为 0.045，只有 `-SolsticeCel=` 的 albedo 增益能动它）。所以
