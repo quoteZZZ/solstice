@@ -43,6 +43,11 @@
 - **`tools/art/textures/*.png` 必须写 sRGB 编码后的字节**（`gen-textures.py::save()` 已处理）。
   运行时 `LoadPng` 一律 `Texture->SRGB = true`，写线性值等于多解一次 gamma：草地 0.58 → 0.30。
   法线图同理（它是数据，但走同一条 sRGB 取样路径）。
+- **画面里必须有地平线**：垂直 FOV 29.4°，俯仰 >14.7° 时整帧都是海（顶边已在水平线下）。俯仰档是 **8/24/48/88**。
+- **`shot.ps1` 必须带 `-ForceRes`**：不带则引擎用存档窗口尺寸，此前所有"4K"实际 888×500。
+- **M_Cel 的可见亮度 = Emissive**（`albedo × 分带 × CelFill`），阴影贴图够不到它；要做暗部只能改**顶点色 RGB**
+  （`SolsticeMeshBuilder::Add` 已把 Occlusion 乘进 RGB；顶点色 A 通道没人读，接 ComponentMask 进 Custom 会编译失败）。
+- **海面反射不再是常数色**：`M_Sea` 的 `SeaSky` 在像素里重算 `M_Sky` 同段梯度 + 太阳镜面；改天空色板必须同步改 `SeaHazeColour`/雾色，否则天际线出硬线。
 - **相机只有 32 格点**（8 方位 × 4 俯仰 14/35/62/88），`Orbit()` 已删，中键只推拉；`shot.ps1 -Preset` 指俯仰档（默认 1）、`-Azimuth 0–7`。
 - **基线（2026-10-19 夜）**：128² 逻辑 ~9200-9600 世界分钟/秒（0.34-0.36 s / 2 日）；128²@720p 16.1 ms / 62 fps；
   digest `2C1A3AC0CDE6C6B5`（生态修复后）；开局 306 只 → 2 世界日 1046 只。**生态步长必须是 0.0667 小时，不许再乘 4**。
