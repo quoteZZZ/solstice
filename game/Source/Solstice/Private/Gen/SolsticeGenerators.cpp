@@ -398,7 +398,13 @@ namespace Solstice
 
 		const auto Wobble = [Seed](int32 Index)
 		{
-			return 0.80f + 0.40f * CelGrain(Seed + Index * 7, Seed * 3 + Index * 13);
+			// 0.68..1.32, not 0.80..1.20.
+			//
+			// The wobble is the only thing making a cushion's rim irregular, and at +/-20% a
+			// seven-sided crown is still an ellipse with a nicked edge - which is why every tree
+			// on the island read as a manufactured parasol. +/-32% turns the rim into a leaf
+			// mass silhouette, which is the one thing that carries at this size.
+			return 0.68f + 0.64f * CelGrain(Seed + Index * 7, Seed * 3 + Index * 13);
 		};
 
 		TArray<int32> BaseRing, TopRing;
@@ -496,8 +502,19 @@ namespace Solstice
 			const FLinearColor Meadow = CelSrgb(0x7F, 0xBF, 0x5F);
 			const FLinearColor Grass = CelSrgb(0x5F, 0x9E, 0x4A);
 			const FLinearColor GrassDark = CelSrgb(0x3F, 0x7A, 0x3C);
-			const FLinearColor Rock = CelSrgb(0x9A, 0x94, 0x88);
-			const FLinearColor RockDark = CelSrgb(0x71, 0x6C, 0x64);
+			// Pale limestone, not the grey they were.
+			//
+			// #9A9488 is a *neutral* stone, and under this material's cold shadow band it lands
+			// at a value barely above the tree shadows - so the cliff band that was just added
+			// reads as a dirty smear along the coast rather than as rock. Sea cliffs in the
+			// reference register are warm and nearly white: they are the island's second-brightest
+			// surface after the sand, and that is what makes a coastline legible at 700 px.
+			const FLinearColor Rock = CelSrgb(0xC8, 0xBE, 0xA8);
+			// #948C7C was still dark enough that the coastal band read as a mud smear: it is
+			// painted per *vertex*, so on ground that is only gently uneven it lands as dither
+			// between grass and stone rather than as a face, and dither of a dark colour is dirt.
+			// #A9A08C keeps the band a pale stone even where it breaks up.
+			const FLinearColor RockDark = CelSrgb(0xA9, 0xA0, 0x8C);
 
 			// Four *hard* stops, not a lerp (art.md SS2.3: "色带 2-3 档同族色，硬边切换"). The lerp
 			// this replaces produced a perfectly smooth gradient, which is the other half of why
@@ -513,7 +530,14 @@ namespace Solstice
 			// dark, read as a burnt crater sitting on a meadow. A third of the height is a lot of
 			// island to give away; 20 m keeps it to the summit.
 			const bool bHigh = H >= 20.0f;
-			const bool bSteep = Slope01 > 0.42f;
+			// 0.30, not 0.42.
+			//
+			// Slope01 is 1 - N.z, and this island is a 29.5 m peak on a ~64 m radius, i.e. an
+			// average slope near 25 degrees. At 25 degrees Slope01 is 0.094; 0.42 is 55 degrees.
+			// The threshold was set as if the terrain were alpine, so it fired on essentially
+			// nothing and the whole "steep ground gets its own tone" branch was dead code.
+			// 0.30 is about 46 degrees - still a face, not a hill.
+			const bool bSteep = Slope01 > 0.30f;
 
 			// A cliff is the band where the island meets the sea *steeply*. It is the one place
 			// where stone belongs outside the summit, and without it the island has no edge at
@@ -531,18 +555,27 @@ namespace Solstice
 			// in front of it. The frame showed a green dome sliding into blue water with a pale
 			// rim - a mossy ball, which is what the comment above was trying to prevent.
 			//
-			// 0.38 is roughly 52 degrees: still a face, not a slope. 7 m lets a cliff run up the
-			// whole lower island instead of only the waterline, which is what gives the coastline
-			// a black-and-white edge instead of a soft green-to-sand gradient.
-			const bool bCliff = !bHigh && H >= 0.8f && H < 7.0f && Slope01 > 0.38f;
+			// 0.13 is roughly 30 degrees, and that number is the whole point: at 0.38 (52 degrees)
+			// the band never fired at all on a 25-degree-average island, so the coast stayed a
+			// smooth sand-to-grass gradient in every frame since it was written. 30 degrees is
+			// where a coastal bank stops being a bank and starts being a face.
+			//
+			// 6 m of height, and the lower bound at 0.8 m so the wet-sand strip keeps its own
+			// colour - a stone band that reaches down into the waterline loses the one warm note
+			// the island has against the teal.
+			const bool bCliff = !bHigh && H >= 0.8f && H < 6.0f && Slope01 > 0.18f;
 
 			Base = bHigh
 				? (bSteep ? RockDark : Rock)
 				: bCliff
 					? RockDark
-					: (H < 0.9f)
+					// 0.6 / 1.4 m, not 0.9 / 2.0. The beach is a band of *height*, so on a gentle
+					// coastal shelf two metres of rise is tens of metres of ground: the frame showed
+					// a tan ring wider than the forest above it, which reads as a sand pancake
+					// rather than as a shoreline.
+					: (H < 0.6f)
 						? SiltWet
-						: (H < 2.0f)
+						: (H < 1.4f)
 							? Silt
 							: (bSteep)
 								? GrassDark
@@ -932,8 +965,15 @@ namespace Solstice
 				// tiles at #F5F0DB is, at 43 uu per pixel, a three-pixel white dot every twelve
 				// pixels, and the eye reads that as texture noise rather than as flowers. One in
 				// ten and a paper-cream tone keeps them as accent.
+				// 0.955, not 0.90, and 60% bigger.
+				//
+				// One tile in ten put a 7-12 cm cream blob on the meadow, which at the entry
+				// framing is a single pale pixel: 1,400 of them across the island read as white
+				// gravel over green, not as flowers. At one in twenty-two and 10-17 cm they are
+				// the same total area but they arrive as dots with a readable size, which is what
+				// makes an accent an accent.
 				if (!bClipped && !Tile->IsWater() && Surface > 6.0f && Surface < 32.0f
-					&& CelGrain(X * 17 + 3, Y * 11 + 9) > 0.90f)
+					&& CelGrain(X * 17 + 3, Y * 11 + 9) > 0.955f)
 				{
 					const bool White = CelGrain(X * 5 + 1, Y * 9 + 4) > 0.5f;
 					const FLinearColor Petal = White
@@ -942,7 +982,7 @@ namespace Solstice
 					const float JitterX = (CelGrain(X * 23, Y * 7) - 0.5f) * MeterUU * 0.8f;
 					const float JitterY = (CelGrain(X * 7, Y * 23) - 0.5f) * MeterUU * 0.8f;
 					const float HeadZ = Surface * MeterUU + 22.0f + 18.0f * CelGrain(X + 2, Y + 5);
-					const float Half = 7.0f + 5.0f * CelGrain(X * 3, Y * 13);
+					const float Half = 10.0f + 7.0f * CelGrain(X * 3, Y * 13);
 					const FVector Head(Centre.X + JitterX, Centre.Y + JitterY, HeadZ);
 					const FVector Axes[2] = { FVector(1.0f, 0.0f, 0.0f), FVector(0.0f, 1.0f, 0.0f) };
 					for (int32 Pass = 0; Pass < 2; ++Pass)
@@ -1082,8 +1122,11 @@ namespace Solstice
 						// the single thing that made every tree on the island read as a mushroom.
 						// Bark is not paper: it is dark, and at this sun a linear value near 0.03
 						// is what survives without clipping.
-						const FLinearColor Bark(0.030f, 0.019f, 0.011f, 1.0f);
-						const FLinearColor BarkTop(0.045f, 0.030f, 0.018f, 1.0f);
+						// 0.075, not 0.030. At 0.030 the bark was below the point where the material's
+						// shadow band can lift it, so every trunk was a hard black line - which at
+						// 20 px is a printer artefact, not a tree.
+						const FLinearColor Bark(0.075f, 0.052f, 0.033f, 1.0f);
+						const FLinearColor BarkTop(0.105f, 0.075f, 0.048f, 1.0f);
 						constexpr int32 TrunkSides = 6;
 						const FVector TrunkTop = Root + FVector(0.0f, 0.0f, TrunkHeight);
 						int32 BaseIdx[TrunkSides];
@@ -1139,7 +1182,13 @@ namespace Solstice
 					const FLinearColor LeafMid = CelSrgb(0x68, 0xA8, 0x4A) * Shade;
 					const FLinearColor LeafLit = CelSrgb(0x94, 0xC8, 0x5E) * Shade * 1.04f;
 					const uint32 FamilySeed = static_cast<uint32>(X * 31 + Y * 7);
-					const float BaseZ = TrunkHeight * (Family == 4 ? 0.15f : 0.80f);
+					// 0.62, not 0.80. The crown starts where the trunk ends; at 0.80 of the trunk
+					// height the bottom fifth of every tree on the island was a bare black stick
+					// between the grass and the canopy, and at this framing those sticks are the
+					// most saturated black in the picture. A crown that swallows its own trunk is
+					// not a mushroom - a mushroom is a bright trunk under a dark ball, and that is
+					// the *opposite* of what this now is.
+					const float BaseZ = TrunkHeight * (Family == 4 ? 0.15f : 0.62f);
 
 					if (Family == 0)
 					{
@@ -1224,14 +1273,17 @@ namespace Solstice
 			{
 				const bool bUpland = Surface > 10.0f && CelGrain(X * 29 + 7, Y * 19 + 5) > 0.915f;
 				const bool bShore = Surface > 0.5f && Surface < 7.0f
-					&& CelGrain(X * 41 + 13, Y * 23 + 7) > 0.86f;
+					&& CelGrain(X * 41 + 13, Y * 23 + 7) > 0.80f;
 				if (bUpland || bShore)
 				{
 					const int32 HullFrom = Out.Num();
 					const int32 HullTriFrom = Out.Triangles.Num();
 					// Shore stones are half the size: a 60 uu boulder on a beach is a house.
-					const float StoneR = (bUpland ? 26.0f : 11.0f)
-						+ (bUpland ? 34.0f : 19.0f) * CelGrain(X + 51, Y + 37);
+					// 0.22-0.52 m on the shore, not 0.11-0.30. At the entry framing a 0.2 m stone
+					// is under two pixels: it adds noise to the beach edge and nothing to the
+					// silhouette, which is the only thing that band exists for.
+					const float StoneR = (bUpland ? 26.0f : 22.0f)
+						+ (bUpland ? 34.0f : 30.0f) * CelGrain(X + 51, Y + 37);
 					const float StoneH = StoneR * (0.55f + 0.45f * CelGrain(X + 63, Y + 21));
 					const FLinearColor Stone(0.56f, 0.55f, 0.52f, 1.0f);
 					const FLinearColor StoneTop(0.74f, 0.73f, 0.68f, 1.0f);
