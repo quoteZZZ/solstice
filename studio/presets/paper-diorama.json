@@ -1,5 +1,5 @@
 {
-	"_comment": "Solstice paper-diorama style theme. Aligned with docs/art/ART-STYLE.md SS1-SS3. The batch tool assembles prompts from these fields rather than from hand-written strings, so the look stays consistent across every generated asset.",
+	"_comment": "Solstice paper-diorama style theme. Aligned with docs/ART.md SS1-SS3. The batch tool assembles prompts from these fields rather than from hand-written strings, so the look stays consistent across every generated asset.",
 	"id": "paper-diorama",
 	"version": 1,
 	"medium": {
@@ -33,7 +33,7 @@
 		"blurry"
 	],
 	"pipeline": {
-		"_comment": "Installed model triple on this machine (see docs/ops/ENV.md SS3). comfy_batch.py substitutes these into the workflow and uses unet as the default model when --model is omitted.",
+		"_comment": "Installed model triple on this machine (see tools/docs/ENVIRONMENT.md SS3). comfy_batch.py substitutes these into the workflow and uses unet as the default model when --model is omitted.",
 		"unet": "flux-2-klein-4b-fp8.safetensors",
 		"clip": "qwen_3_4b.safetensors",
 		"vae": "flux2-vae.safetensors",
@@ -127,7 +127,7 @@
 	},
 	"sizing": {
 		"texture": "512x512, seamless",
-		"card": "2048x2732, artwork only - frame, ornaments and text are drawn by UMG (docs/art/ART-STYLE.md SS4)",
+		"card": "2048x2732, artwork only - frame, ornaments and text are drawn by UMG (docs/ART.md SS4)",
 		"ui_icon": "128x128, single object on plain paper"
 	},
 	"license": {

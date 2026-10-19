@@ -1,6 +1,6 @@
 // Solstice - Sim layer: deterministic random number bank.
 //
-// docs/tech/ARCHITECTURE.md SS2.2 rule 3 requires reproducible runs: same seed must give the
+// docs/TECH.md SS2.2 rule 3 requires reproducible runs: same seed must give the
 // same world. One shared generator would make draw order part of the contract, so every
 // subsystem owns its own stream instead. All arithmetic is integer-only, so results do not
 // drift between platforms.

@@ -11,7 +11,7 @@ owner: dev
 ## 0 本文件管什么 / 不管什么
 
 - **管**：从一台空机器跑到能进 PIE 的**全部环境事实**——安装顺序与体积、工具链路径、构建与 DDC、VSCode 扩展与设置、IntelliSense、生图环境、MCP 与插件、排错。
-- **不管**：代码结构（→ [`../tech/tech.md`](../../docs/tech/tech.md)）；协作与文档纪律（→ [`../START.md`](../../docs/START.md)）；玩法与美术（→ L1 各规格）。
+- **不管**：代码结构（→ [`../tech/tech.md`](../../docs/TECH.md)）；协作与文档纪律（→ [`../START.md`](../../docs/README.md)）；玩法与美术（→ L1 各规格）。
 - **读法**：装机从 §1 顺着读；**日常开发只看 §4 与 §6**。
 
 ## 1 安装顺序与体积预期
@@ -72,7 +72,7 @@ owner: dev
 ### AI 能做 / 用户必须做
 
 - **AI 能做**：全部 C++ 与配置、所有脚本、文档、生图线、跑体检/工程生成/编译。
-- **用户必须做**：① 批准并运行安装脚本；② **手动登录 Epic 账号**；③ 在 Launcher GUI 里选 UE 版本/路径/组件；④ 在 UE 编辑器里连蓝图（薄表现层）。职责边界见 [`START.md`](../../docs/START.md) §1。
+- **用户必须做**：① 批准并运行安装脚本；② **手动登录 Epic 账号**；③ 在 Launcher GUI 里选 UE 版本/路径/组件；④ 在 UE 编辑器里连蓝图（薄表现层）。职责边界见 [`START.md`](../../docs/README.md) §1。
 
 ---
 
@@ -150,7 +150,7 @@ fatal error C1083: 无法打开预编译头文件 "...h.pch": 拒绝访问
 
 ### 怎么看世界：PIE 与播放设置
 
-**刚打开工程时视口一片纯黑，这不是故障。** 世界由 `ASolsticeGameMode::StartPlay()` 运行时生成（`game/Source/Solstice/Private/God/SolsticeGameMode.cpp`），而 `StartPlay()` 只在**播放中的世界**执行——编辑器视口里那个世界从不 `BeginPlay`。空关卡里既没有地形，也没有灯（`SunLight` / `SkyLight` / `Fog` / 后处理全是 `ASolsticeRealm` 的组件），所以必然黑。这是 [`../tech/tech.md`](../../docs/tech/tech.md) §0「关卡不是数据的家」的直接后果。
+**刚打开工程时视口一片纯黑，这不是故障。** 世界由 `ASolsticeGameMode::StartPlay()` 运行时生成（`game/Source/Solstice/Private/God/SolsticeGameMode.cpp`），而 `StartPlay()` 只在**播放中的世界**执行——编辑器视口里那个世界从不 `BeginPlay`。空关卡里既没有地形，也没有灯（`SunLight` / `SkyLight` / `Fog` / 后处理全是 `ASolsticeRealm` 的组件），所以必然黑。这是 [`../tech/tech.md`](../../docs/TECH.md) §0「关卡不是数据的家」的直接后果。
 
 **看世界的唯一方式就是 Play**：视口里按 **`Alt+P`**，或点工具栏的播放按钮。
 
@@ -181,7 +181,7 @@ fatal error C1083: 无法打开预编译头文件 "...h.pch": 拒绝访问
 | VAE | `models\vae\flux2-vae.safetensors` |
 | 超分 | `models\upscale_models\RealESRGAN_x2plus.pth`（**x2**，非 x4） |
 
-> **采样参数与调用方式不在这里**：实测基线（`steps=4` / `cfg=1.0` / `euler` / `Flux2Scheduler`）与 `CFG=1` 的行为说明、批次规范、manifest 登记见 [`../art/art.md`](../../docs/art/art.md) §3。
+> **采样参数与调用方式不在这里**：实测基线（`steps=4` / `cfg=1.0` / `euler` / `Flux2Scheduler`）与 `CFG=1` 的行为说明、批次规范、manifest 登记见 [`../art/art.md`](../../docs/ART.md) §3。
 
 ---
 
@@ -202,7 +202,7 @@ fatal error C1083: 无法打开预编译头文件 "...h.pch": 拒绝访问
 5. `Solstice: 启动编辑器`（想让 AI 接进来就用 **`Solstice: 启动编辑器（含 MCP 服务器）`**，见 本文 § §2）
 
 > UE 与 VS2022 未安装时，第 2–5 步会明确报错并给出补救提示（不会静默失败）。
-> 契约校验（`shared/`）与生图（`studio/`）两组任务所依赖的目录**均已落地**（状态见 [`../tech/tech.md`](../../docs/tech/tech.md) §0），任务可直接运行；生图产物 `studio/out/` 尚未生成时，相关任务会按空清单跳过。
+> 契约校验（`shared/`）与生图（`studio/`）两组任务所依赖的目录**均已落地**（状态见 [`../tech/tech.md`](../../docs/TECH.md) §0），任务可直接运行；生图产物 `studio/out/` 尚未生成时，相关任务会按空清单跳过。
 
 #### 任务集（16 个）
 
@@ -232,7 +232,7 @@ fatal error C1083: 无法打开预编译头文件 "...h.pch": 拒绝访问
 - **自检与生图原先各只挂一个"包装脚本"，把一个任务虚报成两个**（参数写在 `shared/*.ps1` / `studio/*.ps1` 里，任务本身没做区分）。现改为**每个任务对应一次真实调用**——`python tools/checks/*.py` 两条、`comfy_batch.py` 两条，各自独立可跑。
 - **新增两条**：`回归: 无头确定性基准（SolsticeBench）`（M0 的自动化证明，走 `-run=SolsticeBench`，不碰 RHI / World / GameMode）与 `Solstice: 启动编辑器（含 MCP 服务器）`。
 
-`launch.json` 同步做了一处**删错换对**：原有一个指向已不存在的 `SolsticeSim.exe` 的占位配置（`SolsticeSim` 独立目标在 M0 已取消，见 [`../tech/tech.md`](../../docs/tech/tech.md) §3），替换为可直接 F5 的 `Solstice: 无头回归 bench（-Days 2）`（`type: PowerShell`，走 `tools/run/bench.ps1`）。
+`launch.json` 同步做了一处**删错换对**：原有一个指向已不存在的 `SolsticeSim.exe` 的占位配置（`SolsticeSim` 独立目标在 M0 已取消，见 [`../tech/tech.md`](../../docs/TECH.md) §3），替换为可直接 F5 的 `Solstice: 无头回归 bench（-Days 2）`（`type: PowerShell`，走 `tools/run/bench.ps1`）。
 
 ---
 
@@ -478,7 +478,7 @@ powershell -ExecutionPolicy Bypass -File tools\run\launch-editor.ps1
 | 中文脚本在终端报语法错 | 脚本须为 **UTF-8 with BOM**。`.editorconfig` 已强制；现存脚本已批量补 BOM。**新建 `.ps1` 最容易漏 BOM**（2026-10-17 实际踩过：`lib/Solstice.Common.ps1` 缺 BOM → PS 5.1 按 ANSI 解析中文注释 → `UnexpectedToken`）。排查：`format-hex` 看头三字节是否为 `EF BB BF` |
 | tasks 找不到 `tools\*.ps1` | 确认打开的是**仓库根**（不是 `game/` 子目录） |
 | 终端里 `无法加载文件，因为在此系统上禁止运行脚本` | 用 tasks（已带 `-ExecutionPolicy Bypass`），或执行 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` |
-| 契约校验 / 生图任务报「文件不存在」 | `shared/` 与 `studio/` 目录**均已落地**（状态见 [`../tech/tech.md`](../../docs/tech/tech.md) §0）。若仍报错，检查是否在**仓库根**运行、以及 `studio/out/manifest.jsonl` 是否存在 |
+| 契约校验 / 生图任务报「文件不存在」 | `shared/` 与 `studio/` 目录**均已落地**（状态见 [`../tech/tech.md`](../../docs/TECH.md) §0）。若仍报错，检查是否在**仓库根**运行、以及 `studio/out/manifest.jsonl` 是否存在 |
 | 搜索很慢 / 风扇狂转 | 确认 `files.watcherExclude` 生效；必要时关闭搜索中的 `game/Content` |
 
 ### 引擎路径为什么改成环境变量
@@ -888,7 +888,7 @@ curl -s -X POST http://127.0.0.1:8000/mcp \
 
 **继续只用官方，不引入第三方**，三条理由：
 
-1. **硬约束**：本项目不引入计划外第三方插件 / 中间件（[`../tech/tech.md`](../../docs/tech/tech.md) §3 依赖白名单化、[`START.md`](../../docs/START.md) §6 禁止事项）。
+1. **硬约束**：本项目不引入计划外第三方插件 / 中间件（[`../tech/tech.md`](../../docs/TECH.md) §3 依赖白名单化、[`START.md`](../../docs/README.md) §6 禁止事项）。
 2. **够用**：本项目"逻辑在 C++、资产由代码生成、回归走无头 `bench`"（§2.4），编辑器操作里的刚需只有"看选中 Actor / 调材质实例 / 跑自动化测试"，官方出厂工具集已覆盖。
 3. **红线**：任何 MCP **不得成为构建 / 回归链路的依赖**（§2.4）—— 引入第三方桥只会把这条线拉得更脆。
 
@@ -897,7 +897,7 @@ curl -s -X POST http://127.0.0.1:8000/mcp \
 - 出现**确定性**需求要让 AI 读写 `.uasset`（例如 `game/BLUEPRINT-GUIDE.md` 落地后要**批量生成 / 批改蓝图**）——此时官方出厂工具集不够；
 - 需要"AI 截图自审 UI"这类闭环（官方暂无视口回读）。
 
-若触发，**优先级**是：① 先用官方 `Toolset Registry` **自制工具集**（§2.5，Python 优先，零新增依赖）→ ② 仍不够再评估**买断制、可离线**的方案（CodeScape 或 Nwiro Integration Kit，二者都不按量计费、都支持本地模型），并同步登记进 [`../tech/tech.md`](../../docs/tech/tech.md) 与本文档。
+若触发，**优先级**是：① 先用官方 `Toolset Registry` **自制工具集**（§2.5，Python 优先，零新增依赖）→ ② 仍不够再评估**买断制、可离线**的方案（CodeScape 或 Nwiro Integration Kit，二者都不按量计费、都支持本地模型），并同步登记进 [`../tech/tech.md`](../../docs/TECH.md) 与本文档。
 
 **先划清边界**——最容易踩的坑是以为 VS Code 的设置同步能带走 CodeBuddy：
 
@@ -944,6 +944,6 @@ curl -s -X POST http://127.0.0.1:8000/mcp \
 | 改动 | 同次必须更新 |
 |---|---|
 | 工具链路径 / 引擎版本 | 本文件 §1–§2 + `tools/lib/Solstice.Common.ps1` 的 `Find-UnrealEngine` |
-| `.vscode/*` 任一文件 | 本文件 §4 + [`../tech/tech.md`](../../docs/tech/tech.md) §4 |
+| `.vscode/*` 任一文件 | 本文件 §4 + [`../tech/tech.md`](../../docs/TECH.md) §4 |
 | 扩展增删 | 本文件 §4 + `.vscode/extensions.json` |
-| MCP / 插件集变化 | 本文件 §8–§9 + [`../charter/CHARTER.md`](../../docs/charter/CHARTER.md) 一行 |
+| MCP / 插件集变化 | 本文件 §8–§9 + [`../charter/CHARTER.md`](../../docs/CHARTER.md) 一行 |

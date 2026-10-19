@@ -1,9 +1,9 @@
 // Solstice - Core layer: the reality anchor.
 //
-// The first selling point is "the bridge to reality" (docs/gameplay/TIME.md SS1 / SS4): the
+// The first selling point is "the bridge to reality" (docs/WORLD.md SS1 / SS4): the
 // system clock drives the season and the solar path, and a free weather API drives the sky.
 // Network failure must never block play - three consecutive failures degrade to virtual
-// weather and the UI says so (docs/plan/ROADMAP.md SS2 item 6).
+// weather and the UI says so (docs/PLAN.md SS2 item 6).
 
 #pragma once
 
@@ -14,7 +14,7 @@
 namespace Solstice
 {
 
-/** Built-in city table; lat/long is all the simulation needs (docs/gameplay/TIME.md SS4.2). */
+/** Built-in city table; lat/long is all the simulation needs (docs/WORLD.md SS4.2). */
 struct FRealityCity
 {
 	const TCHAR* Key;

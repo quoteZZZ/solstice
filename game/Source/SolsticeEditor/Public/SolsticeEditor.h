@@ -2,7 +2,7 @@
 //
 // Two jobs, both of them "make a fresh checkout able to run":
 //   - generate the paper master materials into /Game/Core (this is the only binary content the
-//     game actually needs, and docs/tech/STRUCTURE.md SS0 says content must be rebuildable);
+//     game actually needs, and docs/TECH.md SS0 says content must be rebuildable);
 //   - own the headless entry points for the M0 regression.
 
 #pragma once
@@ -32,7 +32,7 @@ public:
  * -run=SolsticeGenAssets
  *
  * The canonical way to rebuild the generated content. A fresh clone has no .uasset at all (see
- * docs/tech/STRUCTURE.md SS0), so the first step after cloning is:
+ * docs/TECH.md SS0), so the first step after cloning is:
  *
  *   UnrealEditor-Cmd.exe game/Solstice.uproject -run=SolsticeGenAssets -unattended -nopause
  *
@@ -54,7 +54,7 @@ public:
  * -run=SolsticeBench [-Days=N] [-Size=N] [-Seed=N]
  *
  * The M0 headless regression, and the only automated proof of the determinism contract in
- * docs/tech/ARCHITECTURE.md SS2.2 rule 3. It runs the kernel twice from the same seed in
+ * docs/TECH.md SS2.2 rule 3. It runs the kernel twice from the same seed in
  * virtual time and compares a structural digest of the resulting realm; exit code 1 means the
  * two runs diverged, which is a hard failure, not a tolerance.
  *

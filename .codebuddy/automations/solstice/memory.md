@@ -80,9 +80,9 @@
 **自动化**：id `solstice` 已改名为「Solstice 素材线（按需）」并置 **PAUSED**；prompt 整段重写——去掉已不存在的 SET 契约 / `studio/tools/gen.py|pack.py` / `app/assets/packs` 引用，任务来源改为「`studio/jobs/*.jsonl` + `studio/presets/*.json` 即任务书」，保留路径限定提交与审美裁决红线。
 
 **删除（用户确认「全部删除」）**：5 个 TEMPORARY preset（style-anchors / world-form / world-globe / anime-world / anime-img2img）、4 份 job 清单、`workflows/img2img-anime.json`、`tools/gen_world_ref.py`、`refs/`、`previews/`、`out/world/` 53 张（约 70 MB 合计）、`work/` 下临时图；manifest 用 `git checkout` 回退到已提交的 10 行（= 10 张纹理，一致性 10/10 校验通过）。
-**代码**：`comfy_batch.py` 删掉研究专用的 img2img 上传路径（`upload_image` / `__IMAGE__` / `__DENOISE__` / init 块），**保留** `require_archived()`（R-25 守卫，落在 work/ 或 out/ 直接拒绝运行）；`studio/scripts/start-comfy.ps1` 入库（`docs/tech/tech.md` §7 已登记 scripts/）；README 过期段落已改（工作流早已是三段式 Flux2）。
+**代码**：`comfy_batch.py` 删掉研究专用的 img2img 上传路径（`upload_image` / `__IMAGE__` / `__DENOISE__` / init 块），**保留** `require_archived()`（R-25 守卫，落在 work/ 或 out/ 直接拒绝运行）；`studio/scripts/start-comfy.ps1` 入库（`docs/TECH.md` §7 已登记 scripts/）；README 过期段落已改（工作流早已是三段式 Flux2）。
 **提交**：`0dd75e3` 已 push，studio 工作区已干净。
 
-**文档层已被代码机整体重组**（未提交）：`docs/art/art.md`、`docs/tech/tech.md`、`docs/charter/CHARTER.md`、`docs/plan/work.md`（原 REVIEW）、`docs/later/*`。README 里的链接已由对方同步，`check-links` 616 条 0 断链。
+**文档层已被代码机整体重组**（未提交）：`docs/ART.md`、`docs/TECH.md`、`docs/charter/CHARTER.md`、`docs/PLAN.md`（原 REVIEW）、`docs/later/*`。README 里的链接已由对方同步，`check-links` 616 条 0 断链。
 
 **并发风险（仍未解）**：18:13:45 有**另一个会话**在清理过程中重新生成了 `studio/previews/world-model.html`（已再次删除）。说明同机还有活跃会话在写 studio/；清理类操作前应先关掉它，否则删掉的东西会回流。`.gitignore` 仍未覆盖 `studio/refs`、`studio/previews`（若重建仍需补）。

@@ -2,14 +2,14 @@
 	"$schema": "http://json-schema.org/draft-07/schema#",
 	"$id": "https://solstice.local/schema/save.schema.json",
 	"title": "Solstice save contract",
-	"description": "Save file envelope. Truth: docs/tech/ARCHITECTURE.md SS2.2 (versioning) and docs/gameplay/CUSTOMIZE.md SS4 (import/export). The envelope is authoritative now; snapshot / card_history / chronicle payloads tighten at M1 (docs/tech/STRUCTURE.md SS5). Sample: shared/fixtures/save.sample.json.",
+	"description": "Save file envelope. Truth: docs/TECH.md SS2.2 (versioning) and docs/LATER.md SS4 (import/export). The envelope is authoritative now; snapshot / card_history / chronicle payloads tighten at M1 (docs/TECH.md SS5). Sample: shared/fixtures/save.sample.json.",
 	"type": "object",
 	"required": ["version"],
 	"properties": {
 		"_comment": { "type": "string" },
 		"_note": { "type": "string" },
 		"version": {
-			"description": "Save format version. Bump on any breaking payload change; a loader migrates older versions upward (docs/tech/ARCHITECTURE.md SS2.2).",
+			"description": "Save format version. Bump on any breaking payload change; a loader migrates older versions upward (docs/TECH.md SS2.2).",
 			"type": "integer",
 			"minimum": 1
 		},

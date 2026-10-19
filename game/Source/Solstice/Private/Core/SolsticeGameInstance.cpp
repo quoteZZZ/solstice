@@ -57,7 +57,7 @@ void USolsticeGameInstance::Init()
 
 	Sim.Initialize(Config, Loaded.Catalog);
 
-	// The reference pace from docs/setting/SPECIES.md SS2.1: a healthy small realm runs a full
+	// The reference pace from docs/LATER.md SS2.1: a healthy small realm runs a full
 	// birth-predation-death-decomposition loop in 10-15 world days, which is about half an hour
 	// of real time at three real minutes per world day. One-to-one is therefore the default.
 	Sim.SetTimeMode(Solstice::ETimeMode::Real);

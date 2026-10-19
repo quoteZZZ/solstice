@@ -41,7 +41,7 @@ Solstice 的环境检测、安装、工程生成与构建脚本；PowerShell 部
 
 ## checks/ — 提交前自检（Python，标准库）
 
-提交文档 / 数据前必须两条都跑通（约定见 [`docs/INDEX.md`](../docs/INDEX.md) §5）：
+提交文档 / 数据前必须两条都跑通（约定见 [`docs/README.md`](../docs/README.md) §5）：
 
 | 脚本 | 用途 | 示例 |
 |---|---|---|
@@ -75,7 +75,7 @@ env/check-env.ps1
   → env/install-epic-launcher.ps1（用户执行）
   → 【人工登录 Epic】→ Launcher 内安装 UE
   → env/install-vs-buildtools.ps1（用户执行）
-  → 补 .NET Framework 4.6.2 SDK（见 docs/ops/ENV.md §1）
+  → 补 .NET Framework 4.6.2 SDK（见 tools/docs/ENVIRONMENT.md §1）
   → env/check-env.ps1（复检全绿）
   → env/configure-vscode.ps1        # 写 SOLSTICE_UE_ENGINE_ROOT，之后重启 VS Code
   → build/gen-projectfiles.ps1 -Mode Solution
@@ -94,7 +94,7 @@ env/find-ue.ps1            # 确认引擎在（找不到就什么都做不了）
 ```
 
 > 内容生成与基准都走 `UnrealEditor-Cmd.exe`（无窗口）。它们依赖 `SolsticeEditor` 模块被加载，
-> 因此该模块在 `.uproject` 里的 `LoadingPhase` 必须是 `Default` —— 原因见 `docs/ops/ENV.md` §2 第 9 条。
+> 因此该模块在 `.uproject` 里的 `LoadingPhase` 必须是 `Default` —— 原因见 `tools/docs/ENVIRONMENT.md` §2 第 9 条。
 
 ## 换机 / 跨主机同步
 

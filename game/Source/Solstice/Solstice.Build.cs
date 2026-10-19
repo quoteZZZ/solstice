@@ -1,6 +1,6 @@
 // Solstice - runtime module build rules.
 //
-// Layering enforced by convention inside this module (docs/tech/ARCHITECTURE.md SS2.1):
+// Layering enforced by convention inside this module (docs/TECH.md SS2.1):
 //   Render -> World -> Sim
 // Sim/ must stay free of UObject / Tick / render / input dependencies so it can be driven
 // headless. Dependencies kept minimal: Slate/HTTP private, no UMG/RenderCore/RHI.

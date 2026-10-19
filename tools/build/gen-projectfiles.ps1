@@ -7,7 +7,7 @@
   -Mode ClangDb   → 生成 compile_commands.json（供 vscode-clangd）
   优先用引擎自带 dotnet（Engine\Binaries\ThirdParty\DotNet\<ver>\win-x64\dotnet.exe）运行 UnrealBuildTool.dll，
   与引擎 Build.bat 的做法一致；找不到该组合时才回退到 UnrealBuildTool.exe 直调。
-  （本机只装 .NET 8/9，而 UBT 需要 .NET 10，直调 .exe 必然失败 —— 见 docs/ops/ENV.md §2.4.1。）
+  （本机只装 .NET 8/9，而 UBT 需要 .NET 10，直调 .exe 必然失败 —— 见 tools/docs/ENVIRONMENT.md §2.4.1。）
   幂等；失败时透传退出码。
 
 .EXAMPLE

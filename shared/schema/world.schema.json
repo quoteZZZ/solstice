@@ -2,7 +2,7 @@
 	"$schema": "http://json-schema.org/draft-07/schema#",
 	"$id": "https://solstice.local/schema/world.schema.json",
 	"title": "Solstice world generation contract",
-	"description": "Realm generation parameters. Truth: docs/setting/WORLD.md SS2.1 (scale), SS2.4 (world roll), SS3.3 (generation flow). Read at runtime from game/Config/Solstice/Data/world.json. One tile is one metre. `default` is the safe recipe; `presets` are recipes that lock a few axes and carry no fixed seed.",
+	"description": "Realm generation parameters. Truth: docs/WORLD.md SS2.1 (scale), SS2.4 (world roll), SS3.3 (generation flow). Read at runtime from game/Config/Solstice/Data/world.json. One tile is one metre. `default` is the safe recipe; `presets` are recipes that lock a few axes and carry no fixed seed.",
 	"type": "object",
 	"required": ["default"],
 	"properties": {

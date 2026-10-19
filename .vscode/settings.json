@@ -31,7 +31,7 @@
   },
 
   // ========================= 性能：排除 UE 生成物 =========================
-  // 注：studio/ 与 shared/ 已落地（状态见 docs/tech/STRUCTURE.md §0/§1），
+  // 注：studio/ 与 shared/ 已落地（状态见 docs/TECH.md §0/§1），
   //     下面这些 studio/* 排除项用于挡掉本地生图产物与临时工作区。
   "files.exclude": {
     "**/game/Binaries": true,

@@ -1,13 +1,13 @@
 # `shared/` — 契约（JSON Schema）
 
 **双方共读的契约层**：`game/`（运行时读 JSON）与 `studio/`（生图线产素材）都按这里的 schema 校验数据。
-定义与状态见 [`docs/tech/tech.md`](../docs/tech/tech.md) §5。
+定义与状态见 [`docs/TECH.md`](../docs/TECH.md) §5。
 
 ```text
 shared/schema/
-├─ species.schema.json   物种模板        —— docs/setting/SPECIES.md §1
-├─ card.schema.json      干涉卡          —— docs/setting/CARDS.md
-├─ world.schema.json     界（生成参数）   —— docs/setting/WORLD.md §2.1 / §2.2 / §3.3
+├─ species.schema.json   物种模板        —— docs/LATER.md §1
+├─ card.schema.json      干涉卡          —— docs/CARDS.md
+├─ world.schema.json     界（生成参数）   —— docs/WORLD.md §2.1 / §2.2 / §3.3
 └─ save.schema.json      存档信封骨架     —— 载荷待 M1 收紧
 shared/fixtures/
 └─ save.sample.json      存档样例（校验器的基准输入）
@@ -28,9 +28,9 @@ python tools\checks\validate-contracts.py
 ```
 
 把 `schema/` 与 `game/Config/Solstice/Data/` 逐对校验，外加卡 / 物种 id 查重、存档信封样例、卡 `params` 白名单与枚举、`Localization/` 双语言 key 对齐。
-**当前 6 对契约 / 41 个 id / 162 个 l10n key，0 错误。** 改 schema 或改数据后、提交前跑一次；pre-commit 钩子与 CI 也会代跑（见 [`docs/INDEX.md`](../docs/INDEX.md) §5）。
+**当前 6 对契约 / 41 个 id / 162 个 l10n key，0 错误。** 改 schema 或改数据后、提交前跑一次；pre-commit 钩子与 CI 也会代跑（见 [`docs/README.md`](../docs/README.md) §5）。
 
 > 脚本用 **Python 标准库**实现，无需安装任何依赖；真源在 `tools/checks/`。
 
 > **待 M1**：`style.schema.json`（风格主题参数），以及 `save.schema.json` 的**载荷收紧**（信封骨架已落地）。
-> 见 [`docs/tech/tech.md`](../docs/tech/tech.md) §5。
+> 见 [`docs/TECH.md`](../docs/TECH.md) §5。

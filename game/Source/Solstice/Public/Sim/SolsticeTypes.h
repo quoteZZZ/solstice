@@ -1,10 +1,10 @@
 // Solstice - Sim layer: plain data types shared by the whole game.
 //
-// HARD RULE (docs/tech/STRUCTURE.md SS7.1): nothing in Sim/ may derive from UObject, and
+// HARD RULE (docs/TECH.md SS7.1): nothing in Sim/ may derive from UObject, and
 // Sim/ may not depend on Tick / rendering / input. Everything here is a plain struct or a
 // plain enum class, so the kernel can be driven headless and unit-checked.
 //
-// Design truth: docs/charter/GDD.md (owner) + docs/setting/* + docs/gameplay/*.
+// Design truth: docs/CHARTER.md (owner) + docs/setting/* + docs/gameplay/*.
 
 #pragma once
 
@@ -16,7 +16,7 @@ namespace Solstice
 	// Enumerations
 	// ------------------------------------------------------------------
 
-	/** Seven primal elements (docs/setting/WORLD.md SS1.2). Fixed set, never extended. */
+	/** Seven primal elements (docs/WORLD.md SS1.2). Fixed set, never extended. */
 	enum class EElement : uint8
 	{
 		None = 0,
@@ -30,7 +30,7 @@ namespace Solstice
 		Count
 	};
 
-	/** Card class: what the card *is* in the world (docs/setting/CARDS.md SS4). */
+	/** Card class: what the card *is* in the world (docs/CARDS.md SS4). */
 	enum class ECardClass : uint8
 	{
 		Matter = 0,	// object
@@ -39,7 +39,7 @@ namespace Solstice
 		Count
 	};
 
-	/** Persistence field (docs/setting/CARDS.md SS6). */
+	/** Persistence field (docs/CARDS.md SS6). */
 	enum class EDuration : uint8
 	{
 		Instant = 0,
@@ -66,7 +66,7 @@ namespace Solstice
 		Count
 	};
 
-	/** Dual time mode (docs/gameplay/TIME.md SS2). */
+	/** Dual time mode (docs/WORLD.md SS2). */
 	enum class ETimeMode : uint8
 	{
 		Virtual = 0,
@@ -74,7 +74,7 @@ namespace Solstice
 		Count
 	};
 
-	/** M0 minimal weather state machine (docs/setting/WORLD.md SS3.2). */
+	/** M0 minimal weather state machine (docs/WORLD.md SS3.2). */
 	enum class EWeather : uint8
 	{
 		Clear = 0,
@@ -85,7 +85,7 @@ namespace Solstice
 		Count
 	};
 
-	/** M0 biomes (docs/setting/WORLD.md SS2.2) plus the chaos initial state. */
+	/** M0 biomes (docs/WORLD.md SS2.2) plus the chaos initial state. */
 	enum class EBiome : uint8
 	{
 		Chaos = 0,
@@ -106,7 +106,7 @@ namespace Solstice
 		Count
 	};
 
-	/** Material dictionary (docs/setting/PHYSICS.md SS2.1 table A/B). */
+	/** Material dictionary (docs/WORLD.md SS2.1 table A/B). */
 	enum class EMaterial : uint8
 	{
 		/* 首项是「裸地」（未上色的地表）。D-01 之前它叫 Paper，
@@ -129,7 +129,7 @@ namespace Solstice
 		Count
 	};
 
-	/** M0 species set (docs/setting/SPECIES.md SS2). */
+	/** M0 species set (docs/LATER.md SS2). */
 	enum class ESpeciesKind : uint8
 	{
 		MossGrass = 0,
@@ -140,7 +140,7 @@ namespace Solstice
 		Count
 	};
 
-	/** Death causes, always readable on screen (docs/setting/SPECIES.md SS5). */
+	/** Death causes, always readable on screen (docs/LATER.md SS5). */
 	enum class EDeathCause : uint8
 	{
 		None = 0,
@@ -169,7 +169,7 @@ namespace Solstice
 
 	/**
 	 * Concrete simulated effects used by M0 cards. These are the card-facing names for the
-	 * seven physical abilities listed in docs/setting/PHYSICS.md SS6 (terrain op, state
+	 * seven physical abilities listed in docs/WORLD.md SS6 (terrain op, state
 	 * change, attribute write, eco op, record op...).
 	 */
 	enum class EEffect : uint8
@@ -192,7 +192,7 @@ namespace Solstice
 		Count
 	};
 
-	/** Pack kinds (docs/gameplay/INTERVENTION.md SS4.1). */
+	/** Pack kinds (docs/CARDS.md SS4.1). */
 	enum class EPackKind : uint8
 	{
 		RandomElement = 0,
@@ -218,16 +218,16 @@ namespace Solstice
 
 	namespace Tuning
 	{
-		/** docs/gameplay/ECONOMY.md SS3.1 - value by tier. Index 10 = over-tier, 11 = forbidden. */
+		/** docs/CARDS.md SS3.1 - value by tier. Index 10 = over-tier, 11 = forbidden. */
 		extern const int32 CardValue[12];
 
-		/** docs/gameplay/ECONOMY.md SS3.2 - recycle refund by tier (0 and forbidden cannot be recycled). */
+		/** docs/CARDS.md SS3.2 - recycle refund by tier (0 and forbidden cannot be recycled). */
 		extern const int32 RecycleRefund[12];
 
-		/** docs/gameplay/ECONOMY.md SS5.1 - pack drop weights for tiers 0..9 (percent, sums to 100). */
+		/** docs/CARDS.md SS5.1 - pack drop weights for tiers 0..9 (percent, sums to 100). */
 		extern const float TierWeight[10];
 
-		/** docs/gameplay/ECONOMY.md SS2.1 - event echo by offset bracket (min/max inclusive). */
+		/** docs/CARDS.md SS2.1 - event echo by offset bracket (min/max inclusive). */
 		extern const float OffsetBracket[5][2];
 		extern const int32 EchoBracketMin[5];
 		extern const int32 EchoBracketMax[5];
@@ -257,7 +257,7 @@ namespace Solstice
 		extern const float LapseRatePer100m;	// -0.6
 		extern const int32 IndividualBudgetSmall;	// 1200 (docs WORLD SS2.1)
 
-		// ---- terrain shaping (docs/setting/WORLD.md SS2.2) ----
+		// ---- terrain shaping (docs/WORLD.md SS2.2) ----
 		// The shape itself is no longer a set of tuning scalars: it is the port of
 		// studio/previews/world-model.html in Sim/SolsticeWorldGen.{h,cpp}, where the coastline,
 		// the province profiles and the area-quantile remap live with their own numbers.
@@ -268,13 +268,13 @@ namespace Solstice
 		extern const float TerrainMoistureBase;			// 0.30
 		extern const float TerrainMoistureNoise;		// 0.5
 
-		// ---- water bodies (docs/setting/WORLD.md SS3.1) ----
+		// ---- water bodies (docs/WORLD.md SS3.1) ----
 		/** Depth below the water level still counted as water; sea / lake / wetland split. */
 		extern const float WaterDepthEpsilonMeters;		// 0.01
 		extern const float SeaDepthMeters;				// 1.0
 		extern const float LakeDepthMeters;				// 0.5
 
-		// ---- biome classification (docs/setting/WORLD.md SS2.2) ----
+		// ---- biome classification (docs/WORLD.md SS2.2) ----
 		/** One biome's admissible window; every bound is inclusive. */
 		struct FBiomeRange
 		{
@@ -294,7 +294,7 @@ namespace Solstice
 		/** Fallback when nothing above matched: above this height it reads as rock, else grass. */
 		extern const float BiomeHighlandHeightM;		// 25.0
 
-		// ---- cadence (docs/tech/ARCHITECTURE.md SS1.3) ----
+		// ---- cadence (docs/TECH.md SS1.3) ----
 		/** World minutes between weather steps (SimLOD: cheap always, expensive rarely). */
 		extern const float WeatherStepWorldMinutes;		// 10.0
 		/** Ecology step period in world minutes, by SimLOD level 0 / 1 / 2. */
@@ -306,7 +306,7 @@ namespace Solstice
 		/** One coarse visual refresh per this many world minutes. */
 		extern const int32 MarkAllDirtyEveryWorldMinutes;	// 360
 
-		// ---- solar geometry (docs/setting/WORLD.md SS3.2, docs/gameplay/TIME.md SS3) ----
+		// ---- solar geometry (docs/WORLD.md SS3.2, docs/WORLD.md SS3) ----
 		extern const float EarthAxialTiltDeg;			// 23.44
 		extern const float DeclinationDayOffset;		// 284.0
 		extern const float SolarHourAngleDegPerHour;	// 15.0
@@ -329,7 +329,7 @@ namespace Solstice
 		extern const float DiurnalPeakHour;				// 9.0
 		extern const float CloudCoolingC;				// 1.5
 
-		// ---- slow drift rates (docs/setting/PHYSICS.md SS5) ----
+		// ---- slow drift rates (docs/WORLD.md SS5) ----
 		extern const float HumidityRainGain;			// 0.02
 		extern const float HumidityEvaporateBaseC;		// 10.0
 		extern const float HumidityEvaporateRate;		// 0.0004
@@ -351,14 +351,14 @@ namespace Solstice
 		// ---- presentation-facing sim readouts ----
 		/** Depth span that normalises the water sheet shading (matches the base water level). */
 		extern const float WaterSheetShadingDepthMeters;	// 6.0
-		/** Fallback sky readings when the real-weather bridge is unavailable (docs/gameplay/TIME.md SS4.2). */
+		/** Fallback sky readings when the real-weather bridge is unavailable (docs/WORLD.md SS4.2). */
 		extern const float DefaultHumidity01;			// 0.45
 		extern const float DefaultCloudCover01;			// 0.15
-		/** Real-weather bridge thresholds (docs/gameplay/TIME.md SS4.2). */
+		/** Real-weather bridge thresholds (docs/WORLD.md SS4.2). */
 		extern const float RainToStormThreshold01;		// 0.5
 		extern const float CloudToOvercastThreshold01;	// 0.6
 
-		// ---- tile moisture / snow / ice (docs/setting/PHYSICS.md SS5) ----
+		// ---- tile moisture / snow / ice (docs/WORLD.md SS5) ----
 		extern const float TileMoistureRainGain;		// 0.004
 		extern const float TileMoistureEvaporateBaseC;	// 5.0
 		extern const float TileMoistureEvaporateRate;	// 0.00002
@@ -375,7 +375,7 @@ namespace Solstice
 	// World data
 	// ------------------------------------------------------------------
 
-	/** One tile = 1 m x 1 m (docs/setting/WORLD.md SS2.1). */
+	/** One tile = 1 m x 1 m (docs/WORLD.md SS2.1). */
 	struct SOLSTICE_API FTile
 	{
 		float Height = 0.0f;			// 0..64 m, quantised to 0.25 m
@@ -398,7 +398,7 @@ namespace Solstice
 
 	struct SOLSTICE_API FWorldConfig
 	{
-		int32 Size = 128;					// 小界 128 x 128 (docs/setting/WORLD.md SS2.1)
+		int32 Size = 128;					// 小界 128 x 128 (docs/WORLD.md SS2.1)
 		int32 ChunkSize = 64;				// 分块 64 x 64
 		int32 Algo = 0;						// 0 ridges / 1 islands / 2 canyon / 3 plateau / 4 basin / 5 archipelago
 		uint32 Seed = 20261016u;
@@ -412,7 +412,7 @@ namespace Solstice
 		 * was whatever noise produced (measured 77% on the default seed).
 		 */
 		float LandRatio = 0.62f;
-		float Latitude = 31.23f;			// real-world anchor (docs/gameplay/TIME.md SS4.2)
+		float Latitude = 31.23f;			// real-world anchor (docs/WORLD.md SS4.2)
 		float TidalAmplitude = 1.0f;
 		bool bTides = false;
 		bool bChaosStart = false;			// the realm opens already painted (WORLD SS3.3 step 5)
@@ -430,7 +430,7 @@ namespace Solstice
 		FString RealmNameEn = TEXT("Nameless Realm");
 	};
 
-	/** Environmental readouts (docs/setting/WORLD.md SS3.2). */
+	/** Environmental readouts (docs/WORLD.md SS3.2). */
 	struct SOLSTICE_API FSkyState
 	{
 		float SolarAltitudeDeg = 45.0f;
@@ -447,13 +447,13 @@ namespace Solstice
 		float WaterLevel = 18.0f;
 		uint8 Weather = static_cast<uint8>(EWeather::Clear);
 		bool bSnowing = false;				// rain replaced by snow below 0 degC
-		bool bRealityOffline = false;		// weather API degraded (docs/gameplay/TIME.md SS4.2)
+		bool bRealityOffline = false;		// weather API degraded (docs/WORLD.md SS4.2)
 		float DayFraction = 0.5f;			// 0 = midnight, 0.5 = noon
 
 		EWeather GetWeather() const { return static_cast<EWeather>(Weather); }
 	};
 
-	/** A living individual (docs/setting/SPECIES.md SS2). */
+	/** A living individual (docs/LATER.md SS2). */
 	struct FIndividual
 	{
 		int32 Tile = 0;
@@ -495,7 +495,7 @@ namespace Solstice
 		EEventType GetType() const { return static_cast<EEventType>(Type); }
 	};
 
-	/** Echo accounting, one and only one account (docs/gameplay/ECONOMY.md SS7.2). */
+	/** Echo accounting, one and only one account (docs/CARDS.md SS7.2). */
 	struct FEchoLedger
 	{
 		int32 Balance = 0;
@@ -637,7 +637,7 @@ namespace Solstice
 	FLinearColor CardClassColor(ECardClass Class);
 	FLinearColor MaterialColor(EMaterial Material);
 
-	/** Cel base tones used by the chaos (uncoloured) state, docs/setting/WORLD.md SS3.3. */
+	/** Cel base tones used by the chaos (uncoloured) state, docs/WORLD.md SS3.3. */
 	FLinearColor RawBareColor();
 	FLinearColor KraftCelColor();
 

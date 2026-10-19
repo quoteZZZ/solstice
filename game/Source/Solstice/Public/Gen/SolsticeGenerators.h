@@ -1,7 +1,7 @@
 // Solstice - Gen layer: the procedural geometry generators.
 //
 // Nothing here is modelled by hand. The paper diorama is produced from four rules
-// (docs/art/ART-STYLE.md SS2):
+// (docs/ART.md SS2):
 //   1. the ground is a stack of cut paper plates, so every height step shows a cut edge;
 //   2. whole-metre contours are inked as ribbons, so the terrain reads as a topographic model;
 //   3. living things are flat standees with a printed outline card behind them;
@@ -31,7 +31,7 @@ namespace Solstice
 
 	/**
 	 * Presentation palette: the whole cel look in one place.
-	 * Never read by the simulation. These are the art recipe of docs/art/art.md SS2.3 -
+	 * Never read by the simulation. These are the art recipe of docs/ART.md SS2.3 -
 	 * tuning the look means tuning this struct instead of hunting literals in the generators.
 	 */
 	struct FCelPalette
@@ -72,7 +72,7 @@ namespace Solstice
 	};
 
 	// ------------------------------------------------------------------------
-	// Standee recipes (docs/setting/SPECIES.md SS2, docs/art/ART-STYLE.md SS2).
+	// Standee recipes (docs/LATER.md SS2, docs/ART.md SS2).
 	//
 	// A standee is a few flat paper cards standing in a tile: a body cut in the XZ plane,
 	// a crossed card in YZ to give it thickness, and horizontal cards for wings. All of it
@@ -139,7 +139,7 @@ namespace Solstice
 		 * not culled at all (specks hanging in the void past the edge).
 		 *
 		 * Low harmonics of the azimuth, so the cut is an arc rather than a perfect circle, and so
-		 * it reads as "a piece of land lifted out" (docs/setting/WORLD.md SS1.1).
+		 * it reads as "a piece of land lifted out" (docs/WORLD.md SS1.1).
 		 */
 		float TornRadius(float BaseRadius, float X, float Y);
 
@@ -189,7 +189,7 @@ namespace Solstice
 		void BuildLife(const FSimKernel& Kernel, const FCelPalette& Palette, FMeshBuilder& Out, FMeshBuilder& OutOutline);
 
 		/**
-		 * One frame of painted sky (docs/art/art.md SS2.2).
+		 * One frame of painted sky (docs/ART.md SS2.2).
 		 *
 		 * The sky is a *painting*, not a render of an atmosphere: a card perpendicular to the
 		 * view axis with the whole composition - gradient, cirrus, cumulus, sun, moon, stars -

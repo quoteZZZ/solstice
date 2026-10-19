@@ -88,7 +88,7 @@ function Find-UnrealEngine {
     )
 
     # 最高优先级：SOLSTICE_UE_ENGINE_ROOT 显式钉死引擎根。多引擎共存 / 换机 / 换盘时用它，
-    # 与 docs/ops/ENV.md §5.1 的「显式参数 > 环境变量 > 自动探测 > 内置默认」一致。
+    # 与 tools/docs/ENVIRONMENT.md §5.1 的「显式参数 > 环境变量 > 自动探测 > 内置默认」一致。
     # .vscode 三个配置里的 ${env:SOLSTICE_UE_ENGINE_ROOT} 就是同一个变量
     # （由 tools\env\configure-vscode.ps1 写入用户级环境变量）。值无效时自动退回探测。
     if (-not $All) {

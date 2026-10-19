@@ -2,7 +2,7 @@
 //   recommendations         = 打开本仓库时提示安装（标 ✅ 的是本机已装）
 //   unwantedRecommendations = 与本项目无关，抑制 VS Code 的推荐噪音（只降噪，不卸载）
 // 增删本机扩展请走 tools\env\vscode-extensions.ps1（默认只读；-RemoveUnwanted 先预览，
-// 加 -Confirm 才真正全局卸载）。扩展分析与处置记录见 docs/ops/VSCODE.md §3。
+// 加 -Confirm 才真正全局卸载）。扩展分析与处置记录见 tools/docs/ENVIRONMENT.md §3。
 //
 // ⚠ 已装但按设计「不启用」的扩展（刻意不写进下面两张清单，以免被 -RemoveUnwanted 一并卸掉）：
 //   · llvm-vs-code-extensions.vscode-clangd —— 路线 B 专用。当前路线 A（cpptools）下两套
@@ -12,9 +12,9 @@
 //     xiaodiyan.translator-helper、k--kato.intellij-idea-keybindings、orionunique.troll
 // 注：openai.chatgpt、openai.codex-audio 已于 2026-10-13 卸载；johnstoncode.svn-scm、
 //     typescriptteam.native-preview 已于 2026-10-17 卸载（本项目用 git、零 TypeScript）。
-//     本项目唯一 AI 助手 = CodeBuddy（tencent-cloud.coding-copilot）。详见 docs/ops/VSCODE.md §3.6。
+//     本项目唯一 AI 助手 = CodeBuddy（tencent-cloud.coding-copilot）。详见 tools/docs/ENVIRONMENT.md §3.6。
 // 注：VSCode **无官方 UE 扩展**，也没有任何插件能操作蓝图编辑器；UE 相关候选的
-//     市场核实记录（采纳 / 条件性 / 不采纳）见 docs/ops/VSCODE.md §3.8（2026-10-14）。
+//     市场核实记录（采纳 / 条件性 / 不采纳）见 tools/docs/ENVIRONMENT.md §3.8（2026-10-14）。
 {
   "recommendations": [
     // ---- 必需：C++ / 虚幻引擎 ----

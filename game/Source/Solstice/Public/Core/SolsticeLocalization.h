@@ -1,4 +1,4 @@
-// Solstice - Core layer: bilingual string table (docs/setting/WORLD.md SS7).
+// Solstice - Core layer: bilingual string table (docs/WORLD.md SS7).
 //
 // Rules from the truth source: Chinese and English are stored as a pair, missing English
 // falls back to Chinese, single entries stay short. UI chrome keys live in

@@ -1,5 +1,5 @@
 {
-	"_comment": "Solstice M0 card data - fire branch. Contract: shared/schema/card.schema.json. Names come from docs/setting/CARD-LIST.md SS3.1 (M0 first ten candidates) plus provisional M0 grid slots.",
+	"_comment": "Solstice M0 card data - fire branch. Contract: shared/schema/card.schema.json. Names come from docs/CARDS.md SS3.1 (M0 first ten candidates) plus provisional M0 grid slots.",
 	"_note": "provisional=true means: this slot is written for playability so the M0 grid is complete, while its effect / params / animation / visible feedback have NOT yet been authored per card (CARD-LIST SS3 definition). Authoring order follows P1-P4 need.",
 	"element": "fire",
 	"cards": [

@@ -1,12 +1,12 @@
 // Solstice - Sim layer: the world kernel.
 //
-// This is the M0 heart (docs/plan/ROADMAP.md SS5 stage P2): dual-mode world clock, reality
+// This is the M0 heart (docs/PLAN.md SS5 stage P2): dual-mode world clock, reality
 // anchor, terrain, five-axis biome classification, weather state machine, five-species
 // ecology, SimLOD, the card command interface (release / recycle / hand / pool), the echo
 // economy and the chronicle.
 //
 // Hard constraints honoured here:
-//   - no UObject, no Tick, no render / input dependency (docs/tech/ARCHITECTURE.md SS2.2.1)
+//   - no UObject, no Tick, no render / input dependency (docs/TECH.md SS2.2.1)
 //   - fixed logic tick of one world minute, split RNG streams, explicit index order (SS2.2.3)
 //   - every tile/individual iteration runs in ascending index order so results repeat
 
@@ -56,7 +56,7 @@ namespace Solstice
 		void FeedReality(const FRealitySample& Sample);
 
 		// ------------------------------------------------------------------
-		// Time control (docs/gameplay/TIME.md SS2.2)
+		// Time control (docs/WORLD.md SS2.2)
 		// ------------------------------------------------------------------
 
 		void SetTimeMode(ETimeMode NewMode);
@@ -141,7 +141,7 @@ namespace Solstice
 		const TArray<FChronicleEntry>& GetChronicle() const { return Chronicle; }
 
 		// ------------------------------------------------------------------
-		// Hand, pool and cards (docs/gameplay/INTERVENTION.md SS1)
+		// Hand, pool and cards (docs/CARDS.md SS1)
 		// ------------------------------------------------------------------
 
 		int32 GetHandCount() const;
@@ -158,14 +158,14 @@ namespace Solstice
 		/**
 		 * The only undo in the game: a card that landed as a permanent entity can be pulled back
 		 * while the paper is still wet, i.e. within three real seconds
-		 * (docs/gameplay/INTERVENTION.md SS1.1). Echo, pool and chronicle never rewind (SS5.4).
+		 * (docs/CARDS.md SS1.1). Echo, pool and chronicle never rewind (SS5.4).
 		 */
 		bool CanUndoPendingSettle() const { return bUndoAvailable; }
 		double GetUndoSecondsLeft() const { return UndoSecondsLeft; }
 		bool UndoPendingSettle(FString& OutReasonZh, FString& OutReasonEn);
 
 		// ------------------------------------------------------------------
-		// Economy (docs/gameplay/ECONOMY.md)
+		// Economy (docs/CARDS.md)
 		// ------------------------------------------------------------------
 
 		int32 GetPackPrice(EPackKind Kind) const;

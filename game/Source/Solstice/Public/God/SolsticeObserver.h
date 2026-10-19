@@ -2,7 +2,7 @@
 //
 // The player is not in the realm; the player looks at it. The camera hangs off a spring arm
 // that orbits a focus point on the paper, which is the whole reason the diorama reads as an
-// object rather than as a place (docs/art/ART-STYLE.md SS3).
+// object rather than as a place (docs/ART.md SS3).
 
 #pragma once
 

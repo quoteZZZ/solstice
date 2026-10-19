@@ -1,5 +1,5 @@
 // Solstice - game target (M0).
-// See docs/tech/STRUCTURE.md SS2 / SS3 for the target vs module distinction.
+// See docs/TECH.md SS2 / SS3 for the target vs module distinction.
 
 using UnrealBuildTool;
 using System.Collections.Generic;

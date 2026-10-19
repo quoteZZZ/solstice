@@ -5,7 +5,7 @@
 // and the sun. It drives the world clock and it is the only place where Sim data is turned
 // into geometry.
 //
-// Layer rule (docs/tech/STRUCTURE.md SS3): World may read Sim and Gen; Sim never sees either.
+// Layer rule (docs/TECH.md SS3): World may read Sim and Gen; Sim never sees either.
 
 #pragma once
 

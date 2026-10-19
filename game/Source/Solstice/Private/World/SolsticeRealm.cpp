@@ -25,7 +25,7 @@ namespace
 	constexpr float SkyInterval = 0.20f;
 
 	// ------------------------------------------------------------------
-	// The sky (docs/art/art.md SS2.2).
+	// The sky (docs/ART.md SS2.2).
 	//
 	// There is no dome. A hemisphere around the realm only works when the camera is inside it,
 	// and the framing puts the camera at 5.6 realm radii - outside by a factor of five, which is
@@ -1539,7 +1539,7 @@ void ASolsticeRealm::Tick(float DeltaSeconds)
 
 	Instance->TickSimulation(DeltaSeconds);
 
-	// The camera's tile drives SimLOD (docs/tech/ARCHITECTURE.md SS2.2.3).
+	// The camera's tile drives SimLOD (docs/TECH.md SS2.2.3).
 	if (APlayerController* Controller = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
 	{
 		FVector ViewLocation;

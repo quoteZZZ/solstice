@@ -1,6 +1,6 @@
 // Solstice - Render layer: the cel material.
 //
-// The look is flat animation cel, not PBR (docs/art/art.md SS2.1): three hard light bands, no
+// The look is flat animation cel, not PBR (docs/ART.md SS2.1): three hard light bands, no
 // specular, no Lumen, no Nanite, no paper grain. The master material is generated into
 // /Game/Core/M_Cel by the editor module on first launch, so a fresh checkout rebuilds its
 // own content. If generation is unavailable the renderer degrades to the engine's vertex

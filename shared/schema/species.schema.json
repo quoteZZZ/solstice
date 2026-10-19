@@ -2,7 +2,7 @@
 	"$schema": "http://json-schema.org/draft-07/schema#",
 	"$id": "https://solstice.local/schema/species.schema.json",
 	"title": "Solstice species contract",
-	"description": "Species template fields. Truth: docs/setting/SPECIES.md SS1 (fields) and SS2.1 (M0 initial values). Read at runtime from game/Config/Solstice/Data/species.json. Every size is metres; every rate is per world hour unless the key says otherwise.",
+	"description": "Species template fields. Truth: docs/LATER.md SS1 (fields) and SS2.1 (M0 initial values). Read at runtime from game/Config/Solstice/Data/species.json. Every size is metres; every rate is per world hour unless the key says otherwise.",
 	"type": "object",
 	"required": ["species"],
 	"properties": {

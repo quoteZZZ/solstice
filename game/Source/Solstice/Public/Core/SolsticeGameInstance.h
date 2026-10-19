@@ -4,7 +4,7 @@
 // and the simulation kernel. The realm actor ticks them, the UI reads them.
 //
 // The kernel lives here rather than on the actor so that a level change cannot silently reset
-// a realm - "one account, one world" is a design commitment (docs/gameplay/ECONOMY.md SS7.2).
+// a realm - "one account, one world" is a design commitment (docs/CARDS.md SS7.2).
 
 #pragma once
 
@@ -36,11 +36,11 @@ public:
 
 	/**
 	 * One frame of the world: the reality anchor is fed first so the clock and the weather the
-	 * kernel sees are always the same sample (docs/gameplay/TIME.md SS4).
+	 * kernel sees are always the same sample (docs/WORLD.md SS4).
 	 */
 	void TickSimulation(float DeltaSeconds);
 
-	/** Creator step 2: reshape the realm onto another preset (docs/setting/WORLD.md SS3.3). */
+	/** Creator step 2: reshape the realm onto another preset (docs/WORLD.md SS3.3). */
 	bool ReshapeToPreset(int32 PresetIndex);
 
 	/**

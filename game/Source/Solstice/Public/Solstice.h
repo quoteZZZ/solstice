@@ -1,5 +1,5 @@
 // Solstice - runtime module entry point.
-// Module layering and the Sim isolation rule live in docs/tech/ARCHITECTURE.md SS2.1.
+// Module layering and the Sim isolation rule live in docs/TECH.md SS2.1.
 
 #pragma once
 

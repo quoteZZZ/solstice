@@ -16,7 +16,7 @@ baseline live in the preset (studio/presets/*.json "pipeline" block), not in thi
 
 The manifest is the point: storefronts require disclosure of AI-generated content, and the repo
 rule is that generated media never enters git but its manifest always does
-(see docs/tech/STRUCTURE.md SS4 and .gitignore section 3). The field set follows
+(see docs/TECH.md SS4 and .gitignore section 3). The field set follows
 docs/art/ASSETS.md SS2; paths inside the manifest are relative to studio/.
 
 Standard library only, so it runs with any Python on the machine.

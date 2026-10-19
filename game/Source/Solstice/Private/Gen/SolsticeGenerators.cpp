@@ -304,7 +304,7 @@ namespace Solstice
 	{
 		// Indexed by ESpeciesKind; MossGrass is ground cover and has no standee.
 		// Sizes are the paper-card geometry in UU, local to the tile centre, and follow the
-		// real-world sizes in docs/setting/SPECIES.md SS2.
+		// real-world sizes in docs/LATER.md SS2.
 		static const TArray<FStandeeRecipe> Recipes = []()
 		{
 			TArray<FStandeeRecipe> All;
@@ -648,7 +648,7 @@ namespace Solstice
 
 				const FVector Centre = TileToLocal(Kernel, X, Y, Surface);
 
-				// The container is an upper hemisphere on a round paper plinth (docs/setting/WORLD.md
+				// The container is an upper hemisphere on a round paper plinth (docs/WORLD.md
 				// SS1.1), so the square tile grid is only the sim's addressing scheme. The boundary
 				// is a torn cut rather than a circle: R-19 replaced the perfect-radius cull with
 				// TornRadius, which breaks the edge in irregular arcs instead of a stair around a
@@ -1697,7 +1697,7 @@ namespace Solstice
 			const ESpeciesKind Kind = Individual.GetKind();
 			if (Kind == ESpeciesKind::MossGrass)
 			{
-				// Moss-grass is a coverage layer, not an individual (docs/setting/SPECIES.md SS2).
+				// Moss-grass is a coverage layer, not an individual (docs/LATER.md SS2).
 				continue;
 			}
 
@@ -1778,7 +1778,7 @@ namespace Solstice
 	namespace
 	{
 		// ---- sky card ---------------------------------------------------------
-		// Card space (docs/art/art.md SS2.2): X right, Y up, Z = distance from the camera. The
+		// Card space (docs/ART.md SS2.2): X right, Y up, Z = distance from the camera. The
 		// gradient panel sits at Z = 1 and every layer above it has to sit at a *smaller* Z,
 		// because smaller Z is nearer the camera - at 1.0002 the clouds are behind the panel and
 		// the sky renders as a bare gradient. Each layer still gets its own hairline of depth, so

@@ -18,7 +18,7 @@ color: orange
 | VSCode | 路线 A：`ms-vscode.cpptools` + `game\Solstice.sln` |
 | 引擎路径真源 | 共享库 `tools\lib\Solstice.Common.ps1` 的 `Find-UnrealEngine`（结果可用 `SOLSTICE_UE_ENGINE_ROOT` **钉死**，候选根可用 `SOLSTICE_UE_SEARCH_ROOTS` 覆盖）；探测入口 `tools\env\find-ue.ps1`。**不要把盘符写死进脚本或配置** |
 
-真源文档：[`tools/docs/ENVIRONMENT.md`](../../tools/docs/ENVIRONMENT.md)（安装与本机实测）、[`tools/docs/ENVIRONMENT.md`](../../tools/docs/ENVIRONMENT.md)（IDE 配置）、[`docs/tech/tech.md`](../../docs/tech/tech.md)（目录与归位）。
+真源文档：[`tools/docs/ENVIRONMENT.md`](../../tools/docs/ENVIRONMENT.md)（安装与本机实测）、[`tools/docs/ENVIRONMENT.md`](../../tools/docs/ENVIRONMENT.md)（IDE 配置）、[`docs/TECH.md`](../../docs/TECH.md)（目录与归位）。
 
 ## 铁律
 
@@ -65,7 +65,7 @@ powershell -ExecutionPolicy Bypass -File tools\env\find-ue.ps1 -All
 | C++ 满屏红波浪线但能编译 | 用户级环境变量 `SOLSTICE_UE_ENGINE_ROOT` 没设（`.vscode` 里只写 `${env:SOLSTICE_UE_ENGINE_ROOT}`），或没生成工程文件 | 跑 `tools\env\configure-vscode.ps1` → **整进程重启 VS Code** → task「生成工程文件 (Solution / cpptools)」 |
 | 报错每行出现**两次** | `llvm-vs-code-extensions.vscode-clangd` 与 `cpptools` 同时提供 IntelliSense | 扩展面板对 clangd → **Disable (Workspace)**（见 `tools/docs/ENVIRONMENT.md` §4） |
 | 找不到 UE 头文件（`CoreMinimal.h` 等） | 同上，或 `compile_commands.json` 过期 | 重跑 `tools\env\configure-vscode.ps1` + `tools\build\gen-projectfiles.ps1` |
-| 链接期 `LNK2019` 找不到别的模块的符号 | 跨 DLL 公共类型漏标 `SOLSTICE_API` | 给该类型补 `SOLSTICE_API`（见 `docs/tech/tech.md` §10.1） |
+| 链接期 `LNK2019` 找不到别的模块的符号 | 跨 DLL 公共类型漏标 `SOLSTICE_API` | 给该类型补 `SOLSTICE_API`（见 `docs/TECH.md` §10.1） |
 | UBT 行为异常、缓存脏 | `Intermediate`/`Binaries` 残留 | task「清理并全量重编」（`tools\build\build.ps1 -Clean`） |
 | 编辑器里材质退化到引擎调试材质 | `game/Content/Core/M_Paper`、`M_Ink` 缺失（二进制不入 git） | `tools\build\gen-assets.ps1`（幂等） |
 | winget 装的 VS 缺组件 | 缺 Windows SDK / ATL | `tools\env\install-vs-buildtools.ps1 -Force`（**提示用户执行**） |

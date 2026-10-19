@@ -1,7 +1,7 @@
 # `game/Content/` — 二进制资产（不入 git）
 
 本目录的 `.uasset` / `.umap` 及媒体文件**不入 git**（见仓库根 `.gitignore` §2 与
-[`docs/tech/tech.md`](../../docs/tech/tech.md) §0 的核心不变量）。目录结构本身入 git，
+[`docs/TECH.md`](../../docs/TECH.md) §0 的核心不变量）。目录结构本身入 git，
 所以每个子目录都放一个 `.gitkeep`。
 
 ## 为什么可以不入 git
@@ -43,6 +43,6 @@ powershell -ExecutionPolicy Bypass -File tools\build\gen-assets.ps1
 > **`SolsticeEditor` 的 `LoadingPhase` 必须是 `Default`**：`-run=XxxCommandlet` 的类解析发生在
 > `PostEngineInit` 阶段模块加载**之前**，写成 `PostEngineInit` 会直接报
 > `looked like a commandlet, but we could not find the class`。原因见
-> [`docs/ops/ENVIRONMENT.md`](../../tools/docs/ENVIRONMENT.md) §2.6 第 9 条。
+> [`tools/docs/ENVIRONMENT.md`](../../tools/docs/ENVIRONMENT.md) §2.6 第 9 条。
 
 > **结论**：删掉整个 `Content/` 目录，重跑 `gen-assets.ps1` 即可完全重建。这是本仓库"资产不入 git"的前提。

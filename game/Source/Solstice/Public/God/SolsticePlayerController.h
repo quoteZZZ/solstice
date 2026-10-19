@@ -3,7 +3,7 @@
 // The controller is the command surface. Holding a card, releasing it, taking it back while the
 // paper is still wet, calming the disturbance, opening a pack - every one of those is a method
 // here, so the Slate HUD and the keyboard are two ways into exactly the same calls
-// (docs/gameplay/INTERVENTION.md SS1, docs/gameplay/ECONOMY.md SS5).
+// (docs/CARDS.md SS1, docs/CARDS.md SS5).
 //
 // Input is polled once per frame rather than bound through action mappings: the HUD needs the
 // mouse free for its own buttons, and polling keeps the two from fighting over capture.

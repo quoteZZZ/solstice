@@ -3,7 +3,7 @@
 This is a *tone preview*, not a render: it keeps the luminance structure of the
 existing frame and replaces hue/saturation band by band, so the only thing that
 changes between A/B/C is the palette itself. Colours are the ones extracted from
-Wind Waker / Genshin / Ghibli / Your Name (see docs/art/PALETTE.md).
+Wind Waker / Genshin / Ghibli / Your Name (see docs/ART.md).
 """
 
 import os

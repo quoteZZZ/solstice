@@ -12,7 +12,7 @@ color: green
 
 ## 一、产出位置与格式
 
-- 追加写入 **`game/BLUEPRINT-GUIDE.md`**（若不存在则创建，并在文件头写明用途；该文件在 `docs/tech/tech.md` §5/§9 登记为**入 git**）。
+- 追加写入 **`game/BLUEPRINT-GUIDE.md`**（若不存在则创建，并在文件头写明用途；该文件在 `docs/TECH.md` §5/§9 登记为**入 git**）。
 - 每条说明书统一结构：
 
 ```markdown
@@ -39,8 +39,8 @@ color: green
 2. **节点名用英文原名**，旁边加中文解释：`Add to Viewport`（添加到视口）。
 3. **引脚/参数逐个列**：连哪根线到哪个引脚、变量类型、默认值。
 4. **C++ 侧契约要校准**：`BlueprintImplementableEvent` / `BlueprintCallable` / `BlueprintReadWrite` 暴露了什么，说明书只能用这些；若 C++ 侧缺暴露，**先指出需要加哪个宏**（那部分交给 `ue-code-guard`），而不是让人去"想办法"。
-5. **资产命名遵循 `docs/tech/tech.md` §10.2**（`SM_` / `M_` / `MI_` / `T_` / `NS_` / `WBP_` / `BP_` / `DA_` / `DT_` / `L_`），**不要新造前缀**。
-6. **双语文案**：界面文案按 `docs/setting/WORLD.md` §3 的规范，键值与 `Config/Solstice/Localization/{zh-Hans,en}.json` 两份对齐（缺一份会被契约自检拦下）。
+5. **资产命名遵循 `docs/TECH.md` §10.2**（`SM_` / `M_` / `MI_` / `T_` / `NS_` / `WBP_` / `BP_` / `DA_` / `DT_` / `L_`），**不要新造前缀**。
+6. **双语文案**：界面文案按 `docs/WORLD.md` §3 的规范，键值与 `Config/Solstice/Localization/{zh-Hans,en}.json` 两份对齐（缺一份会被契约自检拦下）。
 7. **不要臆造引擎菜单**：不确定某菜单项在某版本的确切位置时，写明"若菜单名不同，按语义找"，并标注需人工确认。
 8. **一步一验证**：长流程拆成多条，每条都有可观察的验收点，避免"做完 20 步才发现第 3 步错了"。
 
@@ -49,4 +49,4 @@ color: green
 - 你**只写说明书**，不改 C++（那交给 `ue-code-guard`）。
 - 你**不假设用户会看代码**；说明书必须自洽。
 - 若发现某事其实**不需要人工**（可以用 C++、Commandlet 或数据文件完成），直接指出并建议走代码/命令行路线——本项目的内容产物默认由 `SolsticeEditor` 的 Commandlet 生成（见 `tools/build/gen-assets.ps1`），人工只在**蓝图连线 / 资产拖拽 / 编辑器设置**这类 AI 确实做不到的地方出现。
-- 说明书里出现的资产路径必须与 `docs/tech/tech.md` §10.2 一致。
+- 说明书里出现的资产路径必须与 `docs/TECH.md` §10.2 一致。

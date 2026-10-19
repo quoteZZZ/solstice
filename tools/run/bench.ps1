@@ -9,7 +9,7 @@
   没有容差。
 
   它不碰 RHI、World、GameMode，因此也顺带证明 Sim/ 层可无头运行
-  （docs/tech/ARCHITECTURE.md §2.2）。
+  （docs/TECH.md §2.2）。
 
 .STATUS
   2026-10-16 实测通过（-Days=2，128x128）：

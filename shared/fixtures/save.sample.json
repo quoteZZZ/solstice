@@ -1,5 +1,5 @@
 {
-	"_comment": "Solstice save envelope sample - the executable example of shared/schema/save.schema.json, checked by tools/checks/validate-contracts.py. Payload sections stay minimal until M1 settles their shape (docs/tech/STRUCTURE.md SS5).",
+	"_comment": "Solstice save envelope sample - the executable example of shared/schema/save.schema.json, checked by tools/checks/validate-contracts.py. Payload sections stay minimal until M1 settles their shape (docs/TECH.md SS5).",
 	"version": 1,
 	"meta": { "realm_id": "realm.valley", "saved_at_day": 0, "saved_at_hour": 6.0 },
 	"snapshot": {},

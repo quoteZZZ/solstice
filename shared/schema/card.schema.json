@@ -2,7 +2,7 @@
 	"$schema": "http://json-schema.org/draft-07/schema#",
 	"$id": "https://solstice.local/schema/card.schema.json",
 	"title": "Solstice card contract",
-	"description": "One card = one coordinate: element (7) x tier (0-9, over, ban) x class (3). Truth: docs/setting/CARDS.md SS5-SS7 and docs/setting/CARD-LIST.md SS1. Read at runtime from game/Config/Solstice/Data/cards.*.json.",
+	"description": "One card = one coordinate: element (7) x tier (0-9, over, ban) x class (3). Truth: docs/CARDS.md SS5-SS7 and docs/CARDS.md SS1. Read at runtime from game/Config/Solstice/Data/cards.*.json.",
 	"type": "object",
 	"required": ["cards"],
 	"properties": {
@@ -21,7 +21,7 @@
 		"element": {
 			"type": "string",
 			"enum": ["metal", "wood", "water", "fire", "earth", "light", "dark"],
-			"description": "Seven primal elements, a fixed set (docs/setting/WORLD.md SS1.2)."
+			"description": "Seven primal elements, a fixed set (docs/WORLD.md SS1.2)."
 		},
 		"biText": {
 			"description": "Chinese and English travel together; a missing side falls back to the other.",
@@ -57,12 +57,12 @@
 				},
 				"tier": { "$ref": "#/definitions/tier" },
 				"class": {
-					"description": "What the card is in the world (docs/setting/CARDS.md SS4).",
+					"description": "What the card is in the world (docs/CARDS.md SS4).",
 					"type": "string",
 					"enum": ["matter", "rite", "law"]
 				},
 				"duration": {
-					"description": "Persistence (docs/setting/CARDS.md SS6).",
+					"description": "Persistence (docs/CARDS.md SS6).",
 					"type": "string",
 					"enum": ["instant", "sustain", "permanent", "trigger"]
 				},
@@ -84,7 +84,7 @@
 					]
 				},
 				"provisional": {
-					"description": "True when the slot exists for playability but its effect / params / animation / visible feedback are not yet authored per card (docs/setting/CARD-LIST.md SS3).",
+					"description": "True when the slot exists for playability but its effect / params / animation / visible feedback are not yet authored per card (docs/CARDS.md SS3).",
 					"type": "boolean",
 					"default": false
 				},

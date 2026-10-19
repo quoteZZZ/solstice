@@ -3,7 +3,7 @@
   "name_zh": "地中海正午",
   "reference": "Wind Waker x Genshin",
   "time_slot": "day",
-  "truth": "docs/art/PALETTE.md",
+  "truth": "docs/ART.md",
   "colors": {
     "sky_zenith": "#2E7FC2",
     "sky_mid": "#62A9DC",

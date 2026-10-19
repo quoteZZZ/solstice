@@ -3,10 +3,10 @@
 > 只记「不看代码就会踩坑」的东西；规格一律以 `docs/` 为准（入口 `docs/INDEX.md`）。
 
 ## 硬性纪律
-- **两个工作树，一个 `.git`**：`D:/GitCode/solstice` 是 **main** 的检出，`C:/Users/.../Worktrees/solstice/main-2296c354`
-  是 **`workbuddy/main-2296c354`** 的检出。提交只落在当前检出的分支上，所以「提交了」≠「main 上有」。
-  推送用 `git push origin HEAD:main`；两边都改了 `.workbuddy/memory/<date>.md` 时 ff 会被挡（同一文件两处改动），
-  先备份再 `git checkout --` 该文件，ff 之后手工把另一段插回去 —— **别用 `-X ours/theirs` 直接丢，记忆丢了就找不回**。
+- **单工作树**：`D:/GitCode/solstice` 是唯一检出，停在 **main**。原先 WorkBuddy 在
+  `C:/Users/.../Worktrees/solstice/main-2296c354` 的第二工作树（分支 `workbuddy/main-2296c354`，领先 14 个提交）
+  已于 2026-10-19 快进合并进 `main` 并删除，分支名仅留作标记。不要再按「提交了 ≠ main 上有」的前提做事；
+  推送用 `git push origin HEAD:main`。
 - **任何文档增删改（含版本号、状态列）必须同次更新 `docs/INDEX.md`**，否则视为缺陷。
 - **改画面必须量，不许看图**：`& tools/run/shot.ps1 -Preset 0 -Delay 5` 无人值守抓一帧（写出
   `tmp/review/shot.png`），日志里的 `[shot] box=` 是世界圆盘的屏幕包围盒，脚本自动喂给

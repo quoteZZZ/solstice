@@ -3,7 +3,7 @@
   生成工程内容（新克隆后必须跑一次）。
 
 .DESCRIPTION
-  仓库里不存二进制资产（docs/tech/STRUCTURE.md §0）。唯一必须的资产是三个主材质
+  仓库里不存二进制资产（docs/TECH.md §0）。唯一必须的资产是三个主材质
   /Game/Core/M_Cel 与 M_Ink 与 M_Sky，由 SolsticeEditor 模块里的生成器按代码建图后写出，
   所以每次克隆、清理 Intermediate 或换机之后都要跑一次本脚本。
 
@@ -19,7 +19,7 @@
   用 UnrealEditor-Cmd.exe（无窗口）而不是 UnrealEditor.exe，避免拉起 GUI。
   不带 -game：SolsticeEditor 是 Editor 类型模块，只有 GIsEditor 为真时才会加载，
   而命令行的解析发生在 PostEngineInit 模块加载之前，所以该模块在 .uproject 里
-  声明的 LoadingPhase 必须是 Default（见 docs/ops/ENV.md §2.6）。
+  声明的 LoadingPhase 必须是 Default（见 tools/docs/ENVIRONMENT.md §2.6）。
 
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File tools\build\gen-assets.ps1

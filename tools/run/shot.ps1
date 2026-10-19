@@ -136,7 +136,7 @@ $shotArgs = @(
 )
 if ($UI) { $shotArgs += '-SolsticeShotUI' }
 # Pin the world clock so the same frame can be taken at noon, at dusk and at night
-# (docs/art/art.md SS0.4 asks for exactly that trio).
+# (docs/ART.md SS0.4 asks for exactly that trio).
 if ($Minute -ge 0) { $shotArgs += ("-SolsticeMinute={0}" -f $Minute) }
 # 钉种子：否则每次都是一个新世界，画面指标不可比。
 if ($Seed -gt 0) { $shotArgs += ("-SolsticeSeed={0}" -f $Seed) }

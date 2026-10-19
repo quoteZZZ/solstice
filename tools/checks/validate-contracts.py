@@ -10,7 +10,7 @@ switch to `pip install jsonschema`.
 Also checks duplicate card / species ids across files, and localization key
 parity between en.json and zh-Hans.json (missing/extra keys, {placeholder}
 mismatches, empty values). Exits 1 on any error.
-Contract: docs/INDEX.md SS5. Usage: python tools/checks/validate-contracts.py
+Contract: docs/README.md SS5. Usage: python tools/checks/validate-contracts.py
 """
 import json
 import os
@@ -169,7 +169,7 @@ def scan_world_scale(errors):
     """
     Config drift guard.
 
-    world.json once shipped size=512 while the code default and docs/setting/WORLD.md SS2.1 both
+    world.json once shipped size=512 while the code default and docs/WORLD.md SS2.1 both
     said 128. That one number made the realm four times wider: the camera had to sit at 144k units
     to frame it, the fog went opaque at that range, and the mesh grew sixteen-fold. It was found by
     eye after three wrong guesses - which is exactly the kind of thing a check exists to prevent.

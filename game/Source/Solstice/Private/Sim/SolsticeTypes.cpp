@@ -8,19 +8,19 @@ namespace Solstice
 {
 	namespace Tuning
 	{
-		// docs/gameplay/ECONOMY.md SS3.1
+		// docs/CARDS.md SS3.1
 		const int32 CardValue[12] = { 5, 10, 20, 30, 50, 80, 120, 180, 260, 380, 760, 0 };
 
-		// docs/gameplay/ECONOMY.md SS3.2 (index 0 and 11 cannot be recycled)
+		// docs/CARDS.md SS3.2 (index 0 and 11 cannot be recycled)
 		const int32 RecycleRefund[12] = { 0, 3, 6, 9, 25, 40, 60, 126, 182, 266, 532, 0 };
 
-		// docs/gameplay/ECONOMY.md SS5.1 (percent per tier, sums to 100)
+		// docs/CARDS.md SS5.1 (percent per tier, sums to 100)
 		const float TierWeight[10] =
 		{
 			40.0f, 22.0f, 14.0f, 10.0f, 6.0f, 4.0f, 2.0f, 1.2f, 0.5f, 0.3f
 		};
 
-		// docs/gameplay/ECONOMY.md SS2.1.1 offset brackets
+		// docs/CARDS.md SS2.1.1 offset brackets
 		const float OffsetBracket[5][2] =
 		{
 			{ 0.0f, 0.05f },
@@ -32,55 +32,55 @@ namespace Solstice
 		const int32 EchoBracketMin[5] = { 1, 4, 12, 30, 100 };
 		const int32 EchoBracketMax[5] = { 3, 10, 25, 60, 400 };
 
-		// docs/gameplay/ECONOMY.md SS4
+		// docs/CARDS.md SS4
 		const int32 PackPriceRandom = 70;
 		const int32 PackPriceSpecific = 105;
 		const int32 PackPriceSpecial = 150;
 		const int32 StylePackPrice = 400;
 
-		// docs/gameplay/ECONOMY.md SS5.2
+		// docs/CARDS.md SS5.2
 		const float SpecialPackOverTierChance = 0.08f;
 
-		// docs/gameplay/ECONOMY.md SS2.3 (one-off first-sight rewards)
+		// docs/CARDS.md SS2.3 (one-off first-sight rewards)
 		const int32 FirsthandWeather = 20;
 		const int32 FirsthandEco = 25;
 		const int32 FirsthandExtinction = 40;
 
-		// docs/gameplay/INTERVENTION.md SS1.6 / SS1.5
+		// docs/CARDS.md SS1.6 / SS1.5
 		const int32 MaxCopiesPerKind = 3;
 		const int32 HandSize = 10;
 
-		// docs/setting/WORLD.md SS4
+		// docs/WORLD.md SS4
 		const int32 ChronicleCapacity = 500;
 
-		// docs/gameplay/INTERVENTION.md SS3
+		// docs/CARDS.md SS3
 		const float DisturbanceDecayPerWorldHour = -2.0f;
 
-		// docs/gameplay/ECONOMY.md SS2.1 rule 3
+		// docs/CARDS.md SS2.1 rule 3
 		const int32 EchoPerMinuteCap = 20;
 		const float EchoOverCapMultiplier = 0.25f;
 
-		// docs/gameplay/ECONOMY.md SS2.2
+		// docs/CARDS.md SS2.2
 		const float SedimentCoefficient = 0.5f;
 		const float DisturbancePenaltyThreshold = 60.0f;
 
-		// docs/gameplay/TIME.md SS2.1
+		// docs/WORLD.md SS2.1
 		const int32 WorldMinutesPerWorldDay = 1440;
 		const float DefaultRealMinutesPerWorldDay = 3.0f;
 
-		// docs/setting/WORLD.md SS2.1
+		// docs/WORLD.md SS2.1
 		const float TileSizeMeters = 1.0f;
 		const float MaxHeightMeters = 64.0f;
 		const float HeightQuantum = 0.25f;
 
-		// docs/setting/WORLD.md SS2.2 / SS3.2
+		// docs/WORLD.md SS2.2 / SS3.2
 		const float BiomeDesertFertility = 0.15f;
 		const float LapseRatePer100m = -0.6f;
 
-		// docs/setting/WORLD.md SS2.1
+		// docs/WORLD.md SS2.1
 		const int32 IndividualBudgetSmall = 1200;
 
-		// ---- terrain shaping (docs/setting/WORLD.md SS2.2) ----
+		// ---- terrain shaping (docs/WORLD.md SS2.2) ----
 		// Shape and height distribution moved to Sim/SolsticeWorldGen.{h,cpp} (a port of
 		// studio/previews/world-model.html). What stays here is the per-tile field noise that is
 		// not part of the height field.
@@ -90,12 +90,12 @@ namespace Solstice
 		const float TerrainMoistureBase = 0.30f;
 		const float TerrainMoistureNoise = 0.5f;
 
-		// ---- water bodies (docs/setting/WORLD.md SS3.1) ----
+		// ---- water bodies (docs/WORLD.md SS3.1) ----
 		const float WaterDepthEpsilonMeters = 0.01f;
 		const float SeaDepthMeters = 1.0f;
 		const float LakeDepthMeters = 0.5f;
 
-		// ---- biome classification (docs/setting/WORLD.md SS2.2) ----
+		// ---- biome classification (docs/WORLD.md SS2.2) ----
 		const FBiomeRange BiomeWoodland = { 5.0f, 28.0f, 0.50f, 0.80f, 30.0f, 0.60f };
 		const FBiomeRange BiomeGrass = { 5.0f, 30.0f, 0.30f, 0.60f, 20.0f, 0.40f };
 		const float BiomeRockSlopeMoistureMax = 0.40f;
@@ -103,7 +103,7 @@ namespace Solstice
 		const float BiomeRockSlopeFertilityMax = 0.20f;
 		const float BiomeHighlandHeightM = 25.0f;
 
-		// ---- cadence (docs/tech/ARCHITECTURE.md SS1.3) ----
+		// ---- cadence (docs/TECH.md SS1.3) ----
 		const float WeatherStepWorldMinutes = 10.0f;
 		const float EcoPeriodLod0WorldMinutes = 4.0f;
 		const float EcoPeriodLod1WorldMinutes = 8.0f;
@@ -111,7 +111,7 @@ namespace Solstice
 		const int32 BiomeRecheckEveryEcoSteps = 15;
 		const int32 MarkAllDirtyEveryWorldMinutes = 360;
 
-		// ---- solar geometry (docs/setting/WORLD.md SS3.2, docs/gameplay/TIME.md SS3) ----
+		// ---- solar geometry (docs/WORLD.md SS3.2, docs/WORLD.md SS3) ----
 		const float EarthAxialTiltDeg = 23.44f;
 		const float DeclinationDayOffset = 284.0f;
 		const float SolarHourAngleDegPerHour = 15.0f;
@@ -131,7 +131,7 @@ namespace Solstice
 		const float DiurnalPeakHour = 9.0f;
 		const float CloudCoolingC = 1.5f;
 
-		// ---- slow drift rates (docs/setting/PHYSICS.md SS5) ----
+		// ---- slow drift rates (docs/WORLD.md SS5) ----
 		const float HumidityRainGain = 0.02f;
 		const float HumidityEvaporateBaseC = 10.0f;
 		const float HumidityEvaporateRate = 0.0004f;
@@ -157,7 +157,7 @@ namespace Solstice
 		const float RainToStormThreshold01 = 0.5f;
 		const float CloudToOvercastThreshold01 = 0.6f;
 
-		// ---- tile moisture / snow / ice (docs/setting/PHYSICS.md SS5) ----
+		// ---- tile moisture / snow / ice (docs/WORLD.md SS5) ----
 		const float TileMoistureRainGain = 0.004f;
 		const float TileMoistureEvaporateBaseC = 5.0f;
 		const float TileMoistureEvaporateRate = 0.00002f;
@@ -342,7 +342,7 @@ namespace Solstice
 	}
 
 	// ------------------------------------------------------------------
-	// Presentation colours (docs/art/ART-STYLE.md SS3.3 / SS3.4)
+	// Presentation colours (docs/ART.md SS3.3 / SS3.4)
 	// ------------------------------------------------------------------
 
 	FLinearColor ElementColor(EElement Element)

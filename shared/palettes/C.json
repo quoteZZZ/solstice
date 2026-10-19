@@ -3,7 +3,7 @@
   "name_zh": "黄金时刻",
   "reference": "Your Name x Hyrule",
   "time_slot": "dusk",
-  "truth": "docs/art/PALETTE.md",
+  "truth": "docs/ART.md",
   "colors": {
     "sky_zenith": "#3B4E86",
     "sky_mid": "#8A6FA8",

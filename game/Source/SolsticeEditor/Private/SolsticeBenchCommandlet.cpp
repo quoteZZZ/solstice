@@ -85,7 +85,7 @@ namespace
 
 		// Virtual time, speed index 2 = the 4x preset. Derive the real-seconds-per-world-minute
 		// from the kernel itself rather than hard-coding it, so this keeps working if the pace
-		// tuning (docs/setting/SPECIES.md SS2.1) ever moves.
+		// tuning (docs/LATER.md SS2.1) ever moves.
 		Kernel.SetTimeMode(Solstice::ETimeMode::Virtual);
 		Kernel.SetSpeedIndex(2);
 		Kernel.SetPaused(false);

@@ -5,7 +5,7 @@
 // same path into a UProceduralMeshComponent, and the outline hull is just a second copy with
 // a scale and a colour.
 //
-// Layer rule (docs/tech/STRUCTURE.md SS3): Gen/ may read Sim data, but Sim/ never sees Gen/.
+// Layer rule (docs/TECH.md SS3): Gen/ may read Sim data, but Sim/ never sees Gen/.
 
 #pragma once
 
@@ -14,7 +14,7 @@
 
 namespace Solstice
 {
-	/** One metre in Unreal units. 1 tile = 1 m (docs/setting/WORLD.md SS2.1). */
+	/** One metre in Unreal units. 1 tile = 1 m (docs/WORLD.md SS2.1). */
 	constexpr float MeterUU = 100.0f;
 
 	struct FMeshBuilder

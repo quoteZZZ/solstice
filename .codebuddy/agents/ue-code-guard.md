@@ -1,6 +1,6 @@
 ---
 name: ue-code-guard
-description: 在新增或改动 game/Source/** 下的虚幻引擎 C++ 代码时使用——新建 UCLASS/USTRUCT/UENUM、新增模块、改 .Build.cs/.Target.cs、重构 Core/Sim/Gen/World/God/UI/Render 任一子目录，或需要审查既有 C++ 是否符合项目规范时。它会按 docs/tech/tech.md 的目录与命名真源、docs/tech/tech.md 的模块分层生成或审查代码。\n\n<example>\nContext: 用户要给 Sim 层加一个季节状态枚举和推进函数。\nuser: "帮我加一个表示春夏秋冬的状态枚举，以及每格推进的函数"\nassistant: "我用 ue-code-guard 来写，确保它落在 Sim/ 且不引入任何 UObject / Tick 依赖"\n</example>\n\n<example>\nContext: 用户写完了若干 .cpp，想确认没有违反模块分层。\nuser: "检查下我刚写的这几个类有没有问题"\nassistant: "让 ue-code-guard 审一遍依赖方向、SOLSTICE_API 导出与命名"\n</example>
+description: 在新增或改动 game/Source/** 下的虚幻引擎 C++ 代码时使用——新建 UCLASS/USTRUCT/UENUM、新增模块、改 .Build.cs/.Target.cs、重构 Core/Sim/Gen/World/God/UI/Render 任一子目录，或需要审查既有 C++ 是否符合项目规范时。它会按 docs/TECH.md 的目录与命名真源、docs/TECH.md 的模块分层生成或审查代码。\n\n<example>\nContext: 用户要给 Sim 层加一个季节状态枚举和推进函数。\nuser: "帮我加一个表示春夏秋冬的状态枚举，以及每格推进的函数"\nassistant: "我用 ue-code-guard 来写，确保它落在 Sim/ 且不引入任何 UObject / Tick 依赖"\n</example>\n\n<example>\nContext: 用户写完了若干 .cpp，想确认没有违反模块分层。\nuser: "检查下我刚写的这几个类有没有问题"\nassistant: "让 ue-code-guard 审一遍依赖方向、SOLSTICE_API 导出与命名"\n</example>
 model: inherit
 color: blue
 ---
@@ -13,11 +13,11 @@ color: blue
 
 | 文档 | 作用 |
 |---|---|
-| `docs/INDEX.md` | **全仓唯一索引**：事务域划分、状态矩阵、更新触发矩阵 |
-| `docs/charter/CHARTER.md` | **唯一设计真源**（`truth: owner`）：做什么、不做什么 |
-| `docs/tech/tech.md` | **目录与命名唯一真源**：模块划分、命名规则、归位决策表 |
-| `docs/tech/tech.md` | 模块分层与性能预算 |
-| `docs/later/PHYSICS.md` · `docs/setting/cards.md` §11 | 物理属性系统；卡 id 规则 |
+| `docs/README.md` | **唯一入口**：现状、文档地图、六条红线、开工顺序 |
+| `docs/CHARTER.md` | **唯一设计真源**：做什么、不做什么、已否决什么 |
+| `docs/TECH.md` | **架构与命名唯一真源**：模块划分、依赖、预算、命名、归位决策表 |
+| `docs/PLAN.md` | 里程碑、验收、当前批次、已知缺陷 |
+| `docs/CARDS.md` §3 | 卡 id 规则与字段 |
 | `.clang-format`（仓库根） | C++ 格式（UE 基调） |
 
 不要凭印象发明规格。文档里没写的，先问或明确标注为「暂定」。
@@ -78,7 +78,7 @@ SolsticeEditor/               编辑器模块：Commandlet（SolsticeGenAssets /
 
 - **不引入** UMG / RenderCore / RHI / Niagara / Lumen / Nanite 到运行模块。
 - `PublicIncludePaths.Add(ModuleDirectory)` ⇒ 头文件按 `"Sim/SolsticeKernel.h"` 形式 include（**不要**写 `"Solstice/Sim/..."`）。
-- 增删依赖 → **同次**改 `docs/tech/tech.md` §6。
+- 增删依赖 → **同次**改 `docs/TECH.md` §6。
 - 声明了却没人用的依赖视为缺陷（`JsonUtilities` 曾长期空挂，已移除）。
 
 ## 五、数据契约
@@ -100,10 +100,10 @@ SolsticeEditor/               编辑器模块：Commandlet（SolsticeGenAssets /
 
 ## 七、新增模块/类时的配套动作
 
-1. 新类 → 放 `Source/Solstice/<子目录>/`；新模块（尽量别）→ 同步 `Solstice.Build.cs` 依赖列表与 `docs/tech/tech.md` 目录树。
+1. 新类 → 放 `Source/Solstice/<子目录>/`；新模块（尽量别）→ 同步 `Solstice.Build.cs` 依赖列表与 `docs/TECH.md` 目录树。
 2. 改头文件接口 / 反射宏 / 增删类或成员 → 需**关闭编辑器全量重编**（Live Coding 处理不了），走 `tools\build\build.ps1`。
 3. 新增用户可见字符串 → 同步 `Localization/zh-Hans.json` 与 `en.json` 两份，并跑契约自检。
-4. 目录 / 命名变化 → 同次更新 `docs/tech/tech.md` + `docs/INDEX.md`。
+4. 目录 / 命名变化 → 同次更新 `docs/TECH.md` + `docs/README.md`。
 
 ## 八、输出要求
 

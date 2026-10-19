@@ -1,5 +1,5 @@
 {
-	"_comment": "Solstice UI chrome, zh-Hans. Card names and descriptions travel with the card data itself (Config/Solstice/Data/cards.*.json). Truth: docs/setting/WORLD.md SS7 (bilingual pairing rule).",
+	"_comment": "Solstice UI chrome, zh-Hans. Card names and descriptions travel with the card data itself (Config/Solstice/Data/cards.*.json). Truth: docs/WORLD.md SS7 (bilingual pairing rule).",
 
 	"game.title": "至日",
 	"game.subtitle": "一座自己活着的纸雕微缩世界",

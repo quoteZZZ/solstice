@@ -1,7 +1,7 @@
 # `studio/` — 生图线（ComfyUI）
 
 本目录是**产出素材**的本地生图线，与 `game/` 的运行时工程解耦。真源：
-[`docs/tech/tech.md`](../docs/tech/tech.md) §4。
+[`docs/TECH.md`](../docs/TECH.md) §4。
 
 ## 为什么需要它
 
@@ -34,7 +34,7 @@ studio/
 D:\ComfyUI\run_nvidia_gpu.bat
 # 本机另有一份隐藏窗口启动脚本（日志转 studio/out/，可反复执行）：
 #   powershell -ExecutionPolicy Bypass -File studio\scripts\start-comfy.ps1
-#   ⚠ 该脚本目前未入库 —— studio/scripts/ 不在 docs/tech/STRUCTURE.md §4 的目录表里，归位待定
+#   ⚠ 该脚本目前未入库 —— studio/scripts/ 不在 docs/TECH.md §4 的目录表里，归位待定
 
 # 2. 检查模型与连通性
 python studio/tools/comfy_batch.py --check
@@ -48,13 +48,13 @@ python studio/tools/comfy_batch.py --jobs studio/jobs/paper-textures.jsonl --onl
 
 产物由脚本从 ComfyUI 的 `/view` 接口取回（不依赖输出目录布局），按 job 的 `out` 名字落进
 `studio/out/<子目录>/`，并往 `studio/out/manifest.jsonl` 追加一行（字段见
-[`../docs/art/art.md`](../docs/art/art.md) §2：id / kind / style / model / prompt 引用 /
+[`../docs/ART.md`](../docs/ART.md) §2：id / kind / style / model / prompt 引用 /
 seed / 尺寸 / 日期 / source），这是 **AI 生成内容的合规留档**，必须入库。
 模型三元组与采样基线写在 `presets/paper-diorama.json` 的 `pipeline` 块里，脚本不硬编码模型名。
 
 ## 风格锚
 
-`presets/paper-diorama.json` 是与 [`docs/art/art.md`](../docs/art/art.md) 对齐的风格参数：
+`presets/paper-diorama.json` 是与 [`docs/ART.md`](../docs/ART.md) 对齐的风格参数：
 纸张纤维、切边毛茬、四档硬光、无高光。生图 prompt 由这个 preset 拼出来，不手写。
 
 ## 生图模型与路径（本机实测真源）
@@ -78,7 +78,7 @@ seed / 尺寸 / 日期 / source），这是 **AI 生成内容的合规留档**�
 
 **由此产生的硬约束**（`f351e05` 已落实）：`workflows\paper-texture.json` 必须走
 `UNETLoader + CLIPLoader(type=flux2) + VAELoader` 三段式 + `Flux2Scheduler`，采样基线
-`steps=4 / cfg=1.0 / euler`（[`../docs/art/art.md`](../docs/art/art.md) §3）。旧稿是
+`steps=4 / cfg=1.0 / euler`（[`../docs/ART.md`](../docs/ART.md) §3）。旧稿是
 `CheckpointLoaderSimple` 的 SD 图，在只装分离式 Flux2 的机器上必然报 checkpoint not found，
 **别退回那种写法**。机器上另有一份可参照的官方图（UI 格式，非 API 格式）：
 `D:\ComfyUI\ComfyUI\user\default\workflows\Flux2 Klein 4B - Text to Image.json`。

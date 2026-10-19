@@ -1,6 +1,6 @@
 // Solstice - Core layer: runtime data loading.
 //
-// Contract: content is data driven (docs/tech/ARCHITECTURE.md SS2.2 rule 4). Species, cards,
+// Contract: content is data driven (docs/TECH.md SS2.2 rule 4). Species, cards,
 // world presets, style themes and localisation all arrive as JSON from
 // Config/Solstice/{Data,Localization}/ and are parsed into plain Sim structs, so the kernel
 // itself never has to know where data comes from.
@@ -33,7 +33,7 @@ namespace Solstice
 
 		static bool LoadFileToString(const FString& RelativePath, FString& OutText);
 
-		/** Config/Solstice/Data - the runtime contract location from docs/tech/STRUCTURE.md SS6. */
+		/** Config/Solstice/Data - the runtime contract location from docs/TECH.md SS6. */
 		static FString GetDataDirectory();
 		static FString GetLocalizationDirectory();
 	};

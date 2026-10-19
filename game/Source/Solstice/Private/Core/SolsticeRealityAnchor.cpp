@@ -94,7 +94,7 @@ void FRealityAnchor::Tick(double RealDeltaSeconds, bool bAllowNetwork)
 		bWeatherFromNetwork = false;
 		return;
 	}
-	// Weather refreshes every 30 real minutes (docs/gameplay/TIME.md SS4.1).
+	// Weather refreshes every 30 real minutes (docs/WORLD.md SS4.1).
 	if (!bRequestInFlight && SecondsSinceWeatherFetch >= 1800.0)
 	{
 		SecondsSinceWeatherFetch = 0.0;
@@ -123,7 +123,7 @@ void FRealityAnchor::BeginWeatherRequest()
 	}
 	bRequestInFlight = true;
 
-	// Open-Meteo, free and key-less (docs/gameplay/TIME.md SS4.2).
+	// Open-Meteo, free and key-less (docs/WORLD.md SS4.2).
 	const FString Url = FString::Printf(
 		TEXT("https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f")
 		TEXT("&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m"),

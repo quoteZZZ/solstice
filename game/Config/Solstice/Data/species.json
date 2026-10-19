@@ -1,5 +1,5 @@
 {
-	"_comment": "Solstice M0 species data. Truth: docs/setting/SPECIES.md SS2 / SS2.1 (template initial values) and SS4 (biome x species set). Contract: shared/schema/species.schema.json.",
+	"_comment": "Solstice M0 species data. Truth: docs/LATER.md SS2 / SS2.1 (template initial values) and SS4 (biome x species set). Contract: shared/schema/species.schema.json.",
 	"_note": "The world starts in chaos with no life (WORLD SS3.3 step 5). These values take effect only when a species is introduced, by the creator's 'life seed' step or by a seed-life card.",
 	"species": [
 		{

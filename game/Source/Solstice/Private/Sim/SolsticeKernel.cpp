@@ -1,7 +1,7 @@
 // Solstice - Sim layer: world kernel implementation.
 //
 // Tick model: Advance() converts real seconds into whole world minutes and runs
-// StepWorldMinute() once per world minute (docs/tech/ARCHITECTURE.md SS2.2.3 "fixed logic
+// StepWorldMinute() once per world minute (docs/TECH.md SS2.2.3 "fixed logic
 // tick = 1 world minute"). Expensive subsystems run at a lower cadence (SimLOD) but always
 // on the same discrete boundary, so a given seed and a given wall of real seconds always
 // produce the same world.
@@ -65,7 +65,7 @@ namespace Solstice
 		}
 
 		// ------------------------------------------------------------------
-		// Terrain noise parameters (docs/setting/WORLD.md SS2.2)
+		// Terrain noise parameters (docs/WORLD.md SS2.2)
 		// One group per generator branch in GenerateTerrain(). These are implementation
 		// constants of the noise itself - they live here, named, instead of inline in the
 		// switch, so a shape tune is a single-file read.
@@ -130,7 +130,7 @@ namespace Solstice
 			constexpr int32 MoistureOctaves = 3;
 		}
 
-		/** Material dictionary, docs/setting/PHYSICS.md SS2.1 table A + table B albedo. */
+		/** Material dictionary, docs/WORLD.md SS2.1 table A + table B albedo. */
 		struct FMaterialProps
 		{
 			float Density;
@@ -308,7 +308,7 @@ namespace Solstice
 		InitPoolAndUnlocks();
 		ResetHand();
 
-		// 混沌初态: no life, uncoloured paper (docs/setting/WORLD.md SS3.3 step 5).
+		// 混沌初态: no life, uncoloured paper (docs/WORLD.md SS3.3 step 5).
 		bChaosState = true;
 		if (Config.bWithLifeSeed)
 		{
@@ -447,7 +447,7 @@ namespace Solstice
 
 	void FSimKernel::ClassifyBiomes()
 	{
-		// Priority order from docs/setting/WORLD.md SS2.2, restricted to the M0 set:
+		// Priority order from docs/WORLD.md SS2.2, restricted to the M0 set:
 		// water -> rock slope -> woodland -> grass.
 		for (int32 Index = 0; Index < Tiles.Num(); ++Index)
 		{
@@ -626,7 +626,7 @@ namespace Solstice
 
 		StepEnvironment();
 
-		// SimLOD: cheap always, expensive rarely (docs/tech/ARCHITECTURE.md SS1.3).
+		// SimLOD: cheap always, expensive rarely (docs/TECH.md SS1.3).
 		StepTiles(1.0f);
 
 		WeatherAccumulator += 1.0f;
@@ -681,7 +681,7 @@ namespace Solstice
 		const float DayFraction = MinutesOfDay / 1440.0f;
 		Sky.DayFraction = DayFraction;
 
-		// ---- solar position (docs/setting/WORLD.md SS3.2, docs/gameplay/TIME.md SS3) ----
+		// ---- solar position (docs/WORLD.md SS3.2, docs/WORLD.md SS3) ----
 		const int32 DayOfYear = SolarDayOfYear();
 		const float Declination = Tuning::EarthAxialTiltDeg
 			* FMath::Sin(2.0f * PI * (Tuning::DeclinationDayOffset + static_cast<float>(DayOfYear)) / 365.0f);
@@ -750,7 +750,7 @@ namespace Solstice
 		}
 		const float WaterFraction = WaterTiles / FMath::Max(1.0f, static_cast<float>(Tiles.Num()));
 
-		// Tides: one world day period (docs/setting/WORLD.md SS3.1).
+		// Tides: one world day period (docs/WORLD.md SS3.1).
 		float TargetWaterLevel = Config.BaseWaterLevel;
 		if (Config.bTides)
 		{
@@ -840,7 +840,7 @@ namespace Solstice
 			}
 			Tile.Moisture = FMath::Clamp(Moisture, 0.0f, 1.0f);
 
-			// ---- snow / ice phase change (docs/setting/PHYSICS.md SS5) ----
+			// ---- snow / ice phase change (docs/WORLD.md SS5) ----
 			if (Tile.IsWater() && Tile.LocalTempC < 0.0f)
 			{
 				Tile.Mat = static_cast<uint8>(EMaterial::Ice);
@@ -959,7 +959,7 @@ namespace Solstice
 		const float Humidity = Sky.Humidity;
 		const float SeasonalBias = FMath::Clamp((10.0f - Sky.AirTempC) / 30.0f, 0.0f, 0.6f);
 
-		// Transition weights, docs/setting/WORLD.md SS3.2 (initial proposal values).
+		// Transition weights, docs/WORLD.md SS3.2 (initial proposal values).
 		float Weights[static_cast<int32>(EWeather::Count)] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
 		switch (Sky.GetWeather())
 		{
@@ -1054,7 +1054,7 @@ namespace Solstice
 			break;
 		}
 
-		// First-sight rewards for weather phenomena (docs/gameplay/ECONOMY.md SS2.3).
+		// First-sight rewards for weather phenomena (docs/CARDS.md SS2.3).
 		if (Sky.RainIntensity > 0.2f)
 		{
 			DaysWithoutRain = 0;
@@ -1093,7 +1093,7 @@ namespace Solstice
 
 	void FSimKernel::StepSediment(double RealDeltaSeconds)
 	{
-		// docs/gameplay/ECONOMY.md SS2.2: sediment = potential x 0.5 per real minute.
+		// docs/CARDS.md SS2.2: sediment = potential x 0.5 per real minute.
 		const double RealMinutes = RealDeltaSeconds / 60.0;
 		const double Potential = static_cast<double>(GetEcoPotential());
 		SedimentAccumulator += Potential * static_cast<double>(Tuning::SedimentCoefficient) * RealMinutes;
@@ -1484,7 +1484,7 @@ namespace Solstice
 
 	void FSimKernel::SeedLifeFromBiomes()
 	{
-		// docs/setting/SPECIES.md SS4: biome x species set.
+		// docs/LATER.md SS4: biome x species set.
 		const int32 Size = Config.Size;
 		int32 Placed = 0;
 		for (int32 Index = 0; Index < Tiles.Num() && Placed < 120; ++Index)
@@ -1663,7 +1663,7 @@ namespace Solstice
 		Unlocked.Init(0, Count);
 		DayReleaseCount.Init(0, Count);
 
-		// docs/gameplay/INTERVENTION.md SS1.6: the starting pool is every 0-tier kind, one copy.
+		// docs/CARDS.md SS1.6: the starting pool is every 0-tier kind, one copy.
 		for (int32 Index = 0; Index < Count; ++Index)
 		{
 			if (Catalog.Cards[Index].Tier == 0)
@@ -1764,7 +1764,7 @@ namespace Solstice
 			}
 		}
 
-		// Opening-hand guarantee (docs/gameplay/INTERVENTION.md SS1.6): at least one terrain
+		// Opening-hand guarantee (docs/CARDS.md SS1.6): at least one terrain
 		// card and one weather card, so the first hand is never all record cards.
 		static const EEffect TerrainEffects[] = { EEffect::RaiseTerrain, EEffect::LowerTerrain, EEffect::FlattenTerrain, EEffect::RidgeLine, EEffect::ErodeSurface, EEffect::PaintSurface };
 		static const EEffect WeatherEffects[] = { EEffect::WeatherPush, EEffect::HeatArea, EEffect::ChillArea, EEffect::WaterLevel, EEffect::Ignite };
@@ -1902,7 +1902,7 @@ namespace Solstice
 			return false;
 		}
 		const FCardDef& Card = Catalog.Cards[CardIndex];
-		// 0-tier and forbidden cards cannot be recycled (docs/gameplay/ECONOMY.md SS3.2).
+		// 0-tier and forbidden cards cannot be recycled (docs/CARDS.md SS3.2).
 		if (Card.Tier == 0 || Card.IsForbidden())
 		{
 			return false;
@@ -1990,7 +1990,7 @@ namespace Solstice
 
 	float FSimKernel::ComputeOffset(int32 AffectedTileCount, float MaxHeightDelta, float BiomassDeltaRatio) const
 	{
-		// docs/gameplay/ECONOMY.md SS2.1.1
+		// docs/CARDS.md SS2.1.1
 		const float RealmTiles = FMath::Max(1.0f, static_cast<float>(Tiles.Num()));
 		const float AreaTerm = FMath::Sqrt(FMath::Clamp(static_cast<float>(AffectedTileCount) / RealmTiles, 0.0f, 1.0f));
 		const float HeightTerm = FMath::Clamp(FMath::Abs(MaxHeightDelta) / Tuning::MaxHeightMeters, 0.0f, 1.0f);
@@ -2325,7 +2325,7 @@ namespace Solstice
 		ApplyEffect(Card, TargetTile, bSettleAsEntity, Offset, Affected);
 
 		// Wet-paper window: a card that landed as a permanent entity can be pulled back within
-		// three real seconds (docs/gameplay/INTERVENTION.md SS1.1). State-scoped effects get none.
+		// three real seconds (docs/CARDS.md SS1.1). State-scoped effects get none.
 		bUndoAvailable = false;
 		if (bSettleAsEntity && Affected.Num() > 0 && Affected.Num() <= 4096)
 		{
@@ -2423,7 +2423,7 @@ namespace Solstice
 
 	bool FSimKernel::AreSpecialPacksAvailable() const
 	{
-		// Special packs are bound to the real calendar (docs/gameplay/ECONOMY.md SS5.2).
+		// Special packs are bound to the real calendar (docs/CARDS.md SS5.2).
 		return IsNearSolsticeOrEquinox(FMath::Clamp(Reality.Month, 1, 12), FMath::Clamp(Reality.Day, 1, 31));
 	}
 
@@ -2432,7 +2432,7 @@ namespace Solstice
 		const int32 Wanted = FMath::Clamp(Points, 0, 100);
 		const int32 Available = FMath::FloorToInt(Disturbance);
 		const int32 Applied = FMath::Min(Wanted, Available);
-		OutCost = (Applied + 1) / 2;	// 1 echo per 2 points (docs/gameplay/ECONOMY.md SS4)
+		OutCost = (Applied + 1) / 2;	// 1 echo per 2 points (docs/CARDS.md SS4)
 		if (OutCost > Ledger.Balance)
 		{
 			OutCost = Ledger.Balance;
@@ -2487,7 +2487,7 @@ namespace Solstice
 		{
 			const uint8 Element = ElementChoices[Rng.Stream(ERngStream::Loot).Range(0, ElementChoices.Num())];
 
-			// Tier from the drop weight table (docs/gameplay/ECONOMY.md SS5.1).
+			// Tier from the drop weight table (docs/CARDS.md SS5.1).
 			float TotalWeight = 0.0f;
 			for (int32 Tier = 0; Tier < 10; ++Tier)
 			{
@@ -2785,7 +2785,7 @@ namespace Solstice
 		float Potential = GetBiomassNorm() * GetDiversityIndex() * GetStabilityIndex();
 		if (Disturbance > Tuning::DisturbancePenaltyThreshold)
 		{
-			Potential *= 0.5f;	// gate four (docs/gameplay/ECONOMY.md SS6)
+			Potential *= 0.5f;	// gate four (docs/CARDS.md SS6)
 		}
 		return FMath::Clamp(Potential, 0.0f, 1.0f);
 	}

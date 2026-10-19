@@ -37,7 +37,7 @@ namespace Solstice
 		}
 
 		// ------------------------------------------------------------------
-		// Cel material tuning (docs/art/art.md SS2.1).
+		// Cel material tuning (docs/ART.md SS2.1).
 		// The material is unlit and paints its own three bands; everything the lighting model
 		// would have supplied is a colour here instead, which is the only way the band edges stay
 		// hard through post processing. This block is the whole "how does the world look under
@@ -278,7 +278,7 @@ namespace Solstice
 		//
 		// Decoded from PNG at startup instead of being imported as uassets.
 		//
-		// The repo does not store binary assets (docs/tech/STRUCTURE.md SS0) and an editor import
+		// The repo does not store binary assets (docs/TECH.md SS0) and an editor import
 		// pass cannot run headless on this machine, so the textures travel as the PNGs that
 		// `tools/art/gen-textures.py` writes and FImageUtils turns into Texture2D objects on the
 		// first Ensure(). That also means iterating on them costs a re-run of the python script

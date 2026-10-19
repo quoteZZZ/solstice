@@ -1,7 +1,7 @@
 // Solstice - God layer: the game mode.
 //
 // There is no level content. The realm is spawned from code, which is what keeps the promise in
-// docs/tech/STRUCTURE.md SS0: everything in Content/ can be rebuilt from seed + generator +
+// docs/TECH.md SS0: everything in Content/ can be rebuilt from seed + generator +
 // contract, so nothing that matters is a binary asset.
 
 #pragma once
