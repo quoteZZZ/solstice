@@ -607,6 +607,28 @@ namespace Solstice
 		return Base;
 	}
 
+	namespace
+	{
+		/**
+		 * One tree's cast shadow, resolved after the chunk is built.
+		 *
+		 * The shadow cannot come from the renderer: M_Cel draws its value from an emissive fill
+		 * that a shadow map never touches (measured - zeroing the sun moves the frame by a fifth,
+		 * and turning the shadow map off moves it by nothing). So the shadow is *baked into the
+		 * ground's vertex colours*, which are the albedo, which is what the fill multiplies.
+		 * That is a real shadow with a real direction, and it costs one multiply per vertex.
+		 */
+		struct FChunkShadowDisc
+		{
+			FVector Centre = FVector::ZeroVector;
+			float DirX = 1.0f;
+			float DirY = 0.0f;
+			float Along = 100.0f;
+			float Across = 100.0f;
+			float Depth = 0.55f;
+		};
+	}
+
 	void Gen::BuildChunk(const FSimKernel& Kernel, int32 ChunkX, int32 ChunkY, const FCelPalette& Palette, FMeshBuilder& Out, FMeshBuilder& OutHull)
 	{
 		const int32 Size = Kernel.GetSize();
@@ -615,6 +637,8 @@ namespace Solstice
 
 		const float RealmRadius = static_cast<float>(Size) * 0.5f * MeterUU;
 		const float RealmRadiusSq = RealmRadius * RealmRadius;
+
+		TArray<FChunkShadowDisc> Shadows;
 
 		// Chunk-level LOD. Detail is worth paying for where the camera actually looks - the middle of
 		// the disc - and worth nothing at the rim, which is seen at a glancing angle from 30k units
@@ -1045,7 +1069,7 @@ namespace Solstice
 				// (5-9 m crowns) that is complete canopy: no meadow, no beach, no readable hillside.
 				// A forest is defined by its clearings; 2.4% of tiles leaves stands with grass
 				// between them and keeps the silhouette of the land visible.
-				const float TreeChance = 0.001f + 0.010f * Forest;
+				const float TreeChance = 0.002f + 0.016f * Forest;
 				if (!bClipped && !Tile->IsWater() && Surface > 8.0f && Surface < 24.0f
 					&& CelGrain(X * 13 + 5, Y * 7 + 3) < TreeChance)
 				{
@@ -1120,8 +1144,8 @@ namespace Solstice
 					// framing: an 8-pixel dot has no silhouette. 5x trunk and 1.8x crown puts a
 					// tree at 5-9 m with a 5-8 m crown, i.e. back inside the spec and, more to the
 					// point, large enough to cast the shadows that make a hillside read.
-					constexpr float TreeScale = 3.2f;
-					constexpr float CrownScale = 1.9f;
+					constexpr float TreeScale = 3.4f;
+					constexpr float CrownScale = 1.55f;
 					const float TrunkHeight = (95.0f + 80.0f * CelGrain(X + 11, Y + 17)) * Vigour * HeightMul * TreeScale;
 					const float CrownRadius = (150.0f + 95.0f * CelGrain(Y + 3, X + 29)) * Vigour * CrownMul * CrownScale;
 					const FVector Root(Centre.X, Centre.Y, Surface * MeterUU);
@@ -1215,8 +1239,8 @@ namespace Solstice
 							Cushion(Out,
 								Root + FVector(FMath::Cos(A) * Reach, FMath::Sin(A) * Reach,
 									BaseZ + CrownRadius * (0.20f + 0.14f * CelGrain(Y + Arm, X + 7))),
-								7, CrownRadius * (0.66f + 0.14f * CelGrain(X + 3 * Arm, Y + 5)),
-								CrownRadius * 0.62f, LeafMid, LeafLit, X * 31 + Y * 7 + Arm * 13);
+								9, CrownRadius * (0.66f + 0.14f * CelGrain(X + 3 * Arm, Y + 5)),
+								CrownRadius * 0.94f, LeafMid, LeafLit, X * 31 + Y * 7 + Arm * 13);
 						}
 					}
 					else if (Family == 1)
@@ -1228,18 +1252,18 @@ namespace Solstice
 							const float T = static_cast<float>(Tier) / 3.0f;
 							Cushion(Out,
 								Root + FVector(0.0f, 0.0f, BaseZ + CrownRadius * 1.55f * T),
-								7, CrownRadius * (1.0f - 0.62f * T),
-								CrownRadius * (0.55f - 0.18f * T),
+								9, CrownRadius * (1.0f - 0.62f * T),
+								CrownRadius * (0.82f - 0.20f * T),
 								LeafMid, LeafLit, FamilySeed + Tier * 11);
 						}
 					}
 					else if (Family == 2)
 					{
-						Cushion(Out, Root + FVector(0.0f, 0.0f, BaseZ + CrownRadius * 0.30f),
-							7, CrownRadius, CrownRadius * 0.88f, LeafMid, LeafLit, FamilySeed);
+						Cushion(Out, Root + FVector(0.0f, 0.0f, BaseZ + CrownRadius * 0.34f),
+							9, CrownRadius, CrownRadius * 0.98f, LeafMid, LeafLit, FamilySeed);
 						Cushion(Out, Root + FVector(CrownRadius * 0.30f, CrownRadius * 0.18f,
-							BaseZ + CrownRadius * 0.46f), 6, CrownRadius * 0.62f,
-							CrownRadius * 0.58f, LeafMid, LeafLit, FamilySeed + 7);
+							BaseZ + CrownRadius * 0.50f), 8, CrownRadius * 0.62f,
+							CrownRadius * 0.90f, LeafMid, LeafLit, FamilySeed + 7);
 					}
 					else if (Family == 3)
 					{
@@ -1248,15 +1272,15 @@ namespace Solstice
 						// the eye infers from a thousand repeated domes.
 						const float LeanX = (CelGrain(X + 5, Y + 5) - 0.5f) * CrownRadius * 1.1f;
 						const float LeanY = (CelGrain(Y + 5, X + 5) - 0.5f) * CrownRadius * 1.1f;
-						Cushion(Out, Root + FVector(LeanX, LeanY, BaseZ + CrownRadius * 0.55f),
-							7, CrownRadius * 1.05f, CrownRadius * 0.66f, LeafMid, LeafLit, FamilySeed);
-						Cushion(Out, Root + FVector(LeanX * 1.7f, LeanY * 1.7f, BaseZ + CrownRadius * 0.30f),
-							6, CrownRadius * 0.60f, CrownRadius * 0.54f, LeafMid, LeafLit, FamilySeed + 9);
+						Cushion(Out, Root + FVector(LeanX, LeanY, BaseZ + CrownRadius * 0.62f),
+							9, CrownRadius * 1.05f, CrownRadius * 0.94f, LeafMid, LeafLit, FamilySeed);
+						Cushion(Out, Root + FVector(LeanX * 1.7f, LeanY * 1.7f, BaseZ + CrownRadius * 0.36f),
+							8, CrownRadius * 0.60f, CrownRadius * 0.88f, LeafMid, LeafLit, FamilySeed + 9);
 					}
 					else
 					{
-						Cushion(Out, Root + FVector(0.0f, 0.0f, CrownRadius * 0.20f),
-							7, CrownRadius, CrownRadius * 0.58f, LeafMid, LeafLit, FamilySeed);
+						Cushion(Out, Root + FVector(0.0f, 0.0f, CrownRadius * 0.26f),
+							9, CrownRadius, CrownRadius * 0.86f, LeafMid, LeafLit, FamilySeed);
 					}
 
 					// Ink hull around the whole tree, pivoted at its root so the crown grows outward
@@ -1269,6 +1293,30 @@ namespace Solstice
 					// crowns overlap - which on a hillside is everywhere - the outlines stack, and
 					// a third of the island's pixels measured below 0.12 luminance. A 3.5% shell
 					// is one clean pixel of line: the cel look needs a line, not a shadow.
+					// ---- cast shadow ----------------------------------------
+					//
+					// A tree with no shadow on the ground is a decal, and a hillside of them is a
+					// sticker sheet. The direction is the sim's own sun, so the shadows agree with
+					// the toon bands instead of contradicting them.
+					{
+						const FSkyState& SkyNow = Kernel.GetSky();
+						const float AltDeg = FMath::Clamp(SkyNow.SolarAltitudeDeg, 12.0f, 80.0f);
+						const float Az = FMath::DegreesToRadians(SkyNow.SunAzimuthDeg);
+						const float Throw = (TrunkHeight + CrownRadius * 1.5f)
+							/ FMath::Max(0.18f, FMath::Tan(FMath::DegreesToRadians(AltDeg)));
+						FChunkShadowDisc Disc;
+						Disc.DirX = -FMath::Cos(Az);
+						Disc.DirY = -FMath::Sin(Az);
+						Disc.Centre = FVector(
+							Root.X + Disc.DirX * Throw * 0.45f,
+							Root.Y + Disc.DirY * Throw * 0.45f,
+							Surface * MeterUU);
+						Disc.Along = FMath::Min(Throw, CrownRadius * 3.2f) * 0.62f + CrownRadius * 0.85f;
+						Disc.Across = CrownRadius * 1.10f;
+						Disc.Depth = 0.60f;
+						Shadows.Add(Disc);
+					}
+
 					EmitHull(Out, HullFrom, Out.Num(), HullTriFrom,
 						Root + FVector(0.0f, 0.0f, TrunkHeight * 0.55f), 1.035f, Palette.InkWash, OutHull);
 				}
@@ -1299,8 +1347,15 @@ namespace Solstice
 					const float StoneR = (bUpland ? 26.0f : 22.0f)
 						+ (bUpland ? 34.0f : 30.0f) * CelGrain(X + 51, Y + 37);
 					const float StoneH = StoneR * (0.55f + 0.45f * CelGrain(X + 63, Y + 21));
-					const FLinearColor Stone(0.56f, 0.55f, 0.52f, 1.0f);
-					const FLinearColor StoneTop(0.74f, 0.73f, 0.68f, 1.0f);
+					// Dark, warm rock - not 0.56 linear.
+					//
+					// At 0.56 these outcrops are sRGB 0.78 before the toon band lifts them, so
+					// every one of them rendered as a white chip lying on the grass: a few
+					// hundred of them across the island read as litter, and that is exactly what
+					// the frame showed. Real stone is a mid-dark grey whose *lit top* is the
+					// bright part, and the band does that for us - the albedo must not.
+					const FLinearColor Stone(0.115f, 0.110f, 0.102f, 1.0f);
+					const FLinearColor StoneTop(0.215f, 0.205f, 0.185f, 1.0f);
 					// Two cushions, not one.
 					//
 					// A single six-sided cushion is a faceted dome - at this size it reads as a
@@ -1397,6 +1452,41 @@ namespace Solstice
 						Out.Wall(A, B, LevelZ - RibbonHalf, LevelZ + RibbonHalf, EdgeNormal[Side], Palette.Ribbon, Palette.Ribbon);
 					}
 				}
+			}
+		}
+
+		// ---- bake the tree shadows into the ground ---------------------------
+		//
+		// Done after the whole chunk is emitted, because a shadow falls on *other tiles* - the
+		// tree that casts it has already been built by the time the ground it darkens exists.
+		// Vertices above the shadow plane are skipped: those are the tree's own crown, and
+		// darkening it would paint the canopy with its own shadow.
+		for (const FChunkShadowDisc& Disc : Shadows)
+		{
+			const float PlaneZ = Disc.Centre.Z + 14.0f;
+			for (int32 Index = 0; Index < Out.Positions.Num(); ++Index)
+			{
+				const FVector& P = Out.Positions[Index];
+				if (P.Z > PlaneZ)
+				{
+					continue;
+				}
+				const float DX = P.X - Disc.Centre.X;
+				const float DY = P.Y - Disc.Centre.Y;
+				const float Along = DX * Disc.DirX + DY * Disc.DirY;
+				const float Across = -DX * Disc.DirY + DY * Disc.DirX;
+				const float D = (Along * Along) / (Disc.Along * Disc.Along)
+					+ (Across * Across) / (Disc.Across * Disc.Across);
+				if (D >= 1.0f)
+				{
+					continue;
+				}
+				const float Fall = 1.0f - D;
+				const float Dark = 1.0f - Disc.Depth * Fall * Fall;
+				FLinearColor& C = Out.Colors[Index];
+				C.R *= Dark;
+				C.G *= Dark;
+				C.B *= Dark;
 			}
 		}
 	}

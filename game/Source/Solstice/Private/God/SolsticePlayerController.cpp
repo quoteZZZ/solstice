@@ -24,8 +24,20 @@ namespace
 	/** Middle-drag dolly: full screen height of travel is ~0.8 of the current distance. */
 	constexpr float MiddleDragDolly = 0.004f;
 
-	/** The four elevations, degrees above the horizon (docs/ART.md SS7). */
-	constexpr float CameraPitchDegrees[4] = { 14.0f, 35.0f, 62.0f, 88.0f };
+	/**
+		The four elevations, degrees above the horizon (docs/ART.md SS7).
+
+		8 / 24 / 48 / 88, and the first one is not a small change.
+
+		The vertical field is 29.4 degrees, so the horizon only enters the picture while the
+		camera looks down less than 14.7 degrees - at 35 degrees the top of the frame is 20
+		degrees *below* horizontal and every pixel is sea. That is why the world read as a plate
+		floating in a void: there was no sky in any frame to be a landscape with, and the eye
+		gets no horizon, no distance and no scale. 8 degrees puts the horizon a fifth of the way
+		down and gives the sky a third of the picture, which is the composition every photograph
+		of an island actually has.
+	*/
+	constexpr float CameraPitchDegrees[4] = { 8.0f, 24.0f, 48.0f, 88.0f };
 	/** Where the eight azimuth stops start: -45 puts a three-quarter view on stop 0. */
 	constexpr float AzimuthBase = -45.0f;
 	constexpr float AzimuthStep = 45.0f;
@@ -636,14 +648,15 @@ void ASolsticePlayerController::ApplyCameraStop(bool bAnimate)
 	// Only the *snap* applies it: once the player has dollied, changing elevation must keep
 	// their distance (distance is the one continuous axis), so an animated stop change clamps
 	// whatever they had instead of resetting it.
-	const float DefaultDistance = (PitchIndex <= 1) ? Fit * 0.72f : Fit;
+	const float DefaultDistance = (PitchIndex == 0) ? Fit * 0.55f
+		: ((PitchIndex == 1) ? Fit * 0.72f : Fit);
 	const float Distance = bAnimate
 		? FMath::Clamp(ObserverPawn->GetDistance(), 2500.0f, Fit * 1.6f)
 		: FMath::Clamp(DefaultDistance, 2500.0f, Fit * 1.6f);
 
 	// A low camera needs its aim lifted or the world fills the frame edge to edge and the sky is
 	// a seam; the high survey stops want the realm centred. This is the only per-stop offset.
-	const float AimLift = (PitchIndex == 0) ? 0.10f : ((PitchIndex == 1) ? 0.03f : 0.0f);
+	const float AimLift = (PitchIndex == 0) ? 0.045f : ((PitchIndex == 1) ? 0.02f : 0.0f);
 	ObserverPawn->SetFocus(RealmActor->GetRealmCentre() + FVector(0.0f, 0.0f, Radius * AimLift));
 
 	if (bAnimate)
@@ -714,7 +727,7 @@ void ASolsticePlayerController::Tick(float DeltaSeconds)
 				ObserverPawn->SetFocus(RealmActor->GetRealmCentre());
 				// The intro lands on the default grid stop, not on a bespoke angle: the entry shot is
 				// one of the 32 poses the art gate checks, so it can never drift into an unchecked one.
-				ObserverPawn->PlayIntro(Fit * 0.72f, YawForAzimuth(AzimuthIndex),
+				ObserverPawn->PlayIntro(Fit * (PitchIndex == 0 ? 0.55f : 0.72f), YawForAzimuth(AzimuthIndex),
 					-CameraPitchDegrees[PitchIndex]);
 				bCameraFramed = true;
 

@@ -450,7 +450,7 @@ ASolsticeRealm::ASolsticeRealm()
 		// moves every pixel across the quantisation boundary, which is exactly what kills a
 		// contour. "No grain" is correct for a photograph and wrong for a flat gradient.
 		PP.bOverride_FilmGrainIntensity = true;
-		PP.FilmGrainIntensity = 0.03f;
+		PP.FilmGrainIntensity = 0.035f;
 
 		// Shallow band: the far rim and the near foreground go soft, the realm stays sharp. The
 		// focal distance itself is driven every tick from the actual camera distance (see Tick), so
@@ -1041,7 +1041,13 @@ void ASolsticeRealm::BuildSkyMesh()
 		//
 		// (Before the normalisation the mean drifted with the octave count, so every retune of
 		// the noise invalidated the threshold and the two had to be searched together.)
-		SkyMID->SetScalarParameterValue(TEXT("CloudThreshold"), 0.500f - 0.16f * Cloud);
+		// 0.455 - 0.17 * Cloud, not 0.500 - 0.16.
+		//
+		// The field is normalised around 0.5 with a spread of about 0.15, so a threshold at 0.476
+		// leaves the upper half of the sky empty and only the rare cell above 0.62 casts a shape.
+		// At the two low stops that reads as "a blue sky with a few white scratches". Lowering the
+		// base by 0.045 roughly doubles the coverage while leaving clear sky between the masses.
+		SkyMID->SetScalarParameterValue(TEXT("CloudThreshold"), 0.455f - 0.17f * Cloud);
 
 		// ---- cloud frequency ----------------------------------------------
 		//
@@ -1086,17 +1092,19 @@ void ASolsticeRealm::BuildSkyMesh()
 	// Without this a dusk frame keeps a noon-blue sea under an orange sky.
 	if (UMaterialInstanceDynamic* SeaMID = FCelMaterials::Get().SeaMID)
 	{
-		// Between the horizon and the middle of the sky, not the horizon itself.
-		//
-		// A mirror at grazing incidence reflects what is at the horizon *line*, and that colour
-		// is by definition the brightest, palest part of the sky - it exists to hide the seam.
-		// Using it as the whole reflection meant 46% of a saturated turquoise surface was mixed
-		// with a near-white blue, and the sea arrived at a flat grey-cyan: measured saturation
-		// 0.305 -> 0.272 with the tone curve change on top. Mixing 45% of the mid sky puts real
-		// blue back into the reflection and keeps the horizon match where it matters, in the
-		// last few degrees of the frame.
-		SeaMID->SetVectorParameterValue(TEXT("SkyReflect"),
-			FMath::Lerp(Paint.Horizon, Paint.Middle, 0.45f));
+		// The sea now evaluates the sky's own gradient per pixel (see SeaSky in the builder), so
+		// it needs the same three colours the dome gets. Pushing them from here rather than
+		// duplicating the palette in the material is what keeps a dusk sea under a dusk sky.
+		SeaMID->SetVectorParameterValue(TEXT("SunDirection"),
+			FLinearColor(SunDir.X, SunDir.Y, SunDir.Z, 0.0f));
+		SeaMID->SetVectorParameterValue(TEXT("SkyZenith"), Paint.Zenith);
+		SeaMID->SetVectorParameterValue(TEXT("SkyMid"), Paint.Middle);
+		SeaMID->SetVectorParameterValue(TEXT("SkyHorizon"), Paint.Horizon);
+		SeaMID->SetVectorParameterValue(TEXT("SunHalo"), Paint.SunHalo);
+		// A moon path wants to be tighter and brighter than a sun path; leaving one number to
+		// do both gave either an invisible moon or a white road across a dark sea.
+		SeaMID->SetScalarParameterValue(TEXT("SunPathStrength"), FMath::Lerp(3.4f, 2.2f, Daylight));
+		SeaMID->SetScalarParameterValue(TEXT("ShoreRadius"), GetRealmRadiusUU());
 
 		// Night tint had to come down by a factor of three.
 		//
@@ -1121,9 +1129,12 @@ void ASolsticeRealm::BuildSkyMesh()
 		//
 		// The two colours are authored as display values and go straight to the emissive body,
 		// so they are what the frame shows (times the palette's own Scatter gain).
-		SeaMID->SetVectorParameterValue(TEXT("SeaShallow"), Solstice::CelSrgb(0x67, 0xDF, 0xCF));
-		SeaMID->SetVectorParameterValue(TEXT("SeaMid"), Solstice::CelSrgb(0x18, 0x8C, 0x99));
-		SeaMID->SetVectorParameterValue(TEXT("SeaDeep"), Solstice::CelSrgb(0x0B, 0x3A, 0x6E));
+		// The three legs of a tropical coast: brilliant sand shelf, teal where the bottom is
+		// still visible, cobalt where it is not. Only the first is allowed to be bright, which
+		// is what makes it read as a reef rather than as a floodlit swimming pool.
+		SeaMID->SetVectorParameterValue(TEXT("SeaShallow"), Solstice::CelSrgb(0x63, 0xD9, 0xCB));
+		SeaMID->SetVectorParameterValue(TEXT("SeaMid"), Solstice::CelSrgb(0x12, 0x86, 0x9A));
+		SeaMID->SetVectorParameterValue(TEXT("SeaDeep"), Solstice::CelSrgb(0x07, 0x2F, 0x5C));
 
 		// The radii are a *screen* constraint, not a geography one, and that is the whole trick.
 		//
@@ -1141,14 +1152,26 @@ void ASolsticeRealm::BuildSkyMesh()
 		// island's own silhouette, and it made the whole visible sea pale: the camera sees almost
 		// nothing past 3.2R, so the deep band never entered the frame and the water lost its one
 		// depth cue. The shelf stays where the island is; the depth read comes from the haze ramp.
-		SeaMID->SetScalarParameterValue(TEXT("SeaShallowRadius"), SeaR * 1.02f);
-		SeaMID->SetScalarParameterValue(TEXT("SeaDeepRadius"), SeaR * 4.0f);
-		SeaMID->SetScalarParameterValue(TEXT("SeaHazeStart"), 50000.0f);
-		SeaMID->SetScalarParameterValue(TEXT("SeaHazeSpan"), 300000.0f);
+		// The ramp has to complete *inside the frame*. At the two low stops the visible water
+		// runs from about 1.2R to 6R and then hazed out to the horizon, so 1.05R..3.4R puts the
+		// whole lagoon/shelf/deep structure where the camera can see it - which it was not:
+		// every one of these rings was outside the picture before, and the sea rendered as one
+		// flat mint sheet because the only colour it ever showed was the shallow one.
+		SeaMID->SetScalarParameterValue(TEXT("SeaShallowRadius"), SeaR * 1.05f);
+		SeaMID->SetScalarParameterValue(TEXT("SeaDeepRadius"), SeaR * 3.40f);
+		// Aerial perspective finishes well before the ocean mesh's edge (60R), so the far water
+		// arrives at the sky's horizon colour and the rim of the mesh is never visible.
+		SeaMID->SetScalarParameterValue(TEXT("SeaHazeStart"), 16000.0f);
+		SeaMID->SetScalarParameterValue(TEXT("SeaHazeSpan"), 70000.0f);
 		// Aerial perspective reaches the sky's own horizon colour, so the far water and the sky
 		// meet at the same value and the seam needs no separate tuning.
-		SeaMID->SetVectorParameterValue(TEXT("SeaHazeColour"),
-			FMath::Lerp(Paint.Horizon, Paint.Middle, 0.30f));
+		// The *same* value the sky produces at the horizon, including its haze band.
+		//
+		// M_Sky blends 55% of (Horizon * 1.06 + warm) into its gradient in the last degrees
+		// above the water; anything the sea ends at that is not that exact colour draws a line
+		// across the frame where two nine-tenths-similar blues meet. Mixing 12% of the mid sky
+		// in - which was the previous value - is exactly that line.
+		SeaMID->SetVectorParameterValue(TEXT("SeaHazeColour"), Paint.Horizon * 1.004f);
 
 		// One-run override (`-SolsticeSea=`), so the diffuse/emissive split can be searched
 		// without a recompile per candidate. Order: diffuse, glow, shade, [foam], [specular],
@@ -1163,8 +1186,11 @@ void ASolsticeRealm::BuildSkyMesh()
 		// covers a far larger part of the surface; keeping the strength at 0.50 would have
 		// turned the sea into sky. Measured sensitivity: each 0.05 here is worth about 0.015 of
 		// midpoint across the lower half of the frame.
-		SeaMID->SetScalarParameterValue(TEXT("SkyReflectStrength"),
-			FMath::Lerp(0.16f, 0.30f, Daylight));
+		// This is a gain on Schlick's Fresnel, not a mix amount: 1.0 is physical, and the
+		// reflection is then 2% looking down and ~100% at grazing. The sea keeps its colour in
+		// the near field and meets the sky at the horizon, which is the only band that has to
+		// agree. Night comes down a little, or the reflected horizon draws a white road.
+		SeaMID->SetScalarParameterValue(TEXT("SkyReflectStrength"), FMath::Lerp(0.92f, 1.12f, Daylight));
 
 		// The glint is a moon path at night, and a moon path has to be narrow. At the daytime
 		// 0.16 the 80-unit moon laid a continuous white road across the whole lower half of the
@@ -1417,7 +1443,17 @@ void ASolsticeRealm::UpdateSun()
 	// world was a disc floating in empty space; now that the sea runs to the horizon, a fog of
 	// that colour painted the far water grey and the frame got a band lying across it at eye
 	// level. Fog is aerial perspective: it must be the colour of the air the sea disappears into.
-	const FLinearColor ClearVoid = Solstice::CelSrgb(0xCF, 0xE6, 0xF2);
+	// Clear weather's fog *is* the sky's horizon colour.
+	//
+	// This is the whole horizon seam. The sea runs to the far edge of a 384 km plane, so at the
+	// horizon it is 100% fog; the sky dome is parented to the camera and gets almost none. If the
+	// fog colour is even a few percent off the sky's horizon colour, the frame gets a hard line
+	// with pale water under it - which is exactly what every attempt at matching the *water*
+	// colour was failing to fix, because the water was not the surface being drawn there.
+	// Literally the clear-sky horizon value from Gen::FSkyPaint (0xD8E9F0). It lives here as a
+	// constant because the painted palette is not in scope in this function; if the palette's
+	// horizon is retuned, this must follow it, and a mismatch is immediately visible as a line.
+	const FLinearColor ClearVoid = Solstice::CelSrgb(0xD8, 0xE9, 0xF0);
 	const FLinearColor WetVoid = Solstice::CelSrgb(0xB4, 0xC6, 0xD4);
 	Fog->SetFogInscatteringColor(FMath::Lerp(ClearVoid, WetVoid, Wet));
 

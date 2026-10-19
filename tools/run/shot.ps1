@@ -121,6 +121,13 @@ $shotArgs = @(
     '-game',
     '-RenderOffscreen',
     '-windowed',
+    # -ForceRes is not optional.
+    #
+    # Without it the engine applies the *saved* window size and silently ignores -ResX/-ResY,
+    # so every "4K" capture came back 888x500 - the size the window happened to remember. The
+    # frame looked soft, the measurement box was in the wrong coordinate space, and the whole
+    # exercise of shooting at high resolution was a no-op that produced plausible-looking files.
+    '-ForceRes',
     ("-ResX={0}" -f $Width),
     ("-ResY={0}" -f $Height),
     ("-SolsticeShot={0}" -f $Out),

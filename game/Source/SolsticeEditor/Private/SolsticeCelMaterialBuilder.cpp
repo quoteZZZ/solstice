@@ -33,6 +33,7 @@
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "Materials/MaterialExpressionSubtract.h"
 #include "Materials/MaterialExpressionTime.h"
+#include "Materials/MaterialExpressionScreenPosition.h"
 #include "Materials/MaterialExpressionWorldPosition.h"
 #include "Materials/MaterialExpressionDotProduct.h"
 #include "Materials/MaterialExpressionMultiply.h"
@@ -64,7 +65,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 131;
+	constexpr int32 CelRecipeVersion = 149;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -781,7 +782,15 @@ float2 p = P.xy * WaveScaleInput;
 // Near water (33-100 m in the entry framing) keeps every layer; past ~260 m the surface is
 // smooth, which is also what a distant sea looks like.
 const float CamDist = length(P - CamPos.xyz);
-const float NearFade = 1.0 - saturate((CamDist - 8000.0) / 18000.0);
+// 4 km to 12 km, not 8 to 26.
+//
+// Everything here was tuned when the sea only reached 3.8 km and the camera sat 30 m up. With
+// the horizon in frame the visible water now runs to the horizon, and out there the swell does
+// not read as waves - it reads as *bands*: a 78 m crest seen at a 3 degree grazing angle covers
+// fifty pixels and the surface turns into a set of soft concentric stripes around the camera's
+// nadir. Fading the whole slope field out by 12 km leaves the near water alive and the far water
+// a clean gradient, which is also what a real sea looks like from a low shore.
+const float NearFade = 1.0 - saturate((CamDist - 4000.0) / 8000.0);
 
 // ---- domain warp ---------------------------------------------------
 //
@@ -840,7 +849,7 @@ float2 mq = P.xy * 0.026 + float2(Time * 0.06, Time * 0.045);
 // The micro ripples are 45x the frequency of the swell, so they alias first and worst - at a
 // raised camera they are the source of the finest scale of the marble pattern.
 // Tighter than the swell's: 0.385 m ripples alias at a third of the distance.
-const float MicroFade = 1.0 - saturate((CamDist - 2500.0) / 9000.0);
+const float MicroFade = 1.0 - saturate((CamDist - 1500.0) / 5500.0);
 
 float2 mg = float2(0.0, 0.0);
 float mamp = 1.0;
@@ -870,7 +879,14 @@ for (int m = 0; m < 3; m++)
 }
 g += mg * 1.5 * MicroFade;
 
-return normalize(float3(-g * WaveStrengthInput, 1.0));
+// And the slope itself goes flat with distance, not just the short octaves.
+//
+// NearFade only removes the high frequencies; the 17-78 m swell keeps tilting the surface out
+// to the horizon, where a 1% tilt swings the reflected ray through several degrees of sky and
+// draws the interference lattice of those plane waves as arcs. At 24 degrees that lattice was
+// the "concentric rings" - not a colour ramp, not quantisation, and not the mesh.
+const float SlopeFade = 1.0 - saturate((CamDist - 4000.0) / 8000.0);
+return normalize(float3(-g * WaveStrengthInput * SlopeFade, 1.0));
 )");
 		{
 			FCustomInput InPos;
@@ -924,7 +940,7 @@ float2 p = P.xy * Scale;
 // noise aliasing into a large-scale interference pattern - value noise has no band limit, and at
 // a raised camera one pixel covers it twenty times over.
 const float DetailCamDist = length(P - CamPos.xyz);
-const float DetailCameraFade = 1.0 - saturate((DetailCamDist - 8000.0) / 18000.0);
+const float DetailCameraFade = 1.0 - saturate((DetailCamDist - 4000.0) / 8000.0);
 
 // Same warp as WaveNormal, same constants, same order. A height field and the gradient it is
 // shaded from must be the *same* field or the highlight slides against the shading - which was
@@ -1046,18 +1062,13 @@ return float3(hn, foam, 0.0);
 		SeaTint->ParameterName = TEXT("SeaTint");
 		SeaTint->DefaultValue = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
-		// ---- depth gradient from the island out -----------------------------
+		// ---- palette -------------------------------------------------------
 		//
-		// The mesh carries a lagoon -> shelf -> deep ramp in its vertex colours, and it is
-		// invisible: perspective squeezes the whole visible near sea into T = 0.15..0.21 of the
-		// ring parameter, so a third of the palette is compressed into fifteen percent of one
-		// ring. The lower half of the frame therefore came out one flat cyan, and no palette
-		// value could change that - the problem is the parameterisation, not the colour.
-		//
-		// So the gradient is computed from world distance to the island centre instead. That is
-		// what actually governs water colour in the real thing anyway: the column depth. Shallow
-		// water over a reef is bright turquoise, the shelf edge is where it turns, and open ocean
-		// is a dark saturated blue. Every tropical-island photograph in existence has that ring.
+		// The sea is the largest object in every frame (45-60% of the picture at the two low
+		// stops), so it carries the picture's value structure. Its colour is authored as display
+		// values and goes straight to the emissive body: water is not "a lit blue", and trying to
+		// light it physically produced either a black sheet or fluorescent cyan (see the note on
+		// Scatter below).
 		UMaterialExpressionWorldPosition* SeaPos = AddExpr<UMaterialExpressionWorldPosition>(Material, -1600, -260);
 		UMaterialExpressionCameraPositionWS* SeaCam = AddExpr<UMaterialExpressionCameraPositionWS>(Material, -1600, -400);
 
@@ -1079,58 +1090,45 @@ return float3(hn, foam, 0.0);
 		UMaterialExpressionVectorParameter* SeaShallow = Vec(TEXT("SeaShallow"), FLinearColor(0.045f, 0.360f, 0.395f, 1.0f), -1600, -540);
 		UMaterialExpressionVectorParameter* SeaMid = Vec(TEXT("SeaMid"), FLinearColor(0.018f, 0.150f, 0.185f, 1.0f), -1600, -610);
 		UMaterialExpressionVectorParameter* SeaDeep = Vec(TEXT("SeaDeep"), FLinearColor(0.004f, 0.038f, 0.135f, 1.0f), -1600, -680);
-		UMaterialExpressionScalarParameter* SeaShallowR = Sca(TEXT("SeaShallowRadius"), 16000.0f, -1600, -820);
-		UMaterialExpressionScalarParameter* SeaDeepR = Sca(TEXT("SeaDeepRadius"), 120000.0f, -1600, -960);
-		UMaterialExpressionScalarParameter* SeaHaze = Sca(TEXT("SeaHazeSpan"), 340000.0f, -1600, -1100);
-		UMaterialExpressionScalarParameter* SeaHazeStart = Sca(TEXT("SeaHazeStart"), 90000.0f, -1600, -1030);
-		// Its own parameter rather than reusing SkyReflect: that node is declared further down
-		// the graph, and a Custom input cannot reference a node that does not exist yet.
+		UMaterialExpressionScalarParameter* SeaShallowR = Sca(TEXT("SeaShallowRadius"), 8000.0f, -1600, -820);
+		UMaterialExpressionScalarParameter* SeaDeepR = Sca(TEXT("SeaDeepRadius"), 18000.0f, -1600, -960);
+		UMaterialExpressionScalarParameter* SeaHaze = Sca(TEXT("SeaHazeSpan"), 60000.0f, -1600, -1100);
+		UMaterialExpressionScalarParameter* SeaHazeStart = Sca(TEXT("SeaHazeStart"), 16000.0f, -1600, -1030);
 		UMaterialExpressionVectorParameter* SeaHazeColour =
 			Vec(TEXT("SeaHazeColour"), FLinearColor(0.62f, 0.78f, 0.86f, 1.0f), -1600, -1240);
+		UMaterialExpressionScalarParameter* ShoreRadius = Sca(TEXT("ShoreRadius"), 6400.0f, -1600, -1320);
 
 		UMaterialExpressionCustom* SeaDepth = AddExpr<UMaterialExpressionCustom>(Material, -1100, -400);
 		SeaDepth->Description = TEXT("SeaDepth");
 		SeaDepth->OutputType = CMOT_Float3;
+		// Depth is a *monotonic* ramp with two soft steps and nothing else.
+		//
+		// This used to have three legs and a "reef break" - a one-pixel bright line at the shelf
+		// edge, added because a photograph of a reef has one. In a 3D scene it is a locus where
+		// the colour function's slope jumps, and since every visible metre of water is drawn from
+		// this one function, the jump became a hard oval painted around the island, a hundred
+		// pixels above the shore, with no geometry to explain it. Every "the sea has rings"
+		// report since then was this line and its two siblings - the band boundaries.
+		//
+		// A depth ramp the eye accepts needs no boundaries: bright sand shelf, then a long fade
+		// to open water, then aerial perspective. Smoothsteps overlap so there is no edge to see.
 		SeaDepth->Code = TEXT(R"(
-// r is the horizontal distance to the island; the realm sits at the origin.
 float r = length(P.xy);
-
-// The realm sits at the world origin, so this is the distance to the island. Note that the
-// interesting quantity is NOT how far the water is from the island in metres - it is how much of
-// the *frame* a given band of metres occupies, and near a low camera that is violently non-linear
-// (see the radii note in PaintSea).
 float t = saturate((r - NearRadius) / max(FarRadius - NearRadius, 1000.0));
 
-// Three stops, not two, and the reason is compositional.
-//
-// A two-stop ramp puts its transition wherever the radii say, and at this framing the *entire*
-// visible sea sits inside 200 m of the island - the bottom of the frame is the water between the
-// camera and the shore, so "near the island" and "near the viewer" are the same thing. A single
-// ramp therefore paints either the whole sea bright or the whole sea dark.
-//
-// The three legs are the ones a real tropical coast has: a narrow brilliant ring over the sand
-// shelf, a wide teal body where the bottom is still visible, and then cobalt where it is not.
-// Only the first leg is allowed to be bright, which is what makes it read as a reef rather than
-// as a floodlit swimming pool.
-float3 col = t < 0.20
-	? lerp(Shallow, Mid, smoothstep(0.0, 0.20, t))
-	: lerp(Mid, Deep, smoothstep(0.20, 0.72, t));
+// Lagoon -> open water. The two smoothsteps overlap, so the derivative never jumps and no
+// contour can appear no matter how slowly the camera moves.
+float3 col = lerp(Shallow, Mid, smoothstep(0.0, 0.55, t));
+col = lerp(col, Deep, smoothstep(0.45, 1.0, t));
 
-// The break. A one-pixel-scale bright line exactly at the shelf edge is what the eye uses to
-// read the island's size, and every aerial photograph of a reef has one.
-float reef = (1.0 - abs(t - 0.20) / 0.05);
-col = lerp(col, Shallow * 1.20 + float3(0.02, 0.05, 0.04), saturate(reef) * 0.45);
-
-// Aerial perspective. The sea runs to 3.8 km and the eye expects it to lose contrast and
-// take the sky's colour with distance; without this the horizon is a hard line between two
-// fully saturated fields.
-// A smoothstep, not a linear ramp from zero. The first version divided straight by the span,
-// so water 200 m away was already 60% horizon colour and the whole sea came out one flat pale
-// turquoise - the gradient was there, buried under the haze. Near water has to keep its colour;
-// haze is for the last kilometre.
+// Aerial perspective, driven by distance to the *eye*.
+//
+// Distance to the island was the wrong axis: the near shore and the far shore are the same
+// distance from the camera, so a radius-based haze leaves a bright ring of near water on the
+// far side. Distance to the eye is monotonic across the whole frame by construction, which is
+// exactly what a haze ramp needs to avoid banding.
 float d = length(P - CamPos.xyz);
-col = lerp(col, Haze, smoothstep(HazeStart, max(HazeSpan, HazeStart + 1.0), d) * 0.55);
-
+col = lerp(col, Haze, smoothstep(HazeStart, max(HazeSpan, HazeStart + 1.0), d));
 return col;
 )");
 		{
@@ -1157,53 +1155,22 @@ return col;
 		TintedBase->A.Expression = SeaDepth;
 		TintedBase->B.Expression = SeaTint;
 
-		// ---- 水体色：走自发光，不走光照 --------------------------------
+		// ---- body colour: emissive, not lit --------------------------------
 		//
-		// 这是风格化水面和 PBR 水面最重要的一处分歧。PBR 的水色 = albedo × 光照，而深水
-		// albedo 只有几个百分点，9 lux 的太阳一照就压到 0（实测下半屏 R = 0.000），再把
-		// 太阳调亮就整片过曝成荧光青（实测 (0.29, 0.89, 0.94)，饱和度 p90 = 1.0）。
-		// 两头都不对，因为海的颜色本来就不是「被照亮的蓝」。
+		// PBR water is albedo x light, and deep water's albedo is a few percent - at this
+		// exposure the sun multiplies it to zero (measured: R = 0.000 across the lower half of
+		// the frame) and turning the sun up instead blows the whole sea to fluorescent cyan.
+		// Neither end is right, because the colour of the sea is not "a blue being lit".
 		//
-		// 所以：色板里的 lagoon / shelf / deep 直接作为自发光落到屏幕上，漫反射只剩 18%
-		// 用来接收一点日照的明暗；高光（sun glint）和菲涅尔天空反射照旧叠加在上面。
-		// 这样海的颜色就恒等于色板，和岛的受光色不再互相拉扯。
+		// So the palette lands on screen as emissive and the diffuse path keeps 1% - just enough
+		// that the surface still answers the sun at all. The consequence, recorded honestly: an
+		// emissive surface cannot receive a shadow, so island shadows do not fall on the water.
 		UMaterialExpressionScalarParameter* Scatter = AddExpr<UMaterialExpressionScalarParameter>(Material, -1200, 1160);
 		Scatter->ParameterName = TEXT("WaterGlow");
-		// 0.62, not 0.80.
-		//
-		// Measured on the frame: the sea's mean luminance was 0.58 against the sky's 0.63 - a
-		// 5% separation across the 55% of the picture the water occupies. Nothing in a landscape
-		// scene is that close in value, and the effect is unmistakable: the horizon line stops
-		// reading, the island has no ground to stand on, and the whole frame flattens into two
-		// similar pale blues. Real sea sits well under the sky it reflects, because what the eye
-		// reads at this angle is the water column, not the surface.
-		// 0.55, and the number is now a composition constraint rather than a taste one: the sea
-		// is 55% of the frame, so this single value is the frame's exposure. The island got
-		// genuinely brighter when the three-band toon landed (its shadowed side stopped being
-		// black), which lifted the whole picture; taking a little off the water puts the frame
-		// back inside its value range without darkening the subject.
 		Scatter->DefaultValue = 0.52f;
 
 		UMaterialExpressionScalarParameter* Diffuse = AddExpr<UMaterialExpressionScalarParameter>(Material, -1200, 1080);
 		Diffuse->ParameterName = TEXT("WaterDiffuse");
-		// 0.05, not 0.18.
-		//
-		// The lit part of the sea is not there to light it - the body colour is emissive and stays
-		// exactly as authored - it is there so the surface still responds to the sun at all. At
-		// 0.18 and a 560-unit sun the lit term overwhelmed the authored colour and the whole sea
-		// went cyan-white (measured 2026-10-18). 0.05 keeps a little directional life and lets the
-		// palette own the water.
-		//
-		// Note what this means for shadows: an emissive surface cannot receive one. Island
-		// shadows will not land on the water in this style, and that is a deliberate trade - the
-		// alternative is a lit sea whose colour changes with the hour and blows out at noon.
-		//
-		// 0.010, not 0.05, and the measurement is dramatic: 0.05 -> 0.001 moved the frame's
-		// midpoint from 0.706 to 0.510, i.e. *the lit path was the sea's dominant brightness*,
-		// not the emissive body it is supposed to be a garnish on. The reason is the skylight:
-		// it is a captured sky in physical units, so albedo x 0.05 is still enormous next to an
-		// emissive that is authored as a display colour. Every previous attempt to darken the
-		// water by editing the palette was fighting a term that had nothing to do with it.
 		Diffuse->DefaultValue = 0.010f;
 
 		UMaterialExpressionMultiply* ScatterColour = AddExpr<UMaterialExpressionMultiply>(Material, -900, 1160);
@@ -1214,81 +1181,137 @@ return col;
 		DiffuseBase->A.Expression = TintedBase;
 		DiffuseBase->B.Expression = Diffuse;
 
-		// ---- sky reflection (Fresnel) --------------------------------------
-		// 海水最缺的一项，也是「下半屏 R = 0」的成因。
+		// ---- the sky in the water ------------------------------------------
 		//
-		// 真实水面在掠射角下几乎不显示水的颜色，显示的是它反射的天空（Fresnel 趋近 1）。
-		// 没有这一项时，远处的水只会随距离变暗变青，红通道被压到 0 —— 实测下半屏 46% 的
-		// 行 R = 0.000，整片纯数字青，「廉价感」就来自这里。
+		// The single most important term on this surface, and until now the crudest one: the
+		// reflection was *one constant colour* set from C++ (the sky's mid tone), mixed in by a
+		// Fresnel node. A constant cannot tilt with the waves, cannot carry a sun, and cannot go
+		// from pale at the horizon to deep overhead - so the sea reflected nothing and read as a
+		// painted sheet.
 		//
-		// 有了它：俯视处仍是水的颜色，掠射处自然过渡成地平线的天色，于是海与天在水平线上
-		// 是同一个颜色，接缝不需要另外去对。
-		UMaterialExpressionVectorParameter* SkyReflect = AddExpr<UMaterialExpressionVectorParameter>(Material, -1200, 1320);
-		SkyReflect->ParameterName = TEXT("SkyReflect");
-		SkyReflect->DefaultValue = FLinearColor(0.42f, 0.62f, 0.80f, 1.0f);
+		// Here the reflected ray is evaluated against the *same gradient the sky material uses*,
+		// per pixel. Two consequences worth stating:
+		//   - the horizon matches by construction, because both sides evaluate one formula;
+		//   - the sun's mirror image appears on its own, and the wave normals break it into a
+		//     glitter path. That path is the thing that makes a still frame read as water.
+		UMaterialExpressionVectorParameter* SunDirSea = Vec(TEXT("SunDirection"), FLinearColor(0.4f, 0.4f, 0.82f, 0.0f), -1600, 1620);
+		UMaterialExpressionVectorParameter* SkyZenithSea = Vec(TEXT("SkyZenith"), FLinearColor(0.02f, 0.12f, 0.42f, 1.0f), -1600, 1700);
+		UMaterialExpressionVectorParameter* SkyMidSea = Vec(TEXT("SkyMid"), FLinearColor(0.15f, 0.40f, 0.72f, 1.0f), -1600, 1780);
+		UMaterialExpressionVectorParameter* SkyHorizonSea = Vec(TEXT("SkyHorizon"), FLinearColor(0.52f, 0.72f, 0.86f, 1.0f), -1600, 1860);
+		UMaterialExpressionVectorParameter* SunHaloSea = Vec(TEXT("SunHalo"), FLinearColor(1.0f, 0.90f, 0.62f, 1.0f), -1600, 1940);
+		UMaterialExpressionScalarParameter* SunPath = Sca(TEXT("SunPathStrength"), 2.2f, -1600, 2020);
 
-		UMaterialExpressionScalarParameter* FresnelPower = AddExpr<UMaterialExpressionScalarParameter>(Material, -1200, 1440);
-		FresnelPower->ParameterName = TEXT("SkyReflectPower");
-		// 9, not 3.2.
-		//
-		// At this camera the sea sits between 3 and 30 degrees below the eye, i.e. dot(N, V) is
-		// 0.05..0.5. A physical Fresnel (exponent ~3) is already at 30-80% reflection across that
-		// entire band, so the whole sea collapses to the sky's colour and there is no water left -
-		// measured: the near sea and the far sea came out within 0.05 of each other. Stylised
-		// water uses a much steeper curve so the pale reflection is confined to the last few
-		// degrees above the horizon, where it belongs and where it hides the seam.
-				// 6, not 9.
-		//
-		// Structure of the problem, measured on the frame: perspective compresses the visible
-		// near water into T = 0.154..0.210 of the ocean mesh's ring parameter - a 0.06 window.
-		// Every colour the palette can produce is squeezed through that window, so the whole
-		// lower third of the picture came out one flat #2E93B8 no matter what the palette said.
-		//
-		// The colour cannot vary with radius here, so it has to vary with *angle*, which is what
-		// Fresnel already does: near the camera the eye looks steeply down and sees the water
-		// column, far away it looks along the surface and sees the sky. At exponent 9 that
-		// transition is squeezed into the last two degrees and the frame never shows it. At 6 the
-		// band is wide enough to run across the near sea, and the surface gains a front-to-back
-		// gradient instead of being a fill.
-		// 7.2: 9 was a two-degree band that never reached the frame, 6 covered so much surface
-		// that the sea turned grey (measured: saturation 0.305 -> 0.272). The usable window is
-		// between those two, and it is narrow.
-		FresnelPower->DefaultValue = 7.2f;
+		UMaterialExpressionCustom* SeaSky = AddExpr<UMaterialExpressionCustom>(Material, -1000, 1500);
+		SeaSky->Description = TEXT("SeaSky");
+		SeaSky->OutputType = CMOT_Float3;
+		SeaSky->Code = TEXT(R"(
+float3 n = normalize(N);
+float3 v = normalize(CamPos.xyz - P);
 
-		UMaterialExpressionFresnel* SkyRim = AddExpr<UMaterialExpressionFresnel>(Material, -1000, 1380);
-		SkyRim->ExponentIn.Expression = FresnelPower;
-		SkyRim->BaseReflectFraction = 0.02f;
+// Flatten the normal with distance before reflecting.
+//
+// The wave field is a sum of plane waves; a few kilometres out, one pixel covers dozens of
+// wavelengths, and what survives is the *interference* of those waves - a lattice of arcs that
+// reads as concentric rings around the island. It is the same aliasing that was solved twice in
+// the body colour and never in the reflection, which is where the sea's brightness actually
+// comes from at a grazing angle. A mirror-smooth far field is also what distant water looks
+// like, so the fix and the truth agree here.
+const float Dist = length(P - CamPos.xyz);
+const float Flat = saturate((Dist - 5000.0) / 17000.0);
+n = normalize(lerp(n, float3(0.0, 0.0, 1.0), Flat));
+
+float3 refl = reflect(-v, n);
+float h = refl.z;
+
+// Same three-stop gradient as M_Sky (see BuildSky). Kept in sync by hand, and that is
+// deliberate: two materials that must agree are cheaper to keep aligned than to make one
+// sample the other, and a divergence shows up immediately as a seam on the horizon.
+float3 sky = lerp(Horizon, Mid, smoothstep(0.0, 0.13, h));
+sky = lerp(sky, Zenith, smoothstep(0.11, 0.42, h));
+// Below the horizon there is no sky to reflect - the ray hits water. Tilt toward the haze.
+sky = lerp(sky, Horizon * 0.92, saturate(-h * 5.0));
+
+float cosA = dot(refl, normalize(SunDir.xyz));
+// Broad warm glow around the sun, then the mirror of the disc itself. The tight lobe is the
+// glitter path: without it the sun has no presence on the water at all.
+sky += SunHalo * pow(saturate(cosA), 6.0) * 0.10;
+sky += SunHalo * pow(saturate(cosA), 140.0) * SunPath;
+
+// No horizon boost in the *reflection*.
+//
+// The gradient already ends at the horizon colour, and the sea's grazing pixels mirror exactly
+// that band - so any extra brightening here makes the water brighter than the sky it is
+// reflecting, and the horizon becomes a line with a bright edge underneath it. The sky material
+// keeps its own band (it also has the sun's halo); the reflection must not add a second one.
+sky = lerp(sky, Horizon * 1.005, pow(saturate(1.0 - h * 3.5), 6.0) * 0.06);
+return sky;
+)");
+		{
+			auto Add = [&SeaSky](const TCHAR* Name, UMaterialExpression* Expr)
+			{
+				FCustomInput In;
+				In.InputName = Name;
+				In.Input.Expression = Expr;
+				SeaSky->Inputs.Add(In);
+			};
+			Add(TEXT("N"), WaveNormal);
+			Add(TEXT("P"), SeaPos);
+			Add(TEXT("CamPos"), SeaCam);
+			Add(TEXT("SunDir"), SunDirSea);
+			Add(TEXT("Zenith"), SkyZenithSea);
+			Add(TEXT("Mid"), SkyMidSea);
+			Add(TEXT("Horizon"), SkyHorizonSea);
+			Add(TEXT("SunHalo"), SunHaloSea);
+			Add(TEXT("SunPath"), SunPath);
+		}
 
 		UMaterialExpressionScalarParameter* ReflectStrength = AddExpr<UMaterialExpressionScalarParameter>(Material, -1200, 1560);
 		ReflectStrength->ParameterName = TEXT("SkyReflectStrength");
-		// 0.50, not 0.75: the reflected horizon is near-white, and at 0.75 the grazing band along
-		// the waterline was brighter than the sky it was reflecting.
-				// 0.42, with the wider Fresnel band above: the reflection now covers a much larger part
-		// of the surface, so each unit of it has to be worth less or the sea becomes sky-coloured.
-		ReflectStrength->DefaultValue = 0.42f;
+		ReflectStrength->DefaultValue = 1.15f;
 
-		UMaterialExpressionMultiply* ReflectTerm = AddExpr<UMaterialExpressionMultiply>(Material, -780, 1420);
-		ReflectTerm->A.Expression = SkyRim;
-		ReflectTerm->B.Expression = ReflectStrength;
-
-		// Emissive carries two things the lit base colour cannot: the water body's own scatter
-		// (deep water is physically almost black, which reads as "not rendered") and the sky it
-		// mirrors at grazing angles.
-		// **Mix**, do not add.
+		UMaterialExpressionCustom* SeaFresnel = AddExpr<UMaterialExpressionCustom>(Material, -1000, 1680);
+		SeaFresnel->Description = TEXT("SeaFresnel");
+		SeaFresnel->OutputType = CMOT_Float3;
+		// Schlick, then a gain.
 		//
-		// Adding the sky reflection to the water colour saturates instantly: base (0.03, 0.32,
-		// 0.54) + reflection (0.15, 0.28, 0.40) = (0.18, 0.60, 0.94), which encodes as
-		// (0.46, 0.80, 0.97) - the fluorescent cyan measured on the whole lower half. Water at a
-		// grazing angle is not "water plus sky", it is *mostly sky*; a lerp says that and stays
-		// inside the two authored colours.
-		UMaterialExpressionMultiply* ReflectMix = AddExpr<UMaterialExpressionMultiply>(Material, -620, 1300);
-		ReflectMix->A.Expression = SkyRim;
-		ReflectMix->B.Expression = ReflectStrength;
+		// A physical Fresnel (n = 1.33) is 2% looking straight down and 100% at grazing, which is
+		// correct and - at this camera - makes the water a mirror over most of the frame, because
+		// the visible sea sits between 2 and 40 degrees below the eye. The gain lets the two ends
+		// be tuned independently of the exponent: the sea keeps its colour in the near field and
+		// still meets the sky at the horizon, which is the only band where the two must agree.
+		SeaFresnel->Code = TEXT(R"(
+float3 n = normalize(N);
+float3 v = normalize(CamPos.xyz - P);
+float ndv = saturate(dot(n, v));
+float f = 0.02 + 0.98 * pow(1.0 - ndv, 5.0);
+return float3(saturate(f * Gain), 0.0, 0.0);
+)");
+		{
+			auto Add = [&SeaFresnel](const TCHAR* Name, UMaterialExpression* Expr)
+			{
+				FCustomInput In;
+				In.InputName = Name;
+				In.Input.Expression = Expr;
+				SeaFresnel->Inputs.Add(In);
+			};
+			Add(TEXT("N"), WaveNormal);
+			Add(TEXT("P"), SeaPos);
+			Add(TEXT("CamPos"), SeaCam);
+			Add(TEXT("Gain"), ReflectStrength);
+		}
 
-		// ---- crest shading + foam -----------------------------------------
-		// Crests catch more light and stand higher out of the water; troughs sit in the body's
-		// own shade. A single multiply is enough because the water colour is authored, not lit:
-		// this only has to give the surface a gradient to read.
+		UMaterialExpressionConstant3Vector* FresnelAxis = AddExpr<UMaterialExpressionConstant3Vector>(Material, -780, 1700);
+		FresnelAxis->Constant = FLinearColor(1.0f, 0.0f, 0.0f, 1.0f);
+
+		UMaterialExpressionDotProduct* ReflectMix = AddExpr<UMaterialExpressionDotProduct>(Material, -620, 1660);
+		ReflectMix->A.Expression = SeaFresnel;
+		ReflectMix->B.Expression = FresnelAxis;
+
+		// ---- crest shading -------------------------------------------------
+		// The body colour has to move with the waves, because the near sea sits 3-30 degrees
+		// below the eye where neither reflection nor highlight carries anything. Crests lighter,
+		// troughs darker: the only thing that can put information on a surface facing away from
+		// the light.
 		UMaterialExpressionScalarParameter* ShadeAmp = AddExpr<UMaterialExpressionScalarParameter>(Material, -700, 1020);
 		ShadeAmp->ParameterName = TEXT("WaveShadeAmount");
 		ShadeAmp->DefaultValue = 0.19f;
@@ -1300,12 +1323,17 @@ return col;
 		UMaterialExpressionConstant* OneShade = AddExpr<UMaterialExpressionConstant>(Material, -520, 1140);
 		OneShade->R = 1.0f;
 
-		// At grazing angles the water is a mirror and its colour comes from the sky, so wave
-		// shading must fade out there or the far sea gets stripes of its own body colour.
-		UMaterialExpressionOneMinus* ShadeFacing = AddExpr<UMaterialExpressionOneMinus>(Material, -520, 1060);
-		ShadeFacing->Input.Expression = SkyRim;
+		// Crest shading has to disappear where the surface is a mirror.
+		//
+		// At a low camera the sea is seen almost edge-on: a 78 m swell then projects into a
+		// thin horizontal line every 78 m of depth, and the body shading draws it. The result
+		// is a stack of parallel stripes across half the frame - "brushed silk", the exact
+		// artefact the wave code spent three rounds removing, reintroduced from the other side
+		// by a shading term that had no facing gate.
+		UMaterialExpressionOneMinus* ShadeFacing = AddExpr<UMaterialExpressionOneMinus>(Material, -420, 1120);
+		ShadeFacing->Input.Expression = ReflectMix;
 
-		UMaterialExpressionMultiply* ShadeGated = AddExpr<UMaterialExpressionMultiply>(Material, -380, 1020);
+		UMaterialExpressionMultiply* ShadeGated = AddExpr<UMaterialExpressionMultiply>(Material, -320, 1080);
 		ShadeGated->A.Expression = ShadeOffset;
 		ShadeGated->B.Expression = ShadeFacing;
 
@@ -1323,52 +1351,119 @@ return col;
 
 		UMaterialExpressionScalarParameter* FoamAmount = AddExpr<UMaterialExpressionScalarParameter>(Material, -700, 1380);
 		FoamAmount->ParameterName = TEXT("FoamAmount");
-		// 0.15, not 0.32.
+		FoamAmount->DefaultValue = 0.14f;
+
+		// ---- shore foam ----------------------------------------------------
 		//
-		// On the entry framing the near sea is most of the lower half, and at 0.32 the foam read
-		// as *white horizontal banding across the whole surface* rather than as breaking crests -
-		// the single biggest reason the sea looked like painted silk instead of water. Foam is a
-		// punctuation mark: a few crests, not a texture.
-		FoamAmount->DefaultValue = 0.09f;
+		// The island had a pale ring painted into the *terrain* (a 35 cm rim on the water tiles)
+		// and nothing on the water itself, so the surf stopped exactly at the beach and the open
+		// sea began like a table. A shoreline without white water is the single clearest "this is
+		// a model" signal in the frame - every photograph of a coast has it.
+		//
+		// It is driven by distance to the island centre rather than by the tile data: the realm
+		// is a disc, so radius *is* the shore up to the torn edge's noise, which is smaller than
+		// the band. The band is broken up by an angular wave so it does not read as a drawn ring.
+		UMaterialExpressionCustom* ShoreFoam = AddExpr<UMaterialExpressionCustom>(Material, -1000, 1800);
+		ShoreFoam->Description = TEXT("ShoreFoam");
+		ShoreFoam->OutputType = CMOT_Float3;
+		ShoreFoam->Code = TEXT(R"(
+float r = length(P.xy);
+float2 dir = P.xy / max(r, 1.0);
 
-		// Foam only belongs where the surface faces the eye. At grazing angles the water is a
-		// mirror and any white on it would read as a stripe of paint lying on the horizon.
-		UMaterialExpressionOneMinus* FacingEye = AddExpr<UMaterialExpressionOneMinus>(Material, -520, 1380);
-		FacingEye->Input.Expression = SkyRim;
+// Two bands: the swash right at the beach, and a weaker line a little further out where the
+// last wave broke. The second one is what reads as "the water has been moving".
+float inner = 1.0 - saturate((r - R * 1.00) / (R * 0.10));
+float outer = 1.0 - saturate(abs(r - R * 1.16) / (R * 0.05));
 
-		UMaterialExpressionMultiply* FoamGate = AddExpr<UMaterialExpressionMultiply>(Material, -380, 1300);
-		FoamGate->A.Expression = WaveFoam;
-		FoamGate->B.Expression = FacingEye;
+// A hard guard, independent of R.
+//
+// The two bands above are divisions by R, so they are only correct while R is the island's
+// radius. Whatever happened on 2026-10-19, the foam covered the whole sea - a few thousand
+// bright ripples radiating to the horizon, which is the "concentric rings" defect that was
+// chased through the depth ramp, the wave shading, the sky reflection, the mesh ring count,
+// the film grain and the 8-bit dither, each of which changed nothing. The probe that found it
+// was zeroing *every* sea parameter at once: the rings got brighter, because the body went
+// dark and the foam did not.
+//
+// This mask is a distance from the island in metres, and it does not depend on any parameter
+// being right: past 1.5 radii there is no surf, full stop.
+// Absolute metres, not a multiple of R: the parameter is the thing under suspicion, and a guard
+// that can be scaled by a bad parameter is not a guard. 1.6 x a 64 m realm is 102 m.
+const float shoreMask = 1.0 - smoothstep(90.0, 115.0, r / 6400.0 * 64.0);
 
-		UMaterialExpressionMultiply* FoamAlpha = AddExpr<UMaterialExpressionMultiply>(Material, -240, 1300);
-		FoamAlpha->A.Expression = FoamGate;
-		FoamAlpha->B.Expression = FoamAmount;
+// Angular breakup with a wave running along the coast, so neither band is a circle.
+float ang = atan2(dir.y, dir.x);
+float ripple = 0.55 + 0.45 * sin(ang * 11.0 + r * 0.021 + T * 0.9);
+ripple *= 0.65 + 0.35 * sin(ang * 29.0 - r * 0.012 - T * 1.6);
+
+float foam = saturate(inner * (0.55 + 0.45 * ripple) + outer * 0.55 * ripple) * shoreMask;
+return float3(foam, 0.0, 0.0);
+)");
+		{
+			auto Add = [&ShoreFoam](const TCHAR* Name, UMaterialExpression* Expr)
+			{
+				FCustomInput In;
+				In.InputName = Name;
+				In.Input.Expression = Expr;
+				ShoreFoam->Inputs.Add(In);
+			};
+			Add(TEXT("P"), SeaPos);
+			Add(TEXT("T"), Clock);
+			Add(TEXT("R"), ShoreRadius);
+		}
+
+		UMaterialExpressionDotProduct* ShoreFoamScalar = AddExpr<UMaterialExpressionDotProduct>(Material, -780, 1800);
+		ShoreFoamScalar->A.Expression = ShoreFoam;
+		ShoreFoamScalar->B.Expression = FresnelAxis;
+
+		UMaterialExpressionMultiply* CrestFoam = AddExpr<UMaterialExpressionMultiply>(Material, -380, 1300);
+		CrestFoam->A.Expression = WaveFoam;
+		CrestFoam->B.Expression = FoamAmount;
+
+		UMaterialExpressionAdd* FoamSum = AddExpr<UMaterialExpressionAdd>(Material, -240, 1400);
+		FoamSum->A.Expression = CrestFoam;
+		FoamSum->B.Expression = ShoreFoamScalar;
 
 		UMaterialExpressionLinearInterpolate* BodyWithFoam = AddExpr<UMaterialExpressionLinearInterpolate>(Material, -80, 1180);
 		BodyWithFoam->A.Expression = ShadedBody;
 		BodyWithFoam->B.Expression = FoamColour;
-		BodyWithFoam->Alpha.Expression = FoamAlpha;
+		BodyWithFoam->Alpha.Expression = FoamSum;
 
 		UMaterialExpressionLinearInterpolate* EmissiveTotal = AddExpr<UMaterialExpressionLinearInterpolate>(Material, -420, 1240);
 		EmissiveTotal->A.Expression = BodyWithFoam;
-		EmissiveTotal->B.Expression = SkyReflect;
+		EmissiveTotal->B.Expression = SeaSky;
 		EmissiveTotal->Alpha.Expression = ReflectMix;
 
 		// ---- dither ------------------------------------------------------
 		//
-		// The sea is one enormous, very smooth radial gradient (shallow -> deep -> haze). At 8
-		// bits a gradient that slow quantises into concentric contour rings around the island -
-		// measured on the 35 degree shot as eight evenly spaced teal bands. No amount of colour
-		// tuning removes them, because the ringing is in the *encoding*, not the shading.
-		// A stable +/-0.6% world-space dither pushes each pixel across the quantisation boundary
-		// unpredictably; it is far below the visible noise floor but breaks every contour.
-		UMaterialExpressionWorldPosition* DitherPos = AddExpr<UMaterialExpressionWorldPosition>(Material, -640, 1360);
+		// Even a monotonic ramp quantises at 8 bits, and a slow ramp over 2000 px shows every
+		// step as a contour. A stable +/-1.5% world-space hash moves each pixel across the
+		// boundary unpredictably. It is far below the noise floor of a compressed screenshot and
+		// it is the only thing that removes contours without touching the colour.
+		// Screen position, not world position.
+		//
+		// A world-space hash has a one-metre cell; at 20 km one pixel covers twenty of them, so
+		// the hash is sampled far below its frequency and averages straight back to the value it
+		// was meant to break. Screen space is the only lattice guaranteed to be at pixel pitch,
+		// which is what a dither has to be.
+		UMaterialExpressionScreenPosition* DitherPos = AddExpr<UMaterialExpressionScreenPosition>(Material, -640, 1360);
 		UMaterialExpressionCustom* SeaDither = AddExpr<UMaterialExpressionCustom>(Material, -200, 1320);
 		SeaDither->Description = TEXT("SeaDither");
 		SeaDither->OutputType = CMOT_Float3;
 		SeaDither->Code = TEXT(R"(
-float n = frac(sin(dot(P.xy, float2(12.9898, 78.233))) * 43758.5453);
-return C * (1.0 + (n - 0.5) * 0.012);
+// Hoskins hash on the integer lattice, NOT sin(dot(...)).
+//
+// The previous version hashed with `frac(sin(dot(P.xy, k)) * 43758.5453)`, and P.xy here is a
+// world position in the hundreds of thousands: the sine argument is ~1e7, float32 keeps about
+// seven digits, and every pixel on the sea rounded to the same value. The dither was a
+// constant. It is the same failure the sky's cloud hash was fixed for - the comment there
+// even says so - and it is why the sea kept its contour rings through three rounds of
+// "I added a dither".
+float2 c = floor(P * 4096.0);
+float3 h = frac(float3(c.x, c.y, c.x) * 0.1031);
+h += dot(h, h.yzx + 33.33);
+float n = frac((h.x + h.y) * h.z);
+return C * (1.0 + (n - 0.5) * 0.055);
 )");
 		{
 			FCustomInput InC;
@@ -1492,8 +1587,16 @@ float h = d.z;
 // framing the visible sky spans roughly 0 to 15 degrees of elevation, i.e. h in [0, 0.26];
 // a gradient that only starts deepening at h = 0.26 therefore arrives as one flat pale blue
 // (measured: 0.10 of total variation across the whole sky, 2026-10-18).
-float3 sky = lerp(Horizon, Mid, smoothstep(0.0, 0.075, h));
-sky = lerp(sky, Zenith, smoothstep(0.055, 0.40, h));
+// The band that is actually on screen. The two low stops look at 0 to 9 degrees of elevation,
+// so a gradient that only deepens above h = 0.26 arrives as one flat pale blue. Horizon to
+// mid completes inside 6 degrees and mid to zenith runs from 8 degrees up, which is what a
+// real sky does and what puts a visible gradient inside the frame.
+// The pale band is *wide* on purpose: a real sky is still hazy at five degrees, and the sea's
+// own aerial perspective keeps it pale for about the same arc. A fast ramp here (0.13) put a
+// saturated blue three degrees above a near-white sea, which reads as a line even when the two
+// colours meet exactly at the horizon.
+float3 sky = lerp(Horizon, Mid, smoothstep(0.0, 0.24, h));
+sky = lerp(sky, Zenith, smoothstep(0.20, 0.55, h));
 sky = lerp(sky, Horizon * 0.93, saturate(-h * 6.0));
 
 // ---- directional scattering ----
@@ -1523,6 +1626,20 @@ sky += SunHalo * pow(mu, 24.0) * 0.15;
 sky = lerp(sky, Horizon + SunHalo * 0.10 * mu, pow(saturate(1.0 - h * 2.6), 4.0) * 0.24);
 
 sky = lerp(sky, SunCore, smoothstep(SunDiscCos, SunDiscCos + 0.00035, cosA));
+
+// ---- horizon haze ------------------------------------------------------
+//
+// A hard line between water and sky is the single most "rendered" thing in a landscape: in a
+// photograph the last degree above the sea is always a washed, slightly warm band, because the
+// line of sight grazes the densest air there. Two degrees wide, 55% strength - enough to break
+// the edge, not enough to look like fog.
+// 0.18, not 0.55, and a wider falloff.
+//
+// At 0.55 the band had a *lower edge* as well as an upper one: it made the last five degrees of
+// sky a paler slab than the sky above it, so the horizon gained a second line instead of losing
+// the first. The gradient already ends at the horizon colour; this only has to thicken it.
+float hz = pow(saturate(1.0 - h * 6.0), 2.0);
+sky = lerp(sky, Horizon * 1.02, hz * 0.18);
 
 // ---- moon ----
 float cosM = dot(d, normalize(MoonDirection));

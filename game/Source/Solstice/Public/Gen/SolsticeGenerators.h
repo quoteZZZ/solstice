@@ -221,9 +221,13 @@ namespace Solstice
 			float VisibleTop = 0.893f;
 
 			/** Three-band gradient: zenith is the deepest, the horizon is nearly white. */
-			FLinearColor Zenith = CelSrgb(0x2F, 0x63, 0xAE);
-			FLinearColor Middle = CelSrgb(0x86, 0xB8, 0xE4);
-			FLinearColor Horizon = CelSrgb(0xEA, 0xF3, 0xFA);
+			// Deepened on 2026-10-19. The old trio (0x2F63AE / 0x86B8E4 / 0xEAF3FA) put a
+			// near-white horizon under a pale mid, and since the sea mirrors the horizon at
+			// grazing angles the whole upper half of every frame - sky *and* water - arrived as
+			// one washed-out grey-blue. A wallpaper needs a sky with a value range in it.
+			FLinearColor Zenith = CelSrgb(0x17, 0x47, 0x94);
+			FLinearColor Middle = CelSrgb(0x5C, 0x9C, 0xD8);
+			FLinearColor Horizon = CelSrgb(0xD8, 0xE9, 0xF0);
 			/** Below the horizon band the sky goes back down a step, so the frame has an edge. */
 			FLinearColor Under = CelSrgb(0x8A, 0xB4, 0xD6);
 

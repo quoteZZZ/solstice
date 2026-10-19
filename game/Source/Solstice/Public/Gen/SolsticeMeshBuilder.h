@@ -48,10 +48,19 @@ namespace Solstice
 		/**
 		 * Add one vertex.
 		 *
-		 * `Occlusion` rides in the vertex colour's **alpha** channel: the cel material multiplies the
-		 * shading bands by it, which is how the world gets contact darkening without a shadow pass
-		 * (M_Cel is unlit, so a real shadow map never reaches the surface). 1 = open sky, 0.5 = a
-		 * crevice or the underside of a canopy.
+		 * `Occlusion` is **baked into the colour** (and kept in alpha for anything that wants it).
+		 * 1 = open sky, 0.5 = a crevice or the underside of a canopy.
+		 *
+		 * Why the colour and not a channel the shader reads:
+		 *
+		 * M_Cel is effectively unlit - measured 2026-10-19, zeroing the sun moves the frame by a
+		 * fifth, and the island's value comes almost entirely from its emissive fill, which is
+		 * `albedo * band * CelFill`. So albedo *is* the renderer here, and multiplying it by the
+		 * occlusion is the only place a shadow can live. The alpha channel was carrying this
+		 * value for months and nothing read it; feeding it to the material through a component
+		 * mask failed to compile ("not enough components in (float3) for component mask 0001"),
+		 * because the compiler had already narrowed the shared vertex-colour expression to RGB.
+		 * Baking it in is one line here and needs no shader support at all.
 		 */
 		int32 Add(const FVector& Position, const FVector& Normal, const FVector2D& UV,
 			const FLinearColor& Color, float Occlusion = 1.0f,
@@ -60,8 +69,15 @@ namespace Solstice
 			const int32 Index = Positions.Add(Position);
 			Normals.Add(Normal);
 			UVs.Add(UV);
+			const float Lit = FMath::Clamp(Occlusion, 0.0f, 1.0f);
+			// A gentle curve, not the raw value: occlusion 0.45 is a deep hollow and should read
+			// as roughly half the light, not as less than half of a value that is already dark.
+			const float Bake = 0.45f + 0.55f * Lit;
 			FLinearColor Stored = Color;
-			Stored.A = FMath::Clamp(Occlusion, 0.0f, 1.0f);
+			Stored.R *= Bake;
+			Stored.G *= Bake;
+			Stored.B *= Bake;
+			Stored.A = Lit;
 			Colors.Add(Stored);
 			Tangents.Add(FProcMeshTangent(Tangent, false));
 			return Index;
