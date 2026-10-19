@@ -40,6 +40,13 @@
   digest `CE8B0D7BE6489900`）。新增任何 `FDateTime::Now()` 到 Sim 路径前，先想 bench 怎么钉住它。
 - **目视取色的常量一律走 `CelSrgb()`**（`Gen/SolsticeGenerators.h`）。把 sRGB 数值直接塞进
   `FLinearColor` 等于 gamma 两次，草地 0.40 出屏 0.66——整界"发灰"的元凶就是它。
+- **`tools/art/textures/*.png` 必须写 sRGB 编码后的字节**（`gen-textures.py::save()` 已处理）。
+  运行时 `LoadPng` 一律 `Texture->SRGB = true`，写线性值等于多解一次 gamma：草地 0.58 → 0.30。
+  法线图同理（它是数据，但走同一条 sRGB 取样路径）。
+- **M_Cel 的三档着色切在 `Emissive` 里，不在 `BaseColor` 里**。这个世界只有一盏 100 单位方向光
+  和天光捕获，在 `-1.3` 档手动曝光下它们对地面的贡献≈0（实测太阳 ×20、天光 ×2.6、关阴影，
+  岛的中位线性亮度恒为 0.045，只有 `-SolsticeCel=` 的 albedo 增益能动它）。所以
+  `BaseColor = albedo × 三档` 被乘零，三档必须在 `ShadowFill` 自发光里切。改 `BaseColor` 无效。
 - 分层 `Render → World → Sim`；新增能力落主模块子目录，**不新建模块**（`SolsticeSim` 模块已被实测否决）。
 - 跨 DLL 公共类型必须标 `SOLSTICE_API`（漏标 = `LNK2019`，已踩过 `FPaperMaterials` / `FSimKernel` / `FDataLoader`）。
 - `Build.cs` 依赖是**白名单**：只列真正被 include 的模块（`JsonUtilities` 曾空挂，2026-10-17 移除）。
