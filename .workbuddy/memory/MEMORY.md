@@ -43,6 +43,9 @@
 - **`tools/art/textures/*.png` 必须写 sRGB 编码后的字节**（`gen-textures.py::save()` 已处理）。
   运行时 `LoadPng` 一律 `Texture->SRGB = true`，写线性值等于多解一次 gamma：草地 0.58 → 0.30。
   法线图同理（它是数据，但走同一条 sRGB 取样路径）。
+- **HUD 的度量只有一个源**：`SolsticeHUDView.cpp` 全按 1080p 书写，`GUiScale = clamp(视口高/1080, 0.85, 2.0)`
+  统一缩放（字号 `Font()`、间距 `Px()`）。Slate 的 DPI 曲线对直接挂到 viewport 的 widget **无效**，
+  缺这层就会"窗口越大字越小"。新增控件必须用 `Px()` 包住所有 padding / 宽高。
 - **画面里必须有地平线**：垂直 FOV 29.4°，俯仰 >14.7° 时整帧都是海（顶边已在水平线下）。俯仰档是 **8/24/48/88**。
 - **`shot.ps1` 必须带 `-ForceRes`**：不带则引擎用存档窗口尺寸，此前所有"4K"实际 888×500。
 - **M_Cel 的可见亮度 = Emissive**（`albedo × 分带 × CelFill`），阴影贴图够不到它；要做暗部只能改**顶点色 RGB**
