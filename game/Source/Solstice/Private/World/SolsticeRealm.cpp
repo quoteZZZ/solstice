@@ -1053,7 +1053,7 @@ void ASolsticeRealm::BuildSkyMesh()
 		//
 		// (Before the normalisation the mean drifted with the octave count, so every retune of
 		// the noise invalidated the threshold and the two had to be searched together.)
-		SkyMID->SetScalarParameterValue(TEXT("CloudThreshold"), 0.548f - 0.16f * Cloud);
+		SkyMID->SetScalarParameterValue(TEXT("CloudThreshold"), 0.500f - 0.16f * Cloud);
 
 		// ---- cloud frequency ----------------------------------------------
 		//
@@ -1068,7 +1068,7 @@ void ASolsticeRealm::BuildSkyMesh()
 		// 150 was tried first and overshot - the sky became a regular field of 40 px squares,
 		// which is the lattice showing through the threshold. The lattice is bent by the domain
 		// warp in BuildSky now, so the frequency only has to set the cloud *size*.
-		SkyMID->SetScalarParameterValue(TEXT("CloudScale"), 75.0f);
+		SkyMID->SetScalarParameterValue(TEXT("CloudScale"), 60.0f);
 		SkyMID->SetScalarParameterValue(TEXT("SunDiscCos"),
 			FMath::Cos(FMath::DegreesToRadians(SunAngularRadiusDeg)));
 
@@ -1149,6 +1149,10 @@ void ASolsticeRealm::BuildSkyMesh()
 		// drop-off is anyway. Beyond that the deep colour simply fills the rest of the surface up
 		// to the haze.
 		const float SeaR = FMath::Max(1000.0f, GetRealmRadiusUU());
+		// 1.02R / 4.0R. 1.45R / 3.2R was tried on 2026-10-19 to put the turquoise shelf outside the
+		// island's own silhouette, and it made the whole visible sea pale: the camera sees almost
+		// nothing past 3.2R, so the deep band never entered the frame and the water lost its one
+		// depth cue. The shelf stays where the island is; the depth read comes from the haze ramp.
 		SeaMID->SetScalarParameterValue(TEXT("SeaShallowRadius"), SeaR * 1.02f);
 		SeaMID->SetScalarParameterValue(TEXT("SeaDeepRadius"), SeaR * 4.0f);
 		SeaMID->SetScalarParameterValue(TEXT("SeaHazeStart"), 50000.0f);

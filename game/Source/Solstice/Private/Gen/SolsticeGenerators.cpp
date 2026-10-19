@@ -1062,8 +1062,14 @@ namespace Solstice
 					// rim. The separation now comes from the hue steps below, which stay visible
 					// at 20 px without pushing any crown into near-black.
 					const float Shade = 0.86f + 0.28f * CelGrain(X * 3 + 9, Y * 5 + 2);
-					const float TrunkHeight = (85.0f + 70.0f * CelGrain(X + 11, Y + 17)) * Vigour * HeightMul;
-					const float CrownRadius = (120.0f + 80.0f * CelGrain(Y + 3, X + 29)) * Vigour * CrownMul;
+					// Bigger, because the island is 29 m across and these were 1.2-2.0 m crowns
+					// scattered on it: at the entry framing each tree was about eight pixels of
+					// mushroom with more grass than canopy between them, so the "forest" read as a
+					// green sponge rather than as trees. 1.5-2.5 m crowns at 1.0-1.75 m trunks
+					// close the gaps and let the crowns overlap into stands, which is what the
+					// density modulation was written for.
+					const float TrunkHeight = (95.0f + 80.0f * CelGrain(X + 11, Y + 17)) * Vigour * HeightMul;
+					const float CrownRadius = (150.0f + 95.0f * CelGrain(Y + 3, X + 29)) * Vigour * CrownMul;
 					const FVector Root(Centre.X, Centre.Y, Surface * MeterUU);
 
 					// Tapered hexagonal trunk, one corner jitter per side so it is not a prism.
@@ -1120,7 +1126,16 @@ namespace Solstice
 					// (#7FBF5F is 0.21/0.52/0.11). Foliage is *one step* deeper than the meadow,
 					// not three: the darkness between crowns is the material's job (bands, the
 					// skirt occlusion, the cast shadows), not the albedo's.
-					const FLinearColor LeafDark = CelSrgb(0x4E, 0x8C, 0x42) * Shade;
+					// One albedo per crown, not a vertical gradient.
+					//
+					// Every cushion used to take a dark colour at its base ring and a mid one at its cap,
+					// i.e. a light-to-dark ramp baked into the vertex colours. From a camera near the
+					// waterline the skirt is nearly all that is visible, so every tree was a dark cone
+					// with a bright rim: a parasol, and the same parasol nine hundred times.
+					//
+					// The material now has real three-band shading on dot(N, sun), and two value systems
+					// on one crown can only fight - the albedo asserts "this side is dark" regardless of
+					// where the light is. The crown carries one albedo; the band decides which side is lit.
 					const FLinearColor LeafMid = CelSrgb(0x68, 0xA8, 0x4A) * Shade;
 					const FLinearColor LeafLit = CelSrgb(0x94, 0xC8, 0x5E) * Shade * 1.04f;
 					const uint32 FamilySeed = static_cast<uint32>(X * 31 + Y * 7);
@@ -1138,7 +1153,7 @@ namespace Solstice
 								Root + FVector(FMath::Cos(A) * Reach, FMath::Sin(A) * Reach,
 									BaseZ + CrownRadius * (0.20f + 0.14f * CelGrain(Y + Arm, X + 7))),
 								7, CrownRadius * (0.66f + 0.14f * CelGrain(X + 3 * Arm, Y + 5)),
-								CrownRadius * 0.48f, LeafDark, LeafMid, X * 31 + Y * 7 + Arm * 13);
+								CrownRadius * 0.62f, LeafMid, LeafLit, X * 31 + Y * 7 + Arm * 13);
 						}
 					}
 					else if (Family == 1)
@@ -1152,13 +1167,13 @@ namespace Solstice
 								Root + FVector(0.0f, 0.0f, BaseZ + CrownRadius * 1.55f * T),
 								7, CrownRadius * (1.0f - 0.62f * T),
 								CrownRadius * (0.55f - 0.18f * T),
-								Tier < 2 ? LeafDark : LeafMid, LeafMid, FamilySeed + Tier * 11);
+								LeafMid, LeafLit, FamilySeed + Tier * 11);
 						}
 					}
 					else if (Family == 2)
 					{
 						Cushion(Out, Root + FVector(0.0f, 0.0f, BaseZ + CrownRadius * 0.30f),
-							7, CrownRadius, CrownRadius * 0.80f, LeafDark, LeafMid, FamilySeed);
+							7, CrownRadius, CrownRadius * 0.88f, LeafMid, LeafLit, FamilySeed);
 						Cushion(Out, Root + FVector(CrownRadius * 0.30f, CrownRadius * 0.18f,
 							BaseZ + CrownRadius * 0.46f), 6, CrownRadius * 0.62f,
 							CrownRadius * 0.58f, LeafMid, LeafLit, FamilySeed + 7);
@@ -1171,14 +1186,14 @@ namespace Solstice
 						const float LeanX = (CelGrain(X + 5, Y + 5) - 0.5f) * CrownRadius * 1.1f;
 						const float LeanY = (CelGrain(Y + 5, X + 5) - 0.5f) * CrownRadius * 1.1f;
 						Cushion(Out, Root + FVector(LeanX, LeanY, BaseZ + CrownRadius * 0.55f),
-							7, CrownRadius * 1.05f, CrownRadius * 0.52f, LeafDark, LeafMid, FamilySeed);
+							7, CrownRadius * 1.05f, CrownRadius * 0.66f, LeafMid, LeafLit, FamilySeed);
 						Cushion(Out, Root + FVector(LeanX * 1.7f, LeanY * 1.7f, BaseZ + CrownRadius * 0.30f),
-							6, CrownRadius * 0.60f, CrownRadius * 0.42f, LeafMid, LeafLit, FamilySeed + 9);
+							6, CrownRadius * 0.60f, CrownRadius * 0.54f, LeafMid, LeafLit, FamilySeed + 9);
 					}
 					else
 					{
 						Cushion(Out, Root + FVector(0.0f, 0.0f, CrownRadius * 0.20f),
-							7, CrownRadius, CrownRadius * 0.46f, LeafMid, LeafLit, FamilySeed);
+							7, CrownRadius, CrownRadius * 0.58f, LeafMid, LeafLit, FamilySeed);
 					}
 
 					// Ink hull around the whole tree, pivoted at its root so the crown grows outward

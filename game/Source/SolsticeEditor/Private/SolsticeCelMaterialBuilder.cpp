@@ -64,7 +64,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 126;
+	constexpr int32 CelRecipeVersion = 129;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -1711,17 +1711,33 @@ float cover = CloudThreshold + (m - 0.5) * 0.30;
 // A per-pixel jitter on this threshold was tried to break the straight seams and measured no
 // effect at all - which was the clue that they were a geometry problem, not a threshold one.
 
+// ---- shape from the low octaves, edge from the high ones --------------
+//
+// A mask cut on the *full* four-octave field shreds along whichever octave happens to have the
+// steepest local gradient, and that is almost always the finest one - which is why the deck
+// read as torn paper rather than as cloud. A cumulus silhouette is set by its low frequencies;
+// the fine octaves belong at the border, where they roughen a boundary that already exists.
+//
+// So the mask is cut on a field that is 60% the two low octaves and 40% everything, and the
+// fine detail is left to `lit` and `body` below, which modulate the interior instead of the
+// outline.
+// The 1.5 restores the spread the two low octaves alone do not have. Blending down to a
+// smoother field also shrank its variance, so the same threshold covered almost nothing - the
+// first attempt after this change left five wisps in the whole sky. Rescaling about the mean
+// keeps the coverage where CloudThreshold says it is while changing only the *smoothness*.
+float nShape = (n * 0.40 + (nLow / 1.55) * 0.60 - 0.5) * 2.0 + 0.5;
+
 // A transition wider than the signal turns the deck into fog - that mistake is written down in
 // round 16 and it cost a full rebuild.
 // 0.24. 0.18 was tried with the raised frequency and the edge became a cut - a printed sticker
 // on the sky. The transition only has to be narrower than the cloud spacing, not as narrow as
 // the rim colour: at 0.24 of the field's ~0.55 range an edge is two or three pixels at this
 // framing, which is a soft but definite border.
-float mask = smoothstep(cover, cover + 0.24, n);
+float mask = smoothstep(cover, cover + 0.24, nShape);
 
 // 0 at the rim, 1 in the thickest core. A cloud is not a flat cut-out: the rim is a thin sheet
 // and only the core has enough body to shade itself.
-float density = saturate((n - cover) / 0.30);
+float density = saturate((nShape - cover) / 0.30);
 
 // 14, not 10: with the field normalised the low-octave difference is smaller, so the same
 // response needs more gain. Clamped inside its range on purpose - the earlier 22 clipped at
