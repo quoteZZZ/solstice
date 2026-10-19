@@ -15,7 +15,7 @@ status: active
 ```text
 game/Source/
 ├─ Solstice/                     唯一 Runtime 模块
-│  ├─ Core/      GameInstance、现实锚（时钟/纬度/联网天气）、数据加载、本地化
+│  ├─ Core/      GameInstance、世界时钟（虚拟）、数据加载、本地化
 │  ├─ Sim/       世界钟 + 世界生成 + 生态 + 天气 + 卡指令 + 余响 + 年表（纯逻辑）
 │  ├─ Gen/       程序化几何（地形网格 / 天空球 / 海 / 立牌 / 道具）
 │  ├─ Render/    材质解析、分带参数、天空调色
