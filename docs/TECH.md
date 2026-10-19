@@ -16,7 +16,12 @@ status: active
 game/Source/
 ├─ Solstice/                     唯一 Runtime 模块
 │  ├─ Core/      GameInstance、世界时钟（虚拟）、数据加载、本地化
-│  ├─ Sim/       世界钟 + 世界生成 + 生态 + 天气 + 卡指令 + 余响 + 年表（纯逻辑）
+│  ├─ Sim/       世界钟 + 卡指令 + 余响 + 年表（纯逻辑，门面 SolsticeKernel）
+│  │  ├─ State/    类型、世界状态、编年史
+│  │  ├─ Gen/      世界生成（六轴骰 + 高度场）
+│  │  ├─ Rules/    物理法则（7 变量，可被卡改写）
+│  │  ├─ Entities/ 物种、聚落、城邦、文明（数据驱动）
+│  │  └─ Cards/    卡定义、原语注册表、卡包
 │  ├─ Gen/       程序化几何（地形网格 / 天空球 / 海 / 立牌 / 道具）
 │  ├─ Render/    材质解析、分带参数、天空调色
 │  ├─ World/     ASolsticeRealm：分块网格、道具、光照、雾、后处理
