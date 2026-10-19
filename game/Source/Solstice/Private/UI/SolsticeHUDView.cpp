@@ -4,11 +4,14 @@
 
 #include "Brushes/SlateColorBrush.h"
 #include "Brushes/SlateRoundedBoxBrush.h"
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "Core/SolsticeGameInstance.h"
 #include "Core/SolsticeLocalization.h"
 #include "God/SolsticePlayerController.h"
 #include "Sim/SolsticeKernel.h"
 #include "Styling/CoreStyle.h"
+#include "UnrealClient.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
@@ -47,6 +50,12 @@ namespace
 	const FSlateBrush* PanelDeepBrush()
 	{
 		static const FSlateRoundedBoxBrush Brush(PanelBgDeep, CelCorner, PanelEdge, CelOutline);
+		return &Brush;
+	}
+
+	const FSlateBrush* SolidBrush()
+	{
+		static const FSlateColorBrush Brush(FLinearColor::White);
 		return &Brush;
 	}
 
@@ -104,15 +113,41 @@ namespace
 		return Style;
 	}
 
-	// R-04: the type ladder lives in exactly one place. Call sites ask for a semantic size
-	// (9 / 10 / 11 / 12 / 13 / 22) and the scale is applied here, so the whole sheet can be
-	// retuned without editing thirty literals. 1.18 lifts the smallest text (9) to ~11px, the
-	// floor that stays readable on a 1080p window without the user zooming in.
-	constexpr float UiFontScale = 1.18f;
+	// ---- resolution-independent metrics --------------------------------
+	//
+	// Everything below is authored at **1080p** and multiplied by one number taken from the
+	// viewport height. This is the whole readability bug: a 2560x1440 window used to draw the
+	// same pixel sizes as a 1280x720 one, so a 12 pt label arrived at two thirds of its intended
+	// size and the entire HUD read as a thin strip of unreadable text. Slate's own DPI curve does
+	// not apply to a widget added straight to the viewport, so the scale is done here.
+	float GUiScale = 1.0f;
+
+	void SetUiScaleFromViewport()
+	{
+		if (!GEngine || !GEngine->GameViewport)
+		{
+			return;
+		}
+		FViewport* Viewport = GEngine->GameViewport->Viewport;
+		if (!Viewport)
+		{
+			return;
+		}
+		const FIntPoint Size = Viewport->GetSizeXY();
+		if (Size.Y >= 200)
+		{
+			// 0.85 is a floor for small windows; the ceiling keeps a 4K screen from turning the
+			// hand into a wall of billboards.
+			GUiScale = FMath::Clamp(static_cast<float>(Size.Y) / 1080.0f, 0.85f, 2.0f);
+		}
+	}
+
+	/** Layout units -> pixels. */
+	float Px(float Value) { return Value * GUiScale; }
 
 	FSlateFontInfo Font(int32 Size, bool bBold = false)
 	{
-		const int32 Scaled = FMath::Max(8, FMath::RoundToInt(static_cast<float>(Size) * UiFontScale));
+		const int32 Scaled = FMath::Max(9, FMath::RoundToInt(static_cast<float>(Size) * GUiScale));
 		return FCoreStyle::GetDefaultFontStyle(bBold ? TEXT("Bold") : TEXT("Regular"), Scaled);
 	}
 
@@ -150,26 +185,49 @@ namespace
 			.Visibility(EVisibility::HitTestInvisible);
 	}
 
+	/** Cream text for saturated fills. A 1 px shadow is what makes white legible on gold. */
+	TSharedRef<STextBlock> TxtShadow(const FText& Text, int32 Size)
+	{
+		return SNew(STextBlock)
+			.Text(Text)
+			.Font(Font(Size, true))
+			.ColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.99f, 0.96f, 1.0f)))
+			.ShadowOffset(FVector2D(0.0f, 1.0f))
+			.ShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.50f))
+			.Visibility(EVisibility::HitTestInvisible);
+	}
+
+	TSharedRef<STextBlock> TxtShadowL(TAttribute<FText> Text, int32 Size)
+	{
+		return SNew(STextBlock)
+			.Text(Text)
+			.Font(Font(Size, true))
+			.ColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.99f, 0.96f, 1.0f)))
+			.ShadowOffset(FVector2D(0.0f, 1.0f))
+			.ShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.50f))
+			.Visibility(EVisibility::HitTestInvisible);
+	}
+
 	/** Key on the left in soft ink, live value on the right in full ink. */
 	TSharedRef<SWidget> Row(const FString& Key, TAttribute<FText> Value)
 	{
 		return SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.0f, 2.0f)
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.0f, Px(3.0f))
 			[
-				Txt(Tx(Loc(Key)), 12, InkSoft)
+				Txt(Tx(Loc(Key)), 13, InkSoft)
 			]
 			+ SHorizontalBox::Slot().FillWidth(1.0f)
 			[
 				SNullWidget::NullWidget
 			]
-			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(12.0f, 2.0f)
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Px(12.0f), Px(3.0f))
 			[
 				// R-09: a zero is not a reading. Dim it so the eye skips it and lands on whatever
 				// actually moved - the panel used to give seven rows of "0" the same weight as a
 				// live number, which is why it read as empty at minute three.
 				SNew(STextBlock)
 				.Text(Value)
-				.Font(Font(12, true))
+				.Font(Font(13, true))
 				.ColorAndOpacity(TAttribute<FSlateColor>::CreateLambda([Value]()
 				{
 					const FString Text = Value.Get().ToString();
@@ -190,21 +248,32 @@ namespace
 			FLinearColor(0.35f, 0.30f, 0.24f, 0.13f), CelCorner + 1.0f);
 
 		return SNew(SBox)
-			.WidthOverride(Width)
+			.WidthOverride(Px(Width))
 			[
 				SNew(SBorder)
 				.BorderImage(&ShadowBrush)
-				.Padding(FMargin(1.0f, 1.0f, 1.0f, 2.0f))
+				.Padding(FMargin(Px(1.0f), Px(1.0f), Px(1.0f), Px(2.0f)))
 				[
 				SNew(SBorder)
 				.BorderImage(PanelBrush())
-				.Padding(FMargin(13.0f, 10.0f))
+				.Padding(FMargin(Px(14.0f), Px(11.0f)))
 				.Visibility(EVisibility::SelfHitTestInvisible)
 				[
 					SNew(SVerticalBox)
-					+ SVerticalBox::Slot().AutoHeight().Padding(0.0f, 0.0f, 0.0f, 7.0f)
+					// A rule under the title, not just a colour change: a paper panel with a
+					// heading floating in the same field as its rows reads as one paragraph.
+					+ SVerticalBox::Slot().AutoHeight().Padding(0.0f, 0.0f, 0.0f, Px(4.0f))
 					[
-						Txt(Title, 14, Accent, true)
+						Txt(Title, 15, Accent, true)
+					]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0.0f, 0.0f, 0.0f, Px(7.0f))
+					[
+						SNew(SBox).HeightOverride(Px(1.0f))
+						[
+							SNew(SBorder)
+							.BorderImage(WhiteBrush())
+							.BorderBackgroundColor(FSlateColor(FLinearColor(0.44f, 0.39f, 0.32f, 0.28f)))
+						]
 					]
 					+ SVerticalBox::Slot().AutoHeight()
 					[
@@ -215,14 +284,44 @@ namespace
 			];
 	}
 
-	TSharedRef<SWidget> ActionButton(const FText& Label, FOnClicked OnClicked)
+	/** A key cap: dark chip, cream legend. Sits inside the buttons that have a binding. */
+	TSharedRef<SWidget> Keycap(const FString& Key)
 	{
+		static const FSlateRoundedBoxBrush CapBrush(
+			FLinearColor(0.20f, 0.18f, 0.16f, 0.92f), 3.0f);
+		return SNew(SBorder)
+			.BorderImage(&CapBrush)
+			.Padding(FMargin(Px(6.0f), Px(2.0f)))
+			.Visibility(EVisibility::HitTestInvisible)
+			[
+				Txt(Tx(Key), 10, FLinearColor(0.97f, 0.95f, 0.90f, 1.0f), true)
+			];
+	}
+
+	/** Action button: optional key cap, then the verb. */
+	TSharedRef<SWidget> ActionButton(const FText& Label, FOnClicked OnClicked,
+		const FString& Key = FString())
+	{
+		TSharedRef<SHorizontalBox> Content = SNew(SHorizontalBox);
+		if (!Key.IsEmpty())
+		{
+			Content->AddSlot().AutoWidth().VAlign(VAlign_Center)
+			[
+				Keycap(Key)
+			];
+		}
+		Content->AddSlot().AutoWidth().VAlign(VAlign_Center)
+			.Padding(Key.IsEmpty() ? FMargin(0.0f) : FMargin(Px(7.0f), 0.0f, 0.0f, 0.0f))
+		[
+			Txt(Label, 12, Ink, true)
+		];
+
 		return SNew(SButton)
 			.ButtonStyle(&ActionStyle())
 			.OnClicked(OnClicked)
-			.ContentPadding(FMargin(2.0f))
+			.ContentPadding(FMargin(Px(3.0f)))
 			[
-				Txt(Label, 12, Ink, true)
+				Content
 			];
 	}
 
@@ -231,9 +330,23 @@ namespace
 		return SNew(SButton)
 			.ButtonStyle(&ChipStyle())
 			.OnClicked(OnClicked)
-			.ContentPadding(FMargin(2.0f))
+			.ContentPadding(FMargin(Px(6.0f), Px(3.0f)))
 			[
-				Txt(Label, 11, Ink, false)
+				Txt(Label, 12, Ink, false)
+			];
+	}
+
+	/** A hairline between action groups. */
+	TSharedRef<SWidget> GroupDivider()
+	{
+		return SNew(SBox)
+			.WidthOverride(Px(1.0f))
+			.HeightOverride(Px(20.0f))
+			.VAlign(VAlign_Center)
+			[
+				SNew(SBorder)
+				.BorderImage(WhiteBrush())
+				.BorderBackgroundColor(FSlateColor(FLinearColor(0.44f, 0.39f, 0.32f, 0.22f)))
 			];
 	}
 }
@@ -259,6 +372,10 @@ void SSolsticeHUDView::Construct(const FArguments& InArgs)
 {
 	Controller = InArgs._Controller;
 
+	// Before any widget below asks for a size. Everything in this file is authored at 1080p and
+	// scaled here, so the HUD is the same physical size on a 1280 window and a 4K one.
+	SetUiScaleFromViewport();
+
 	ChildSlot
 	[
 		SNew(SOverlay)
@@ -276,7 +393,7 @@ void SSolsticeHUDView::Construct(const FArguments& InArgs)
 		// numbers in two 244px cards, and on the first screen after "new game" they covered the
 		// left third of the frame - which is why the game read as a debug overlay rather than as
 		// a place. T opens them for anyone who wants the numbers.
-		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(FMargin(14.0f))
+		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Top).Padding(FMargin(Px(16.0f)))
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot().AutoHeight()
@@ -306,7 +423,7 @@ void SSolsticeHUDView::Construct(const FArguments& InArgs)
 		]
 
 		// ---- top right: echo -------------------------------------------------
-		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(FMargin(14.0f))
+		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(FMargin(Px(16.0f)))
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot().AutoHeight()
@@ -367,13 +484,13 @@ void SSolsticeHUDView::Construct(const FArguments& InArgs)
 		]
 
 		// ---- top centre: status ---------------------------------------------
-		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(14.0f, 18.0f))
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Top).Padding(FMargin(Px(16.0f), Px(18.0f)))
 		[
 			BuildStatusLine()
 		]
 
 		// ---- bottom centre: hand + actions ----------------------------------
-		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(FMargin(14.0f))
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(FMargin(Px(16.0f)))
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot().AutoHeight().Padding(0.0f, 0.0f, 0.0f, 6.0f)
@@ -390,7 +507,7 @@ void SSolsticeHUDView::Construct(const FArguments& InArgs)
 		// A-03: the help sheet is off by default. UI-UX §1 asks for "world first, chrome folded
 		// away", and a thirteen-line key table parked on a pale paper world was the most visible
 		// thing on screen; H brings it back.
-		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(FMargin(14.0f))
+		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(FMargin(Px(16.0f)))
 		[
 			SNew(SBox)
 			.Visibility(TAttribute<EVisibility>::CreateLambda([this]()
@@ -411,39 +528,40 @@ void SSolsticeHUDView::Construct(const FArguments& InArgs)
 
 TSharedRef<SWidget> SSolsticeHUDView::BuildStatusCapsule()
 {
-	// Three facts and nothing else: what season it is, what time it is, and what the sky is
-	// doing. Everything the old two panels carried is still one key away (T) - it is just not
-	// standing between the player and the island any more.
-	TSharedRef<SHorizontalBox> Row3 = SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+	// The one thing always on screen, so it has to carry the time at a glance and everything
+	// else as a caption: a big clock, then season / weather / temperature on two short lines.
+	// It used to be three 12 pt fragments on one line, which is a status bar, not a read-out.
+	TSharedRef<SWidget> Clock = TxtL(TAttribute<FText>::CreateLambda([this]()
+	{
+		FSimKernel* Kernel = Sim();
+		if (!Kernel) { return FText(); }
+		return FText::FromString(FString::Printf(TEXT("%02d:%02d"),
+			Kernel->GetWorldHour(), Kernel->GetWorldMinuteOfHour()));
+	}), 22, Ink, true);
+
+	TSharedRef<SWidget> SeasonLine = TxtL(TAttribute<FText>::CreateLambda([this]()
+	{
+		FSimKernel* Kernel = Sim();
+		if (!Kernel) { return FText(); }
+		return FText::FromString(Kernel->GetSeasonString());
+	}), 11, InkSoft);
+
+	TSharedRef<SWidget> WeatherLine = TxtL(TAttribute<FText>::CreateLambda([this]()
+	{
+		FSimKernel* Kernel = Sim();
+		if (!Kernel) { return FText(); }
+		const FString Weather = WeatherLabel(Kernel->GetSky()).ToString();
+		return FText::FromString(FString::Printf(TEXT("%s  %.0f°"), *Weather, Kernel->GetSky().AirTempC));
+	}), 11, InkSoft);
+
+	TSharedRef<SWidget> Rule = SNew(SBox)
+		.WidthOverride(Px(2.0f))
+		.HeightOverride(Px(34.0f))
+		.VAlign(VAlign_Center)
 		[
-			TxtL(TAttribute<FText>::CreateLambda([this]()
-			{
-				FSimKernel* Kernel = Sim();
-				if (!Kernel) { return FText(); }
-				return FText::FromString(Kernel->GetSeasonString());
-			}), 12, InkSoft)
-		]
-		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(8.0f, 0.0f, 0.0f, 0.0f)
-		[
-			TxtL(TAttribute<FText>::CreateLambda([this]()
-			{
-				FSimKernel* Kernel = Sim();
-				if (!Kernel) { return FText(); }
-				return FText::FromString(FString::Printf(TEXT("%02d:%02d"),
-					Kernel->GetWorldHour(), Kernel->GetWorldMinuteOfHour()));
-			}), 14, Ink, true)
-		]
-		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(10.0f, 0.0f, 0.0f, 0.0f)
-		[
-			TxtL(TAttribute<FText>::CreateLambda([this]()
-			{
-				FSimKernel* Kernel = Sim();
-				if (!Kernel) { return FText(); }
-				const FString Weather = WeatherLabel(Kernel->GetSky()).ToString();
-				return FText::FromString(FString::Printf(TEXT("%s  %.0f°"),
-					*Weather, Kernel->GetSky().AirTempC));
-			}), 12, InkSoft)
+			SNew(SBorder)
+			.BorderImage(WhiteBrush())
+			.BorderBackgroundColor(FSlateColor(FLinearColor(0.44f, 0.39f, 0.32f, 0.22f)))
 		];
 
 	return SNew(SBox)
@@ -451,9 +569,17 @@ TSharedRef<SWidget> SSolsticeHUDView::BuildStatusCapsule()
 		[
 			SNew(SBorder)
 			.BorderImage(PanelBrush())
-			.Padding(FMargin(14.0f, 7.0f))
+			.Padding(FMargin(Px(14.0f), Px(6.0f)))
 			[
-				Row3
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[ Clock ]
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Px(12.0f), 0.0f)[ Rule ]
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot().AutoHeight()[ SeasonLine ]
+					+ SVerticalBox::Slot().AutoHeight()[ WeatherLine ]
+				]
 			]
 		];
 }
@@ -539,7 +665,7 @@ TSharedRef<SWidget> SSolsticeHUDView::BuildClockPanel()
 			*Solstice::Loc(bOnline ? TEXT("sky.reality_online") : TEXT("sky.reality_offline"))));
 	})) ];
 
-	return Panel(Tx(Solstice::Loc(TEXT("time.mode"))), Body, 244.0f);
+	return Panel(Tx(Solstice::Loc(TEXT("time.mode"))), Body, 280.0f);
 }
 
 TSharedRef<SWidget> SSolsticeHUDView::BuildRealmPanel()
@@ -609,7 +735,7 @@ TSharedRef<SWidget> SSolsticeHUDView::BuildRealmPanel()
 	// A-04: no Chinese game title, so this panel stops borrowing `game.title` (which would have
 	// printed the project name as a heading over a population readout). `realm.population` was
 	// already in l10n and unused - this is the line it was waiting for.
-	return Panel(Tx(Solstice::Loc(TEXT("realm.population"))), Body, 244.0f);
+	return Panel(Tx(Solstice::Loc(TEXT("realm.population"))), Body, 280.0f);
 }
 
 TSharedRef<SWidget> SSolsticeHUDView::BuildEchoPanel()
@@ -631,6 +757,21 @@ TSharedRef<SWidget> SSolsticeHUDView::BuildEchoPanel()
 		[
 			Txt(Tx(Solstice::Loc(TEXT("echo.balance"))), 12, InkSoft)
 		]
+	];
+
+	// At minute one every counter is zero and the panel is a column of nothing. One sentence
+	// that says so is worth more than six dimmed digits; it disappears the moment anything moves.
+	Body->AddSlot().AutoHeight().Padding(0.0f, 0.0f, 0.0f, Px(6.0f))
+	[
+		TxtL(TAttribute<FText>::CreateLambda([this]()
+		{
+			FSimKernel* Kernel = Sim();
+			if (!Kernel) { return FText::GetEmpty(); }
+			const FEchoLedger& Ledger = Kernel->GetLedger();
+			const int32 Total = Ledger.FromEvent + Ledger.FromSediment + Ledger.FromFirsthand
+				+ Ledger.FromRecycle + Ledger.FromAutoConvert;
+			return Total > 0 ? FText::GetEmpty() : Tx(Solstice::Loc(TEXT("echo.quiet")));
+		}), 11, InkSoft)
 	];
 
 	Body->AddSlot().AutoHeight()[ Row(TEXT("echo.from_event"), TAttribute<FText>::CreateLambda([this]()
@@ -670,7 +811,7 @@ TSharedRef<SWidget> SSolsticeHUDView::BuildEchoPanel()
 	Body->AddSlot().AutoHeight().Padding(0.0f, 0.0f, 0.0f, 2.0f)
 	[
 		SNew(SBox)
-		.HeightOverride(7.0f)
+		.HeightOverride(Px(10.0f))
 		[
 			SNew(SOverlay)
 			+ SOverlay::Slot()
@@ -738,125 +879,217 @@ TSharedRef<SWidget> SSolsticeHUDView::BuildEchoPanel()
 		]
 	];
 
-	return Panel(Tx(Solstice::Loc(TEXT("echo.balance"))), Body, 244.0f);
+	return Panel(Tx(Solstice::Loc(TEXT("echo.balance"))), Body, 280.0f);
 }
 
 TSharedRef<SWidget> SSolsticeHUDView::BuildStatusLine()
 {
+	// Collapsed when there is nothing to say.
+	//
+	// It used to be an always-present pale pill with an empty string inside, which at the top
+	// centre of the frame reads as a stray white rectangle floating in the sky. A toast that is
+	// only there when it has news is the whole point of a toast.
 	return SNew(SBorder)
 		.BorderImage(WhiteBrush())
 		.BorderBackgroundColor(FSlateColor(PanelBgDeep))
-		.Padding(FMargin(14.0f, 6.0f))
-		.Visibility(EVisibility::HitTestInvisible)
+		.Padding(FMargin(Px(14.0f), Px(8.0f), Px(18.0f), Px(8.0f)))
+		.Visibility(TAttribute<EVisibility>::CreateLambda([this]()
+		{
+			ASolsticePlayerController* Controller = PC();
+			return (Controller && Controller->HasStatus())
+				? EVisibility::SelfHitTestInvisible
+				: EVisibility::Collapsed;
+		}))
 		[
-			TxtL(TAttribute<FText>::CreateLambda([this]()
-			{
-				ASolsticePlayerController* Controller = PC();
-				if (!Controller || !Controller->HasStatus())
+			SNew(SHorizontalBox)
+			// The ochre edge is the only saturated thing in the chrome, so the eye finds the
+			// newest message without a second colour being spent on it.
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+			[
+				SNew(SBox).WidthOverride(Px(3.0f)).HeightOverride(Px(18.0f))
+				[
+					SNew(SBorder)
+					.BorderImage(SolidBrush())
+					.BorderBackgroundColor(FSlateColor(Accent))
+				]
+			]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Px(10.0f), 0.0f, 0.0f, 0.0f)
+			[
+				TxtL(TAttribute<FText>::CreateLambda([this]()
 				{
-					return FText::GetEmpty();
-				}
-				return FText::FromString(Solstice::Loc2(Controller->GetStatusZh(), Controller->GetStatusEn()));
-			}), 12, Ink, true)
+					ASolsticePlayerController* Controller = PC();
+					if (!Controller || !Controller->HasStatus())
+					{
+						return FText::GetEmpty();
+					}
+					return FText::FromString(Solstice::Loc2(Controller->GetStatusZh(), Controller->GetStatusEn()));
+				}), 13, Ink, true)
+			]
 		];
 }
 
 TSharedRef<SWidget> SSolsticeHUDView::CardChip(int32 Slot)
 {
-	// R-04: the card grew with the type ladder (the old 112x72 was tuned against 9px text). Its
-	// three lines keep the same order for now; the hierarchy swap is R-13.
-	return SNew(SBox)
-		.WidthOverride(128.0f)
-		.HeightOverride(82.0f)
-		.Padding(FMargin(3.0f))
+	// A card, not a table cell.
+	//
+	// The old face was three 9-12 pt lines of the same weight inside a 128x72 box with a 7 px
+	// colour sliver on the left: at a glance every card in the hand was the same grey rectangle,
+	// which is the "crude UI" complaint in one sentence. The new face has four bands, each with
+	// one job:
+	//
+	//   element strip   what kind of thing this is (colour + name, the only saturated field)
+	//   value           the decision number, at 22 pt - the largest type in the whole HUD
+	//   name            what it is, 14 pt bold
+	//   tags            class and duration, 10 pt, soft - reference, not reading
+	//
+	// 150 x 140 at 1080p, so eight of them still fit under a 1920 frame.
+	const FLinearColor Clear(0.0f, 0.0f, 0.0f, 0.0f);
+
+	TAttribute<FSlateColor> FrameColour = TAttribute<FSlateColor>::CreateLambda([this, Slot, Clear]()
+	{
+		ASolsticePlayerController* Controller = PC();
+		return FSlateColor((Controller && Controller->GetSelectedSlot() == Slot) ? Accent : Clear);
+	});
+
+	TAttribute<FSlateColor> StripColour = TAttribute<FSlateColor>::CreateLambda([this, Slot]()
+	{
+		FSimKernel* Kernel = Sim();
+		const int32 CardIndex = Kernel ? Kernel->GetHandCardIndex(Slot) : INDEX_NONE;
+		if (CardIndex == INDEX_NONE)
+		{
+			return FSlateColor(FLinearColor(0.72f, 0.70f, 0.66f, 1.0f));
+		}
+		const FCardDef* Card = Kernel->GetCatalog().CardAt(CardIndex);
+		if (!Card)
+		{
+			return FSlateColor(FLinearColor(0.72f, 0.70f, 0.66f, 1.0f));
+		}
+		FLinearColor Band = Solstice::ElementColor(Card->GetElement());
+		// Darkened before the white legend goes on it: the element colours are authored as fills,
+		// and cream text on a 0.85-luminance yellow is unreadable.
+		// 0.82, not 0.62: the label now carries its own shadow, so the band can keep the chroma
+		// that identifies the element. At 0.62 every element arrived as the same mud.
+		return FSlateColor(FLinearColor(Band.R * 0.82f, Band.G * 0.82f, Band.B * 0.82f, 1.0f));
+	});
+
+	// ---- element strip ---------------------------------------------------
+	static const FSlateRoundedBoxBrush RibbonBrush(FLinearColor::White, 3.0f);
+	TSharedRef<SWidget> Strip = SNew(SBorder)
+		.BorderImage(&RibbonBrush)
+		.BorderBackgroundColor(StripColour)
+		.Padding(FMargin(Px(9.0f), Px(5.0f)))
 		[
-			SNew(SButton)
-			.ButtonStyle(&CardStyle())
-			.ContentPadding(FMargin(5.0f))
-			.OnClicked(FOnClicked::CreateLambda([this, Slot]()
-			{
-				if (ASolsticePlayerController* Controller = PC()) { Controller->SelectSlot(Slot); }
-				return FReply::Handled();
-			}))
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 			[
-				SNew(SHorizontalBox)
-				// The element band replaces the old "whole card tinted" treatment: the face stays
-				// paper, and colour is spent where it carries information.
-				+ SHorizontalBox::Slot().AutoWidth()
-				[
-					SNew(SBox).WidthOverride(7.0f)
-					[
-						SNew(SBorder)
-						.BorderImage(WhiteBrush())
-						.BorderBackgroundColor(TAttribute<FSlateColor>::CreateLambda([this, Slot]()
-						{
-							ASolsticePlayerController* Controller = PC();
-							const bool bSelected = Controller && Controller->GetSelectedSlot() == Slot;
-							FSimKernel* Kernel = Sim();
-							const int32 CardIndex = Kernel ? Kernel->GetHandCardIndex(Slot) : INDEX_NONE;
-							if (CardIndex == INDEX_NONE)
-							{
-								return FSlateColor(FLinearColor(0.82f, 0.81f, 0.78f, bSelected ? 0.75f : 0.40f));
-							}
-							const FCardDef* Card = Kernel->GetCatalog().CardAt(CardIndex);
-							FLinearColor Band = Card ? Solstice::ElementColor(Card->GetElement()) : FLinearColor::White;
-							if (Card && Card->Tier == 0)
-							{
-								Band = FMath::Lerp(FLinearColor(0.96f, 0.94f, 0.90f), Band, 0.45f);
-							}
-							Band.A = bSelected ? 1.0f : 0.80f;
-							return FSlateColor(Band);
-						}))
-					]
-				]
-				+ SHorizontalBox::Slot().FillWidth(1.0f).Padding(FMargin(8.0f, 1.0f, 1.0f, 1.0f))
+				TxtShadowL(TAttribute<FText>::CreateLambda([this, Slot]()
+				{
+					FSimKernel* Kernel = Sim();
+					const int32 CardIndex = Kernel ? Kernel->GetHandCardIndex(Slot) : INDEX_NONE;
+					if (CardIndex == INDEX_NONE) { return Tx(Solstice::Loc(TEXT("hand.empty"))); }
+					const FCardDef* Card = Kernel->GetCatalog().CardAt(CardIndex);
+					if (!Card) { return FText::GetEmpty(); }
+					return Tx(Solstice::Loc(FString::Printf(TEXT("element.%s"),
+						Solstice::ElementId(Card->GetElement()))));
+				}), 12)
+			]
+			+ SHorizontalBox::Slot().FillWidth(1.0f)[ SNullWidget::NullWidget ]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+			[
+				TxtShadowL(TAttribute<FText>::CreateLambda([this, Slot]()
+				{
+					FSimKernel* Kernel = Sim();
+					const int32 CardIndex = Kernel ? Kernel->GetHandCardIndex(Slot) : INDEX_NONE;
+					if (CardIndex == INDEX_NONE) { return FText::GetEmpty(); }
+					const FCardDef* Card = Kernel->GetCatalog().CardAt(CardIndex);
+					if (!Card) { return FText::GetEmpty(); }
+					// Circled numerals, not the raw tier index: the data is 0-based, so "0" was
+					// being printed on every starter card and meant nothing to anyone.
+					static const TCHAR* Glyphs[] = {
+						TEXT("①"), TEXT("②"), TEXT("③"), TEXT("④"), TEXT("⑤"),
+						TEXT("⑥"), TEXT("⑦"), TEXT("⑧"), TEXT("⑨"), TEXT("⑩")
+					};
+					const int32 Index = FMath::Clamp(Card->Tier, 0, 9);
+					return Tx(Glyphs[Index]);
+				}), 10)
+			]
+		];
+
+	// ---- value -----------------------------------------------------------
+	TSharedRef<SWidget> Value = SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Bottom)
+		[
+			TxtL(TAttribute<FText>::CreateLambda([this, Slot]()
+			{
+				FSimKernel* Kernel = Sim();
+				const int32 CardIndex = Kernel ? Kernel->GetHandCardIndex(Slot) : INDEX_NONE;
+				if (CardIndex == INDEX_NONE) { return FText::GetEmpty(); }
+				const FCardDef* Card = Kernel->GetCatalog().CardAt(CardIndex);
+				if (!Card) { return FText::GetEmpty(); }
+				return Tx(FString::FromInt(
+					Solstice::Tuning::CardValue[FMath::Clamp(static_cast<int32>(Card->Tier), 0, 11)]));
+			}), 24, Ink, true)
+		]
+		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Bottom)
+			.Padding(Px(5.0f), 0.0f, 0.0f, Px(3.0f))
+		[
+			Txt(Tx(Solstice::Loc(TEXT("echo.balance"))), 10, InkSoft)
+		];
+
+	TSharedRef<SWidget> Name = SNew(SBox).Clipping(EWidgetClipping::ClipToBounds)
+		[
+			TxtL(TAttribute<FText>::CreateLambda([this, Slot]()
+			{
+				FSimKernel* Kernel = Sim();
+				const int32 CardIndex = Kernel ? Kernel->GetHandCardIndex(Slot) : INDEX_NONE;
+				if (CardIndex == INDEX_NONE) { return FText::GetEmpty(); }
+				const FCardDef* Card = Kernel->GetCatalog().CardAt(CardIndex);
+				return Card ? FText::FromString(Solstice::Loc2(Card->NameZh, Card->NameEn)) : FText::GetEmpty();
+			}), 15, Ink, true)
+		];
+
+	TSharedRef<SWidget> Tags = SNew(SBox).Clipping(EWidgetClipping::ClipToBounds)
+		[
+			TxtL(TAttribute<FText>::CreateLambda([this, Slot]()
+			{
+				FSimKernel* Kernel = Sim();
+				const int32 CardIndex = Kernel ? Kernel->GetHandCardIndex(Slot) : INDEX_NONE;
+				if (CardIndex == INDEX_NONE) { return FText::GetEmpty(); }
+				const FCardDef* Card = Kernel->GetCatalog().CardAt(CardIndex);
+				if (!Card) { return FText::GetEmpty(); }
+				return Tx(FString::Printf(TEXT("%s %s"),
+					*Solstice::Loc(FString::Printf(TEXT("class.%s"),
+						Solstice::CardClassId(Card->GetCardClass()))),
+					Solstice::DurationGlyph(Card->GetDuration())));
+			}), 10, InkSoft)
+		];
+
+	return SNew(SBox)
+		.WidthOverride(Px(150.0f))
+		.HeightOverride(Px(142.0f))
+		.Padding(FMargin(Px(3.0f)))
+		[
+			SNew(SBorder)
+			.BorderImage(SolidBrush())
+			.BorderBackgroundColor(FrameColour)
+			.Padding(FMargin(Px(2.0f)))
+			[
+				SNew(SButton)
+				.ButtonStyle(&CardStyle())
+				.ContentPadding(FMargin(0.0f))
+				.OnClicked(FOnClicked::CreateLambda([this, Slot]()
+				{
+					if (ASolsticePlayerController* Controller = PC()) { Controller->SelectSlot(Slot); }
+					return FReply::Handled();
+				}))
 				[
 					SNew(SVerticalBox)
-					// R-13: 决策用数在最上、最重。回收价值是经济决策要读的那个数，它以前排在第三行、
-					// 9px、最淡的颜色；识别用的卡名居中；元素 / 环级 / 卡类 / 持续性这些静态标识
-					// 全部压到最下面一行——「决策用数 > 识别用名 > 静态标识」。
 					+ SVerticalBox::Slot().AutoHeight()
-					[
-						TxtL(TAttribute<FText>::CreateLambda([this, Slot]()
-						{
-							FSimKernel* Kernel = Sim();
-							const int32 CardIndex = Kernel ? Kernel->GetHandCardIndex(Slot) : INDEX_NONE;
-							if (CardIndex == INDEX_NONE) { return FText::GetEmpty(); }
-							const FCardDef* Card = Kernel->GetCatalog().CardAt(CardIndex);
-							if (!Card) { return FText::GetEmpty(); }
-							return Tx(FString::Printf(TEXT("%s %d"), *Solstice::Loc(TEXT("hand.recycle")),
-								Solstice::Tuning::CardValue[FMath::Clamp(static_cast<int32>(Card->Tier), 0, 11)]));
-						}), 12, Ink, true)
-					]
-					+ SVerticalBox::Slot().AutoHeight()
-					[
-						TxtL(TAttribute<FText>::CreateLambda([this, Slot]()
-						{
-							FSimKernel* Kernel = Sim();
-							const int32 CardIndex = Kernel ? Kernel->GetHandCardIndex(Slot) : INDEX_NONE;
-							if (CardIndex == INDEX_NONE) { return Tx(Solstice::Loc(TEXT("hand.empty"))); }
-							const FCardDef* Card = Kernel->GetCatalog().CardAt(CardIndex);
-							return Card ? FText::FromString(Solstice::Loc2(Card->NameZh, Card->NameEn)) : FText::GetEmpty();
-						}), 11, Ink)
-					]
-					+ SVerticalBox::Slot().AutoHeight()
-					[
-						TxtL(TAttribute<FText>::CreateLambda([this, Slot]()
-						{
-							FSimKernel* Kernel = Sim();
-							const int32 CardIndex = Kernel ? Kernel->GetHandCardIndex(Slot) : INDEX_NONE;
-							if (CardIndex == INDEX_NONE) { return FText::GetEmpty(); }
-							const FCardDef* Card = Kernel->GetCatalog().CardAt(CardIndex);
-							if (!Card) { return FText::GetEmpty(); }
-							const FString ElementKey = FString::Printf(TEXT("element.%s"),
-								Solstice::ElementId(Card->GetElement()));
-							return Tx(FString::Printf(TEXT("%s · %s · %s %s"),
-								*Solstice::Loc(ElementKey),
-								*Solstice::TierLabel(Card->Tier),
-								*Solstice::Loc(FString::Printf(TEXT("class.%s"), Solstice::CardClassId(Card->GetCardClass()))),
-								Solstice::DurationGlyph(Card->GetDuration())));
-						}), 9, InkSoft)
-					]
+						.Padding(Px(7.0f), Px(7.0f), Px(7.0f), 0.0f)[ Strip ]
+					+ SVerticalBox::Slot().AutoHeight().Padding(Px(9.0f), Px(8.0f), Px(9.0f), 0.0f)[ Value ]
+					+ SVerticalBox::Slot().AutoHeight().Padding(Px(9.0f), Px(1.0f), Px(9.0f), 0.0f)[ Name ]
+					+ SVerticalBox::Slot().FillHeight(1.0f)[ SNullWidget::NullWidget ]
+					+ SVerticalBox::Slot().AutoHeight().Padding(Px(9.0f), 0.0f, Px(9.0f), Px(9.0f))[ Tags ]
 				]
 			]
 		];
@@ -873,18 +1106,19 @@ TSharedRef<SWidget> SSolsticeHUDView::BuildHandBar()
 	return SNew(SBorder)
 		.BorderImage(WhiteBrush())
 		.BorderBackgroundColor(FSlateColor(PanelBg))
-		.Padding(FMargin(8.0f, 6.0f))
+		.Padding(FMargin(Px(9.0f), Px(7.0f)))
 		.Visibility(EVisibility::SelfHitTestInvisible)
 		[
 			SNew(SVerticalBox)
-			+ SVerticalBox::Slot().AutoHeight().Padding(0.0f, 0.0f, 0.0f, 4.0f)
+			+ SVerticalBox::Slot().AutoHeight().Padding(Px(4.0f), 0.0f, Px(4.0f), Px(5.0f))
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 				[
-					Txt(Tx(Solstice::Loc(TEXT("hand.title"))), 12, Accent, true)
+					Txt(Tx(Solstice::Loc(TEXT("hand.title"))), 13, Accent, true)
 				]
-				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(14.0f, 0.0f, 0.0f, 0.0f)
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+					.Padding(Px(10.0f), 0.0f, 0.0f, 0.0f)
 				[
 					TxtL(TAttribute<FText>::CreateLambda([this]()
 					{
@@ -894,8 +1128,8 @@ TSharedRef<SWidget> SSolsticeHUDView::BuildHandBar()
 						const FString Mode = Controller->IsSettleAsEntity()
 							? Solstice::Loc(TEXT("hand.settle"))
 							: Solstice::Loc(TEXT("hand.release"));
-						return Tx(FString::Printf(TEXT("[%s] %s · %s"),
-							*FString::FromInt(Controller->GetSelectedSlot() + 1),
+						return Tx(FString::Printf(TEXT("第 %d 张 · %s · %s"),
+							Controller->GetSelectedSlot() + 1,
 							*Mode,
 							*Solstice::Loc(TEXT("hand.undo_window"))));
 					}), 11, InkSoft)
@@ -911,73 +1145,83 @@ TSharedRef<SWidget> SSolsticeHUDView::BuildHandBar()
 
 TSharedRef<SWidget> SSolsticeHUDView::BuildActionBar()
 {
+	// Three groups, and the groups are the point: cards on the left, the clock in the middle,
+	// language and help on the right. Before this it was eight identical grey buttons in a row -
+	// the same weight for "release a card" and "switch language", which is a settings dialog,
+	// not a game.
+	auto Group = [](const TArray<TSharedRef<SWidget>>& Buttons) -> TSharedRef<SWidget>
+	{
+		TSharedRef<SHorizontalBox> Row = SNew(SHorizontalBox);
+		for (const TSharedRef<SWidget>& Button : Buttons)
+		{
+			Row->AddSlot().AutoWidth().Padding(Px(1.5f))[ Button ];
+		}
+		return Row;
+	};
+
 	return SNew(SBorder)
 		.BorderImage(WhiteBrush())
-		.BorderBackgroundColor(FSlateColor(PanelBgDeep))
-		.Padding(FMargin(10.0f, 6.0f))
+		.BorderBackgroundColor(FSlateColor(PanelBg))
+		.Padding(FMargin(Px(7.0f), Px(4.0f)))
 		.Visibility(EVisibility::SelfHitTestInvisible)
 		[
 			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().AutoWidth().Padding(2.0f)
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 			[
-				ActionButton(Tx(Solstice::Loc(TEXT("hand.release"))), FOnClicked::CreateLambda([this]()
-				{
-					if (ASolsticePlayerController* Controller = PC()) { Controller->ReleaseSelectedAtCursor(); }
-					return FReply::Handled();
-				}))
+				Group({
+					ActionButton(Tx(Solstice::Loc(TEXT("hand.release"))), FOnClicked::CreateLambda([this]()
+					{
+						if (ASolsticePlayerController* Controller = PC()) { Controller->ReleaseSelectedAtCursor(); }
+						return FReply::Handled();
+					}), TEXT("空格")),
+					ActionButton(Tx(Solstice::Loc(TEXT("hand.recycle"))), FOnClicked::CreateLambda([this]()
+					{
+						if (ASolsticePlayerController* Controller = PC()) { Controller->RecycleSelected(); }
+						return FReply::Handled();
+					}), TEXT("X")),
+					ActionButton(Tx(Solstice::Loc(TEXT("hand.reroll"))), FOnClicked::CreateLambda([this]()
+					{
+						if (ASolsticePlayerController* Controller = PC()) { Controller->RerollHand(); }
+						return FReply::Handled();
+					}), TEXT("R")),
+				})
 			]
-			+ SHorizontalBox::Slot().AutoWidth().Padding(2.0f)
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Px(7.0f), 0.0f)[ GroupDivider() ]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 			[
-				ActionButton(Tx(Solstice::Loc(TEXT("hand.recycle"))), FOnClicked::CreateLambda([this]()
-				{
-					if (ASolsticePlayerController* Controller = PC()) { Controller->RecycleSelected(); }
-					return FReply::Handled();
-				}))
+				Group({
+					ActionButton(Tx(Solstice::Loc(TEXT("time.virtual"))), FOnClicked::CreateLambda([this]()
+					{
+						if (ASolsticePlayerController* Controller = PC()) { Controller->ToggleTimeMode(); }
+						return FReply::Handled();
+					}), TEXT("T")),
+					ActionButton(Tx(Solstice::Loc(TEXT("ui.pause"))), FOnClicked::CreateLambda([this]()
+					{
+						if (ASolsticePlayerController* Controller = PC()) { Controller->TogglePause(); }
+						return FReply::Handled();
+					}), TEXT("K")),
+					ActionButton(Tx(Solstice::Loc(TEXT("time.speed"))), FOnClicked::CreateLambda([this]()
+					{
+						if (ASolsticePlayerController* Controller = PC()) { Controller->CycleSpeed(); }
+						return FReply::Handled();
+					}), TEXT("J")),
+				})
 			]
-			// A-02: there is no undo button either. "The paper is still wet" is a window in which
-			// the release has not settled, not a take-back - the button was a third reading of the
-			// same rule, so it goes with the Z binding.
-			+ SHorizontalBox::Slot().AutoWidth().Padding(2.0f)
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Px(7.0f), 0.0f)[ GroupDivider() ]
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 			[
-				ActionButton(Tx(Solstice::Loc(TEXT("hand.reroll"))), FOnClicked::CreateLambda([this]()
-				{
-					if (ASolsticePlayerController* Controller = PC()) { Controller->RerollHand(); }
-					return FReply::Handled();
-				}))
-			]
-			+ SHorizontalBox::Slot().AutoWidth().Padding(10.0f, 2.0f, 2.0f, 2.0f)
-			[
-				ActionButton(Tx(Solstice::Loc(TEXT("time.virtual"))), FOnClicked::CreateLambda([this]()
-				{
-					if (ASolsticePlayerController* Controller = PC()) { Controller->ToggleTimeMode(); }
-					return FReply::Handled();
-				}))
-			]
-			+ SHorizontalBox::Slot().AutoWidth().Padding(2.0f)
-			[
-				// Semantic labels, not glyphs: "||", ">>" and "中/EN" told a first-time reader
-				// nothing (REVIEW R-07). Same three actions, named.
-				ActionButton(Tx(Solstice::Loc(TEXT("ui.pause"))), FOnClicked::CreateLambda([this]()
-				{
-					if (ASolsticePlayerController* Controller = PC()) { Controller->TogglePause(); }
-					return FReply::Handled();
-				}))
-			]
-			+ SHorizontalBox::Slot().AutoWidth().Padding(2.0f)
-			[
-				ActionButton(Tx(Solstice::Loc(TEXT("time.speed"))), FOnClicked::CreateLambda([this]()
-				{
-					if (ASolsticePlayerController* Controller = PC()) { Controller->CycleSpeed(); }
-					return FReply::Handled();
-				}))
-			]
-			+ SHorizontalBox::Slot().AutoWidth().Padding(10.0f, 2.0f, 2.0f, 2.0f)
-			[
-				ActionButton(Tx(Solstice::Loc(TEXT("ui.language"))), FOnClicked::CreateLambda([this]()
-				{
-					if (ASolsticePlayerController* Controller = PC()) { Controller->ToggleLanguage(); }
-					return FReply::Handled();
-				}))
+				Group({
+					ActionButton(Tx(Solstice::Loc(TEXT("ui.language"))), FOnClicked::CreateLambda([this]()
+					{
+						if (ASolsticePlayerController* Controller = PC()) { Controller->ToggleLanguage(); }
+						return FReply::Handled();
+					}), TEXT("O")),
+					ActionButton(Tx(Solstice::Loc(TEXT("help.title"))), FOnClicked::CreateLambda([this]()
+					{
+						if (ASolsticePlayerController* Controller = PC()) { Controller->ToggleHelp(); }
+						return FReply::Handled();
+					}), TEXT("H")),
+				})
 			]
 		];
 }
@@ -1312,5 +1556,5 @@ TSharedRef<SWidget> SSolsticeHUDView::BuildHelpPanel()
 	Body->AddSlot().AutoHeight()[ Line(TEXT("help.tab")) ];
 	Body->AddSlot().AutoHeight()[ Line(TEXT("help.esc")) ];
 
-	return Panel(Tx(Solstice::Loc(TEXT("help.title"))), Body, 236.0f);
+	return Panel(Tx(Solstice::Loc(TEXT("help.title"))), Body, 300.0f);
 }
