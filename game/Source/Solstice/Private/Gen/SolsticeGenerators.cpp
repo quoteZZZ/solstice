@@ -415,12 +415,19 @@ namespace Solstice
 			// Occlusion by ring: the skirt is in the object's own shade, the cap is open sky. This is
 			// the whole reason a canopy now reads as a volume instead of a flat green ball - M_Cel is
 			// unlit, so without it every ring is lit identically.
+			// 0.78, not 0.58.
+			//
+			// The skirt is the part of a crown that faces the camera on a dense hillside, and at
+			// 0.58 of an already-dark leaf it rendered at a luminance of about 0.06 - i.e. black.
+			// With the cap at full brightness that gave every tree a bright green lid on a black
+			// body, which is precisely the "plastic broccoli" look. Terminal occlusion is not
+			// what separates a crown from the ground; value and silhouette are.
 			BaseRing[Index] = Out.Add(Centre + Offset, Outward,
-				FVector2D(0.5f + 0.5f * CosA, 0.5f + 0.5f * SinA), SideColour, 0.58f);
+				FVector2D(0.5f + 0.5f * CosA, 0.5f + 0.5f * SinA), SideColour, 0.78f);
 			TopRing[Index] = Out.Add(Centre + Offset * 0.72f + UpAxis * (HeightUU * 0.62f),
 				(Outward + UpAxis).GetSafeNormal(),
 				FVector2D(0.5f + 0.5f * CosA, 0.5f + 0.5f * SinA),
-				FMath::Lerp(SideColour, TopColour, 0.55f), 0.84f);
+				FMath::Lerp(SideColour, TopColour, 0.42f), 0.90f);
 		}
 		const int32 Cap = Out.Add(Centre + UpAxis * HeightUU, UpAxis, FVector2D(0.5f, 0.5f), TopColour, 1.0f);
 		for (int32 Index = 0; Index < Sides; ++Index)
@@ -522,9 +529,9 @@ namespace Solstice
 				? (bSteep ? RockDark : Rock)
 				: bCliff
 					? RockDark
-					: (H < 0.55f)
+					: (H < 0.9f)
 						? SiltWet
-						: (H < 1.4f)
+						: (H < 2.0f)
 							? Silt
 							: (bSteep)
 								? GrassDark
@@ -977,9 +984,13 @@ namespace Solstice
 					const float V11 = CelGrain((IX + 1) * 31 + 5, (IY + 1) * 17 + 3);
 					Forest = FMath::Lerp(FMath::Lerp(V00, V10, SX), FMath::Lerp(V01, V11, SX), SY);
 				}
-				// 4% in a clearing, 26% in a stand. The mean stays near the old 13%, so the
-				// triangle budget does not move much - what changes is where the trees are.
-				const float TreeChance = 0.04f + 0.22f * Forest;
+				// 3% in a clearing, 18% in a stand.
+				//
+				// The upper end came down because a stand that covers every tile has no ground in
+				// it: the crowns touch, the ink hulls touch, and the hillside becomes one solid
+				// mass with no grass showing - which removes the only value contrast the island
+				// has. A forest reads as a forest because of the gaps, not the trees.
+				const float TreeChance = 0.03f + 0.15f * Forest;
 				if (!bClipped && !Tile->IsWater() && Surface > 8.0f && Surface < 24.0f
 					&& CelGrain(X * 13 + 5, Y * 7 + 3) < TreeChance)
 				{
@@ -996,14 +1007,50 @@ namespace Solstice
 					// sapling, a tree in the middle of a stand competes for light and is taller.
 					// 0.75..1.30 of the base size, so a hillside has three visible sizes instead
 					// of one - which is what the density modulation is for.
-					const float Vigour = 0.75f + 0.55f * Forest;
-					const float TrunkHeight = (90.0f + 80.0f * CelGrain(X + 11, Y + 17)) * Vigour;
-					const float CrownRadius = (130.0f + 100.0f * CelGrain(Y + 3, X + 29)) * Vigour;
+					// ---- species ------------------------------------------------
+					//
+					// One silhouette repeated nine hundred times is a texture, not a forest. At
+					// the entry framing a tree is 18-30 px tall, so surface detail is invisible
+					// and exactly two things read: the *outline* and the *value*. Every tree used
+					// to be the same three concentric cushions at 0.75-1.3x, and that shape - a
+					// bumpy dome on a stem - is what "broccoli" means.
+					//
+					// Five families, chosen by hash, with genuinely different proportions:
+					//   0 broad    wide and low, three cushions in a ring     (oak)
+					//   1 spire    tall and narrow, four shrinking cushions    (conifer)
+					//   2 round    two cushions, nearly spherical              (a lone tree)
+					//   3 leaning  tall bare trunk, crown pushed to one side   (pine)
+					//   4 scrub    one flattened cushion, trunk hidden         (bush)
+					const int32 Family = FMath::Clamp(
+						static_cast<int32>(CelGrain(X * 7 + 3, Y * 11 + 5) * 5.0f), 0, 4);
+
+					float HeightMul = 1.0f;
+					float CrownMul = 1.0f;
+					switch (Family)
+					{
+					case 0: HeightMul = 0.85f; CrownMul = 1.35f; break;
+					case 1: HeightMul = 1.65f; CrownMul = 0.72f; break;
+					case 2: HeightMul = 1.00f; CrownMul = 1.05f; break;
+					case 3: HeightMul = 1.45f; CrownMul = 0.88f; break;
+					default: HeightMul = 0.55f; CrownMul = 1.10f; break;
+					}
+
+					// Two independent variations, and both matter.
+					//
+					// `Vigour` follows the stand: a tree in a clearing is a sapling, one in the
+					// middle of a stand competes for light and is taller. `Shade` is the one that
+					// separates crowns at 20 px - a forest where every crown has the same value
+					// is a green blanket no matter how varied its silhouettes are.
+					const float Vigour = 0.70f + 0.60f * Forest;
+					const float Shade = 0.78f + 0.44f * CelGrain(X * 3 + 9, Y * 5 + 2);
+					const float TrunkHeight = (85.0f + 70.0f * CelGrain(X + 11, Y + 17)) * Vigour * HeightMul;
+					const float CrownRadius = (120.0f + 80.0f * CelGrain(Y + 3, X + 29)) * Vigour * CrownMul;
 					const FVector Root(Centre.X, Centre.Y, Surface * MeterUU);
 
 					// Tapered hexagonal trunk, one corner jitter per side so it is not a prism.
+					if (Family != 4)
 					{
-						const float BaseR = 10.0f + 4.0f * CelGrain(X + 3, Y + 8);
+						const float BaseR = 9.0f + 4.0f * CelGrain(X + 3, Y + 8);
 						const float TopR = BaseR * 0.62f;
 						// CutEdge is the pale paper-board tone used for cut edges everywhere else,
 						// and at 0.52 of it a trunk is a white stick with a green ball on top -
@@ -1032,27 +1079,88 @@ namespace Solstice
 						}
 					}
 
-					// Canopy: three cushions climbing and shrinking, each rotated off the last.
-					// Canopies are a *darker, cooler* green than the grass, not the same green at another
-					// brightness: the prototype's tree palette note is explicit about this ("树冠要比草地
-					// 更深... 靠深绿的团和亮绿的草拉开层次"), and with one palette for both, an island of
-					// trees and grass reads as a single green carpet.
-					const FLinearColor LeafDark = CelSrgb(0x2A, 0x55, 0x30) * (0.94f + 0.10f * CelGrain(X + 41, Y + 43));
-					const FLinearColor LeafMid = CelSrgb(0x3C, 0x74, 0x38) * (0.96f + 0.10f * CelGrain(X + 17, Y + 5));
-					const FLinearColor LeafLit = CelSrgb(0x55, 0x95, 0x45) * (0.98f + 0.08f * CelGrain(X + 61, Y + 3));
-					const float LayerH = CrownRadius * 0.52f;
-					const float BaseZ = TrunkHeight * 0.82f;
-					Cushion(Out, Root + FVector(0.0f, 0.0f, BaseZ), 7, CrownRadius, LayerH,
-						LeafDark, LeafMid, X * 31 + Y * 7);
-					Cushion(Out, Root + FVector(0.0f, 0.0f, BaseZ + LayerH * 0.62f), 7, CrownRadius * 0.82f, LayerH * 0.85f,
-						LeafMid, LeafLit, (X + 9) * 31 + (Y + 4) * 7);
-					Cushion(Out, Root + FVector(0.0f, 0.0f, BaseZ + LayerH * 1.18f), 6, CrownRadius * 0.58f, LayerH * 0.70f,
-						LeafMid, LeafLit, (X + 17) * 31 + (Y + 11) * 7);
+					// Canopy. A darker, cooler green than the grass, not the same green at
+					// another brightness: the prototype is explicit about it ("树冠要比草地更深"),
+					// and with one palette for both, an island of trees on grass reads as a single
+					// green carpet. `Shade` then spreads the individuals apart.
+					// Brighter than a "real" leaf, on purpose. #24482A is roughly the albedo of a
+					// real canopy in shadow, and at this sun and tone curve it renders as
+					// near-black - which is why the island read as a dark lump rather than as a
+					// forest. Stylised foliage sits a full step higher and lets the *shading* do
+					// the darkening, not the albedo.
+					const FLinearColor LeafDark = CelSrgb(0x2E, 0x5C, 0x36) * Shade;
+					const FLinearColor LeafMid = CelSrgb(0x46, 0x80, 0x3C) * Shade;
+					const FLinearColor LeafLit = CelSrgb(0x76, 0xB2, 0x52) * Shade * 1.06f;
+					const uint32 FamilySeed = static_cast<uint32>(X * 31 + Y * 7);
+					const float BaseZ = TrunkHeight * (Family == 4 ? 0.15f : 0.80f);
+
+					if (Family == 0)
+					{
+						// Broad: three crowns in a ring, not stacked. A ring reads as a wide
+						// mass with holes in it; concentric layers read as a cake.
+						for (int32 Arm = 0; Arm < 3; ++Arm)
+						{
+							const float A = (2.0f * PI * Arm) / 3.0f + CelGrain(X + Arm, Y - Arm) * 0.8f;
+							const float Reach = CrownRadius * (0.42f + 0.22f * CelGrain(X * 5 + Arm, Y * 3));
+							Cushion(Out,
+								Root + FVector(FMath::Cos(A) * Reach, FMath::Sin(A) * Reach,
+									BaseZ + CrownRadius * (0.20f + 0.14f * CelGrain(Y + Arm, X + 7))),
+								7, CrownRadius * (0.66f + 0.14f * CelGrain(X + 3 * Arm, Y + 5)),
+								CrownRadius * 0.48f, LeafDark, LeafMid, X * 31 + Y * 7 + Arm * 13);
+						}
+					}
+					else if (Family == 1)
+					{
+						// Spire: four rings shrinking upward, each rotated off the last, so the
+						// silhouette is a cone with a ragged edge.
+						for (int32 Tier = 0; Tier < 4; ++Tier)
+						{
+							const float T = static_cast<float>(Tier) / 3.0f;
+							Cushion(Out,
+								Root + FVector(0.0f, 0.0f, BaseZ + CrownRadius * 1.55f * T),
+								7, CrownRadius * (1.0f - 0.62f * T),
+								CrownRadius * (0.55f - 0.18f * T),
+								Tier < 2 ? LeafDark : LeafMid, LeafMid, FamilySeed + Tier * 11);
+						}
+					}
+					else if (Family == 2)
+					{
+						Cushion(Out, Root + FVector(0.0f, 0.0f, BaseZ + CrownRadius * 0.30f),
+							7, CrownRadius, CrownRadius * 0.80f, LeafDark, LeafMid, FamilySeed);
+						Cushion(Out, Root + FVector(CrownRadius * 0.30f, CrownRadius * 0.18f,
+							BaseZ + CrownRadius * 0.46f), 6, CrownRadius * 0.62f,
+							CrownRadius * 0.58f, LeafMid, LeafLit, FamilySeed + 7);
+					}
+					else if (Family == 3)
+					{
+						// Leaning: the crown sits off the trunk axis. A single asymmetric tree in
+						// a stand is worth more than another symmetric one - it breaks the grid
+						// the eye infers from a thousand repeated domes.
+						const float LeanX = (CelGrain(X + 5, Y + 5) - 0.5f) * CrownRadius * 1.1f;
+						const float LeanY = (CelGrain(Y + 5, X + 5) - 0.5f) * CrownRadius * 1.1f;
+						Cushion(Out, Root + FVector(LeanX, LeanY, BaseZ + CrownRadius * 0.55f),
+							7, CrownRadius * 1.05f, CrownRadius * 0.52f, LeafDark, LeafMid, FamilySeed);
+						Cushion(Out, Root + FVector(LeanX * 1.7f, LeanY * 1.7f, BaseZ + CrownRadius * 0.30f),
+							6, CrownRadius * 0.60f, CrownRadius * 0.42f, LeafMid, LeafLit, FamilySeed + 9);
+					}
+					else
+					{
+						Cushion(Out, Root + FVector(0.0f, 0.0f, CrownRadius * 0.20f),
+							7, CrownRadius, CrownRadius * 0.46f, LeafMid, LeafLit, FamilySeed);
+					}
 
 					// Ink hull around the whole tree, pivoted at its root so the crown grows outward
 					// rather than sliding away from the trunk.
+					// 1.035, not 1.09.
+					//
+					// The hull is an inverted expansion drawn as ink, so its visible width is the
+					// expansion itself: 9% of a 3 m crown is 27 cm, which at the entry framing is
+					// two or three pixels of black around every one of nine hundred trees. Where
+					// crowns overlap - which on a hillside is everywhere - the outlines stack, and
+					// a third of the island's pixels measured below 0.12 luminance. A 3.5% shell
+					// is one clean pixel of line: the cel look needs a line, not a shadow.
 					EmitHull(Out, HullFrom, Out.Num(), HullTriFrom,
-						Root + FVector(0.0f, 0.0f, TrunkHeight * 0.55f), 1.09f, Palette.InkWash, OutHull);
+						Root + FVector(0.0f, 0.0f, TrunkHeight * 0.55f), 1.035f, Palette.InkWash, OutHull);
 				}
 
 				// ---- boulders -------------------------------------------------------------

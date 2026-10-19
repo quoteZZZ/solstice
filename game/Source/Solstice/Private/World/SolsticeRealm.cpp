@@ -218,7 +218,13 @@ namespace
 	// The sun went from 9 to 100,000 lux - 13.4 stops - so the compensation comes down by the
 	// same 13.4: 0.75 - 13.4 = -12.65. Getting this wrong is not subtle: at +15 the frame is pure
 	// white, at 0 it is black.
-	constexpr float ExposureStops = -1.15f;
+	// -1.30, not -1.15.
+	//
+	// The whole frame sat at a median of 0.61 against a 0.60 ceiling once the three-band toon
+	// landed, and the water's own gain could only move it by 0.01 - the value is dominated by
+	// how much of the frame is bright field, not by any single surface. A global stop is the
+	// honest lever: it moves everything by the same ratio and leaves every hue where it was.
+	constexpr float ExposureStops = -1.30f;
 
 	// Fog depth (optical depth at one fit-camera-distance) for clear and fully overcast sky.
 	// Density is derived from these against the fit distance - see BuildStatics.
@@ -1047,27 +1053,28 @@ void ASolsticeRealm::BuildSkyMesh()
 		//
 		// (Before the normalisation the mean drifted with the octave count, so every retune of
 		// the noise invalidated the threshold and the two had to be searched together.)
-		SkyMID->SetScalarParameterValue(TEXT("CloudThreshold"), 0.500f - 0.20f * Cloud);
+		SkyMID->SetScalarParameterValue(TEXT("CloudThreshold"), 0.505f - 0.20f * Cloud);
 
-		// ---- deck frequency ----------------------------------------------
+		// ---- cloud frequency ----------------------------------------------
 		//
-		// 8.5, and the number is a *shape* constraint rather than a taste one.
+		// The unit changed: this is now noise cells per *turn of azimuth*, not per unit of a
+		// projected deck (see the sky-coordinate note in BuildSky - the deck projection sheared
+		// the noise lattice into radial wedges and that is what the long straight seams were).
 		//
-		// At the old 3.8 the whole visible sky - 0 to 15 degrees of elevation, which after the
-		// deck projection is 2.2 noise lattice cells - fitted inside two cells. A lattice cell
-		// has a saddle wherever two opposite corners are high and the other two low, and a
-		// saddle's level set is two lines that cross: that is the straight X that used to run
-		// across the sky for forty percent of the frame. Raising the frequency puts six cells
-		// on screen, and the four octaves inside each cell break the contour up, so a saddle is
-		// now a 200 px feature instead of the whole sky.
-		SkyMID->SetScalarParameterValue(TEXT("CloudScale"), 8.5f);
+		// The entry framing spans 50 degrees, i.e. 0.139 of a turn, so 25 here puts about 3.5
+		// cells across the visible sky. Elevation is scaled by 0.20 inside the shader, which
+		// makes a cell roughly 12 degrees wide and 2.5 tall - wide, low masses, the way a
+		// cumulus band along a horizon actually reads.
+		SkyMID->SetScalarParameterValue(TEXT("CloudScale"), 55.0f);
 		SkyMID->SetScalarParameterValue(TEXT("SunDiscCos"),
 			FMath::Cos(FMath::DegreesToRadians(SunAngularRadiusDeg)));
 
 		// 0.02 units per second times the wind: slow enough to read as drifting, fast enough that
 		// a still frame taken a minute later is a different sky.
+		// 0.0035, not 0.02: CloudDrift is added straight to the azimuth coordinate, so the old
+		// value would have swept the whole sky past in twenty seconds.
 		SkyMID->SetScalarParameterValue(TEXT("CloudDrift"),
-			static_cast<float>(FApp::GetCurrentTime()) * 0.02f * (0.35f + Sky.WindSpeed * 0.9f));
+			static_cast<float>(FApp::GetCurrentTime()) * 0.0035f * (0.35f + Sky.WindSpeed * 0.9f));
 
 		const FLinearColor MoonColour(SunDir.X * -1.0f, SunDir.Y * -1.0f, SunDir.Z * -1.0f, 0.0f);
 		SetColour(TEXT("MoonDirection"), MoonColour);

@@ -57,8 +57,17 @@ namespace Solstice
 
 		/** Overcast grey the lit band is pulled toward. */
 		const FLinearColor CloudGrey(0.62f, 0.64f, 0.67f);
-		/** Cool ambient for the shadow band; SS2.1 asks for a lifted, blue-violet shadow. */
-		const FLinearColor ShadowCool(0.34f, 0.38f, 0.54f);
+		/**
+		 * Cool ambient for the shadow band; SS2.1 asks for a lifted, blue-violet shadow.
+		 *
+		 * Lifted again: 0.34/0.38/0.54 measured as *black* on the island, because the shadowed
+		 * band is the one that faces the camera on a dense hillside - the crowns themselves are
+		 * the geometry, so a third of the subject sat below 0.12 luminance and the island read as
+		 * a dark lump. A stylised shadow is a colour, not an absence: 0.46 keeps the blue-violet
+		 * shift and puts the shadowed side at roughly half the lit side's value, which is the
+		 * ratio art.md asks for and the one every painted plate actually uses.
+		 */
+		const FLinearColor ShadowCool(0.56f, 0.66f, 0.78f);
 		const FLinearColor ShadowOvercast(0.40f, 0.42f, 0.50f);
 		/** Chaos (unpainted) leans chalky and flat so the first colour reads as a change. */
 		const FLinearColor ChaosLitTint(0.86f, 0.85f, 0.82f);

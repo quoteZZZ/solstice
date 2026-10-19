@@ -27,6 +27,7 @@
 #include "Materials/MaterialExpressionConstant3Vector.h"
 #include "Materials/MaterialExpressionCameraPositionWS.h"
 #include "Materials/MaterialExpressionCustom.h"
+#include "Materials/MaterialExpressionCameraVectorWS.h"
 #include "Materials/MaterialExpressionNormalize.h"
 #include "Materials/MaterialExpressionComponentMask.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
@@ -63,7 +64,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 106;
+	constexpr int32 CelRecipeVersion = 119;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -456,7 +457,121 @@ return lerp(C, night, saturate(Desat));
 				DesatNode->Inputs.Add(InDesat);
 			}
 
-			EditorData->BaseColor.Expression = DesatNode;
+			// ---- three-band toon shading ------------------------------------
+			//
+			// The look this project has been documented as having since the start, and the
+			// material has never actually had it.
+			//
+			// art.md SS2.1 specifies three bands - shadow / mid / lit - cut hard on
+			// dot(normal, sun), with authored colours per band rather than a physical response.
+			// SolsticeCelMaterial has been pushing LitTint, MidTint, ShadowTint, BandLow and
+			// BandHigh into this material every frame since it was written. **None of those five
+			// parameters exists in M_Cel.** They were lost in the rewrite that turned the material
+			// from unlit into DefaultLit, and a material instance ignores a parameter it does not
+			// declare without a word, so nothing anywhere reported it.
+			//
+			// The consequence is the whole complaint: the island has been plain physically-lit
+			// geometry. Sunlit faces get 100 units of sun, shaded faces get nothing, and a third
+			// of the subject renders below 0.12 luminance. No palette change can fix that.
+			//
+			// Two halves:
+			//   1. BaseColor is multiplied by the band tint, so the albedo itself carries which
+			//      side of the model is lit.
+			//   2. The *shadow band only* gets an emissive floor. Without it step 1 can only
+			//      darken: the physical sun still hands a shaded face a zero to multiply.
+			UMaterialExpressionVertexNormalWS* ToonNormal = AddExpr<UMaterialExpressionVertexNormalWS>(Material, -900, 340);
+
+			auto VecParam = [&](const TCHAR* Name, const FLinearColor& Value, int32 X, int32 Y)
+			{
+				UMaterialExpressionVectorParameter* Node = AddExpr<UMaterialExpressionVectorParameter>(Material, X, Y);
+				Node->ParameterName = Name;
+				Node->DefaultValue = Value;
+				return Node;
+			};
+			auto ScaParam = [&](const TCHAR* Name, float Value, int32 X, int32 Y)
+			{
+				UMaterialExpressionScalarParameter* Node = AddExpr<UMaterialExpressionScalarParameter>(Material, X, Y);
+				Node->ParameterName = Name;
+				Node->DefaultValue = Value;
+				return Node;
+			};
+
+			UMaterialExpressionVectorParameter* SunDirParam =
+				VecParam(TEXT("SunDirection"), FLinearColor(0.0f, 0.0f, 1.0f, 0.0f), -900, 440);
+			UMaterialExpressionVectorParameter* LitTintParam =
+				VecParam(TEXT("LitTint"), FLinearColor(1.0f, 0.98f, 0.94f, 1.0f), -900, 560);
+			UMaterialExpressionVectorParameter* MidTintParam =
+				VecParam(TEXT("MidTint"), FLinearColor(0.72f, 0.75f, 0.86f, 1.0f), -900, 680);
+			UMaterialExpressionVectorParameter* ShadowTintParam =
+				VecParam(TEXT("ShadowTint"), FLinearColor(0.56f, 0.66f, 0.78f, 1.0f), -900, 800);
+			UMaterialExpressionScalarParameter* BandLowParam =
+				ScaParam(TEXT("BandLow"), 0.30f, -900, 920);
+			UMaterialExpressionScalarParameter* BandHighParam =
+				ScaParam(TEXT("BandHigh"), 0.62f, -900, 1000);
+			UMaterialExpressionScalarParameter* CelFillParam =
+				ScaParam(TEXT("CelFill"), 2.4f, -900, 1080);
+
+			UMaterialExpressionCustom* ToonBand = AddExpr<UMaterialExpressionCustom>(Material, -620, 560);
+			ToonBand->Description = TEXT("ToonBand");
+			ToonBand->OutputType = CMOT_Float3;
+			ToonBand->Code = TEXT(R"(
+// Hard-edged bands on the incidence angle: below BandLow the shadow colour, above BandHigh the
+// lit colour, and a narrow mid band between. A soft ramp here is what makes "cel-shaded" renders
+// look like ordinary PBR with the saturation turned down.
+float ndl = dot(normalize(N), normalize(S));
+float lo = smoothstep(BandLow - 0.05, BandLow + 0.05, ndl);
+float hi = smoothstep(BandHigh - 0.05, BandHigh + 0.05, ndl);
+return lerp(lerp(Shadow, Mid, lo), Lit, hi);
+)");
+			{
+				auto Add = [&ToonBand](const TCHAR* Name, UMaterialExpression* Expr)
+				{
+					FCustomInput In;
+					In.InputName = Name;
+					In.Input.Expression = Expr;
+					ToonBand->Inputs.Add(In);
+				};
+				Add(TEXT("N"), ToonNormal);
+				Add(TEXT("S"), SunDirParam);
+				Add(TEXT("Lit"), LitTintParam);
+				Add(TEXT("Mid"), MidTintParam);
+				Add(TEXT("Shadow"), ShadowTintParam);
+				Add(TEXT("BandLow"), BandLowParam);
+				Add(TEXT("BandHigh"), BandHighParam);
+			}
+
+			UMaterialExpressionMultiply* ToonBase = AddExpr<UMaterialExpressionMultiply>(Material, -330, 120);
+			ToonBase->A.Expression = DesatNode;
+			ToonBase->B.Expression = ToonBand;
+
+			UMaterialExpressionCustom* ShadowFillNode = AddExpr<UMaterialExpressionCustom>(Material, -330, 300);
+			ShadowFillNode->Description = TEXT("ShadowFill");
+			ShadowFillNode->OutputType = CMOT_Float3;
+			ShadowFillNode->Code = TEXT(R"(
+// `hi` is the same lit factor the band uses, so the fill vanishes exactly where the sun takes
+// over and there is no double count at the edge.
+float ndl = dot(normalize(N), normalize(S));
+float hi = smoothstep(BandHigh - 0.05, BandHigh + 0.05, ndl);
+return A * Sh * (1.0 - hi) * Fill;
+)");
+			{
+				auto Add = [&ShadowFillNode](const TCHAR* Name, UMaterialExpression* Expr)
+				{
+					FCustomInput In;
+					In.InputName = Name;
+					In.Input.Expression = Expr;
+					ShadowFillNode->Inputs.Add(In);
+				};
+				Add(TEXT("A"), DesatNode);
+				Add(TEXT("N"), ToonNormal);
+				Add(TEXT("S"), SunDirParam);
+				Add(TEXT("Sh"), ShadowTintParam);
+				Add(TEXT("BandHigh"), BandHighParam);
+				Add(TEXT("Fill"), CelFillParam);
+			}
+
+			EditorData->BaseColor.Expression = ToonBase;
+			EditorData->EmissiveColor.Expression = ShadowFillNode;
 			EditorData->Roughness.Expression = Roughness;
 			EditorData->Specular.Expression = Specular;
 
@@ -1012,7 +1127,12 @@ return col;
 		// reading, the island has no ground to stand on, and the whole frame flattens into two
 		// similar pale blues. Real sea sits well under the sky it reflects, because what the eye
 		// reads at this angle is the water column, not the surface.
-		Scatter->DefaultValue = 0.60f;
+		// 0.55, and the number is now a composition constraint rather than a taste one: the sea
+		// is 55% of the frame, so this single value is the frame's exposure. The island got
+		// genuinely brighter when the three-band toon landed (its shadowed side stopped being
+		// black), which lifted the whole picture; taking a little off the water puts the frame
+		// back inside its value range without darkening the subject.
+		Scatter->DefaultValue = 0.52f;
 
 		UMaterialExpressionScalarParameter* Diffuse = AddExpr<UMaterialExpressionScalarParameter>(Material, -1200, 1080);
 		Diffuse->ParameterName = TEXT("WaterDiffuse");
@@ -1216,16 +1336,16 @@ return col;
 		ResetGraph(Material);
 
 		// ---- view direction -------------------------------------------------
-		// WorldPosition minus CameraPosition, not the vertex normal: the dome is a unit sphere
-		// scaled to 400 km and re-centred on the camera every frame, so this is exactly the
-		// direction the eye is looking, whatever the winding or the two-sided normal flip did.
-		UMaterialExpressionWorldPosition* WorldPos = AddExpr<UMaterialExpressionWorldPosition>(Material, -1600, -300);
-		UMaterialExpressionCameraPositionWS* CameraPos = AddExpr<UMaterialExpressionCameraPositionWS>(Material, -1600, -160);
-		UMaterialExpressionSubtract* Rel = AddExpr<UMaterialExpressionSubtract>(Material, -1380, -240);
-		Rel->A.Expression = WorldPos;
-		Rel->B.Expression = CameraPos;
-		UMaterialExpressionNormalize* Dir = AddExpr<UMaterialExpressionNormalize>(Material, -1200, -240);
-		Dir->VectorInput.Expression = Rel;
+		//
+		// The per-pixel view ray, not WorldPosition minus CameraPosition.
+		//
+		// WorldPosition is interpolated *linearly* across a triangle, and on a curved dome a
+		// triangle is a chord, not an arc - so the reconstructed direction is smooth inside a
+		// triangle and bends at every edge. Any threshold on a field derived from it, which is
+		// exactly what a cloud mask is, draws that bend as a straight line. The view ray has no
+		// such problem: it is exact per pixel, and since the dome is centred on the camera it
+		// *is* the dome direction.
+		UMaterialExpressionCameraVectorWS* Dir = AddExpr<UMaterialExpressionCameraVectorWS>(Material, -1380, -240);
 
 		UMaterialExpressionTime* Clock = AddExpr<UMaterialExpressionTime>(Material, -1600, 20);
 
@@ -1287,7 +1407,7 @@ return col;
 // The scattering block pushed the single literal to 8254 and the build failed with a message
 // that reads like a syntax error. Adjacent literals concatenate, so the shader is unchanged.
 Sky->Code = TEXT(R"(
-float3 d = normalize(Dir);
+float3 d = normalize(-Dir);	// CameraVector points from the pixel towards the eye
 float h = d.z;
 
 // ---- vertical gradient ----
@@ -1369,47 +1489,28 @@ sky = lerp(sky, MoonCore, smoothstep(MoonDiscCos, MoonDiscCos + 0.00030, cosM) *
 // works without marching rays.
 //
 // `d.xy / (h + c)` keeps the perspective convergence of a real deck and is finite everywhere.
-// ---- deck coordinate ------------------------------------------------
+// ---- sky coordinate --------------------------------------------------
 //
-// A plane-parallel layer at height Hc projects to `d.xy * Hc / h`, i.e. radius ~1/h. The
-// `+ 0.55` bounds the pole at the horizon. Two other parameterisations were tried and rejected
-// in earlier rounds and the reasons still hold: a pure `d.xy / h` stretches the noise into
-// slivers along the horizon, and 3D sampling at `d * scale` gives vertical columns because the
-// visible sky only spans 0-15 degrees of elevation.
-float2 cp0 = (d.xy / (max(h, 0.0) + 0.55)) * CloudScale + float2(CloudDrift, CloudDrift * 0.37);
-
-// ---- one warp field, shared by every sample of this cloud -----------
+// Azimuth and elevation, NOT a projected cloud deck.
 //
-// The warp has to be *noise*, not any arrangement of sines: `sin(a*y)*sin(b*x)` is
-// 0.5*(cos(ay-bx) - cos(ay+bx)) - still two plane waves, just rotated onto the diagonals - and
-// any sum of sinusoids leaves streaks once the result is thresholded.
+// The deck was `d.xy / (h + 0.55)`, and at this framing the camera sees only 0-15 degrees of
+// elevation: the projection converts that into a radial compression of about 4:1, shearing the
+// noise lattice into long thin parallelograms that all point at the horizon vanishing point. A
+// threshold on a sheared lattice draws its edges, so the clouds came out as straight wedges
+// radiating from a point - and the effect got *worse* every time the cloud frequency went up.
+// Nothing about the noise, the interpolation or the filtering could fix it, because the shear
+// lives in the coordinate.
 //
-// The offset is computed ONCE and added to every sample below. That matters: an earlier version
-// warped the cloud field but sampled the sun-direction field unwarped, so their difference (the
-// thing that decides which side of a cloud is lit) contained the whole warp gradient and the
-// clouds came out shaded by where the warp happened to be, not by the sun.
-float2 wq = cp0 * 0.45;
-float2 wc = floor(wq);
-float2 wf = frac(wq);
-wf = wf * wf * wf * (wf * (wf * 6.0 - 15.0) + 10.0);
-
-float3 wa = frac(float3(wc.x,        wc.y,        wc.x) * 0.1031);
-float3 wb = frac(float3(wc.x + 1.0,  wc.y,        wc.x + 1.0) * 0.1031);
-float3 wd = frac(float3(wc.x,        wc.y + 1.0,  wc.x) * 0.1031);
-float3 we = frac(float3(wc.x + 1.0,  wc.y + 1.0,  wc.x + 1.0) * 0.1031);
-wa += dot(wa, wa.yzx + 33.33);
-wb += dot(wb, wb.yzx + 33.33);
-wd += dot(wd, wd.yzx + 33.33);
-we += dot(we, we.yzx + 33.33);
-
-float2 oa = float2(frac((wa.x + wa.y) * wa.z), frac((wa.x + wa.z) * wa.y)) - 0.5;
-float2 ob = float2(frac((wb.x + wb.y) * wb.z), frac((wb.x + wb.z) * wb.y)) - 0.5;
-float2 od = float2(frac((wd.x + wd.y) * wd.z), frac((wd.x + wd.z) * wd.y)) - 0.5;
-float2 oe = float2(frac((we.x + we.y) * we.z), frac((we.x + we.z) * we.y)) - 0.5;
-
-float2 warp = 1.30 * lerp(lerp(oa, ob, wf.x), lerp(od, oe, wf.x), wf.y);
-
-float2 cp = cp0 + warp;
+// In (azimuth, elevation) the grid is isotropic, so a level set has no preferred direction. What
+// is lost is the deck's perspective convergence; what is gained is a sky that reads as painted
+// rather than as projected, which is the register the rest of the frame is in.
+//
+// The 0.20 on elevation makes a cell about 12 degrees wide and 2.5 tall: wide, low masses, the
+// way a cumulus band along a horizon actually sits.
+float el = asin(clamp(d.z, -1.0, 1.0));
+float az = atan2(d.y, d.x) * 0.15915494;	// turns per revolution, -0.5..0.5
+float2 cp0 = float2(az, el * 0.20) * CloudScale + float2(CloudDrift, CloudDrift * 0.37);
+float2 cp = cp0;
 
 )") TEXT(R"(
 // ---- the cloud field -------------------------------------------------
@@ -1476,7 +1577,11 @@ nLow /= 1.55;
 // The same deck sampled a little further along the sun direction. Only the two low octaves are
 // used: they carry the shape, so their difference is the slope of the cloud, whereas the fine
 // octaves would add a per-pixel difference that has nothing to do with where the light is.
-float2 cpSun = cp0 + warp + normalize(SunDir.xy + float2(1e-4, 0.0)) * 0.22;
+// 0.25 of a cell, and this offset IS the shading: `n - m` is the slope along the light
+// direction, so its size sets a cloud's internal contrast. At a twenty-eighth of a cell (which
+// is what a unit change left behind) `n - m` is noise, `lit` sits at its midpoint, and every
+// cloud renders as one flat white shape.
+float2 cpSun = cp0 + normalize(SunDir.xy + float2(1e-4, 0.0)) * 0.25;
 float m = 0.0;
 float mNorm = 0.0;
 float mAmp = 1.0;
@@ -1516,8 +1621,8 @@ float cover = CloudThreshold + (m - 0.5) * 0.30;
 // A small per-pixel jitter on the threshold. A threshold turns any residual straightness into a
 // crisp edge, and the human eye finds straight lines in sky immediately. One hash, and the
 // border becomes ragged the way a cloud border is.
-float jitter = frac(sin(dot(d.xy * 241.0, float2(12.9898, 78.233))) * 43758.5453);
-cover += (jitter - 0.5) * 0.035;
+// A per-pixel jitter on this threshold was tried to break the straight seams and measured no
+// effect at all - which was the clue that they were a geometry problem, not a threshold one.
 
 // 0.26 of a field that now spans about 0.55: wide enough to read as a rim, narrow enough that
 // the core still reaches 1.0. A transition wider than the signal turns the deck into fog - that
