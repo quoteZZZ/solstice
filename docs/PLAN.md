@@ -110,6 +110,7 @@ status: active
 | G-14 | 零自动化测试 | `IMPLEMENT_*_AUTOMATION_TEST` 零命中 |
 | G-15 | 打包版读不到运行时 JSON | 走 `ProjectConfigDir()`，UAT 不 stage；见 TECH §8 |
 | G-16 | 雾被云量驱动 | `SolsticeRealm.cpp` 的 `Wet = Rain*0.7 + Cloud*0.3` |
+| G-18 | **世界几乎不活**：`bench` 跑 2 世界日后 population 2 / individuals 2（开局抓帧时 pop=120）；同一次抓帧里整岛道具只有 **228 三角形**（约 3 棵树） | `bench` 输出 + `[diag] props:`。二者更像成种 / 植被密度被某次改动压到接近零，而不是画面参数问题。下一步：查 `GenerateTerrain` 之后的成种分支与 `BuildProps` 的密度条件，确认是"世界本来就荒"还是"投放坏了" |
 | G-17 | **海面出现 8 圈同心等高环**（35° 机位，圆心接近相机垂足） | 实测排除：加网格环 18→40 无效、海面加 0.6% 世界坐标抖动无效、加 3% 胶片颗粒无效 → 不是网格、不是 8bit 量化。嫌疑集中在距离项（`WaveNormal` 的 `CamDist/NearFade`、`SeaHazeStart/Span`）或 `SkyRim` 菲涅尔。下一步：逐个置零定位，再决定用渐变重映射还是加噪 |
 
 ---
