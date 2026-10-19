@@ -501,7 +501,14 @@ namespace Solstice
 			// that order: sunlit meadow, grass, and the shaded face of a slope.
 			const FLinearColor Meadow = CelSrgb(0x7F, 0xBF, 0x5F);
 			const FLinearColor Grass = CelSrgb(0x5F, 0x9E, 0x4A);
-			const FLinearColor GrassDark = CelSrgb(0x3F, 0x7A, 0x3C);
+			const FLinearColor GrassDark = CelSrgb(0x4C, 0x8C, 0x45);
+			// A fourth green, for the dry upper meadow.
+			//
+			// Three greens spread over a 20 m height range put two of them inside the first four
+			// metres, so the upper half of the island used one colour. #93B45C is the same hue
+			// family, one step lighter and warmer - the "sun-bleached top" that makes a hill read
+			// as a hill even before the shading bands do anything.
+			const FLinearColor DryMeadow = CelSrgb(0x93, 0xB4, 0x5C);
 			// Pale limestone, not the grey they were.
 			//
 			// #9A9488 is a *neutral* stone, and under this material's cold shadow band it lands
@@ -529,6 +536,12 @@ namespace Solstice
 			// 11 m threshold turned the top third of the island into bare rock - and rock, being
 			// dark, read as a burnt crater sitting on a meadow. A third of the height is a lot of
 			// island to give away; 20 m keeps it to the summit.
+			// Re-spaced for the raised height profile (see SolsticeWorldGen: the land ladder
+			// starts at 0.115 R now, so 42% of the island sits above 11 m instead of 5 m).
+			//
+			// The previous stops - 0.6 / 1.4 / 4.5 m and rock above 20 m - were tuned against a
+			// distribution where three quarters of the land was under 8 m. On the new profile they
+			// would paint almost the whole island one band again, from the other side.
 			const bool bHigh = H >= 20.0f;
 			// 0.30, not 0.42.
 			//
@@ -537,7 +550,13 @@ namespace Solstice
 			// The threshold was set as if the terrain were alpine, so it fired on essentially
 			// nothing and the whole "steep ground gets its own tone" branch was dead code.
 			// 0.30 is about 46 degrees - still a face, not a hill.
-			const bool bSteep = Slope01 > 0.30f;
+			// Slope01 = 1 - cos(angle).
+			//
+			// 0.30 (46 degrees) never fired on the old 10-degree island; after the relief pass the
+			// bench measures 36% of the land above 35 degrees, so 0.10 (26 degrees) fired on
+			// essentially everything and painted the whole island the dark shade - the frame came
+			// back as a black blob. 0.25 is 41 degrees: the faces only.
+			const bool bSteep = Slope01 > 0.25f;
 
 			// A cliff is the band where the island meets the sea *steeply*. It is the one place
 			// where stone belongs outside the summit, and without it the island has no edge at
@@ -563,7 +582,10 @@ namespace Solstice
 			// 6 m of height, and the lower bound at 0.8 m so the wet-sand strip keeps its own
 			// colour - a stone band that reaches down into the waterline loses the one warm note
 			// the island has against the teal.
-			const bool bCliff = !bHigh && H >= 0.8f && H < 6.0f && Slope01 > 0.18f;
+			// 34 degrees, and up to 12 m: a sea cliff is not a two-metre lip. The old 0.8-6 m
+			// window was narrower than the beach it sat behind, so what reached the frame was a
+			// stone smear at the waterline rather than a face.
+			const bool bCliff = !bHigh && H >= 1.0f && H < 12.0f && Slope01 > 0.30f;
 
 			Base = bHigh
 				? (bSteep ? RockDark : Rock)
@@ -575,13 +597,15 @@ namespace Solstice
 					// rather than as a shoreline.
 					: (H < 0.6f)
 						? SiltWet
-						: (H < 1.4f)
+						: (H < 1.6f)
 							? Silt
 							: (bSteep)
 								? GrassDark
-								: (H < 4.5f)
+								: (H < 7.0f)
 									? Grass
-									: Meadow;
+									: (H < 15.0f)
+										? Meadow
+										: DryMeadow;
 		}
 
 		if (Tile.Vegetation > 0.01f)
@@ -707,7 +731,15 @@ namespace Solstice
 
 				// Water is one sheet: any per-tile variation on it turns into a moire grid, because
 				// the sheet is flat and otherwise a single colour. Land gets slow fibre, softly.
-				const float Grain = Tile->IsWater() ? 1.0f : (0.97f + CelGrainSmooth(X, Y) * 0.06f);
+				// 9%, not 3%.
+				//
+				// The ground had no visible variation of its own: the albedo texture repeats every
+				// four metres, which on this camera is smaller than a pixel, so it mips down to a
+				// flat tint, and the 3% grain was below the noise floor of a compressed frame. With
+				// the blade layer gone this is the only thing giving the land a surface, so it has
+				// to be strong enough to see and smooth enough not to look like static - hence a
+				// 3-tile bilinear field rather than a per-tile hash.
+				const float Grain = Tile->IsWater() ? 1.0f : (0.94f + CelGrainSmooth(X, Y) * 0.18f);
 
 				// Water: depth in metres, three stops (art.md SS2.3 / the prototype's palette).
 				// Depth is read off the tile, not the vertex - the sheet is flat at the water line,
@@ -929,97 +961,22 @@ namespace Solstice
 					}
 				}
 
-				// ---- the grass layer ------------------------------------------------------
-				// Tiny Glade's close-up is carried almost entirely by this: hundreds of small
-				// standing blades over the sheet. Without it the terrain is a coloured plane and no
-				// amount of light or grading makes it read as ground. Three crossed blades per land
-				// tile above the waterline, deterministic per tile so rebuilds never shimmer.
-				// 2.4 m, not 1.0 - and half as tall.
+				// ---- ground surface: nothing per tile -------------------------------
 				//
-				// Right at the waterline these blades were the worst thing in the frame: seen
-				// against water instead of against grass, three thin spikes per tile lined up
-				// along the shore read as a comb. Measured on a close crop (2026-10-18): a row of
-				// 20-30 px vertical needles along the whole coastline, with the sea visible
-				// between them. A beach is *sand*; grass starts inland.
+				// There used to be three 22-60 cm blades and up to two flowers on *every* 1 m tile,
+				// i.e. roughly five objects per square metre and well over 100k triangles of them.
+				// Every comment in that block was about making them smaller, dimmer or rarer, and
+				// every one of those edits made the frame worse in the same way: at the framing this
+				// game is actually played at - 200 to 500 m from a 128 m island - a 30 cm blade is
+				// one to three pixels, so a hundred thousand of them are not grass. They are a
+				// uniform bright speckle laid over the whole island, which is exactly the "everything
+				// mushes together / looks cheap" report. Nothing below two metres can be resolved
+				// from these stops, so nothing below two metres should be drawn.
 				//
-				// They are also shorter now. 0.34-0.96 m is waist-high on a 1 m tile, so at this
-				// framing every blade is taller than the trees are wide.
-				if (!bClipped && !Tile->IsWater() && Surface > 2.4f)
-				{
-					const FLinearColor Blade = Colour * 0.78f;
-					const FLinearColor TipColour = Colour * 1.12f;
-					for (int32 Tuft = 0; Tuft < 3; ++Tuft)
-					{
-						const float JitterX = (CelGrain(X * 3 + Tuft, Y) - 0.5f) * MeterUU * 0.7f;
-						const float JitterY = (CelGrain(X, Y * 3 + Tuft) - 0.5f) * MeterUU * 0.7f;
-						const float Height = 22.0f + 38.0f * CelGrain(X + Tuft, Y + Tuft);
-						const float Angle = CelGrain(X * 7 + Tuft, Y * 5 + Tuft) * PI;
-						const FVector Right(FMath::Cos(Angle), FMath::Sin(Angle), 0.0f);
-						const FVector Root(Centre.X + JitterX, Centre.Y + JitterY, Surface * MeterUU);
-						const FVector Tip = Root + FVector(0.0f, 0.0f, Height);
-
-						// Two crossed blades, not one.
-						//
-						// A single triangle is a line seen edge-on, so half the tufts on a round
-						// island disappear depending on which way they happen to be turned. The
-						// cross costs one extra triangle and makes every blade readable from every
-						// angle - the same reason the paper standees cross their strips.
-						const FVector Across(-Right.Y, Right.X, 0.0f);
-						for (int32 Cross = 0; Cross < 2; ++Cross)
-						{
-							const FVector Axis = (Cross == 0) ? Right : Across;
-							const int32 A = Out.Add(Root - Axis * 6.0f,
-								FVector(-Axis.Y, Axis.X, 0.35f), FVector2D(0.0f, 1.0f), Blade);
-							const int32 B = Out.Add(Root + Axis * 6.0f,
-								FVector(-Axis.Y, Axis.X, 0.35f), FVector2D(1.0f, 1.0f), Blade);
-							const int32 C2 = Out.Add(Tip,
-								FVector(-Axis.Y, Axis.X, 0.35f), FVector2D(0.5f, 0.0f), TipColour);
-							Out.Tri(A, B, C2);
-						}
-					}
-				}
-
-				// ---- flowers -------------------------------------------------------------
-				// Tiny Glade's meadow carries a sprinkle of white and ochre flecks that turn the
-				// grass band into texture at mid distance. Two crossed horizontal diamonds per
-				// flower, deterministic per tile, roughly one meadow tile in six.
-				// 0.90, not 0.84, and a dimmer white.
-				//
-				// From the survey camera the meadow came out speckled like snow: one flower per six
-				// tiles at #F5F0DB is, at 43 uu per pixel, a three-pixel white dot every twelve
-				// pixels, and the eye reads that as texture noise rather than as flowers. One in
-				// ten and a paper-cream tone keeps them as accent.
-				// 0.955, not 0.90, and 60% bigger.
-				//
-				// One tile in ten put a 7-12 cm cream blob on the meadow, which at the entry
-				// framing is a single pale pixel: 1,400 of them across the island read as white
-				// gravel over green, not as flowers. At one in twenty-two and 10-17 cm they are
-				// the same total area but they arrive as dots with a readable size, which is what
-				// makes an accent an accent.
-				if (!bClipped && !Tile->IsWater() && Surface > 6.0f && Surface < 32.0f
-					&& CelGrain(X * 17 + 3, Y * 11 + 9) > 0.955f)
-				{
-					const bool White = CelGrain(X * 5 + 1, Y * 9 + 4) > 0.5f;
-					const FLinearColor Petal = White
-						? CelSrgb(0xDD, 0xD6, 0xBE)
-						: CelSrgb(0xE0, 0xA8, 0x33);
-					const float JitterX = (CelGrain(X * 23, Y * 7) - 0.5f) * MeterUU * 0.8f;
-					const float JitterY = (CelGrain(X * 7, Y * 23) - 0.5f) * MeterUU * 0.8f;
-					const float HeadZ = Surface * MeterUU + 22.0f + 18.0f * CelGrain(X + 2, Y + 5);
-					const float Half = 10.0f + 7.0f * CelGrain(X * 3, Y * 13);
-					const FVector Head(Centre.X + JitterX, Centre.Y + JitterY, HeadZ);
-					const FVector Axes[2] = { FVector(1.0f, 0.0f, 0.0f), FVector(0.0f, 1.0f, 0.0f) };
-					for (int32 Pass = 0; Pass < 2; ++Pass)
-					{
-						const FVector& Axis = Axes[Pass];
-						Out.QuadP(
-							Head - Axis * Half,
-							Head + Axis * Half,
-							Head + Axis * Half + FVector(0.0f, 0.0f, Half * 0.6f),
-							Head - Axis * Half + FVector(0.0f, 0.0f, Half * 0.6f),
-							Petal, Petal, Petal * 0.92f, Petal * 0.92f);
-					}
-				}
+				// The surface now comes from (a) a 16 m albedo repeat whose mottle lands at 1-2 m,
+				// (b) per-tile colour grain at a 3 m correlation, and (c) real relief, which is what
+				// makes a hillside legible in the first place. See TileColour and the material's
+				// GroundTileScale.
 
 				// ---- trees ---------------------------------------------------------------
 				// A tile that passes a hash threshold grows one solid little tree: a tapered
@@ -1129,7 +1086,7 @@ namespace Solstice
 					// ones the eye lands on. The result measured as one black mass with a green
 					// rim. The separation now comes from the hue steps below, which stay visible
 					// at 20 px without pushing any crown into near-black.
-					const float Shade = 0.86f + 0.28f * CelGrain(X * 3 + 9, Y * 5 + 2);
+					const float Shade = 0.74f + 0.40f * CelGrain(X * 3 + 9, Y * 5 + 2);
 					// Bigger, because the island is 29 m across and these were 1.2-2.0 m crowns
 					// scattered on it: at the entry framing each tree was about eight pixels of
 					// mushroom with more grass than canopy between them, so the "forest" read as a
@@ -1217,8 +1174,20 @@ namespace Solstice
 					// The material now has real three-band shading on dot(N, sun), and two value systems
 					// on one crown can only fight - the albedo asserts "this side is dark" regardless of
 					// where the light is. The crown carries one albedo; the band decides which side is lit.
-					const FLinearColor LeafMid = CelSrgb(0x74, 0xB4, 0x54) * Shade;
-					const FLinearColor LeafLit = CelSrgb(0xA4, 0xD4, 0x6C) * Shade * 1.06f;
+					// Two canopy hues, not one.
+					//
+					// Every crown on the island used the same green at a brightness jitter of
+					// +-14%, so a stand of four hundred trees read as four hundred copies of one
+					// tree - which is what "一眼看去全是同一个模型" means. The jitter now moves hue
+					// as well as value: half the stands lean warm (sun-bleached, yellow-green) and
+					// half cool (deep blue-green, the wet side of a valley). Same family, so the
+					// palette still holds; different enough that the eye stops counting clones.
+					const float HueMix = CelGrain(X * 13 + 5, Y * 17 + 3);
+					const FLinearColor LeafWarm = CelSrgb(0x8C, 0xB4, 0x4A);
+					const FLinearColor LeafCool = CelSrgb(0x3F, 0x7A, 0x52);
+					const FLinearColor LeafBase = FMath::Lerp(LeafCool, LeafWarm, HueMix) * 0.96f;
+					const FLinearColor LeafMid = LeafBase * Shade;
+					const FLinearColor LeafLit = LeafBase * Shade * 1.30f;
 					const uint32 FamilySeed = static_cast<uint32>(X * 31 + Y * 7);
 					// 0.62, not 0.80. The crown starts where the trunk ends; at 0.80 of the trunk
 					// height the bottom fifth of every tree on the island was a bare black stick

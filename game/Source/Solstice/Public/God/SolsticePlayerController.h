@@ -12,7 +12,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
-#include "Sim/SolsticeTypes.h"
+#include "Sim/State/SolsticeTypes.h"
 #include "SolsticePlayerController.generated.h"
 
 class ASolsticeObserver;
@@ -103,6 +103,17 @@ public:
 	bool IsHelpOpen() const { return bShowHelp; }
 	bool IsUIOpen() const { return bShowUI; }
 
+	/**
+	 * The title screen.
+	 *
+	 * The build used to drop straight into a live world with a hand of cards and no sentence
+	 * anywhere explaining what to do with them - which is the report "我只知道一个游戏怎么做，
+	 * 但不知道怎么开始游玩". One screen with the title, three verbs and one line of what the loop
+	 * is; dismissed by the first action the player takes.
+	 */
+	bool IsStartOpen() const { return bShowingStart; }
+	void DismissStart() { bShowingStart = false; }
+
 	/** Tile under the cursor, or INDEX_NONE. */
 	int32 TileUnderCursor() const;
 
@@ -130,6 +141,7 @@ private:
 	bool bShowCreator = false;
 	bool bShowHelp = false;
 	bool bShowUI = true;
+	bool bShowingStart = true;
 
 	bool bWasLeftDown = false;
 

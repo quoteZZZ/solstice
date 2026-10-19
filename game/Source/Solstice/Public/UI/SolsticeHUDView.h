@@ -42,9 +42,19 @@ private:
 	 * It replaces two panels of twenty-four rows that together covered a third of the frame.
 	 * Everything it leaves out is one keystroke away (T); nothing a player glances at is.
 	 */
+	/**
+	 * The title card.
+	 *
+	 * The first thing a player sees, and the only place in the build that explains what the game
+	 * is and what the three verbs do. It sits above the whole HUD and is dismissed by any of its
+	 * buttons.
+	 */
+	TSharedRef<SWidget> BuildStartScreen();
+
 	TSharedRef<SWidget> BuildStatusCapsule();
 	TSharedRef<SWidget> BuildClockPanel();
 	TSharedRef<SWidget> BuildRealmPanel();
+	TSharedRef<SWidget> BuildEchoChip();
 	TSharedRef<SWidget> BuildEchoPanel();
 	TSharedRef<SWidget> BuildStatusLine();
 	TSharedRef<SWidget> BuildHandBar();

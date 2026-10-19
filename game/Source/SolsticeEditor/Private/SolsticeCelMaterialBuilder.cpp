@@ -65,7 +65,7 @@ namespace
 	 * scalar parameter, and BuildAll rebuilds any asset whose stamp does not match - otherwise a
 	 * checkout that already has an M_Cel keeps rendering the old graph forever.
 	 */
-	constexpr int32 CelRecipeVersion = 149;
+	constexpr int32 CelRecipeVersion = 152;
 
 	UMaterial* FindOrCreateMaterial(const FString& PackageName)
 	{
@@ -324,7 +324,15 @@ return lerp(float3(1.0, 1.0, 1.0), lerp(Damp, Dry, n), DetailFade);
 		// the entry framing reads grass as grass rather than as noise.
 		UMaterialExpressionScalarParameter* TileSize = AddExpr<UMaterialExpressionScalarParameter>(Material, -1600, 760);
 		TileSize->ParameterName = TEXT("GroundTileScale");
-		TileSize->DefaultValue = 0.0025f;	// 1/400 uu = one tile per 4 m
+		// 1/1667 uu, i.e. one repeat per 16.7 m.
+		//
+		// It was 4 m, which is smaller than a pixel from every stop this game is played at: the
+		// texture mipped down to its own average and contributed a flat tint, so the ground had
+		// no surface at all and the eye read the island as a coloured plate. At 16.7 m the
+		// texture's mottle lands at 1-2 m on the ground, which is 5-10 px, which is the scale a
+		// surface needs to be legible. The tiling is visible if you look for it; a flat wash is
+		// visible without looking.
+		TileSize->DefaultValue = 0.0006f;
 
 		UMaterialExpressionMultiply* TileScale = AddExpr<UMaterialExpressionMultiply>(Material, -1400, 700);
 		TileScale->A.Expression = DetailPos;
@@ -824,6 +832,35 @@ g += d3 * cos(dot(pw, d3) * 2.90 * 6.28318 + Time * 0.77) * 0.87 * HiFade;
 g += d4 * cos(dot(pw, d4) * 4.30 * 6.28318 + Time * 1.10) * 0.69 * HiFade;
 g /= 4.45;
 
+// ---- break the crests into patches -------------------------------------
+//
+// Measured on the 24 degree frame: the sea's leftover banding has a period of 78 px, which at
+// that framing is 17 m - the L1 wave. Five superposed plane waves always produce crests that run
+// as continuous arcs around the camera's nadir, and at a grazing angle each arc compresses into
+// a stripe, so the surface reads as concentric rings no matter how small the amplitude is. It is
+// not aliasing and it is not the colour ramp: it is five sines doing exactly what five sines do.
+//
+// A slowly varying mask (36 m and 11 m) scales the crests between 0.35 and 1.35, so the crest
+// trains break into patches of rough and calm water. That is what an open sea looks like, and it
+// destroys the ring by construction rather than by tuning.
+float2 mp = P.xy * 0.0022;
+float2 mc = floor(mp);
+float2 mf = frac(mp);
+mf = mf * mf * (3.0 - 2.0 * mf);
+float3 m0 = frac(float3(mc.x,       mc.y,       mc.x) * 0.1031);
+float3 m1 = frac(float3(mc.x + 1.0, mc.y,       mc.x + 1.0) * 0.1031);
+float3 m2 = frac(float3(mc.x,       mc.y + 1.0, mc.x) * 0.1031);
+float3 m3 = frac(float3(mc.x + 1.0, mc.y + 1.0, mc.x + 1.0) * 0.1031);
+m0 += dot(m0, m0.yzx + 33.33); m1 += dot(m1, m1.yzx + 33.33);
+m2 += dot(m2, m2.yzx + 33.33); m3 += dot(m3, m3.yzx + 33.33);
+float mv0 = frac((m0.x + m0.y) * m0.z);
+float mv1 = frac((m1.x + m1.y) * m1.z);
+float mv2 = frac((m2.x + m2.y) * m2.z);
+float mv3 = frac((m3.x + m3.y) * m3.z);
+float mask = lerp(lerp(mv0, mv1, mf.x), lerp(mv2, mv3, mf.x), mf.y);
+g *= 0.35 + mask * 1.00;
+
+)") TEXT(R"(
 // ---- micro ripples -------------------------------------------------
 //
 // Everything above lives at 2-78 m. The nearest water in the entry framing is 33 m away,
@@ -1116,10 +1153,15 @@ return float3(hn, foam, 0.0);
 float r = length(P.xy);
 float t = saturate((r - NearRadius) / max(FarRadius - NearRadius, 1000.0));
 
-// Lagoon -> open water. The two smoothsteps overlap, so the derivative never jumps and no
-// contour can appear no matter how slowly the camera moves.
-float3 col = lerp(Shallow, Mid, smoothstep(0.0, 0.55, t));
-col = lerp(col, Deep, smoothstep(0.45, 1.0, t));
+// The bright shelf is a *rim*, not a field.
+//
+// The ramp used to reach the mid tone only at t = 0.55, and t spans 1.05R..3.4R, so everything
+// inside 2.3R - which at these stops is the entire visible sea - sat on the shallow colour. The
+// result was a mint swimming pool with an island in it, and no amount of palette work helped
+// because the pool colour *was* the palette. Compressing the two steps into the near third
+// leaves a bright reef ring where a reef belongs and open water everywhere else.
+float3 col = lerp(Shallow, Mid, smoothstep(0.0, 0.30, t));
+col = lerp(col, Deep, smoothstep(0.22, 0.85, t));
 
 // Aerial perspective, driven by distance to the *eye*.
 //
@@ -1129,6 +1171,42 @@ col = lerp(col, Deep, smoothstep(0.45, 1.0, t));
 // exactly what a haze ramp needs to avoid banding.
 float d = length(P - CamPos.xyz);
 col = lerp(col, Haze, smoothstep(HazeStart, max(HazeSpan, HazeStart + 1.0), d));
+
+// ---- surface modulation ------------------------------------------------
+//
+// The sea is one enormous, almost perfectly smooth gradient, and every attempt to fix the
+// "concentric rings" by changing the ramp, the mesh, the foam, the dither or the grain failed
+// because the rings are not in any of those: they are the eye reading a shallow luminance
+// ramp's own contour lines, amplified by Mach banding. A perfectly smooth ramp across half the
+// frame always reads as rings, so the fix is not a smoother ramp - it is to stop being smooth.
+//
+// Two octaves of value noise, 26 m and 9 m, amplitude +-7% and +-3%. Both are tens of pixels
+// wide at every playable stop, so they cannot alias, and both are far below the threshold where
+// they would read as foam or dirt: they read as current, which is what a large body of water
+// looks like from above.
+float2 np = P.xy * 0.0038;
+float nsum = 0.0;
+float namp = 0.62;
+for (int oi = 0; oi < 2; oi++)
+{
+    float2 c = floor(np);
+    float2 f = frac(np);
+    f = f * f * (3.0 - 2.0 * f);
+    float3 h0 = frac(float3(c.x,       c.y,       c.x) * 0.1031);
+    float3 h1 = frac(float3(c.x + 1.0, c.y,       c.x + 1.0) * 0.1031);
+    float3 h2 = frac(float3(c.x,       c.y + 1.0, c.x) * 0.1031);
+    float3 h3 = frac(float3(c.x + 1.0, c.y + 1.0, c.x + 1.0) * 0.1031);
+    h0 += dot(h0, h0.yzx + 33.33); h1 += dot(h1, h1.yzx + 33.33);
+    h2 += dot(h2, h2.yzx + 33.33); h3 += dot(h3, h3.yzx + 33.33);
+    float v0 = frac((h0.x + h0.y) * h0.z);
+    float v1 = frac((h1.x + h1.y) * h1.z);
+    float v2 = frac((h2.x + h2.y) * h2.z);
+    float v3 = frac((h3.x + h3.y) * h3.z);
+    nsum += namp * lerp(lerp(v0, v1, f.x), lerp(v2, v3, f.x), f.y);
+    np = float2(np.x * 2.13 - np.y * 1.37, np.x * 1.37 + np.y * 2.13) * 0.47;
+    namp *= 0.42;
+}
+col *= 1.0 + (nsum - 0.44) * 0.26;
 return col;
 )");
 		{
@@ -1217,8 +1295,26 @@ float3 v = normalize(CamPos.xyz - P);
 // comes from at a grazing angle. A mirror-smooth far field is also what distant water looks
 // like, so the fix and the truth agree here.
 const float Dist = length(P - CamPos.xyz);
-const float Flat = saturate((Dist - 5000.0) / 17000.0);
-n = normalize(lerp(n, float3(0.0, 0.0, 1.0), Flat));
+const float Flat = saturate((Dist - 2500.0) / 9000.0);
+
+// ... but flatten it toward a *rough* plane, not a perfect one.
+//
+// Flattening to (0,0,1) did remove the wave interference and replaced it with something worse:
+// a mathematically perfect mirror, whose reflection is a smooth function of the view direction
+// only. On a surface that fills half the frame that is a set of concentric contours around the
+// point below the camera - the exact defect it was supposed to remove, drawn by the reflection
+// instead of by the waves. Measured: three separate attempts to fix "concentric rings" through
+// the body colour changed the frame by nothing, because the body colour is not what you see at
+// a grazing angle; the reflection is.
+//
+// So the far field gets a slow tilt field at 25 m: a couple of degrees, which is what a real
+// open sea has and what breaks the radial symmetry. The reflection now varies because the water
+// leans, not because the distance changed.
+float2 tp = P.xy * 0.0009;
+float tx = sin(tp.x * 6.28318 + tp.y * 2.1) * 0.55 + sin(tp.x * 2.7 - tp.y * 4.3) * 0.45;
+float ty = cos(tp.y * 5.7 - tp.x * 1.9) * 0.55 + cos(tp.y * 3.1 + tp.x * 3.7) * 0.45;
+const float3 RoughUp = normalize(float3(tx * 0.055, ty * 0.055, 1.0));
+n = normalize(lerp(n, RoughUp, Flat));
 
 float3 refl = reflect(-v, n);
 float h = refl.z;

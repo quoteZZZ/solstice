@@ -945,7 +945,17 @@ void ASolsticePlayerController::Tick(float DeltaSeconds)
 	// stops - that was G-04, where ornament mode left the player unable to move at all.
 	PollCamera(DeltaSeconds);
 
-	if (bShowUI)
+	if (bShowingStart)
+	{
+		// The title card owns the screen: the world is drawn behind it, but nothing is playing
+		// yet. A click on the card dismisses it (see SSolsticeHUDView::BuildStartScreen); a click
+		// that landed on the paper instead must not also release a card.
+		if (ASolsticeRealm* RealmActor = Realm())
+		{
+			RealmActor->SetCursorTile(INDEX_NONE, true);
+		}
+	}
+	else if (bShowUI)
 	{
 		UpdateCursor();
 		PollCommands(DeltaSeconds);

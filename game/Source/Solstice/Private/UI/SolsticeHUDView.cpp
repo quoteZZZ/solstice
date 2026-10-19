@@ -422,13 +422,25 @@ void SSolsticeHUDView::Construct(const FArguments& InArgs)
 			]
 		]
 
-		// ---- top right: echo -------------------------------------------------
+		// ---- top right: one number, and the table only on demand -----------------
 		+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Top).Padding(FMargin(Px(16.0f)))
 		[
 			SNew(SVerticalBox)
-			+ SVerticalBox::Slot().AutoHeight()
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right)
 			[
-				BuildEchoPanel()
+				BuildEchoChip()
+			]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right).Padding(0.0f, Px(8.0f), 0.0f, 0.0f)
+			[
+				SNew(SBox)
+				.Visibility(TAttribute<EVisibility>::CreateLambda([this]()
+				{
+					ASolsticePlayerController* PlayerCtl = PC();
+					return (PlayerCtl && PlayerCtl->IsDetailsOpen()) ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed;
+				}))
+				[
+					BuildEchoPanel()
+				]
 			]
 			// Secondary panels are opt-in. The controller already owned these five flags; nothing
 			// read them, so B / C / P / G did nothing and every panel was always on screen. This is
@@ -519,6 +531,26 @@ void SSolsticeHUDView::Construct(const FArguments& InArgs)
 				BuildHelpPanel()
 			]
 		]
+
+		// ---- the title card, above everything -------------------------------
+		//
+		// Last in the overlay, so it covers the chrome as well as the world: a player who has
+		// never seen this build should not be reading a hand of cards before anyone has told
+		// them what a card does.
+		+ SOverlay::Slot().HAlign(HAlign_Fill).VAlign(VAlign_Fill)
+		[
+			SNew(SBox)
+			.Visibility(TAttribute<EVisibility>::CreateLambda([this]()
+			{
+				ASolsticePlayerController* PlayerCtl = PC();
+				return (PlayerCtl && PlayerCtl->IsStartOpen())
+					? EVisibility::SelfHitTestInvisible
+					: EVisibility::Collapsed;
+			}))
+			[
+				BuildStartScreen()
+			]
+		]
 	];
 }
 
@@ -526,70 +558,218 @@ void SSolsticeHUDView::Construct(const FArguments& InArgs)
 // Panels
 // ======================================================================
 
-TSharedRef<SWidget> SSolsticeHUDView::BuildStatusCapsule()
+TSharedRef<SWidget> SSolsticeHUDView::BuildStartScreen()
 {
-	// The one thing always on screen, so it has to carry the time at a glance and everything
-	// else as a caption: a big clock, then season / weather / temperature on two short lines.
-	// It used to be three 12 pt fragments on one line, which is a status bar, not a read-out.
-	TSharedRef<SWidget> Clock = TxtL(TAttribute<FText>::CreateLambda([this]()
-	{
-		FSimKernel* Kernel = Sim();
-		if (!Kernel) { return FText(); }
-		return FText::FromString(FString::Printf(TEXT("%02d:%02d"),
-			Kernel->GetWorldHour(), Kernel->GetWorldMinuteOfHour()));
-	}), 22, Ink, true);
-
-	// Season plus the day count.
+	// ---- title card ------------------------------------------------------
 	//
-	// The clock says what time it is inside a day but never which day it is, so a session has no
-	// sense of progress at all: the island can be a week old and nothing on screen says so.
-	TSharedRef<SWidget> SeasonLine = TxtL(TAttribute<FText>::CreateLambda([this]()
+	// This is the answer to "我只知道一个游戏怎么做，但不知道怎么开始游玩". Until now the build
+	// opened straight onto a live island with eight cards in a strip and no sentence anywhere
+	// telling anyone what the cards were for. A player's first ten seconds were spent reading a
+	// HUD that was never introduced.
+	//
+	// Three things, in the order they are needed: what this is, what you do, and how to start.
+	// No key table - keys live in the help sheet, which this card links to.
+
+	auto Step = [this](int32 Number, const FString& Zh, const FString& En) -> TSharedRef<SWidget>
 	{
-		FSimKernel* Kernel = Sim();
-		if (!Kernel) { return FText(); }
-		// Loc2, not a format key: UE 5.8's Printf requires a literal format string, so a
-		// translated "%d" cannot be passed through it.
-		const FString Day = Solstice::Loc2(
-			FString::Printf(TEXT("第 %d 天"), Kernel->GetWorldDay()),
-			FString::Printf(TEXT("day %d"), Kernel->GetWorldDay()));
-		return FText::FromString(FString::Printf(TEXT("%s · %s"), *Kernel->GetSeasonString(), *Day));
-	}), 11, InkSoft);
-
-	TSharedRef<SWidget> WeatherLine = TxtL(TAttribute<FText>::CreateLambda([this]()
-	{
-		FSimKernel* Kernel = Sim();
-		if (!Kernel) { return FText(); }
-		const FString Weather = WeatherLabel(Kernel->GetSky()).ToString();
-		return FText::FromString(FString::Printf(TEXT("%s  %.0f°"), *Weather, Kernel->GetSky().AirTempC));
-	}), 11, InkSoft);
-
-	TSharedRef<SWidget> Rule = SNew(SBox)
-		.WidthOverride(Px(2.0f))
-		.HeightOverride(Px(34.0f))
-		.VAlign(VAlign_Center)
-		[
-			SNew(SBorder)
-			.BorderImage(WhiteBrush())
-			.BorderBackgroundColor(FSlateColor(FLinearColor(0.44f, 0.39f, 0.32f, 0.22f)))
-		];
-
-	return SNew(SBox)
-		.Visibility(EVisibility::SelfHitTestInvisible)
-		[
-			SNew(SBorder)
-			.BorderImage(PanelBrush())
-			.Padding(FMargin(Px(14.0f), Px(6.0f)))
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Top)
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[ Clock ]
-				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Px(12.0f), 0.0f)[ Rule ]
-				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+				SNew(SBox).WidthOverride(Px(26.0f))
 				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot().AutoHeight()[ SeasonLine ]
-					+ SVerticalBox::Slot().AutoHeight()[ WeatherLine ]
+					SNew(STextBlock)
+					.Text(FText::FromString(FString::Printf(TEXT("%d"), Number)))
+					.Font(Font(13, true))
+					.ColorAndOpacity(FSlateColor(Accent))
 				]
 			]
+			+ SHorizontalBox::Slot().FillWidth(1.0f).VAlign(VAlign_Top)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(Solstice::Loc2(Zh, En)))
+				.Font(Font(13))
+				.ColorAndOpacity(FSlateColor(Ink))
+				.AutoWrapText(true)
+			];
+	};
+
+	TSharedRef<SWidget> Card = SNew(SBorder)
+		.BorderImage(PanelBrush())
+		.Padding(FMargin(Px(34.0f), Px(30.0f), Px(34.0f), Px(26.0f)))
+		[
+			SNew(SVerticalBox)
+			// title
+			+ SVerticalBox::Slot().AutoHeight()
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(TEXT("SOLSTICE")))
+				.Font(Font(30, true))
+				.ColorAndOpacity(FSlateColor(Ink))
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.0f, Px(2.0f), 0.0f, Px(14.0f))
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(Solstice::Loc2(
+					TEXT("至日 · 在一张纸上养一座岛"), TEXT("a world on a sheet of paper"))))
+				.Font(Font(13))
+				.ColorAndOpacity(FSlateColor(InkSoft))
+			]
+			// the loop
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.0f, 0.0f, 0.0f, Px(8.0f))
+			[
+				Step(1, TEXT("下面是一手牌。每张牌是一种干预：雨、火、种子、风。"),
+					TEXT("The strip at the bottom is your hand. Each card is an intervention: rain, fire, seed, wind."))
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.0f, 0.0f, 0.0f, Px(8.0f))
+			[
+				Step(2, TEXT("点牌选中，再点地面放下。光圈会告诉你落点在哪一格。"),
+					TEXT("Pick a card, then click the ground. The ring shows the tile it will land on."))
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.0f, 0.0f, 0.0f, Px(18.0f))
+			[
+				Step(3, TEXT("世界会自己往下走。你等的不是结算，是它长出什么。"),
+					TEXT("The world runs on its own. What you wait for is not a score - it is what grows."))
+			]
+			// buttons
+			+ SVerticalBox::Slot().AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth()
+				[
+					SNew(SButton)
+					.ButtonStyle(&ActionStyle())
+					.ContentPadding(FMargin(Px(10.0f), Px(8.0f)))
+					.OnClicked(FOnClicked::CreateLambda([this]()
+					{
+						if (ASolsticePlayerController* PlayerCtl = PC()) { PlayerCtl->DismissStart(); }
+						return FReply::Handled();
+					}))
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(Solstice::Loc2(TEXT("进入世界"), TEXT("enter the world"))))
+						.Font(Font(14, true))
+						.ColorAndOpacity(FSlateColor(Ink))
+					]
+				]
+				+ SHorizontalBox::Slot().AutoWidth().Padding(Px(8.0f), 0.0f, 0.0f, 0.0f)
+				[
+					SNew(SButton)
+					.ButtonStyle(&ChipStyle())
+					.ContentPadding(FMargin(Px(10.0f), Px(8.0f)))
+					.OnClicked(FOnClicked::CreateLambda([this]()
+					{
+						if (ASolsticePlayerController* PlayerCtl = PC())
+						{
+							PlayerCtl->DismissStart();
+							PlayerCtl->ToggleHelp();
+						}
+						return FReply::Handled();
+					}))
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(Solstice::Loc2(TEXT("按键说明"), TEXT("controls"))))
+						.Font(Font(13))
+						.ColorAndOpacity(FSlateColor(Ink))
+					]
+				]
+			]
+		];
+
+	return SNew(SBorder)
+		.BorderImage(SolidBrush())
+		// A dark wash over the world, not a black screen: the island stays visible behind the
+		// card, so the first thing a new player sees is still the thing the game is about.
+		.BorderBackgroundColor(FSlateColor(FLinearColor(0.055f, 0.070f, 0.085f, 0.62f)))
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SBox).WidthOverride(Px(560.0f))
+			[
+				Card
+			]
+		];
+}
+
+TSharedRef<SWidget> SSolsticeHUDView::BuildStatusCapsule()
+{
+	// No box.
+	//
+	// The top-left was a warm paper card with a 22 pt clock, a rule and two caption lines - a
+	// window sitting on the landscape, which is the report "左上角同理也烂". A HUD read-out in a
+	// game like this is type on the picture, not a widget on it: two lines, ink with a pale
+	// shadow so it survives both the sky and the dark canopy, and nothing else.
+	TSharedRef<SWidget> Clock = SNew(STextBlock)
+		.Text(TAttribute<FText>::CreateLambda([this]()
+		{
+			FSimKernel* Kernel = Sim();
+			if (!Kernel) { return FText(); }
+			return FText::FromString(FString::Printf(TEXT("%02d:%02d"),
+				Kernel->GetWorldHour(), Kernel->GetWorldMinuteOfHour()));
+		}))
+		.Font(Font(20, true))
+		.ColorAndOpacity(FSlateColor(Ink))
+		.ShadowOffset(FVector2D(0.0f, 1.0f))
+		.ShadowColorAndOpacity(FLinearColor(1.0f, 0.98f, 0.94f, 0.55f))
+		.Visibility(EVisibility::HitTestInvisible);
+
+	TSharedRef<SWidget> Sub = SNew(STextBlock)
+		.Text(TAttribute<FText>::CreateLambda([this]()
+		{
+			FSimKernel* Kernel = Sim();
+			if (!Kernel) { return FText(); }
+			const FString Day = Solstice::Loc2(
+				FString::Printf(TEXT("第 %d 天"), Kernel->GetWorldDay()),
+				FString::Printf(TEXT("day %d"), Kernel->GetWorldDay()));
+			return FText::FromString(FString::Printf(TEXT("%s · %s · %s %.0f°"),
+				*Day, *Kernel->GetSeasonString(),
+				*WeatherLabel(Kernel->GetSky()).ToString(), Kernel->GetSky().AirTempC));
+		}))
+		.Font(Font(11))
+		.ColorAndOpacity(FSlateColor(Ink))
+		.ShadowOffset(FVector2D(0.0f, 1.0f))
+		.ShadowColorAndOpacity(FLinearColor(1.0f, 0.98f, 0.94f, 0.55f))
+		.Visibility(EVisibility::HitTestInvisible);
+
+	return SNew(SVerticalBox)
+		.Visibility(EVisibility::SelfHitTestInvisible)
+		+ SVerticalBox::Slot().AutoHeight()[ Clock ]
+		+ SVerticalBox::Slot().AutoHeight()[ Sub ];
+}
+
+TSharedRef<SWidget> SSolsticeHUDView::BuildEchoChip()
+{
+	// One number, top right.
+	//
+	// This used to be a six-row accounting table - from events, from sediment, from first hand,
+	// from recycling, auto-converted, total - parked in the corner of every frame. That is a
+	// debug panel wearing a game's clothes, and it was the single most "this is not a game UI"
+	// element on screen. The breakdown still exists; it moved into the details overlay (I).
+	TSharedRef<SWidget> Number = SNew(STextBlock)
+		.Text(TAttribute<FText>::CreateLambda([this]()
+		{
+			FSimKernel* Kernel = Sim();
+			return FText::FromString(Kernel ? FString::FromInt(Kernel->GetEcho()) : FString());
+		}))
+		.Font(Font(20, true))
+		.ColorAndOpacity(FSlateColor(Ink))
+		.ShadowOffset(FVector2D(0.0f, 1.0f))
+		.ShadowColorAndOpacity(FLinearColor(1.0f, 0.98f, 0.94f, 0.55f))
+		.Visibility(EVisibility::HitTestInvisible);
+
+	TSharedRef<SWidget> Label = SNew(STextBlock)
+		.Text(Tx(Solstice::Loc(TEXT("echo.balance"))))
+		.Font(Font(10))
+		.ColorAndOpacity(FSlateColor(InkSoft))
+		.ShadowOffset(FVector2D(0.0f, 1.0f))
+		.ShadowColorAndOpacity(FLinearColor(1.0f, 0.98f, 0.94f, 0.50f))
+		.Visibility(EVisibility::HitTestInvisible);
+
+	return SNew(SHorizontalBox)
+		.Visibility(EVisibility::SelfHitTestInvisible)
+		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[ Label ]
+		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Px(8.0f), 0.0f, 0.0f, 0.0f)
+		[
+			Number
 		];
 }
 
@@ -1182,17 +1362,17 @@ TSharedRef<SWidget> SSolsticeHUDView::BuildActionBar()
 					{
 						if (ASolsticePlayerController* Controller = PC()) { Controller->ReleaseSelectedAtCursor(); }
 						return FReply::Handled();
-					}), TEXT("空格")),
+					})),
 					ActionButton(Tx(Solstice::Loc(TEXT("hand.recycle"))), FOnClicked::CreateLambda([this]()
 					{
 						if (ASolsticePlayerController* Controller = PC()) { Controller->RecycleSelected(); }
 						return FReply::Handled();
-					}), TEXT("X")),
+					})),
 					ActionButton(Tx(Solstice::Loc(TEXT("hand.reroll"))), FOnClicked::CreateLambda([this]()
 					{
 						if (ASolsticePlayerController* Controller = PC()) { Controller->RerollHand(); }
 						return FReply::Handled();
-					}), TEXT("R")),
+					})),
 				})
 			]
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Px(7.0f), 0.0f)[ GroupDivider() ]
@@ -1203,17 +1383,17 @@ TSharedRef<SWidget> SSolsticeHUDView::BuildActionBar()
 					{
 						if (ASolsticePlayerController* Controller = PC()) { Controller->ToggleTimeMode(); }
 						return FReply::Handled();
-					}), TEXT("T")),
+					})),
 					ActionButton(Tx(Solstice::Loc(TEXT("ui.pause"))), FOnClicked::CreateLambda([this]()
 					{
 						if (ASolsticePlayerController* Controller = PC()) { Controller->TogglePause(); }
 						return FReply::Handled();
-					}), TEXT("K")),
+					})),
 					ActionButton(Tx(Solstice::Loc(TEXT("time.speed"))), FOnClicked::CreateLambda([this]()
 					{
 						if (ASolsticePlayerController* Controller = PC()) { Controller->CycleSpeed(); }
 						return FReply::Handled();
-					}), TEXT("J")),
+					})),
 				})
 			]
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(Px(7.0f), 0.0f)[ GroupDivider() ]
@@ -1224,12 +1404,12 @@ TSharedRef<SWidget> SSolsticeHUDView::BuildActionBar()
 					{
 						if (ASolsticePlayerController* Controller = PC()) { Controller->ToggleLanguage(); }
 						return FReply::Handled();
-					}), TEXT("O")),
+					})),
 					ActionButton(Tx(Solstice::Loc(TEXT("help.title"))), FOnClicked::CreateLambda([this]()
 					{
 						if (ASolsticePlayerController* Controller = PC()) { Controller->ToggleHelp(); }
 						return FReply::Handled();
-					}), TEXT("H")),
+					})),
 				})
 			]
 		];
@@ -1533,26 +1713,46 @@ TSharedRef<SWidget> SSolsticeHUDView::BuildCreatorPanel()
 
 TSharedRef<SWidget> SSolsticeHUDView::BuildHelpPanel()
 {
+	// Grouped, because it is now the *only* place the bindings live.
+	//
+	// The action bar used to print a key cap inside every button - 空格 / X / R / T / K / J /
+	// O / H, eight key legends parked across the bottom of the picture. That is what a settings
+	// page is for; a game screen should say "释放" and let the player learn the binding if they
+	// want it. The binds moved here, and here they are ordered by what the player is doing
+	// rather than by which key happens to be free.
 	auto Line = [](const FString& Key) -> TSharedRef<SWidget>
 	{
-		return Txt(Tx(Solstice::Loc(Key)), 11, InkSoft);
+		return Txt(Tx(Solstice::Loc(Key)), 12, InkSoft);
 	};
 
-	// Order and content mirror UI-UX §2.2 line for line (REVIEW R-01). The old sheet listed a
-	// binding that no longer exists (`help.z`) and left the camera, time and language keys out.
+	auto Section = [this](const FString& Zh, const FString& En) -> TSharedRef<SWidget>
+	{
+		return SNew(SBox).Padding(0.0f, Px(9.0f), 0.0f, Px(2.0f))
+		[
+			SNew(STextBlock)
+			.Text(FText::FromString(Solstice::Loc2(Zh, En)))
+			.Font(Font(11, true))
+			.ColorAndOpacity(FSlateColor(Accent))
+		];
+	};
+
 	TSharedRef<SVerticalBox> Body = SNew(SVerticalBox);
+	Body->AddSlot().AutoHeight()[ Section(TEXT("手牌"), TEXT("CARDS")) ];
 	Body->AddSlot().AutoHeight()[ Line(TEXT("help.lmb")) ];
 	Body->AddSlot().AutoHeight()[ Line(TEXT("help.rmb")) ];
 	Body->AddSlot().AutoHeight()[ Line(TEXT("help.slots")) ];
 	Body->AddSlot().AutoHeight()[ Line(TEXT("help.x")) ];
 	Body->AddSlot().AutoHeight()[ Line(TEXT("help.r")) ];
+	Body->AddSlot().AutoHeight()[ Section(TEXT("视角"), TEXT("CAMERA")) ];
 	Body->AddSlot().AutoHeight()[ Line(TEXT("help.orbit")) ];
 	Body->AddSlot().AutoHeight()[ Line(TEXT("help.wheel")) ];
+	Body->AddSlot().AutoHeight()[ Line(TEXT("help.azimuth")) ];
 	Body->AddSlot().AutoHeight()[ Line(TEXT("help.f1")) ];
 	Body->AddSlot().AutoHeight()[ Line(TEXT("help.f2")) ];
 	Body->AddSlot().AutoHeight()[ Line(TEXT("help.f3")) ];
 	Body->AddSlot().AutoHeight()[ Line(TEXT("help.f4")) ];
 	Body->AddSlot().AutoHeight()[ Line(TEXT("help.y")) ];
+	Body->AddSlot().AutoHeight()[ Section(TEXT("时间与界面"), TEXT("TIME AND HUD")) ];
 	Body->AddSlot().AutoHeight()[ Line(TEXT("help.t")) ];
 	Body->AddSlot().AutoHeight()[ Line(TEXT("help.k")) ];
 	Body->AddSlot().AutoHeight()[ Line(TEXT("help.j")) ];
@@ -1565,5 +1765,6 @@ TSharedRef<SWidget> SSolsticeHUDView::BuildHelpPanel()
 	Body->AddSlot().AutoHeight()[ Line(TEXT("help.tab")) ];
 	Body->AddSlot().AutoHeight()[ Line(TEXT("help.esc")) ];
 
-	return Panel(Tx(Solstice::Loc(TEXT("help.title"))), Body, 300.0f);
+	return Panel(Tx(Solstice::Loc(TEXT("help.title"))), Body, 320.0f);
 }
+

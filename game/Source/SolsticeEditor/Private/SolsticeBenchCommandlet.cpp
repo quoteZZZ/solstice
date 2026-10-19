@@ -10,7 +10,7 @@
 #include "Core/SolsticeDataLoader.h"
 #include "Sim/SolsticeKernel.h"
 #include "Solstice.h"
-#include "Sim/SolsticeWorldGen.h"
+#include "Sim/Gen/SolsticeWorldGen.h"
 
 namespace
 {
@@ -61,6 +61,16 @@ namespace
 
 		float MinHeight = 0.0f;
 		float MaxHeight = 0.0f;
+		/**
+		 * Slope histogram over *land* tiles, in 5 degree buckets.
+		 *
+		 * This is the number that decides whether the cel shading can do anything: the material's
+		 * bands are driven by N dot sun, and on a 10 degree island every normal points at the sky,
+		 * so every band picks the same value and the whole island renders as one flat green field.
+		 * Measured by eye for two rounds before anyone thought to count it.
+		 */
+		int32 SlopeBuckets[8] = {};
+		int32 LandTiles = 0;
 	};
 
 	struct FBenchRun
@@ -207,6 +217,24 @@ namespace
 					if (Tile->IsWater())
 					{
 						++Run.Census.WaterTiles;
+					}
+					else if (X > 0 && Y > 0 && X + 1 < Size && Y + 1 < Size)
+					{
+						// Central difference on the height field: metres of rise per metre of
+						// ground. At 1 m tiles the raw difference *is* the gradient.
+						const Solstice::FTile* E = Kernel.TileAt(X + 1, Y);
+						const Solstice::FTile* W = Kernel.TileAt(X - 1, Y);
+						const Solstice::FTile* N = Kernel.TileAt(X, Y + 1);
+						const Solstice::FTile* S = Kernel.TileAt(X, Y - 1);
+						if (E && W && N && S)
+						{
+							const float GX = (E->Height - W->Height) * 0.5f;
+							const float GY = (N->Height - S->Height) * 0.5f;
+							const float Deg = FMath::RadiansToDegrees(FMath::Atan(FMath::Sqrt(GX * GX + GY * GY)));
+							++Run.Census.LandTiles;
+							const int32 Slot = FMath::Clamp(FMath::FloorToInt(Deg / 5.0f), 0, 7);
+							++Run.Census.SlopeBuckets[Slot];
+						}
 					}
 					Run.Census.MinTempC = FMath::Min(Run.Census.MinTempC, Tile->LocalTempC);
 					Run.Census.MaxTempC = FMath::Max(Run.Census.MaxTempC, Tile->LocalTempC);
@@ -388,6 +416,16 @@ int32 USolsticeBenchCommandlet::Main(const FString& Params)
 				Band * 8, Band * 8 + 8, static_cast<float>(A.Census.BandCounts[Band]) / Total * 100.0f);
 		}
 		UE_LOG(LogSolstice, Display, TEXT("bench: height bands %s"), *Bands);
+	{
+		FString Slopes;
+		const int32 LandTotal = FMath::Max(1, A.Census.LandTiles);
+		for (int32 Slot = 0; Slot < 8; ++Slot)
+		{
+			Slopes += FString::Printf(TEXT("%s%d-%d:%.1f%%"), Slot > 0 ? TEXT(" ") : TEXT(""),
+				Slot * 5, Slot * 5 + 5, 100.0f * static_cast<float>(A.Census.SlopeBuckets[Slot]) / static_cast<float>(LandTotal));
+		}
+		UE_LOG(LogSolstice, Display, TEXT("bench: slope (deg, land) %s"), *Slopes);
+	}
 	}
 
 	if (A.Digest.Hash != B.Digest.Hash)

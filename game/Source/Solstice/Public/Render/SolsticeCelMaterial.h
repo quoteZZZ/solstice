@@ -18,7 +18,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/PostProcessComponent.h"
-#include "Sim/SolsticeTypes.h"
+#include "Sim/State/SolsticeTypes.h"
 
 class UMaterialInterface;
 class UMaterialInstanceDynamic;

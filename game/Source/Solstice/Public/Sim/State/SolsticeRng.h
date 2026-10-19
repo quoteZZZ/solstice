@@ -8,7 +8,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Sim/SolsticeTypes.h"
+#include "Sim/State/SolsticeTypes.h"
 
 namespace Solstice
 {

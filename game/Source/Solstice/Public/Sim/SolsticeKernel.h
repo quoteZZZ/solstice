@@ -13,9 +13,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Sim/SolsticeTypes.h"
-#include "Sim/SolsticeWorldGen.h"
-#include "Sim/SolsticeRng.h"
+#include "Sim/State/SolsticeTypes.h"
+#include "Sim/Gen/SolsticeWorldGen.h"
+#include "Sim/State/SolsticeRng.h"
 
 namespace Solstice
 {
@@ -242,7 +242,7 @@ namespace Solstice
 		FCatalog Catalog;
 		TArray<FTile> Tiles;
 		FSkyState Sky;
-		/** The roll behind this world; see Sim/SolsticeWorldGen.h. */
+		/** The roll behind this world; see Sim/Gen/SolsticeWorldGen.h. */
 		WorldGen::FRoll WorldRoll;
 		float TerrainPeakMeters = 19.2f;
 		FRealitySample Reality;

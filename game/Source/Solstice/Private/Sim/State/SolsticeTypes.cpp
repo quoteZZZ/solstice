@@ -2,7 +2,7 @@
 // Every number in this file is transcribed from the design docs; the doc section is cited
 // next to it so a tune can be traced back to its truth source.
 
-#include "Sim/SolsticeTypes.h"
+#include "Sim/State/SolsticeTypes.h"
 
 namespace Solstice
 {

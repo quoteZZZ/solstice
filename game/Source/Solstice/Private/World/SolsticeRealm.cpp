@@ -1146,9 +1146,17 @@ void ASolsticeRealm::BuildSkyMesh()
 		// The three legs of a tropical coast: brilliant sand shelf, teal where the bottom is
 		// still visible, cobalt where it is not. Only the first is allowed to be bright, which
 		// is what makes it read as a reef rather than as a floodlit swimming pool.
-		SeaMID->SetVectorParameterValue(TEXT("SeaShallow"), Solstice::CelSrgb(0x63, 0xD9, 0xCB));
-		SeaMID->SetVectorParameterValue(TEXT("SeaMid"), Solstice::CelSrgb(0x12, 0x86, 0x9A));
-		SeaMID->SetVectorParameterValue(TEXT("SeaDeep"), Solstice::CelSrgb(0x07, 0x2F, 0x5C));
+		// Darkened one step across the board.
+		//
+		// Measured on the 24 degree frame: the water was #95C0B5 (value 0.75) against an island
+		// that measured #112B12 (value 0.09). The brightest thing in every landscape was the
+		// water, and the land sat on it like a dark cut-out - the "island pasted onto a swimming
+		// pool" read. A lit island is *brighter* than the sea around it; that inversion was the
+		// single biggest reason the frame looked like a 3D asset viewer rather than a place.
+		// #63D9CB was 0.85 luminance in sRGB, which is a swimming pool, not an ocean.
+		SeaMID->SetVectorParameterValue(TEXT("SeaShallow"), Solstice::CelSrgb(0x33, 0xA8, 0xA6));
+		SeaMID->SetVectorParameterValue(TEXT("SeaMid"), Solstice::CelSrgb(0x0E, 0x6E, 0x82));
+		SeaMID->SetVectorParameterValue(TEXT("SeaDeep"), Solstice::CelSrgb(0x07, 0x33, 0x58));
 
 		// The radii are a *screen* constraint, not a geography one, and that is the whole trick.
 		//
@@ -1172,7 +1180,9 @@ void ASolsticeRealm::BuildSkyMesh()
 		// every one of these rings was outside the picture before, and the sea rendered as one
 		// flat mint sheet because the only colour it ever showed was the shallow one.
 		SeaMID->SetScalarParameterValue(TEXT("SeaShallowRadius"), SeaR * 1.05f);
-		SeaMID->SetScalarParameterValue(TEXT("SeaDeepRadius"), SeaR * 3.40f);
+		// 2.2R, not 3.4R: the mid-to-deep step has to finish inside the frame. At 3.4R the whole
+		// visible sea sat on the shallow colour (see the note in M_Sea's SeaDepth).
+		SeaMID->SetScalarParameterValue(TEXT("SeaDeepRadius"), SeaR * 2.20f);
 		// Aerial perspective finishes well before the ocean mesh's edge (60R), so the far water
 		// arrives at the sky's horizon colour and the rim of the mesh is never visible.
 		SeaMID->SetScalarParameterValue(TEXT("SeaHazeStart"), 16000.0f);
@@ -1368,6 +1378,17 @@ void ASolsticeRealm::UpdateSun()
 			const float SkyScale = EnvTuning.Y >= 0.0 ? static_cast<float>(EnvTuning.Y) : 1.0f;
 	SkyLight->SetIntensity(SkyLightIntensity * Ambient01 * SkyScale);
 
+	// 2.0, when nothing overrides it.
+	//
+	// Measured: with the material's own 1.0 the island's lit ground arrives at #112B12 - value
+	// 0.09 - while the sea around it sits at 0.6-0.75. A landscape whose land is eight times
+	// darker than its water is not a lighting mood, it is a broken gain: the toon bands multiply
+	// the albedo down and nothing puts the light back. Swept on the frame: 1.0 is the dark blob,
+	// 2.2 reads as sunlit grass, 3.5 is fluorescent plastic. 2.0.
+	if (CelBaseGain < 0.0f)
+	{
+		CelBaseGain = 2.0f;
+	}
 	if (CelBaseGain >= 0.0f)
 	{
 		if (UMaterialInstanceDynamic* CelMID = FCelMaterials::Get().CelMID)

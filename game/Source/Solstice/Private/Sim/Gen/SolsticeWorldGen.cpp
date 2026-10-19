@@ -19,7 +19,7 @@
 // area quantile in ResolveHeights, so "how much of the land is mountain" is an input instead
 // of whatever the noise happened to produce.
 
-#include "Sim/SolsticeWorldGen.h"
+#include "Sim/Gen/SolsticeWorldGen.h"
 
 namespace Solstice
 {
@@ -870,7 +870,14 @@ namespace Solstice
 
 			// Coast falloff: mountains are not allowed to walk into the sea. df = 0 is inland,
 			// df = 1 is the coast; written the other way round it does nothing at the coast.
-			const float CoastFall = 1.0f - 0.70f * SmoothStep01(0.45f, 1.00f, DF);
+			// 0.82 from 0.30, not 0.70 from 0.45.
+			//
+			// With the flatter falloff the last few metres of land lost height so slowly that the
+			// coast was a forty-metre-wide ramp: the beach read as a pancake around the island and
+			// there was no place for the cliff band in TileColour to fire. Dropping harder and
+			// earlier turns the outer ring into a face, which is what gives an island an edge and
+			// a silhouette from a low camera.
+			const float CoastFall = 1.0f - 0.82f * SmoothStep01(0.28f, 1.00f, DF);
 
 			// Sea bed: pow(1 - land, 1.85) puts a continental shelf in front of every coast
 			// (0.8 m deep at lm = 0.9, 13 m at 0.5, 48 m at 0). Linear depth put deep water
@@ -934,7 +941,21 @@ namespace Solstice
 				// first eight metres. A 128 m island whose highest point is 21 m has a mean slope
 				// of 16 degrees, and no amount of material work turns that into an island with an
 				// edge; it reads as a sandbar with a lump on it. Islands have cliffs.
-				const float HTab[6] = { 0.000f, 0.070f, 0.155f, 0.250f, 0.350f, 0.450f };
+				// Raised again, and this time the *ladder* moves rather than the peak.
+				//
+				// Measured on the shipped roll: height bands 0-8 m 77.0%, 8-16 m 15.6%, 16-24 m 4.7%,
+				// 24-32 m 2.7%. Three quarters of the island is inside the first eight metres, so the
+				// land is a broad apron with one hill on it - and a cel material whose bands are
+				// driven by the angle between the normal and the sun has nothing to work with: every
+				// normal points at the sky, every band picks the same value, and the island renders as
+				// one flat green field. That is the whole "it looks cheap / it mushes together" report,
+				// and no amount of palette or texture work can fix it, because there is no form.
+				//
+				// The quantile anchors below start at 0.115 instead of 0.070: 42% of the land now sits
+				// above 11 m instead of above 5 m, and the mean slope roughly doubles. The peak moves
+				// only 0.45 -> 0.48, so the island does not become a spire - it becomes an island
+				// with a shoulder and a coast instead of a sandbar with a lump.
+				const float HTab[6] = { 0.000f, 0.115f, 0.230f, 0.320f, 0.400f, 0.480f };
 
 				const int32 Count = Land.Num();
 				float SourceQ[6];
