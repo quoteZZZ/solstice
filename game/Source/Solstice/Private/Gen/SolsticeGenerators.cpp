@@ -1120,8 +1120,8 @@ namespace Solstice
 					// framing: an 8-pixel dot has no silhouette. 5x trunk and 1.8x crown puts a
 					// tree at 5-9 m with a 5-8 m crown, i.e. back inside the spec and, more to the
 					// point, large enough to cast the shadows that make a hillside read.
-					constexpr float TreeScale = 4.0f;
-					constexpr float CrownScale = 1.4f;
+					constexpr float TreeScale = 3.2f;
+					constexpr float CrownScale = 1.9f;
 					const float TrunkHeight = (95.0f + 80.0f * CelGrain(X + 11, Y + 17)) * Vigour * HeightMul * TreeScale;
 					const float CrownRadius = (150.0f + 95.0f * CelGrain(Y + 3, X + 29)) * Vigour * CrownMul * CrownScale;
 					const FVector Root(Centre.X, Centre.Y, Surface * MeterUU);
