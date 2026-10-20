@@ -1,0 +1,2114 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Solstice · 可点击原型 v2</title>
+<style>
+  :root{
+    --bg:#0a0c10; --ink:#c9d3df; --ink2:#7e8a9a; --ink3:#4c5563;
+    --line:#28313d; --line2:#3d4a5c; --acc:#e0a33e; --acc2:#3f7fa8; --warn:#b4553f; --ok:#5f8f6a;
+    --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+    --sans:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);overflow:hidden}
+  #app{display:flex;height:100%}
+
+  /* ===== 舞台外：流程评审栏 ===== */
+  #tour{width:270px;flex:0 0 270px;background:#080a0e;border-right:1px solid var(--line);display:flex;flex-direction:column}
+  #tour h1{font-size:12px;margin:16px 16px 4px;letter-spacing:.16em;color:var(--acc)}
+  #tour .sub{font-family:var(--mono);font-size:10px;color:var(--ink3);margin:0 16px 12px;line-height:1.75}
+  #steps{list-style:none;margin:0;padding:0 8px;overflow:auto;flex:1}
+  #steps li{display:flex;gap:9px;align-items:baseline;padding:7px 9px;border-radius:3px;cursor:pointer;
+    font-family:var(--mono);font-size:11px;color:var(--ink2);border:1px solid transparent}
+  #steps li:hover{background:#10151c;color:var(--ink)}
+  #steps li.on{background:#17212c;color:#fff;border-color:var(--line2)}
+  #steps li b{color:var(--ink3);font-weight:400;min-width:16px}
+  #steps li.on b{color:var(--acc)}
+  #log{border-top:1px solid var(--line);padding:10px 14px;font-family:var(--mono);font-size:10px;color:var(--ink3);max-height:170px;overflow:auto}
+  #log .a{color:var(--acc)}
+
+  main{flex:1;display:flex;flex-direction:column;min-width:0}
+  #bar{height:34px;flex:0 0 34px;display:flex;align-items:center;gap:14px;padding:0 14px;
+    border-bottom:1px solid var(--line);font-family:var(--mono);font-size:11px;color:var(--ink2)}
+  #bar b{color:var(--ink);font-weight:500}
+  #bar .r{margin-left:auto;display:flex;gap:12px;align-items:center}
+  #bar button{background:transparent;border:1px solid var(--line2);color:var(--ink2);border-radius:3px;
+    font-family:var(--mono);font-size:10px;padding:3px 8px;cursor:pointer}
+  #bar button:hover{color:var(--acc);border-color:var(--acc)}
+  #wrap{flex:1;position:relative;overflow:hidden;background:repeating-linear-gradient(45deg,#07090c 0 10px,#080a0e 10px 20px)}
+  #stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:center;
+    background:#0d1116;overflow:hidden;outline:1px solid var(--line2)}
+
+  /* ===== 基础 ===== */
+  .abs{position:absolute}
+  .mono{font-family:var(--mono)}
+  .xs{font-size:10px;color:var(--ink3)}
+  .sm{font-size:11px;color:var(--ink2)}
+  .key{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:14px;padding:0 3px;
+    border:1px solid var(--line2);border-radius:2px;font-family:var(--mono);font-size:9px;color:var(--ink2);background:#0f141b}
+  .tag{border:1px solid var(--line2);border-radius:2px;padding:0 5px;height:15px;display:inline-flex;align-items:center;
+    font-family:var(--mono);font-size:9px;color:var(--ink2)}
+  .tag.a{border-color:var(--acc);color:var(--acc)} .tag.b{border-color:var(--acc2);color:var(--acc2)}
+  .tag.ok{border-color:var(--ok);color:var(--ok)} .tag.w{border-color:var(--warn);color:var(--warn)}
+  .btn{border:1px solid var(--line2);border-radius:3px;background:#131922;color:var(--ink);font-family:var(--mono);
+    font-size:10.5px;display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:0 10px;height:30px;cursor:pointer}
+  .btn:hover{border-color:var(--acc);color:var(--acc)}
+  .btn.on{border-color:var(--acc);color:var(--acc)}
+  .btn.ghost{background:transparent;border-color:#2a323d;color:var(--ink2)}
+  .bar{height:5px;background:#1b232e;border:1px solid var(--line);position:relative;overflow:hidden}
+  .bar > i{position:absolute;left:0;top:0;bottom:0;background:var(--acc2);opacity:.8}
+  .bar.warn > i{background:var(--warn)}
+
+  /* ===== 世界 ===== */
+  #scene{position:absolute;left:56px;top:56px;right:320px;bottom:0;overflow:hidden;
+    background:linear-gradient(#33506a 0%,#243544 24%,#1a2732 40%,#0e161d 100%)}
+  #ridge1,#ridge2{position:absolute;left:-4%;right:-4%;pointer-events:none}
+  #ridge1{bottom:46%;height:200px;background:#1e2d38;opacity:.85;
+    clip-path:polygon(0 100%,7% 56%,15% 86%,25% 44%,36% 80%,47% 38%,58% 78%,70% 50%,82% 84%,92% 54%,100% 100%)}
+  #ridge2{bottom:41%;height:150px;background:#15212a;opacity:.95;
+    clip-path:polygon(0 100%,10% 70%,20% 92%,32% 60%,44% 88%,56% 64%,68% 92%,80% 68%,90% 86%,100% 70%,100% 100%)}
+  .cloud{position:absolute;border-radius:50%;background:rgba(232,238,242,.14);filter:blur(16px);pointer-events:none}
+  #peak2{position:absolute;left:57%;top:46%;width:230px;height:170px;margin-left:-40px;
+    background:linear-gradient(#516676,#2b3a46);
+    clip-path:polygon(52% 0,100% 100%,0 100%)}
+  #peak2:after{content:"";position:absolute;left:40%;top:0;width:24%;height:22%;
+    background:rgba(226,236,240,.85);clip-path:polygon(50% 0,100% 100%,0 100%)}
+  #seaband{position:absolute;left:0;right:0;top:42%;bottom:0;background:linear-gradient(#1d4557,#163646 40%,#0e222c)}
+  #horizon{position:absolute;left:0;right:0;height:1px;background:rgba(205,225,240,.22)}
+  #worldgroup{position:absolute;inset:0;transform-origin:50% 62%;transition:transform .45s ease}
+  #island{position:absolute;left:50%;top:44%;width:1000px;height:370px;margin-left:-500px;
+    border-radius:50% 50% 46% 46%/72% 72% 28% 28%;
+    background:radial-gradient(ellipse at 50% 34%,#31492f 0%,#263a26 48%,#1a2a1c 100%);
+    border:1px solid #3a5741;box-shadow:0 18px 44px rgba(0,0,0,.55)}
+  #mount{position:absolute;left:50%;top:40%;width:320px;height:240px;margin-left:-170px;
+    background:linear-gradient(#5b7180 0%,#334553 55%,#24313d 100%);
+    clip-path:polygon(50% 0,100% 100%,0 100%)}
+  #mount:after{content:"";position:absolute;left:39%;top:0;width:22%;height:24%;
+    background:rgba(232,240,243,.9);clip-path:polygon(50% 0,100% 100%,0 100%)}
+  #lagoon{position:absolute;left:50%;top:55%;width:400px;height:104px;margin-left:-110px;
+    background:radial-gradient(ellipse at 50% 40%,rgba(96,190,200,.75),rgba(36,92,112,.55) 70%,rgba(20,55,68,.2));
+    border:1px solid rgba(126,200,214,.45);border-radius:50%}
+  #trees{position:absolute;left:50%;top:54%;width:960px;margin-left:-480px;height:140px}
+  #trees i{position:absolute;bottom:0;background:linear-gradient(#3c7048,#1f3f2b);border:1px solid #2b5637;
+    border-radius:46% 46% 12% 12%/64% 64% 10% 10%}
+  #scene.enter #island,#scene.enter #mount,#scene.enter #lagoon,#scene.enter #trees{
+    animation:pop .8s cubic-bezier(.2,.9,.2,1) both}
+  @keyframes pop{from{opacity:0;transform:translateY(40px) scale(.9)}to{opacity:1;transform:none}}
+  #fade{position:absolute;inset:0;background:#05070a;z-index:70;pointer-events:none;opacity:0;transition:opacity .5s}
+  #fade.on{opacity:1}
+
+  /* 世界内的仪表：比例尺 / 指北针 / Z 徽章 / 地块信息 */
+  #scalebar{position:absolute;right:18px;bottom:16px;z-index:6;display:flex;align-items:center;gap:7px;
+    font-family:var(--mono);font-size:10px;color:#9fb0bd;text-shadow:0 1px 3px #000}
+  #scalebar .ln{width:74px;height:6px;border-left:1px solid #9fb0bd;border-right:1px solid #9fb0bd;border-bottom:1px solid #9fb0bd}
+  #compass{position:absolute;right:18px;top:14px;z-index:6;width:36px;height:36px;border:1px solid #33404f;
+    border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);
+    font-size:9px;color:#8b99a6;background:rgba(10,13,18,.55)}
+  #compass b{position:absolute;top:1px;font-size:8px;color:var(--acc);font-weight:400}
+  #compass i{display:block;width:1px;height:12px;background:#6b7a88;transform-origin:50% 100%}
+  #zchip{position:absolute;left:14px;bottom:14px;z-index:6;display:flex;gap:6px}
+  #hoverinfo{position:absolute;z-index:8;pointer-events:none;display:none;border:1px solid #3d4a5c;
+    background:rgba(10,13,18,.94);padding:6px 9px;font-family:var(--mono);font-size:10px;color:#cfd8e2;
+    line-height:1.6;white-space:nowrap}
+  #hoverinfo b{color:#fff;font-weight:500}
+  #hoverring{position:absolute;z-index:5;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;
+    border:1px solid rgba(224,163,62,.55);background:rgba(224,163,62,.08);display:none;pointer-events:none}
+
+  /* 右栏时间线 */
+  .tl{position:relative;padding-left:13px}
+  .tl:before{content:"";position:absolute;left:3px;top:8px;bottom:8px;width:1px;background:#2b3441}
+  .tl .it{position:relative;padding:3px 0 7px}
+  .tl .it:before{content:"";position:absolute;left:-13px;top:9px;width:6px;height:6px;border-radius:50%;
+    background:var(--dot,#3f7fa8);box-shadow:0 0 0 2px #0c1117}
+
+  /* 牌堆：底边两个小方块（图形计数，不写字） */
+  #deck{position:absolute;left:70px;bottom:22px;display:flex;gap:7px;z-index:34;opacity:.85}
+  #deck .dk{width:38px;height:44px;border:1px solid #33404f;border-radius:3px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(14,19,26,.85)}
+  #deck .dk b{font-family:var(--mono);font-size:13px;color:#dfe7ee;font-weight:500}
+  #deck .dk span{font-family:var(--mono);font-size:7.5px;color:#4c5563;letter-spacing:.08em}
+
+  /* 摆件模式：HUD 全隐，只留世界；底部一行提示 3 秒淡出 */
+  #stage.ambient #top,#stage.ambient #leftrail,#stage.ambient #rightpanel,
+  #stage.ambient #actbar,#stage.ambient #deck,#stage.ambient #scalebar,
+  #stage.ambient #compass,#stage.ambient #zchip{opacity:0;visibility:hidden;animation:none;
+    pointer-events:none;transition:opacity .45s,visibility .45s}
+  #stage.ambient #hand{transform:translateY(290px);transition:transform .45s cubic-bezier(.3,.9,.3,1);pointer-events:none}
+  #ambhint{position:absolute;left:0;right:0;bottom:34px;text-align:center;z-index:36;
+    font-family:var(--mono);font-size:11px;letter-spacing:.16em;color:#8b99a6;opacity:0;pointer-events:none}
+  #stage.ambient #ambhint{animation:ambFade 3.4s both}
+  @keyframes ambFade{0%{opacity:0}12%{opacity:.9}70%{opacity:.9}100%{opacity:0}}
+
+  /* 世界事件：全屏卡（禁物漏入 / 灾变 / 首个聚落） */
+  #eventwrap{position:absolute;inset:0;z-index:80;background:rgba(6,9,13,.72);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;animation:fadeIn .18s both}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  #eventcard{width:660px;border:1px solid #4a3a2a;background:linear-gradient(180deg,#171d25,#0d1319);
+    padding:26px 30px;border-radius:4px;box-shadow:0 24px 60px rgba(0,0,0,.65)}
+  #eventcard .band{height:3px;background:linear-gradient(90deg,var(--warn),transparent);margin-bottom:14px}
+
+  #cursor{position:absolute;width:56px;height:56px;margin:-28px 0 0 -28px;border:1px dashed var(--acc);
+    border-radius:50%;display:none;pointer-events:none;z-index:5}
+  #cursor:after{content:"";position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;background:var(--acc);border-radius:50%}
+  #range{position:absolute;border:1px dashed rgba(224,163,62,.7);border-radius:50%;display:none;
+    transform:translate(-50%,-50%);pointer-events:none;z-index:4}
+  #range.drop{border-color:#fff;box-shadow:0 0 0 1px rgba(255,255,255,.25) inset}
+  #ping{position:absolute;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;border:2px solid #fff;opacity:0;pointer-events:none;z-index:6}
+
+  /* ===== 顶栏 ===== */
+  #top{position:absolute;left:0;top:0;right:0;height:56px;background:rgba(10,13,18,.9);
+    border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 20px;gap:16px;z-index:30}
+  #clock{font-family:var(--mono);font-size:23px;color:#fff;line-height:1}
+  #icons{display:flex;gap:6px;margin-left:auto;align-items:center}
+  .ic{width:36px;height:34px;border:1px solid var(--line2);border-radius:3px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:0;font-family:var(--mono);font-size:10px;color:var(--ink2);
+    cursor:pointer;background:#121822;line-height:1.15;position:relative}
+  .ic b{font-weight:500;font-size:11px}
+  .ic span{font-size:7px;color:#4c5563;letter-spacing:.02em}
+  .ic:hover,.ic.on{border-color:var(--acc);color:var(--acc)}
+  .ic:hover span{color:var(--acc)}
+
+  /* ===== 左功能栏（栏框，不是抽屉） ===== */
+  #leftrail{position:absolute;left:0;top:56px;bottom:250px;width:56px;background:#0c1117;
+    border-right:1px solid var(--line);z-index:24;display:flex;flex-direction:column;align-items:center;
+    padding-top:8px;gap:6px;transition:width .16s ease,box-shadow .16s}
+  #leftrail:hover{width:104px;box-shadow:8px 0 18px rgba(0,0,0,.45)}
+  .rail{width:40px;height:40px;border:1px solid var(--line2);border-radius:3px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:1px;color:var(--ink2);cursor:pointer;background:#111821;
+    transition:width .16s ease,flex-direction .16s}
+  #leftrail:hover .rail{width:88px;flex-direction:row;gap:7px;justify-content:flex-start;padding-left:9px}
+  .rail:hover,.rail.on{border-color:var(--acc);color:var(--acc)}
+  .rail b{font-family:var(--mono);font-size:12px;font-weight:500}
+  .rail span{font-family:var(--mono);font-size:8px;letter-spacing:.05em;white-space:nowrap}
+  #leftrail:not(:hover) .rail span{display:none}
+
+  /* ===== 右信息栏（栏框） ===== */
+  #rightpanel{position:absolute;right:0;top:56px;bottom:0;width:320px;background:#0c1117;
+    border-left:1px solid var(--line);z-index:24;display:flex;flex-direction:column;overflow:hidden}
+  .rp{padding:10px 12px;border-bottom:1px solid var(--line)}
+  .rp .h{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--ink3);margin-bottom:6px}
+  .rp .big{font-family:var(--mono);font-size:22px;color:#fff;line-height:1.1}
+  .rp .rowline{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;padding:2px 0}
+  .irow{display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px dashed #1b222b}
+  .irow:last-child{border-bottom:0}
+
+  /* ===== 手牌：没有栏，十张卡直接浮在世界底边（自走棋 / 炉石口径） ===== */
+  #hand{position:absolute;left:56px;right:320px;bottom:0;height:300px;pointer-events:none;z-index:32}
+  .cardslot{position:absolute;bottom:8px;width:140px;height:204px;pointer-events:auto;
+    transition:bottom .16s cubic-bezier(.2,.9,.2,1)}
+  .cardslot:hover{bottom:30px;z-index:60}
+  .card{width:140px;height:204px;border:1px solid #2c3644;border-radius:5px;background:#111820;
+    display:flex;flex-direction:column;overflow:hidden;position:relative;cursor:grab;user-select:none;
+    transform-origin:50% 160%;transform:rotate(var(--r,0deg)) translateY(var(--l,0px));
+    transition:transform .16s cubic-bezier(.2,.9,.2,1),box-shadow .16s,border-color .16s;
+    box-shadow:0 8px 18px rgba(0,0,0,.5)}
+  .cardslot:hover .card{transform:rotate(0deg) translateY(-14px) scale(1.08);
+    box-shadow:0 18px 34px rgba(0,0,0,.6);border-color:#7b8b9d}
+  .card.sel{border-color:var(--acc);outline:1px solid var(--acc);outline-offset:-1px;
+    transform:rotate(0deg) translateY(-24px) scale(1.04)}
+  .card.dragging{opacity:.3}
+  .card .art{flex:1;position:relative;overflow:hidden;
+    background:radial-gradient(120% 90% at 50% 8%,color-mix(in srgb,var(--c) 46%,#0d1319) 0%,#121a24 60%,#0b1117 100%)}
+  .card .art:after{content:"";position:absolute;inset:0;
+    background:repeating-linear-gradient(38deg,rgba(0,0,0,.22) 0 1px,transparent 1px 7px);opacity:.45}
+  .card .art svg{position:absolute;inset:0;width:100%;height:100%;opacity:.92;color:#e2eaf1}
+  .card .dots{position:absolute;right:7px;top:7px;display:flex;gap:2px}
+  .card .dots i{width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,.18)}
+  .card .dots i.on{background:var(--c)}
+  .card .nm{height:24px;display:flex;align-items:center;justify-content:center;font-size:11.5px;
+    color:#e8eef4;background:#0d141b;border-top:1px solid #222c38;letter-spacing:.04em}
+
+  /* 悬浮卡详情（自走棋式：平时不解释，悬停才出） */
+  #cardtip{position:fixed;z-index:120;display:none;width:250px;border:1px solid #3d4a5c;
+    background:rgba(9,13,18,.97);padding:11px 13px;border-radius:3px;box-shadow:0 16px 34px rgba(0,0,0,.62)}
+  #cardtip .t1{font-size:15px;color:#fff}
+  #cardtip .t2{font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:2px}
+  #cardtip .t3{font-size:12.5px;color:#c6d2de;margin-top:8px;line-height:1.65}
+  #cardtip .t4{font-family:var(--mono);font-size:10px;color:var(--acc);margin-top:8px}
+
+  .el{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:middle}
+  #ghost{position:fixed;width:140px;height:204px;pointer-events:none;z-index:99;opacity:.9;transform:translate(-70px,-102px)}
+  #ghost .tip{position:absolute;left:0;right:0;bottom:-26px;text-align:center;font-family:var(--mono);
+    font-size:11px;color:var(--acc);text-shadow:0 1px 3px #000}
+  #ghost.rec .tip{color:var(--warn)}
+  /* 动作条：只有图标，说明交给设置里的键位表 */
+  #actbar{position:absolute;right:344px;bottom:22px;display:flex;flex-direction:column;gap:9px;z-index:34}
+  .ab{width:42px;height:42px;border-radius:50%;border:1px solid #33404f;background:rgba(14,19,26,.88);
+    display:flex;align-items:center;justify-content:center;font-size:15px;color:#b9c6d3;cursor:pointer;
+    transition:border-color .14s,color .14s,transform .14s}
+  .ab:hover{border-color:var(--acc);color:var(--acc);transform:scale(1.06)}
+
+  /* ===== 面板 ===== */
+  #overlay{position:absolute;inset:0;z-index:40;display:none}
+  #overlay.show{display:block}
+  #ovbg{position:absolute;inset:0;background:rgba(4,6,9,.74)}
+  #panel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:1560px;height:880px;
+    background:#0f141b;border:1px solid var(--line2);display:flex;flex-direction:column}
+  #phead{height:52px;display:flex;align-items:center;gap:12px;padding:0 18px;border-bottom:1px solid var(--line)}
+  #pbody{flex:1;overflow:auto;padding:18px}
+  #pfoot{height:52px;display:flex;align-items:center;gap:10px;padding:0 18px;border-top:1px solid var(--line)}
+  .close{margin-left:auto;cursor:pointer}
+
+  /* toast */
+  #toasts{position:absolute;left:70px;bottom:266px;z-index:35;display:flex;flex-direction:column;gap:8px}
+  .toast{width:420px;border:1px solid var(--acc);border-left:3px solid var(--acc);background:rgba(20,16,10,.95);padding:10px 12px;font-size:12px}
+  .toast .t{font-family:var(--mono);font-size:10px;color:var(--acc)}
+  .toast .d{margin-top:4px;line-height:1.5}
+
+  /* ===== 创世（纯随机揭示：只能重掷，不能选） ===== */
+  #creator{position:absolute;inset:0;z-index:60;background:linear-gradient(#080b10,#05080b);display:flex;flex-direction:column}
+  #ctop{height:64px;display:flex;align-items:center;gap:14px;padding:0 22px;border-bottom:1px solid var(--line);background:#0a0e13}
+  #cmain{flex:1;display:flex;min-height:0;position:relative}
+  #cmain.roll{animation:rollIn .6s cubic-bezier(.2,.9,.2,1) both}
+  @keyframes rollIn{0%{opacity:.1;filter:blur(9px);transform:scale(.985)}55%{opacity:1;filter:blur(1.5px)}100%{opacity:1;filter:none;transform:none}}
+  .dust{position:absolute;inset:0;z-index:70;pointer-events:none;
+    background:radial-gradient(ellipse at 50% 50%,rgba(224,163,62,.12),transparent 62%);
+    animation:dustSweep .5s ease both}
+  @keyframes dustSweep{0%{opacity:0;transform:translateX(-7%)}45%{opacity:1}100%{opacity:0;transform:translateX(7%)}}
+
+  /* 进界转场 */
+  #stage.entering #scene{animation:scnIn .9s cubic-bezier(.2,.9,.2,1) both}
+  @keyframes scnIn{0%{opacity:0;transform:scale(1.07);filter:blur(10px)}
+    62%{opacity:1;filter:blur(2px)}100%{opacity:1;transform:none;filter:none}}
+  #stage.entering #top{animation:hudIn .5s .48s both}
+  #stage.entering #leftrail,#stage.entering #rightpanel{animation:hudIn .5s .58s both}
+
+  @keyframes hudIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+  @keyframes handIn{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+  #cleft{width:286px;border-right:1px solid var(--line);padding:14px;overflow:auto;background:#090d12}
+  #ccenter{flex:1;display:flex;flex-direction:column;min-width:0;background:radial-gradient(ellipse at 50% 40%,#0f1720,#070a0e 78%)}
+  #cright{width:400px;border-left:1px solid var(--line);padding:14px;overflow:auto;background:#090d12}
+  #cfoot{height:76px;border-top:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 22px;background:#0a0e13}
+  .lg{display:flex;gap:8px;align-items:baseline;padding:4px 0;font-family:var(--mono);font-size:10.5px;
+    color:var(--ink2);opacity:0;animation:fadeUp .35s ease both}
+  .lgh{font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:#5d6b7a;
+    margin:9px 0 3px;padding-bottom:2px;border-bottom:1px solid #1b222b}
+  .legend{display:flex;gap:14px;padding:0 22px 8px;align-items:center}
+  .legend i{display:inline-block;width:9px;height:9px;border:1px solid #2b3441;margin-right:5px;vertical-align:middle}
+  .lg b{color:var(--ink3);font-weight:400;min-width:16px}
+  .lg .v{color:var(--acc);margin-left:auto}
+  .lg .k{color:var(--ink3);min-width:52px}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .fgrid{display:flex;gap:6px;flex-wrap:wrap}
+  .fcard{flex:1;min-width:96px;border:1px solid #222b36;border-radius:3px;background:#0d1319;padding:8px}
+  .fcard .k{font-family:var(--mono);font-size:9px;color:var(--ink3)}
+  .fcard .v{font-size:13px;color:#fff;margin-top:2px}
+
+  .wopt{border:1px solid #222b36;border-radius:3px;padding:7px 9px;margin-bottom:5px;cursor:pointer;background:#0d1319}
+  .wopt:hover{border-color:#4c5b6b}
+  .wopt.on{border-color:var(--acc);background:#171208}
+  .wopt .n{font-size:12.5px;color:var(--ink)}
+  .wopt.on .n{color:#fff}
+  .wopt .t{display:flex;gap:4px;margin-top:3px;flex-wrap:wrap}
+
+  #cutaway{flex:1;position:relative;min-height:0;padding:8px 10px 0}
+  #cutaway svg{width:100%;height:100%;display:block}
+  #cdesc{padding:0 22px 8px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+
+  .traitcard{display:flex;gap:9px;align-items:flex-start;padding:9px;margin-bottom:6px;
+    border:1px solid #222b36;border-radius:3px;background:#0d1319;cursor:pointer}
+  .traitcard:hover{border-color:#4c5b6b}
+  .traitcard.on{border-color:var(--ok);background:#0e1712}
+  /* 掷骰带：一条一条，图标 + 值，细节在悬停里 */
+  #cleft .stp{display:flex;align-items:center;gap:6px;height:29px;border-bottom:1px solid #141b23;
+    cursor:default;animation:fadeUp .32s both}
+  #cleft .stp:hover{background:#0d141b}
+  #cleft .stp .sic{width:16px;text-align:center;font-size:12px;color:var(--acc);opacity:.85}
+  #cleft .stp .sl{width:26px;font-family:var(--mono);font-size:8.5px;color:#4c5563;letter-spacing:.06em}
+  #cleft .stp .sv{flex:1;font-family:var(--mono);font-size:10.5px;color:#cfd8e2;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #cleft .stp .sv i{font-style:normal;color:#44515f;margin:0 3px}
+
+  /* 七条判据压成一条 7 点进度 */
+  .chk{display:flex;gap:4px}
+  .chk i{flex:1;height:4px;border-radius:1px;background:#232c36}
+  .chk i.on{background:var(--ok);opacity:.85}
+
+  /* 特征小卡：两列，只有图标 + 名；描述进 title */
+  .tgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .tchip{display:flex;align-items:center;gap:7px;height:34px;padding:0 8px;border:1px solid #222b36;
+    border-radius:3px;background:#0d1319;cursor:default;overflow:hidden}
+  .tchip.on{border-color:#2f4a3a;background:#0e1712}
+  .tchip.mapped{cursor:crosshair}
+  .tchip.mapped:hover{border-color:var(--acc);background:#171204}
+  .tchip .ti{width:16px;text-align:center;font-size:12px;color:var(--acc)}
+  .tchip .tn{font-size:11px;color:#dfe7ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  .traitcard.mapped{cursor:crosshair}
+  .traitcard.mapped:hover{border-color:var(--acc);box-shadow:0 0 0 1px rgba(224,163,62,.25)}
+  .traitcard.mapped:hover .lock{color:var(--acc)}
+
+  /* 剖面高亮：悬停特征时只亮对应元素 */
+  #cutaway .cvt{transition:opacity .16s ease,filter .16s ease}
+  #cutaway.dim .cvt{opacity:.42}
+  #cutaway.dim .cvt.hl{opacity:1;filter:drop-shadow(0 0 7px rgba(224,163,62,.95))}
+  #cvHint{height:16px;font-family:var(--mono);font-size:9.5px;color:var(--acc);text-align:center;
+    letter-spacing:.04em;transition:opacity .16s;opacity:0}
+  #cvHint.on{opacity:1}
+  .traitcard .ico{width:26px;height:26px;flex:0 0 26px;border:1px solid #33404f;border-radius:3px;
+    display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--acc)}
+  .traitcard .n{font-size:12px;color:#fff}
+  .traitcard .d{font-size:10.5px;color:var(--ink3);line-height:1.45;margin-top:2px}
+  .traitcard .lock{font-family:var(--mono);font-size:9px;color:var(--ok);margin-left:auto;white-space:nowrap}
+
+  #seedbox{display:flex;align-items:center;gap:8px;border:1px solid #222b36;border-radius:3px;padding:6px 10px;background:#0d1319}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="tour">
+    <h1>SOLSTICE · 可点击原型 v2</h1>
+    <p class="sub">参考饥荒（透视长焦 · 30° 斜俯视）<br>
+      创世参考缺氧（先看世界情况再进）<br>
+      <b style="color:#5f8f6a">拖卡到地面=指定落点<br>向上拖=释放 · 向下拖=回收</b><br>
+      左侧流程可直跳，键盘也能玩</p>
+    <ul id="steps"></ul>
+    <div id="log"></div>
+  </aside>
+
+  <main>
+    <div id="bar">
+      <b id="barTitle">创世</b>
+      <span id="barHint">先看世界情况，再进入</span>
+      <span class="r"><span id="barState">俯仰 30° · Z2 · 4×</span>
+        <button onclick="reset()">重来</button></span>
+    </div>
+    <div id="wrap"><div id="stage"></div></div>
+  </main>
+</div>
+
+<script>
+/* =========================================================================
+   卡与池
+   ========================================================================= */
+const ZERO = [
+  ['金',0,'物','铁屑'],['金',0,'术','擦痕'],['金',0,'律','不锈'],
+  ['木',0,'物','种子'],['木',0,'术','萌发'],['木',0,'律','扎根'],
+  ['水',0,'物','露珠'],['水',0,'术','润湿'],['水',0,'律','渗'],
+  ['火',0,'物','火星'],['火',0,'术','引燃'],['火',0,'律','暖'],
+  ['土',0,'物','沙粒'],['土',0,'术','扬尘'],['土',0,'律','松'],
+  ['光',0,'物','微光'],['光',0,'术','闪'],['光',0,'律','透'],
+  ['暗',0,'物','影斑'],['暗',0,'术','遮'],['暗',0,'律','隐']
+];
+const MORE = [
+  ['土',2,'物','土丘'],['水',3,'术','降雨'],['木',1,'物','苔毯'],['火',3,'术','点燃'],
+  ['土',5,'物','土山'],['水',6,'物','瀑布'],['光',2,'术','光斑'],['木',3,'术','疯长'],
+  ['暗',7,'术','暗潮'],['金',4,'物','铜钟'],['水',5,'术','引流'],['土',9,'物','大陆']
+];
+const S = {
+  screen:'creator',                 // creator | world
+  owned: ZERO.map(c=>c.slice()),    // 实体池：每种卡只有 1 张；开局给全部 0 环
+  hand: [], sel: 0, echo: 128,
+  form:'群岛界', climate:'热带雨林', name:'—',
+  seed:['SOL','ARC','7K3M','9QX2'],
+  traits:[], params:{}, log:[],
+  pitch:30, zoom:2, speed:4, paused:false, day:312, minute:838, azimuth:0,
+  panel:null, echoLog:[], chron:[], ambient:false, event:null,
+  cursor:null, drag:null, lastAction:''
+};
+/* 卡唯一：同一 key 只保留一张 */
+const ckey = c => c.join('|');
+function uniqueOwned(list){ const seen=new Set(); return list.filter(c=>{const k=ckey(c); if(seen.has(k))return false; seen.add(k); return true;}); }
+
+/* =========================================================================
+   工具
+   ========================================================================= */
+const fmt = m => String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+function log(m,a){ const d=document.createElement('div'); if(a)d.className='a'; d.textContent=m;
+  document.getElementById('log').prepend(d); }
+function toast(t,d){
+  const box=document.getElementById('toasts'); if(!box) return;
+  const el=document.createElement('div'); el.className='toast';
+  el.innerHTML=`<div class="t">${t}</div><div class="d">${d}</div>`;
+  box.appendChild(el); setTimeout(()=>el.remove(),6000);
+}
+function radiusPx(tier){ return [56,80,110,145,190,235,290,350,420,500][tier]||56; }
+
+/* 手牌 = 从实体池抽 10（不重复） */
+function drawHand(){
+  const pool = S.owned.slice();
+  for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
+  S.hand = pool.slice(0, Math.min(10,pool.length));
+  S.sel = 0;
+}
+
+/* =========================================================================
+   创世（缺氧式：先看世界情况）
+   ========================================================================= */
+const FORMS = [
+  ['群岛界',['5–12 块','隔离强','特有种 +2'],'水道纵横，每块岛各长各的'],
+  ['单岛界',['1 块','基准','外海'],'基准形制：一块地、一圈海'],
+  ['大陆界',['≥85 % 一块','一侧进雾','看不到全貌'],'大到看不见边，只能走进去'],
+  ['半岛界',['折枝','一侧接界','一侧是界外'],'一半是陆地，一半是"外面"'],
+  ['环礁界',['环','潟湖','浅海'],'一圈礁围着中间的水'],
+  ['峡湾界',['折枝','深水侵入','陡壁'],'长水道切进山里'],
+  ['内陆湖国',['无海','大湖群','全靠降水'],'没有海岸线，水源在内陆'],
+  ['裂谷界',['高原','深谷贯穿','落差最大'],'一道深谷把世界劈开'],
+  ['全海界',['0 块陆','只有礁','外海'],'只有水；陆是施卡造出来的'],
+  ['全陆界',['无海岸','内流湖','雾墙'],'整块陆地，边缘收进雾里']
+];
+const CLIMATES = ['热带雨林','热带季风','沙漠','地中海','温带海洋','温带大陆','寒温带针叶','极地苔原','高原'];
+const JUDGE=['边缘有交代','有层次','有对比','有落点','有尺度物','无死面','三级成立'];
+
+/* 入口图形（顶栏与左栏共用），字母只在键位表出现 */
+const GLYPH={
+  chron:'<rect x="3.5" y="2.5" width="9" height="11" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M5.8 5.5h4.4M5.8 8h4.4M5.8 10.5h2.6" stroke="currentColor" stroke-width="1"/>',
+  pack:'<rect x="2.5" y="5" width="7" height="9" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 2.8h7.2v9.4" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".55"/>',
+  codex:'<path d="M2.6 3.2h4.6v9.6H2.6zM8.8 3.2h4.6v9.6H8.8z" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M7.2 3.2v9.6" stroke="currentColor" stroke-width="1" opacity=".6"/>',
+  creator:'<rect x="2.6" y="2.6" width="10.8" height="10.8" rx="2" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="5.9" cy="5.9" r="1" fill="currentColor"/><circle cx="10.1" cy="5.9" r="1" fill="currentColor"/><circle cx="5.9" cy="10.1" r="1" fill="currentColor"/><circle cx="10.1" cy="10.1" r="1" fill="currentColor"/>',
+  settings:'<circle cx="8" cy="8" r="2.5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 1.6v1.8M8 12.6v1.8M1.6 8h1.8M12.6 8h1.8M3.6 3.6l1.3 1.3M11.1 11.1l1.3 1.3M12.4 3.6l-1.3 1.3M4.9 11.1l-1.3 1.3" stroke="currentColor" stroke-width="1"/>',
+  help:'<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M6.2 6.3a1.85 1.85 0 1 1 2.5 1.7c-.6.3-.8.7-.8 1.3" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="11.5" r=".7" fill="currentColor"/>'
+};
+function glyph(p){ return `<svg viewBox="0 0 16 16" width="15" height="15" style="display:block">${GLYPH[p]||''}</svg>`; }
+
+const TRAITS = [
+  ['矿','金属富集','金属矿脉更多，金系卡更容易长出来','资源'],
+  ['热','地热活跃','间歇泉与热泉更多，雪线上移','地貌'],
+  ['潮','强潮汐','潮差加倍，潮间带变宽','气候'],
+  ['浮','浮空岛','一处奇观：悬空陆地投下移动阴影','奇观'],
+  ['雷','永久雷暴','一片不散的雷云，落雷在岩面留下焦痕','气候'],
+  ['隔','物种隔离','特有种 +2，外来物种迁入更慢','生态'],
+  ['月','双月','潮汐加倍，夜光更亮','天象'],
+  ['树','古树群','一株通天巨树，冠层自成天气','奇观'],
+  ['崖','深海崖岸','海岸多断崖，浅滩变少','地貌'],
+  ['瘠','贫瘠土壤','土壤肥力 −30 %，演替更慢','生态']
+];
+
+/* 特征 ↔ 剖面联动：悬停特征卡，图上对应元素发光，其余压暗 */
+const CV_LABEL={
+  '地热活跃':'火山锥 + 间歇泉','古树群':'通天巨树','浮空岛':'浮空小陆','双月':'两颗月亮',
+  '永久雷暴':'雷云','深海崖岸':'断崖','强潮汐':'潮差线','物种隔离':'离岛','金属富集':'矿脉'
+};
+function cvHi(name){
+  const box=document.getElementById('cutaway');
+  if(!box) return;
+  const gs=box.querySelectorAll('.cvt');
+  let hit=false;
+  gs.forEach(g=>{
+    const match = name && g.getAttribute('data-x')===name;
+    g.classList.toggle('hl', !!match);
+    if(match) hit=true;
+  });
+  box.classList.toggle('dim', !!name && hit);
+  const hint=document.getElementById('cvHint');
+  if(hint){
+    hint.textContent = (name && CV_LABEL[name]) ? `${name} · 图上高亮：${CV_LABEL[name]}` : '';
+    hint.classList.toggle('on', !!(name && CV_LABEL[name] && hit));
+  }
+}
+
+/* 掷骰带：七组，一行一组；值在行上，细节在 title 里 */
+const GRP_ICON={'形制':'◇','水':'◐','地貌':'▲','气候':'☀','生命':'✿','命名':'✎','校验':'✓'};
+const GRP_ORDER=['形制','水','地貌','气候','生命','命名','校验'];
+function rollStrip(){
+  const groups={};
+  S.log.forEach(([k,v,g])=>{ (groups[g]=groups[g]||[]).push([k,v]); });
+  return GRP_ORDER.filter(g=>groups[g]).map((g,i)=>{
+    const items=groups[g];
+    const short=v=>String(v).replace(/（[^）]*）/g,'');
+    const vals=items.map(([k,v])=>`<span>${short(v)}</span>`).join('<i>·</i>');
+    const detail=items.map(([k,v])=>`${k} ${v}`).join(' / ');
+    return `<div class="stp" style="animation-delay:${i*45}ms" title="${g}｜${detail}">
+      <span class="sic">${GRP_ICON[g]||'•'}</span>
+      <span class="sl">${g}</span>
+      <span class="sv">${vals}</span></div>`;
+  }).join('');
+}
+
+/* 缩放三级：同一块地，Z0 全界 / Z2 生活圈 / Z3 个体 */
+function zLadder(){
+  const fr=inner=>`<svg viewBox="0 0 120 44" style="width:120px;height:44px;flex:0 0 120px;
+    border:1px solid #1e2833;background:#0a1219">${inner}</svg>`;
+  const rows=[
+    ['Z0','全界', fr(`<ellipse cx="60" cy="30" rx="42" ry="11" fill="#33513c"/>
+      <path d="M42,30 L54,14 L66,30 Z" fill="#5b6b78"/>
+      <path d="M74,30 L82,22 L90,30 Z" fill="#3f7549"/>`)],
+    ['Z2','生活圈', fr(`<rect x="0" y="30" width="120" height="14" fill="#2c4632"/>
+      <path d="M16,30 L23,8 L30,30 Z" fill="#3f7549"/><path d="M33,30 L40,14 L47,30 Z" fill="#3f7549"/>
+      <rect x="72" y="17" width="17" height="13" fill="#5a4a38"/>
+      <path d="M68,17 L80,8 L92,17" fill="none" stroke="#8a7448" stroke-width="2"/>
+      <path d="M96,24 L96,34" stroke="#e0a33e" stroke-width="1.4"/>`)],
+    ['Z3','个体', fr(`<rect x="0" y="32" width="120" height="12" fill="#2c4632"/>
+      <circle cx="50" cy="12" r="4.2" fill="#e8eef4"/>
+      <path d="M50,16 L50,27 M50,20 L43,24 M50,20 L57,24 M50,27 L45,34 M50,27 L55,34"
+        stroke="#e8eef4" stroke-width="1.7" fill="none"/>
+      <path d="M78,28 q7,-7 14,0 q-7,7 -14,0" fill="none" stroke="#7fb2c8" stroke-width="1.5"/>
+      <circle cx="85" cy="28" r="1.6" fill="#e0a33e"/>`)]
+  ];
+  return rows.map(([z,t,svg])=>`<div class="row" style="gap:10px;margin-bottom:6px;align-items:center">
+    ${svg}<div><div class="mono xs" style="color:var(--acc);letter-spacing:.1em">${z}</div>
+    <div class="xs" style="color:#5d6b7a;font-size:9px">${t}</div></div></div>`).join('');
+}
+
+/* 顶视缩略：把"形制"从一句文字变成一张图 */
+const MM={
+  '单岛界':'<ellipse cx="130" cy="100" rx="58" ry="42"/>',
+  '群岛界':'<ellipse cx="82" cy="80" rx="27" ry="18"/><ellipse cx="148" cy="68" rx="18" ry="13"/><ellipse cx="162" cy="128" rx="31" ry="20"/><ellipse cx="94" cy="140" rx="14" ry="10"/><ellipse cx="206" cy="98" rx="12" ry="9"/>',
+  '大陆界':'<path d="M18,62 Q130,28 242,64 L242,140 Q130,174 18,138 Z"/>',
+  '半岛界':'<path d="M38,52 Q150,24 238,60 L238,118 Q168,142 118,152 Q78,130 38,142 Z"/>',
+  '环礁界':'<path d="M60,100 a70,46 0 1 0 140,0 a70,46 0 1 0 -140,0" fill="none" stroke="#4a6b52" stroke-width="15"/>',
+  '峡湾界':'<path d="M40,56 Q140,28 232,64 L232,146 Q140,172 40,142 Z"/><path d="M152,66 L138,102 L154,142" stroke="#0a141b" stroke-width="11" fill="none"/>',
+  '内陆湖国':'<path d="M40,56 Q140,28 232,64 L232,146 Q140,172 40,142 Z"/><ellipse cx="132" cy="104" rx="30" ry="18" fill="#0a141b"/>',
+  '裂谷界':'<path d="M40,56 Q140,28 232,64 L232,146 Q140,172 40,142 Z"/><path d="M120,32 L128,100 L114,168" stroke="#0a141b" stroke-width="7" fill="none"/>',
+  '全海界':'',
+  '全陆界':'<rect x="0" y="0" width="260" height="200"/>'
+};
+function miniMap(){
+  const shape=MM[S.form]||MM['单岛界'];
+  const grid=[];
+  for(let x=26;x<260;x+=26) grid.push(`<path d="M${x},0 L${x},200" stroke="#16222c" stroke-width="1"/>`);
+  for(let y=25;y<200;y+=25) grid.push(`<path d="M0,${y} L260,${y}" stroke="#16222c" stroke-width="1"/>`);
+  return `<svg id="minimap" viewBox="0 0 260 200" style="width:100%;height:auto;display:block;
+    border:1px solid #1b222b;background:#08121a">
+    ${grid.join('')}
+    <rect x="0.5" y="0.5" width="259" height="199" fill="none" stroke="#1b2a35"/>
+    <g fill="#33513c" stroke="#4a6b52" stroke-width="1.3">${shape}</g>
+    <circle cx="130" cy="100" r="2" fill="#e0a33e" opacity=".8"/>
+    <path d="M244,12 L244,26 M238,18 L250,18" stroke="#5d6b7a" stroke-width="1"/>
+  </svg>`;
+}
+
+function creatorHTML(){
+  const f = FORMS.find(x=>x[0]===S.form) || FORMS[0];
+  return `<div id="creator">
+    <div id="ctop">
+      <div class="col" style="line-height:1.25">
+        <span class="mono" style="font-size:10px;color:var(--ink3);letter-spacing:.18em">新的一界</span>
+        <span class="mono" style="font-size:22px;color:#fff">${S.name}</span>
+      </div>
+      <div class="col gap4" style="margin-left:6px">
+        <div class="row gap4">
+          <span class="tag a">${S.form}</span><span class="tag b">${S.climate}</span><span class="tag">256²</span>
+        </div>
+        <span class="xs">${f[2]}</span>
+      </div>
+      <span class="xs" style="margin-left:auto">已重掷 ${S.rolls||1} 次</span>
+      <div id="seedbox">
+        <span class="xs">坐标</span>
+        <span class="mono" style="font-size:12.5px;color:var(--acc)">${S.seed.join(' - ')}</span>
+        <span class="btn ghost" style="height:24px" onclick="copySeed()">复制</span>
+      </div>
+      <span class="btn ghost" onclick="rerollSeed()">重掷</span>
+      <span class="btn on" style="height:38px;padding:0 20px;font-size:12px" onclick="enterWorld()">进入 ▸</span>
+    </div>
+    <div id="cmain">
+      <div id="cleft">
+        <div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:8px">
+          <span class="xs">掷骰 · 7 组</span>
+          <span class="xs" style="color:#3f4b58">不可选 · 悬停看细节</span>
+        </div>
+        ${rollStrip()}
+        <div class="row" style="justify-content:space-between;align-items:baseline;margin:14px 0 6px">
+          <span class="xs">顶视</span><span class="mono xs" style="color:#3f4b58">1 : 1</span>
+        </div>
+        ${miniMap()}
+      </div>
+      <div id="ccenter">
+        <div id="cutaway">${cutawayFor()}<div id="cvHint"></div></div>
+        <div id="cdesc">
+          <span class="mono" style="font-size:17px;color:#fff">${S.name}</span>
+          <span class="tag a">${S.form}</span>
+          <span class="tag b">${S.climate}</span>
+          <span class="tag ok">判据 7/7</span>
+          <span class="sm">${f[2]}</span>
+        </div>
+        <div class="legend">
+          ${[['#4a6b3f','表层土'],['#3b3226','土壤'],['#39424e','岩层'],['#232a33','基岩'],['#1d4a5c','地下水'],['#c79a54','矿脉']]
+            .map(([c,n])=>`<span class="xs"><i style="background:${c}"></i>${n}</span>`).join('')}
+        </div>
+      </div>
+      <div id="cright">
+        <div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:8px">
+          <span class="xs">本界特征 · ${S.traits.length} 条</span>
+          <span class="xs" style="color:#3f4b58">悬停：亮图上 / 出说明</span>
+        </div>
+        <div class="tgrid">
+        ${S.traits.map(i=>{const [ico,n,d,cat]=TRAITS[i];
+          const mapped=['金属富集','地热活跃','古树群','浮空岛','双月','永久雷暴','深海崖岸','强潮汐','物种隔离'].includes(n);
+          return `<div class="tchip on ${mapped?'mapped':''}" title="${n}｜${d}（${cat}）"
+            onmouseenter="cvHi('${n}')" onmouseleave="cvHi(null)">
+            <span class="ti">${ico}</span><span class="tn">${n}</span></div>`}).join('')}
+        </div>
+        <div class="row" style="justify-content:space-between;align-items:baseline;margin:14px 0 6px">
+          <span class="xs">成立性判据</span>
+          <span class="mono xs" style="color:var(--ok)">7 / 7</span>
+        </div>
+        <div class="chk">${JUDGE.map(t=>`<i class="on" title="${t} · PASS"></i>`).join('')}</div>
+
+        <div class="xs" style="margin:16px 0 7px">缩放三级 · 同一块地</div>
+        ${zLadder()}
+      </div>
+    </div>
+    <div id="cfoot">
+      <span class="xs">你只能重掷——形制、气候、特征都不由你挑；同种子＝同一个世界，坐标可复现</span>
+      <span class="btn ghost" style="margin-left:auto" onclick="reset()">返回</span>
+      <span class="btn" style="height:38px;padding:0 22px" onclick="rerollSeed()">重掷一颗骰子 ⟳</span>
+      <span class="btn on" style="height:38px;padding:0 26px;font-size:12.5px" onclick="enterWorld()">进入这一界 ▸</span>
+    </div>
+  </div>`;
+}
+
+/* 剖面：天空 / 云 / 远山 / 双峰 + 雪线 / 河谷 / 林带 / 五层地层 / 地下水 / 洞穴 / 矿脉 */
+function cutawaySVG(){
+  const trees = Array.from({length:26},(_,i)=>{
+    const x=110+i*31, y=300-96*Math.sin(Math.PI*Math.min(1,Math.max(0,(x-60)/880)));
+    const h=10+(i*7)%9;
+    return `<path d="M${x},${y-h} L${x+4},${y} L${x-4},${y} Z" fill="#3c7048" opacity=".9"/>`;
+  }).join('');
+  const ore = [[214,404],[238,414],[262,400],[688,436],[712,444],[736,430]]
+    .map(([x,y])=>`<circle cx="${x}" cy="${y}" r="2.6" fill="#c79a54"/>`).join('');
+  return `<svg viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <linearGradient id="sky3" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#33506a"/><stop offset="0.55" stop-color="#22323f"/><stop offset="1" stop-color="#141b23"/>
+      </linearGradient>
+      <linearGradient id="layers" x1="0" y1="190" x2="0" y2="520" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#4a6b3f"/><stop offset="0.26" stop-color="#415d38"/>
+        <stop offset="0.26" stop-color="#4a3d2b"/><stop offset="0.44" stop-color="#3b3226"/>
+        <stop offset="0.44" stop-color="#39424e"/><stop offset="0.74" stop-color="#2c333c"/>
+        <stop offset="0.74" stop-color="#232a33"/><stop offset="1" stop-color="#171c24"/>
+      </linearGradient>
+      <pattern id="hatch" width="9" height="9" patternTransform="rotate(38)" patternUnits="userSpaceOnUse">
+        <line x1="0" y1="0" x2="0" y2="9" stroke="#000" stroke-opacity=".16" stroke-width="1"/>
+      </pattern>
+      <clipPath id="isl3"><path d="M60,300 C180,196 820,196 940,300 L940,520 L60,520 Z"/></clipPath>
+    </defs>
+
+    <rect width="1000" height="520" fill="url(#sky3)"/>
+    <!-- 太阳与云 -->
+    <circle cx="822" cy="92" r="26" fill="#f6e2b4" opacity=".75"/>
+    <circle cx="822" cy="92" r="44" fill="#f6e2b4" opacity=".12"/>
+    <path d="M120,120 q26,-22 56,-6 q22,-16 46,4 q20,-4 22,14 l-124,0 z" fill="#e8eef2" opacity=".16"/>
+    <path d="M470,86 q30,-20 64,-4 q26,-14 44,8 q18,0 18,12 l-126,0 z" fill="#e8eef2" opacity=".11"/>
+
+    <!-- 远山两层 -->
+    <path d="M0,300 L120,236 L210,282 L300,244 L420,300 Z" fill="#1d2a33" opacity=".85"/>
+    <path d="M540,300 L660,246 L760,286 L860,252 L1000,300 Z" fill="#1b2730" opacity=".85"/>
+    <!-- 海 -->
+    <rect x="0" y="300" width="1000" height="60" fill="#16323f" opacity=".55"/>
+
+    <!-- 岛体 -->
+    <path d="M60,300 C180,196 820,196 940,300 L940,520 L60,520 Z" fill="url(#layers)"/>
+    <path d="M60,300 C180,196 820,196 940,300 L940,520 L60,520 Z" fill="url(#hatch)" opacity=".55"/>
+    <g clip-path="url(#isl3)">
+      <!-- 双峰（在轮廓之内，不被 dome 切平） -->
+      <path d="M255,302 L338,222 L425,302 Z" fill="#5b6b78" opacity=".95"/>
+      <path d="M320,240 L338,222 L358,242 L340,252 Z" fill="#e8f0f3" opacity=".85"/>
+      <path d="M545,302 L640,238 L735,302 Z" fill="#4e5d6a" opacity=".95"/>
+      <path d="M620,254 L640,238 L662,256 L642,264 Z" fill="#e8f0f3" opacity=".8"/>
+      <!-- 河谷 -->
+      <path d="M350,300 C370,340 400,368 430,392 C456,412 470,430 480,448" fill="none"
+            stroke="#3f7fa8" stroke-width="5" opacity=".55" stroke-linecap="round"/>
+      <!-- 表层草 -->
+      <path d="M60,300 C180,196 820,196 940,300" fill="none" stroke="#8fae95" stroke-width="2.5"/>
+      ${trees}
+      <!-- 地下水 -->
+      <path d="M90,408 C220,392 420,400 560,410 C700,420 830,410 930,402" fill="none"
+            stroke="#4f9fc0" stroke-width="1.6" stroke-dasharray="5 4" opacity=".8"/>
+      <ellipse cx="300" cy="430" rx="86" ry="22" fill="#1d4a5c" opacity=".9"/>
+      <ellipse cx="300" cy="430" rx="86" ry="22" fill="none" stroke="#3f7fa8" stroke-dasharray="3 3" opacity=".7"/>
+      <!-- 洞穴群 -->
+      <ellipse cx="560" cy="466" rx="52" ry="17" fill="#0a0e13"/>
+      <ellipse cx="884" cy="440" rx="34" ry="13" fill="#0a0e13"/>
+      <ellipse cx="170" cy="466" rx="26" ry="11" fill="#0b1016"/>
+      <!-- 矿脉簇 -->
+      ${ore}
+    </g>
+    <path d="M60,520 L60,300 C180,196 820,196 940,300 L940,520" fill="none" stroke="#39493f"/>
+
+    <g font-family="ui-monospace,Consolas,monospace" font-size="10" fill="#7e8a9a">
+      <text x="24" y="52">天空</text>
+      <text x="770" y="150" fill="#e0c98a">日照</text>
+      <text x="24" y="244" fill="#6f7f8c">远山</text>
+      <text x="336" y="170" fill="#cfe0e8">雪线</text>
+      <text x="24" y="308">表层土</text>
+      <text x="24" y="352">土壤</text>
+      <text x="24" y="410">岩层</text>
+      <text x="24" y="478">基岩</text>
+      <text x="196" y="456" fill="#5f9fc0">地下水</text>
+      <text x="536" y="492">洞穴</text>
+      <text x="212" y="392" fill="#c79a54">矿脉</text>
+      <text x="392" y="360" fill="#5f9fc0">河谷</text>
+    </g>
+  </svg>`;
+}
+
+/* =====================================================================
+   剖面：随形制变体 + 随特征变化
+   ===================================================================== */
+function cutawayFor(){
+  const f=S.form;
+  const T=S.traits.map(i=>TRAITS[i][1]);
+  const has=n=>T.includes(n);
+
+  const LAND={
+    '单岛界':'M60,300 C180,196 820,196 940,300 L940,520 L60,520 Z',
+    '大陆界':'M-30,282 C160,232 840,232 1030,282 L1030,520 L-30,520 Z',
+    '半岛界':'M-30,292 C120,210 520,206 700,262 L700,520 L-30,520 Z',
+    '群岛界':'M30,330 C80,294 180,294 230,330 L230,520 L30,520 Z '+
+             'M370,314 C430,274 560,274 620,314 L620,520 L370,520 Z '+
+             'M760,336 C810,300 910,300 960,336 L960,520 L760,520 Z',
+    '环礁界':'M50,352 C110,322 210,320 270,344 L270,520 L50,520 Z '+
+             'M730,344 C790,320 890,322 950,352 L950,520 L730,520 Z',
+    '峡湾界':'M60,300 C180,196 820,196 940,300 L940,520 L60,520 Z',
+    '内陆湖国':'M60,296 C180,200 820,200 940,296 L940,520 L60,520 Z',
+    '裂谷界':'M60,292 C180,196 820,196 940,292 L940,520 L60,520 Z',
+    '全海界':'',
+    '全陆界':'M-30,268 C160,238 840,238 1030,268 L1030,520 L-30,520 Z'
+  };
+  const land=(f in LAND)?LAND[f]:LAND['单岛界'];
+  const wet = !['全陆界','内陆湖国'].includes(f);
+  const surf={ '大陆界':282,'全陆界':268,'半岛界':292,'群岛界':322,'环礁界':348 }[f] || 300;
+
+  /* 林带跟着地表走（只给有陆地的形制） */
+  const treeLine = f==='群岛界'
+    ? [[70,300,120],[400,282,150],[790,304,120]]
+    : [[120,0,880]];
+  const trees = [];
+  treeLine.forEach(([x0,,x1])=>{
+    for(let x=x0;x<x1;x+=30){
+      const rx = f==='群岛界'? 0.5 : (x-60)/880;
+      const y = surf - (f==='群岛界'?18:96*Math.sin(Math.PI*Math.min(1,Math.max(0,rx))));
+      const h=9+((x*7)%9);
+      trees.push(`<path d="M${x},${y-h} L${x+4},${y} L${x-4},${y} Z" fill="#3c7048" opacity=".92"/>`);
+    }
+  });
+
+  /* 特征可视化 */
+  const oreCount = has('金属富集')?14:6;
+  const ore = `<g class="cvt" data-x="金属富集">${Array.from({length:oreCount},(_,i)=>{
+    const x=140+((i*137)%700), y=396+((i*53)%70);
+    return `<circle cx="${x}" cy="${y}" r="2.6" fill="#c79a54"/>`;
+  }).join('')}</g>`;
+
+  const volcano = `<g class="cvt" data-x="地热活跃">${has('地热活跃')?`
+    <path d="M${560},${surf} L610,${surf-86} L640,${surf-86} L690,${surf} Z" fill="#4a3b33"/>
+    <path d="M628,${surf-86} L640,${surf-86} L648,${surf-70} L620,${surf-70} Z" fill="#b4553f" opacity=".9"/>
+    <path d="M636,${surf-70} C636,${surf-40} 630,${surf-20} 626,${surf}" stroke="#c4643f" stroke-width="3" fill="none" opacity=".8"/>`:''}</g>`;
+
+  const geyser = `<g class="cvt" data-x="地热活跃">${has('地热活跃')?
+    [0,1,2].map(k=>{const x=180+k*60;
+      return `<path d="M${x},${surf} C${x-2},${surf-26} ${x+3},${surf-44} ${x},${surf-62}"
+        stroke="#cfe0e6" stroke-width="2" fill="none" opacity=".35"/>`}).join(''):''}</g>`;
+
+  const giantTree = `<g class="cvt" data-x="古树群">${has('古树群')?`
+    <path d="M300,${surf+4} L300,${surf-64}" stroke="#4a3a2a" stroke-width="7"/>
+    <path d="M300,${surf-118} L330,${surf-58} L270,${surf-58} Z" fill="#3f7549"/>
+    <path d="M300,${surf-140} L324,${surf-92} L276,${surf-92} Z" fill="#4a8554"/>`:''}</g>`;
+
+  const floating = `<g class="cvt" data-x="浮空岛">${has('浮空岛')?`
+    <path d="M700,150 C730,132 786,132 816,150 C800,176 716,176 700,150 Z" fill="#33453a" stroke="#4a6b52"/>
+    <path d="M712,158 C730,186 786,186 806,158" fill="none" stroke="#2a3a30" stroke-dasharray="3 3"/>`:''}</g>`;
+
+  const moons = `<g class="cvt" data-x="双月">${has('双月')?`
+    <circle cx="150" cy="86" r="16" fill="#dfe8ee" opacity=".85"/>
+    <circle cx="196" cy="112" r="10" fill="#cdd8e0" opacity=".7"/>`
+    :`<circle cx="822" cy="92" r="26" fill="#f6e2b4" opacity=".75"/>
+      <circle cx="822" cy="92" r="44" fill="#f6e2b4" opacity=".12"/>`}</g>`;
+
+  const storm = `<g class="cvt" data-x="永久雷暴">${has('永久雷暴')?`
+    <path d="M560,74 q30,-20 64,-4 q26,-14 44,8 q18,0 18,12 l-126,0 z" fill="#3a4550" opacity=".9"/>
+    <path d="M640,92 L626,124 L642,124 L620,156" stroke="#cfd9e2" stroke-width="2" fill="none" opacity=".9"/>`:''}</g>`;
+
+  const cliff = `<g class="cvt" data-x="深海崖岸">${has('深海崖岸') && wet && land ? `
+    <path d="M${f==='半岛界'?700:940},${surf} L${f==='半岛界'?700:940},520" stroke="#18222b" stroke-width="10"/>`:''}</g>`;
+
+  const tide = `<g class="cvt" data-x="强潮汐">${has('强潮汐') && wet ? `
+    <path d="M0,${surf-6} L1000,${surf-6}" stroke="#3f7fa8" stroke-dasharray="8 6" opacity=".5"/>
+    <path d="M0,${surf+4} L1000,${surf+4}" stroke="#3f7fa8" stroke-dasharray="4 8" opacity=".35"/>`:''}</g>`;
+
+  const islets = `<g class="cvt" data-x="物种隔离">${has('物种隔离') && wet ? `
+    <ellipse cx="150" cy="${surf+28}" rx="26" ry="9" fill="#2c4632"/>
+    <ellipse cx="860" cy="${surf+34}" rx="20" ry="7" fill="#2c4632"/>`:''}</g>`;
+
+  /* 形制专属 */
+  const fjord = f==='峡湾界'?`
+    <path d="M600,${surf} L620,${surf+30} L640,${surf+96} L660,${surf+30} L680,${surf} Z" fill="#1d4a5c" opacity=".95"/>`:'';
+
+  const lake = f==='内陆湖国'?`
+    <ellipse cx="500" cy="${surf+8}" rx="180" ry="26" fill="#1d4a5c"/>
+    <ellipse cx="500" cy="${surf+8}" rx="180" ry="26" fill="none" stroke="#3f7fa8" opacity=".7"/>`:'';
+
+  const rift = f==='裂谷界'?`
+    <path d="M470,${surf} L500,${surf+56} L470,${surf+56} L430,520 L470,520 Z" fill="#0c1117"/>
+    <path d="M520,${surf} L560,${surf+60} L520,${surf+60} L500,520 L540,520 Z" fill="#12181f"/>
+    <path d="M430,520 L470,${surf+56} L500,${surf+56} L520,${surf+60} L560,${surf+60}" fill="none" stroke="#3a4652"/>`:'';
+
+  const lagoon = f==='环礁界'?`
+    <ellipse cx="500" cy="${surf+8}" rx="200" ry="26" fill="#1d4a5c"/>
+    <ellipse cx="500" cy="${surf+8}" rx="200" ry="26" fill="none" stroke="#3f7fa8" opacity=".6"/>`:'';
+
+  const reef = f==='全海界'?`
+    <path d="M170,${surf+34} C230,${surf-4} 330,${surf-4} 390,${surf+34} Z" fill="#2a3d33"/>
+    <path d="M196,${surf+34} C240,${surf+10} 320,${surf+10} 364,${surf+34} Z" fill="#37533f" opacity=".8"/>
+    <path d="M650,${surf+40} C700,${surf+12} 780,${surf+12} 830,${surf+40} Z" fill="#26382f"/>
+    <path d="M676,${surf+40} C712,${surf+22} 770,${surf+22} 806,${surf+40} Z" fill="#2f4636" opacity=".8"/>`:'';
+
+  return `<svg viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <linearGradient id="sky4" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#33506a"/><stop offset="0.55" stop-color="#22323f"/><stop offset="1" stop-color="#141b23"/>
+      </linearGradient>
+      <linearGradient id="lay4" x1="0" y1="250" x2="0" y2="520" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#4a6b3f"/><stop offset="${has('贫瘠土壤')?0.12:0.24}" stop-color="#415d38"/>
+        <stop offset="${has('贫瘠土壤')?0.12:0.24}" stop-color="#4a3d2b"/><stop offset="0.44" stop-color="#3b3226"/>
+        <stop offset="0.44" stop-color="#39424e"/><stop offset="0.74" stop-color="#2c333c"/>
+        <stop offset="0.74" stop-color="#232a33"/><stop offset="1" stop-color="#171c24"/>
+      </linearGradient>
+      <pattern id="hatch4" width="9" height="9" patternTransform="rotate(38)" patternUnits="userSpaceOnUse">
+        <line x1="0" y1="0" x2="0" y2="9" stroke="#000" stroke-opacity=".16"/>
+      </pattern>
+      <clipPath id="clip4"><path d="${land}"/></clipPath>
+    </defs>
+
+    <rect width="1000" height="520" fill="url(#sky4)"/>
+    ${moons}
+    <path d="M120,120 q26,-22 56,-6 q22,-16 46,4 q20,-4 22,14 l-124,0 z" fill="#e8eef2" opacity=".16"/>
+    ${storm}
+    <path d="M0,${surf} L120,${surf-64} L210,${surf-18} L300,${surf-56} L420,${surf} Z" fill="#1d2a33" opacity=".8"/>
+    <path d="M540,${surf} L660,${surf-52} L760,${surf-14} L860,${surf-48} L1000,${surf} Z" fill="#1b2730" opacity=".8"/>
+    ${wet?`<rect x="0" y="${surf}" width="1000" height="${520-surf}" fill="#16323f" opacity=".6"/>`:''}
+    ${tide}
+
+    ${land?`<path d="${land}" fill="url(#lay4)"/><path d="${land}" fill="url(#hatch4)" opacity=".55"/>`:''}
+    ${geyser}
+    <g clip-path="url(#clip4)">
+      ${['单岛界','大陆界','半岛界','峡湾界','内陆湖国','裂谷界','全陆界'].includes(f)?`
+      <path d="M255,${surf} L338,${surf-80} L425,${surf} Z" fill="#5b6b78"/>
+      <path d="M320,${surf-62} L338,${surf-80} L358,${surf-60} L340,${surf-52} Z" fill="#e8f0f3" opacity=".85"/>
+      <path d="M545,${surf} L640,${surf-64} L735,${surf} Z" fill="#4e5d6a"/>
+      <path d="M620,${surf-48} L640,${surf-64} L662,${surf-46} L642,${surf-38} Z" fill="#e8f0f3" opacity=".8"/>`:''}
+      ${volcano}${giantTree}${fjord}${lake}${rift}
+      ${trees.join('')}
+      <path d="M90,${surf+108} C220,${surf+92} 420,${surf+100} 560,${surf+110} C700,${surf+120} 830,${surf+110} 930,${surf+102}"
+            fill="none" stroke="#4f9fc0" stroke-width="1.6" stroke-dasharray="5 4" opacity=".75"/>
+      <ellipse cx="300" cy="${surf+130}" rx="86" ry="22" fill="#1d4a5c" opacity=".85"/>
+      <ellipse cx="560" cy="${surf+166}" rx="52" ry="17" fill="#0a0e13"/>
+      <ellipse cx="884" cy="${surf+140}" rx="34" ry="13" fill="#0a0e13"/>
+      ${ore}
+    </g>
+    ${floating}${cliff}${islets}${f==='全海界'?reef:''}${lagoon}
+    ${land?`<path d="${land}" fill="none" stroke="#39493f"/>`:''}
+    <g font-family="ui-monospace,Consolas,monospace" font-size="10" fill="#7e8a9a">
+      <text x="24" y="52">天空</text>
+      <text x="24" y="${surf-64}">远山</text>
+      ${land?`<text x="336" y="${surf-92}" fill="#cfe0e8">雪线</text>
+      <text x="24" y="${surf+10}">表层土</text>
+      <text x="24" y="${surf+56}">土壤</text>
+      <text x="24" y="${surf+118}">岩层</text>
+      <text x="24" y="${surf+196}">基岩</text>
+      <text x="196" y="${surf+158}" fill="#5f9fc0">地下水</text>
+      <text x="536" y="${surf+192}">洞穴</text>
+      <text x="212" y="${surf+92}" fill="#c79a54">矿脉</text>`:''}
+      <text x="286" y="${surf-6}" fill="#e0a33e">${f} · ${S.climate}</text>
+    </g>
+  </svg>`;
+}
+
+/* 兼容旧调用 */
+function cutawaySVGLegacy(){
+  const veins = [[210,372],[250,352],[300,392],[620,368],[660,388],[700,362],[430,404],[500,394]]
+    .map(([x,y])=>`<rect x="${x}" y="${y}" width="9" height="6" fill="#b98a4a" opacity=".85" transform="rotate(-12 ${x} ${y})"/>`).join('');
+  return `<svg viewBox="0 0 960 470" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#2a3d4d"/><stop offset="0.7" stop-color="#1a2530"/><stop offset="1" stop-color="#141b23"/>
+      </linearGradient>
+      <linearGradient id="soil2" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#3f5a3a"/><stop offset="1" stop-color="#2a3d28"/>
+      </linearGradient>
+      <clipPath id="isl"><path d="M70,286 C190,176 770,176 890,286 L890,470 L70,470 Z"/></clipPath>
+      <linearGradient id="layers" x1="0" y1="176" x2="0" y2="470" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#3f5a3a"/><stop offset="0.34" stop-color="#3f5a3a"/>
+        <stop offset="0.34" stop-color="#3b3226"/><stop offset="0.58" stop-color="#3b3226"/>
+        <stop offset="0.58" stop-color="#2c333c"/><stop offset="0.86" stop-color="#2c333c"/>
+        <stop offset="0.86" stop-color="#1b2029"/><stop offset="1" stop-color="#1b2029"/>
+      </linearGradient>
+    </defs>
+    <rect x="0" y="0" width="960" height="470" fill="url(#sky2)"/>
+    <!-- 岛屿剖面：地层跟着轮廓走 -->
+    <path d="M70,286 C190,176 770,176 890,286 L890,470 L70,470 Z" fill="url(#layers)"/>
+    <g clip-path="url(#isl)">
+      <ellipse cx="286" cy="404" rx="98" ry="26" fill="#1d4a5c" opacity=".92"/>
+      <ellipse cx="286" cy="404" rx="98" ry="26" fill="none" stroke="#3f7fa8" stroke-dasharray="3 3" opacity=".8"/>
+      <ellipse cx="648" cy="392" rx="58" ry="20" fill="#0a0e13"/>
+      <ellipse cx="648" cy="392" rx="58" ry="20" fill="none" stroke="#4c5563" stroke-dasharray="3 3"/>
+      ${veins}
+      <rect x="0" y="280" width="960" height="3" fill="#1d2a1c" opacity=".7"/>
+    </g>
+    <path d="M70,286 C190,176 770,176 890,286" fill="none" stroke="#8fae95" stroke-width="1.6"/>
+    <path d="M70,470 L70,286 C190,176 770,176 890,286 L890,470" fill="none" stroke="#3a4a3f" stroke-width="1"/>
+    <g font-family="ui-monospace,Consolas,monospace" font-size="10" fill="#7e8a9a">
+      <text x="30" y="60">天空</text><line x1="46" y1="64" x2="120" y2="150" stroke="#4c5563" stroke-dasharray="2 3"/>
+      <text x="30" y="296">表层土</text><line x1="62" y1="292" x2="150" y2="296" stroke="#4c5563" stroke-dasharray="2 3"/>
+      <text x="30" y="348">土壤</text><line x1="52" y1="344" x2="150" y2="340" stroke="#4c5563" stroke-dasharray="2 3"/>
+      <text x="30" y="402">岩层</text><line x1="52" y1="398" x2="170" y2="396" stroke="#4c5563" stroke-dasharray="2 3"/>
+      <text x="30" y="456">基岩</text><line x1="52" y1="452" x2="150" y2="450" stroke="#4c5563" stroke-dasharray="2 3"/>
+      <text x="240" y="430" fill="#5f9fc0">地下水</text>
+      <text x="616" y="420">洞穴</text>
+      <text x="450" y="386" fill="#b98a4a">矿脉</text>
+    </g>
+    <g font-family="ui-monospace,Consolas,monospace" font-size="10" fill="#e0a33e">
+      <text x="700" y="196">峰高 0.12–0.25 W</text>
+      <text x="700" y="212">雪线 由气候带决定</text>
+    </g>
+  </svg>`;
+}
+/* ===== 掷骰：全部由系统决定，玩家不可选 ===== */
+const SEEDCODE={'群岛界':'ARC','单岛界':'ISL','大陆界':'CON','半岛界':'PEN','环礁界':'ATL',
+  '峡湾界':'FJO','内陆湖国':'LAK','裂谷界':'RIF','全海界':'OCE','全陆界':'LAN'};
+const SUFFIX={'群岛界':'屿','单岛界':'岛','大陆界':'原','半岛界':'岬','环礁界':'环礁',
+  '峡湾界':'湾','内陆湖国':'泊','裂谷界':'裂谷','全海界':'海','全陆界':'陆'};
+const SYL1=['灰','白','长','碎','冷','雾','沉','青','赤','双','孤','暖'];
+const SYL2=['羽','石','脊','沙','潮','星','苔','纹','岚','野'];
+
+function rollWorld(){
+  const pick=a=>a[Math.floor(Math.random()*a.length)];
+  const rand=(a,b)=>a+Math.random()*(b-a);
+  S.form = pick(FORMS)[0];
+  S.climate = pick(CLIMATES);
+  S.name = pick(SYL1)+pick(SYL2)+SUFFIX[S.form];
+  const n = 3+Math.floor(Math.random()*3);
+  S.traits = [...TRAITS.keys()].sort(()=>Math.random()-.5).slice(0,n).sort((a,b)=>a-b);
+  const seg=()=>Math.random().toString(32).slice(2,6).toUpperCase();
+  S.seed=['SOL',SEEDCODE[S.form]||'NET',seg(),seg()];
+  const fish = 0.30+Math.random()*0.5;
+  S.params={
+    water: Math.round(fish*100)+' %',
+    blocks: S.form==='全海界'?'0':S.form==='群岛界'?'5–12':S.form==='大陆界'?'1（≥85 %）':'1–4',
+    ranges: 1+Math.floor(Math.random()*4),
+    species: 5+Math.floor(Math.random()*5),
+    settle: 2+Math.floor(Math.random()*4),
+    wonder: Math.random()<0.55?'1 处':'无'
+  };
+  S.log=[
+    ['陆块拓扑', S.params.blocks, '形制'],
+    ['陆块形状', pick(['团块','长条','折枝','环','破碎']), '形制'],
+    ['界缘交代', pick(['外海','雾墙','云海','深渊','冰盖']), '形制'],
+    ['水覆盖', S.params.water, '水'],
+    ['陆海比', rand(0.2,0.85).toFixed(2), '水'],
+    ['起伏 relief', rand(0.35,1).toFixed(2), '地貌'],
+    ['山系数', S.params.ranges, '地貌'],
+    ['山系走向', pick(['NNE','ESE','SSW','WNW'])+' '+Math.round(rand(0,180))+'°', '地貌'],
+    ['气候带', S.climate, '气候'],
+    ['风向', pick(['NE','SE','SW','NW'])+' '+Math.round(rand(0,360))+'°', '气候'],
+    ['植被密度', rand(0.3,1).toFixed(2), '生命'],
+    ['物种池', S.params.species+' 种', '生命'],
+    ['奇观', S.params.wonder, '生命'],
+    ['界名', S.name, '命名'],
+    ['判据', '7 / 7 PASS', '校验']
+  ];
+  S.rolls = (S.rolls||0)+1;
+}
+function copySeed(){
+  const t=S.seed.join('-');
+  if(navigator.clipboard) navigator.clipboard.writeText(t);
+  toast('坐标已复制',t+' — 别人粘贴同一串就能得到这一界');
+  log('复制坐标 '+t);
+}
+function rerollSeed(){
+  const host=document.getElementById('cmain');
+  if(!host){ rollWorld(); render(); return; }
+  const d=document.createElement('div'); d.className='dust'; host.appendChild(d);
+  setTimeout(()=>{
+    rollWorld(); render();
+    const m=document.getElementById('cmain');
+    if(m){ m.classList.add('roll'); }
+    log('重掷：'+S.name+' · '+S.form+' · '+S.climate, true);
+  },170);
+}
+function enterWorld(){
+  S.screen='world';
+  if(!S.hand.length) drawHand();
+  render();
+  const st=document.getElementById('stage');
+  if(st){ st.classList.remove('entering'); void st.offsetWidth; st.classList.add('entering'); }
+  const fd=document.getElementById('fade');
+  if(fd){ fd.classList.add('on'); setTimeout(()=>fd.classList.remove('on'),40); }
+  setTimeout(()=>{ if(st) st.classList.remove('entering'); }, 1500);
+  log('进入世界：'+S.name+' · '+S.form+' · '+S.climate, true);
+}
+
+/* =========================================================================
+   世界界面
+   ========================================================================= */
+function treesHTML(){
+  let h='';
+  for(let i=0;i<40;i++){
+    const x=30+(i*24)%900, ht=24+(i*31)%46, w=10+(i*13)%7;
+    h+=`<i style="left:${x}px;height:${ht}px;width:${w}px"></i>`;
+  }
+  return h;
+}
+/* 年表类型：一个图标 + 一个颜色，扫读靠形不靠字 */
+const CHRON_ICON={'干涉':'✦','气候':'☁','生态':'✿','灾变':'⚠','文明':'⌂'};
+const CHRON_COL={'干涉':'#e0a33e','气候':'#5f9fc0','生态':'#6aa86a','灾变':'#b4553f','文明':'#c8a94b'};
+
+/* 生态构成环：5 段环形图，中心是植被占比 */
+const ECO_SEGS=[['林地',34,'#3f7549'],['草原',26,'#5d8a4a'],['水体',18,'#3f7fab'],['岩坡',14,'#5b6b78'],['裸地',8,'#38424c']];
+function ecoRing(){
+  const C=2*Math.PI*32; let acc=0;
+  const segs=ECO_SEGS.map(([n,v,c])=>{
+    const len=C*v/100;
+    const s=`<circle cx="42" cy="42" r="32" fill="none" stroke="${c}" stroke-width="9"
+      stroke-dasharray="${(len-2).toFixed(2)} ${(C-len+2).toFixed(2)}"
+      stroke-dashoffset="${(-acc).toFixed(2)}" transform="rotate(-90 42 42)"/>`;
+    acc+=len; return s;
+  }).join('');
+  return `${segs}
+    <text x="42" y="40" text-anchor="middle" font-family="ui-monospace,Consolas" font-size="13"
+      fill="#e8eef4">${ECO_SEGS[0][1]+ECO_SEGS[1][1]}%</text>
+    <text x="42" y="52" text-anchor="middle" font-family="ui-monospace,Consolas" font-size="7"
+      fill="#5d6b7a">植被</text>`;
+}
+
+function worldHTML(){
+  return `
+  <div id="scene">
+    <div id="seaband" style="top:${S.pitch>=88?0:(S.pitch>=55?34:42)}%"></div>
+    <div id="horizon" style="top:${S.pitch>=88?0:(S.pitch>=55?34:42)}%;${S.pitch>=88?'display:none':''}"></div>
+    <div id="ridge1" style="${S.pitch>=88?'display:none':''}"></div>
+    <div id="ridge2" style="${S.pitch>=88?'display:none':''}"></div>
+    <div class="cloud" style="left:12%;top:16%;width:280px;height:70px"></div>
+    <div class="cloud" style="right:16%;top:9%;width:340px;height:80px"></div>
+    <div id="worldgroup">
+      <div id="island"></div><div id="lagoon"></div>
+      <div id="trees">${treesHTML()}</div>
+      <div id="mount"></div><div id="peak2"></div>
+    </div>
+    <div id="cursor"></div><div id="range"></div><div id="ping"></div>
+    <div id="hoverring"></div><div id="hoverinfo"></div>
+    <div id="scalebar"><span>${[100,50,25,10,5][S.zoom]} m</span><div class="ln"></div></div>
+    <div id="compass"><b>N</b><i style="transform:rotate(${S.azimuth||0}deg)"></i></div>
+    <div id="ambhint">摆件模式 · Esc 退出</div>
+    <div id="zchip">
+      <span class="tag a">Z${S.zoom}</span>
+      <span class="tag">俯仰 ${S.pitch}°</span>
+      <span class="tag">${S.pitch>=88?'图纸（地图）':'侧视'}</span>
+    </div>
+  </div>
+  ${topHTML()}
+  ${leftRailHTML()}
+  ${rightPanelHTML()}
+  ${handHTML()}
+  ${S.event?eventHTML():''}
+  <div id="fade"></div>`;
+}
+
+/* ---- 世界事件卡：不是失败，是"要不要接住它" ---- */
+/* 三类事件各三条：禁物 / 灾变 / 文明。每条都带一张缩略 */
+const EVENTS=[
+  {k:'禁物',t:'锈蚀之核',a:'rust',
+   b:'界缘裂开一线，一枚不属于这里的核落进来。它把周围的金属慢慢吃成锈，但锈土里会长出别处没有的赤色苔。',
+   tags:['只启不养','不可回收','同时只许一件']},
+  {k:'禁物',t:'无光之钉',a:'nail',
+   b:'一枚钉子插进夜里，钉子上方三尺没有星。它不是黑暗，是把光让开。',
+   tags:['只启不养','不可回收','夜间更暗']},
+  {k:'禁物',t:'逆流之钟',a:'bell',
+   b:'钟自己响了。此后这一带的水先往山上走，再落下来——落下来的水更清。',
+   tags:['只启不养','不可回收','水往高处']},
+  {k:'灾变',t:'山火过境',a:'fire',
+   b:'火从西坡往上走，走到雪线自己停了。焦土是黑的，但三年后这里会比别处更肥。',
+   tags:['留下焦土','灰是肥料','兽群迁移']},
+  {k:'灾变',t:'陨石',a:'meteor',
+   b:'一道白线，然后是一个坑。坑底的石头化了又凝，像一块没人磨过的玻璃。',
+   tags:['留下陨坑','玻璃质','扬尘 10 日']},
+  {k:'灾变',t:'冰川期',a:'ice',
+   b:'雪线压到海面，整界安静下来。冰退的时候，会把山磨成峡湾。',
+   tags:['雪线下降','数十日','留下冰碛']},
+  {k:'文明',t:'第一座聚落',a:'hut',
+   b:'三间屋子围着一口井。它们不声不响地出现了，像本来就该在那里。',
+   tags:['人 0.0065 W','Z3 可见','可被卡改写']},
+  {k:'文明',t:'第一道城墙',a:'wall',
+   b:'有人把石头垒成一条线。线内是"我们"，线外还是世界。',
+   tags:['疆域 0.30 W','不可越过','可被攻破']},
+  {k:'文明',t:'第一部文字',a:'script',
+   b:'第 412 年，有人在石头上刻了一道。从这一刻起，年表开始自己说话。',
+   tags:['年表自动记录','记忆可继承']}
+];
+function evArt(a){
+  const base=`<svg viewBox="0 0 120 168" style="width:120px;height:168px;flex:0 0 120px;
+    border:1px solid #33404f;background:radial-gradient(120% 90% at 50% 10%,#1b2733 0%,#0c1218 70%)">`;
+  const art={
+    rust:`<circle cx="60" cy="84" r="34" fill="none" stroke="#b4553f" stroke-width="3" opacity=".8"/>
+      <circle cx="60" cy="84" r="22" fill="#5a2c22" opacity=".7"/>
+      <path d="M42,72 L78,96 M46,96 L74,70" stroke="#c4643f" stroke-width="2" opacity=".7"/>`,
+    nail:`<path d="M60,30 L60,130" stroke="#8f9aa6" stroke-width="4"/>
+      <path d="M48,30 L72,30 L60,44 Z" fill="#8f9aa6"/>
+      <circle cx="60" cy="30" r="17" fill="#06090d"/>`,
+    bell:`<path d="M36,104 Q40,56 60,52 Q80,56 84,104 Z" fill="#6b5a3a"/>
+      <rect x="34" y="104" width="52" height="8" fill="#8a7448"/>
+      <path d="M60,116 L60,130" stroke="#8a7448" stroke-width="3"/>`,
+    fire:`<path d="M60,34 C74,60 92,70 82,96 C75,114 60,124 48,116 C32,104 42,80 52,72 C52,90 60,88 60,78 C60,62 56,48 60,34 Z"
+        fill="#b4432e" opacity=".85"/>
+      <path d="M40,132 L80,132" stroke="#3a2a22" stroke-width="2" opacity=".6"/>`,
+    meteor:`<ellipse cx="60" cy="112" rx="40" ry="16" fill="#1c232b"/>
+      <ellipse cx="60" cy="112" rx="22" ry="8" fill="#2b333d"/>
+      <path d="M92,26 L66,74" stroke="#e8d9b0" stroke-width="3" opacity=".8"/>`,
+    ice:`<path d="M20,120 L60,60 L100,120 Z" fill="#7fa3b8" opacity=".55"/>
+      <path d="M34,120 L60,80 L86,120 Z" fill="#cfe4ef" opacity=".8"/>
+      <path d="M16,128 L104,128" stroke="#9fc0d0" stroke-width="2" opacity=".6"/>`,
+    hut:`<path d="M40,104 L60,84 L80,104 L80,124 L40,124 Z" fill="#5a4a38"/>
+      <path d="M34,106 L60,80 L86,106" fill="none" stroke="#8a7448" stroke-width="4"/>
+      <rect x="54" y="110" width="12" height="14" fill="#2a2118"/>`,
+    wall:`<rect x="26" y="88" width="68" height="32" fill="#5b6673"/>
+      <rect x="26" y="82" width="10" height="10" fill="#6d7987"/><rect x="44" y="82" width="10" height="10" fill="#6d7987"/>
+      <rect x="62" y="82" width="10" height="10" fill="#6d7987"/><rect x="80" y="82" width="10" height="10" fill="#6d7987"/>`,
+    script:`<rect x="30" y="46" width="60" height="76" fill="#3a4652"/>
+      <path d="M40,62 L80,62 M40,74 L74,74 M40,86 L80,86 M40,98 L64,98" stroke="#cfd8e2" stroke-width="2" opacity=".35"/>
+      <path d="M52,72 L60,60 L68,72 L64,84 L56,84 Z" fill="none" stroke="#e0a33e" stroke-width="2"/>`
+  };
+  return base+(art[a]||'')+`</svg>`;
+}
+function eventHTML(){
+  const e=S.event;
+  return `<div id="eventwrap" onclick="if(event.target.id==='eventwrap')closeEvent()">
+    <div id="eventcard">
+      <div class="band"></div>
+      <div class="row" style="justify-content:space-between">
+        <span class="mono xs" style="letter-spacing:.18em;color:var(--warn)">世界事件 · ${e.k}</span>
+        <span class="xs">第 ${S.day} 天 · ${fmt(S.minute)}</span>
+      </div>
+      <div class="row" style="gap:18px;margin-top:14px;align-items:flex-start">
+        ${evArt(e.a)}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:23px;color:#fff;margin-bottom:10px">${e.t}</div>
+          <div style="font-size:13px;color:#b6c2ce;line-height:1.85">${e.b}</div>
+          <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
+            ${e.tags.map(t=>`<span class="tag warn">${t}</span>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="row gap8" style="margin-top:18px">
+        <div class="btn on" onclick="resolveEvent('bear')">承受</div>
+        <div class="btn ghost" onclick="resolveEvent('rewrite')">改写 · 80 余响</div>
+        <span class="xs" style="align-self:center;margin-left:auto">Esc 关闭</span>
+      </div>
+    </div>
+  </div>`;
+}
+function fireEvent(kind){
+  const pool=kind?EVENTS.filter(e=>e.k===kind):EVENTS;
+  S.event=pool[Math.floor(Math.random()*pool.length)];
+  S.panel=null; render();
+}
+function resolveEvent(kind){
+  const e=S.event||{k:'事件',t:'—'};
+  if(kind==='rewrite'){
+    if(S.echo<80){ toast('余响不够','改写需要 80 余响'); return; }
+    S.echo-=80; addChron('干涉','改写了「'+e.t+'」');
+    toast('已改写','−80 余响 · 「'+e.t+'」换了另一种后果');
+  } else {
+    const k=e.k==='文明'?'文明':(e.k==='灾变'?'灾变':'灾变');
+    addChron(k,e.t+(e.k==='文明'?' 出现':' 留下痕迹'));
+    toast('已承受','「'+e.t+'」被写进年表');
+  }
+  S.event=null; render();
+}
+function closeEvent(){ S.event=null; render(); }
+
+function topHTML(){
+  const yearPct = Math.round(((S.day-1)%360)/360*100);
+  return `<div id="top">
+    <div id="clock">${fmt(S.minute)}</div>
+    <div style="line-height:1.3" title="秋 · 多云 17°C · 湿度 62% · 扰动 42">
+      <div class="sm">秋 · 第 ${S.day} 天</div>
+      <div class="mono xs" style="color:#7e8b98">☁ 17° · ◔ 62% · ⚠ 42</div>
+    </div>
+    <!-- 世界年进度环：一眼看出"这一年在哪" -->
+    <div title="第 ${S.day} 天 / 一年 360 天" style="width:30px;height:30px;border-radius:50%;
+      background:conic-gradient(var(--acc) ${yearPct}%, #222b36 0);display:flex;align-items:center;
+      justify-content:center;position:relative">
+      <div style="width:22px;height:22px;border-radius:50%;background:#0b0e13;display:flex;align-items:center;
+        justify-content:center;font-family:var(--mono);font-size:8px;color:#8b99a6">${Math.floor((S.day-1)/30)+1}月</div>
+    </div>
+
+    <div id="icons">
+      <span class="chip" style="cursor:pointer" onclick="cycleSpeed()" title="J 倍速">
+        ${S.paused?'⏸ 暂停':S.speed+'×'}</span>
+      <span class="chip" style="gap:4px" title="余响：干涉世界换来，用来抽卡">
+        <span style="color:var(--acc);font-size:11px">◈</span>
+        <span class="mono" style="color:var(--acc);font-size:12px">${S.echo}</span></span>
+      ${[['C','年表','chron'],['B','抽卡','pack'],['L','卡库','codex'],['G','创世','creator'],['O','设置','settings'],['H','帮助','help']]
+        .map(([k,t,p])=>`<div class="ic" title="${t}（${k}）" onclick="openPanel('${p}')">
+          ${glyph(p)}<span>${t}</span></div>`).join('')}
+    </div>
+  </div>`;
+}
+
+/* 左栏 = 只放"页面入口"，六个，不再塞手牌与摆件 */
+function leftRailHTML(){
+  const items=[['B','抽卡','pack'],['L','卡库','codex'],['C','年表','chron'],
+               ['G','创世','creator'],['O','设置','settings'],['H','帮助','help']];
+  return `<div id="leftrail">
+    ${items.map(([k,t,p])=>`<div class="rail ${S.panel===p?'on':''}" title="${t}（${k}）"
+      onclick="openPanel('${p}')">${glyph(p)}<span>${t}</span></div>`).join('')}
+    <div style="margin-top:auto;padding-bottom:8px">
+      <div class="rail ${S.ambient?'on':''}" title="摆件模式 P" onclick="toggleAmbient()"><b>P</b><span>摆件</span></div>
+    </div>
+  </div>`;
+}
+
+/* 右栏 = 一屏读完的档案，不分页签：世界 / 生态 / 刚刚发生 */
+function rightPanelHTML(){
+  return `<div id="rightpanel">
+    <div class="rp">
+      <div class="h">这一界</div>
+      <div class="big">${S.name}</div>
+      <div class="xs" style="margin-top:2px">${S.form} · ${S.climate}</div>
+      <div class="mono xs" style="margin-top:2px;color:#5d6b7a">${S.seed.join('-')}</div>
+    </div>
+    <div class="rp">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span class="h" style="margin:0">生态</span>
+        <span class="tag ok">${S.echo>200?'丰饶':S.echo>60?'起色':'贫瘠'}</span>
+      </div>
+      <div class="row" style="gap:10px;margin-top:2px">
+        <svg viewBox="0 0 84 84" style="width:84px;height:84px;flex:0 0 84px">${ecoRing()}</svg>
+        <div style="flex:1">
+          ${ECO_SEGS.map(([n,v,c])=>`<div class="row" style="justify-content:space-between;padding:1px 0">
+            <span class="xs"><i style="display:inline-block;width:6px;height:6px;border-radius:1px;
+              background:${c};margin-right:5px"></i>${n}</span>
+            <span class="mono xs" style="color:#8b99a6">${v}%</span></div>`).join('')}
+        </div>
+      </div>
+      <div class="row" style="justify-content:space-between;margin-top:9px;padding-top:8px;
+        border-top:1px solid #171e27">
+        ${[['✿','多样性','7 种'],['◔','肥力','0.62'],['◈','生物量','1 046']].map(([i,k,v])=>
+          `<div style="text-align:center;flex:1">
+            <div style="font-size:12px;color:#5d6b7a">${i}</div>
+            <div class="mono" style="font-size:11px;color:#dfe7ee">${v}</div>
+            <div class="xs" style="color:#4c5563;font-size:8.5px">${k}</div></div>`).join('')}
+      </div>
+      <div class="xs" style="margin-top:10px">水循环 · 强/中/弱</div>
+      <svg viewBox="0 0 276 56" style="width:100%;height:56px">
+        <path d="M16,42 C56,14 96,14 136,40 C176,66 216,66 260,34" fill="none"
+          stroke="#3f7fa8" stroke-width="1.4" stroke-dasharray="5 4" opacity=".85">
+          <animate attributeName="stroke-dashoffset" from="0" to="-36" dur="2.6s" repeatCount="indefinite"/>
+        </path>
+        ${[['海',16,46],['蒸',72,20],['云',136,44],['雨',200,20],['径',260,38]].map(([t,x,y])=>
+          `<circle cx="${x}" cy="${y}" r="7" fill="#0e151c" stroke="#3f7fa8"/>
+           <text x="${x}" y="${y+3}" text-anchor="middle" font-family="ui-monospace,Consolas"
+             font-size="7" fill="#9fb0bd">${t}</text>`).join('')}
+      </svg>
+    </div>
+    <div class="rp" style="flex:1;overflow:auto;border-bottom:0">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span class="h" style="margin:0">刚刚发生</span>
+        <span class="xs" style="cursor:pointer" onclick="openPanel('chron')">全部 ▸</span>
+      </div>
+      <div class="tl">
+        ${(S.chron.length?S.chron:[['14:18','干涉','湖 → 沼泽'],['14:03','灾变','山火熄灭'],['13:55','气候','首次雷暴']])
+          .slice(0,5).map(([t,k,w])=>`<div class="it" style="--dot:${CHRON_COL[k]||'#3f7fa8'}">
+            <div class="xs"><span style="color:${CHRON_COL[k]||'#3f7fa8'};margin-right:4px">${CHRON_ICON[k]||'·'}</span>${t}</div>
+            <div style="font-size:11.5px">${w}</div>
+            <div class="xs" style="color:#4c5563">${k}</div></div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+function handHTML(){
+  const n=S.hand.length, mid=(n-1)/2, sp=n>9?96:(n>7?108:120);
+  return `<div id="hand">
+    ${S.hand.map((c,i)=>{
+      const d=i-mid, ang=(d*3.2).toFixed(2), lift=(Math.abs(d)*Math.abs(d)*1.4).toFixed(1);
+      const z=(i===S.sel?200:100-Math.round(Math.abs(d)*3));
+      return `<div class="cardslot" style="left:calc(50% + ${(d*sp).toFixed(1)}px - 70px);z-index:${z}">
+        ${cardHTML(c,i,{r:ang,l:lift})}
+      </div>`;
+    }).join('')}
+  </div>
+  <div id="deck">
+    <div class="dk" title="实体池：已拥有 / 252"><b>${S.owned.length}</b><span>池</span></div>
+    <div class="dk" title="手牌：当前 / 10"><b>${S.hand.length}</b><span>手</span></div>
+  </div>
+  <div id="actbar">
+    <div class="ab" title="随机释放（空格）" onclick="castRandom()">✦</div>
+    <div class="ab" title="回收最左一张（X）" onclick="reclaim()">↩</div>
+    <div class="ab" title="把实体池重洗成手牌（R）" onclick="rerollHand()">↻</div>
+    <div class="ab" style="font-family:var(--mono);font-size:12px" title="倍速（J）" onclick="cycleSpeed()">${S.paused?'▶':S.speed+'×'}</div>
+  </div>
+  <div id="cardtip"></div>`;
+}
+const ELC={'金':'#c8a94b','木':'#5e8f47','水':'#3f8fab','火':'#b4432e','土':'#8a6a45','光':'#e0d6b8','暗':'#6a5a8a'};
+/* 后果写在卡上（Against the Storm 口径）：没有条目就退回"物/术/律"的通用语义 */
+const FX={
+  '铁屑':'落 1 撮铁屑','擦痕':'金属留痕','不锈':'该地不锈','铜钟':'放钟，声及聚落',
+  '种子':'种 1 株幼苗','萌发':'幼苗生长','扎根':'抗冲刷 +1','苔毯':'铺苔 0.01 W',
+  '疯长':'植被速生 ×1.6','古树':'巨树成冠',
+  '露珠':'叶面结露','润湿':'湿度 +0.04','渗':'入渗加快','降雨':'局部雨 3 分钟',
+  '瀑布':'造瀑布 ≥6 m','引流':'改河道','水世界':'水位盖全界',
+  '火星':'火星 3 秒','引燃':'点燃可燃物','暖':'局部 +2 °C','点燃':'起火 30 秒',
+  '沙粒':'1 撮沙','扬尘':'扬尘 10 秒','松':'更易侵蚀','土丘':'抬高 0.01 W',
+  '土山':'抬高 0.03 W','大陆':'造陆 0.6 W',
+  '微光':'微光照明','闪':'一瞬强光','透':'该处透光',
+  '光斑':'投 1 片光斑','永昼':'夜间不暗',
+  '影斑':'1 处阴影','遮':'遮光','隐':'不进年表','暗潮':'遮蔽一片'
+};
+const fxOf=c=>FX[c[3]] || (c[2]==='物'?'留下实体':c[2]==='术'?'改状态':'改规则');
+/* 七元素纹样：卡面只放图，字交给悬浮详情 */
+const SIGIL={
+  '金':'<path d="M50 16 L76 50 L50 84 L24 50 Z" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M50 32 L62 50 L50 68 L38 50 Z" fill="currentColor" opacity=".35"/>',
+  '木':'<path d="M50 86 L50 40" stroke="currentColor" stroke-width="3"/><path d="M50 46 C34 42 28 30 30 20 C45 23 50 33 50 46 Z" fill="currentColor" opacity=".85"/><path d="M50 56 C66 52 72 40 70 30 C55 33 50 43 50 56 Z" fill="currentColor" opacity=".55"/>',
+  '水':'<path d="M16 58 C28 46 38 70 50 58 C62 46 72 70 84 58" fill="none" stroke="currentColor" stroke-width="3"/><path d="M16 70 C28 58 38 82 50 70 C62 58 72 82 84 70" fill="none" stroke="currentColor" stroke-width="2" opacity=".5"/>',
+  '火':'<path d="M50 14 C60 34 74 42 66 60 C61 72 51 80 43 74 C31 66 37 50 45 44 C45 58 51 56 51 48 C51 36 48 26 50 14 Z" fill="currentColor" opacity=".85"/>',
+  '土':'<path d="M22 62 L50 38 L78 62 L78 80 L22 80 Z" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M34 62 L50 48 L66 62" fill="none" stroke="currentColor" stroke-width="2" opacity=".6"/>',
+  '光':'<circle cx="50" cy="50" r="11" fill="currentColor"/><path d="M50 6 L50 20 M50 80 L50 94 M6 50 L20 50 M80 50 L94 50 M19 19 L29 29 M71 71 L81 81 M81 19 L71 29 M29 71 L19 81" stroke="currentColor" stroke-width="2.4" opacity=".8"/>',
+  '暗':'<path d="M62 18 A32 32 0 1 0 62 82 A25 25 0 1 1 62 18 Z" fill="currentColor" opacity=".85"/>'
+};
+function cardHTML(c,i,fan){
+  const [el,tier,kind,name]=c;
+  const col=ELC[el]||'#7e8a9a';
+  const vars=fan?`--r:${fan.r}deg;--l:${fan.l}px;`:'';
+  const hover=i>=0?`onmouseenter="showCardTip(event,${i})" onmouseleave="hideCardTip()"`:'';
+  return `<div class="card ${i===S.sel?'sel':''}" data-i="${i}" style="${vars}" ${hover}
+    onpointerdown="startDrag(event,${i})">
+    <div class="art" style="--c:${col}">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">${SIGIL[el]||SIGIL['水']}</svg>
+      <div class="dots">${Array.from({length:10},(_,k)=>`<i class="${k<tier?'on':''}"></i>`).join('')}</div>
+    </div>
+    <div class="nm">${name}</div>
+  </div>`;
+}
+function showCardTip(e,i){
+  if(S.drag) return;
+  const c=S.hand[i]; if(!c) return;
+  const tip=document.getElementById('cardtip'); if(!tip) return;
+  const r=e.currentTarget.getBoundingClientRect();
+  tip.innerHTML=`<div class="t1">${c[3]}</div>
+    <div class="t2">${c[0]} · ${c[1]===10?'超环':c[1]+' 环'} · ${c[2]}</div>
+    <div class="t3">${fxOf(c)}</div>
+    <div class="t4">${c[1]===0?'0 环 · 免费 · 用完即回':(c[1]<9?'回收 +'+reclaimValue(c):'9 环 · 不可回收')}</div>`;
+  tip.style.display='block';
+  const w=250, h=tip.offsetHeight;
+  tip.style.left=Math.max(10,Math.min(r.left+r.width/2-w/2, window.innerWidth-w-12))+'px';
+  tip.style.top=Math.max(10, r.top-h-14)+'px';
+}
+function hideCardTip(){ const t=document.getElementById('cardtip'); if(t) t.style.display='none'; }
+
+/* =========================================================================
+   拖放：向上=释放，向下=回收，拖到地面=指定落点
+   ========================================================================= */
+function startDrag(e,i){
+  if(i<0 || !S.hand[i]) return;
+  e.preventDefault();
+  const c=S.hand[i]; if(!c) return;
+  selectCard(i);
+  S.drag={i, x0:e.clientX, y0:e.clientY, moved:false, overWorld:false, mode:'idle'};
+  const g=document.createElement('div'); g.id='ghost';
+  g.innerHTML=cardHTML(c,i)+'<div class="tip"></div>';
+  g.querySelector('.card').classList.remove('sel');
+  document.body.appendChild(g);
+  moveGhost(e.clientX,e.clientY);
+  document.addEventListener('pointermove',onDrag);
+  document.addEventListener('pointerup',endDrag,{once:true});
+}
+function moveGhost(x,y){
+  const g=document.getElementById('ghost');
+  if(g){ g.style.left=x+'px'; g.style.top=y+'px'; }
+}
+function onDrag(e){
+  if(!S.drag) return;
+  const dx=e.clientX-S.drag.x0, dy=e.clientY-S.drag.y0;
+  if(Math.abs(dx)+Math.abs(dy)>6) S.drag.moved=true;
+  moveGhost(e.clientX,e.clientY);
+
+  const sceneEl=document.getElementById('scene');
+  let sx=0, sy=0, inWorld=false;
+  if(sceneEl){
+    const r=sceneEl.getBoundingClientRect(), k=r.width/sceneEl.offsetWidth;
+    sx=(e.clientX-r.left)/k; sy=(e.clientY-r.top)/k;
+    inWorld = sx>0 && sx<sceneEl.offsetWidth && sy>0 && sy<sceneEl.offsetHeight;
+  }
+
+  const g=document.getElementById('ghost'), tip=g&&g.querySelector('.tip');
+  const rg=document.getElementById('range');
+  const card=S.hand[S.drag.i];
+
+  if(dy>90){                       // 向下拖 = 回收
+    g&&g.classList.add('rec');
+    tip&&(tip.textContent='松手回收 +'+reclaimValue(card));
+    rg&&(rg.style.display='none');
+    S.drag.mode='reclaim';
+  } else if(dy<-40 && S.drag.moved){  // 向上拖 = 释放（随机落点）
+    g&&g.classList.remove('rec');
+    tip&&(tip.textContent='松手释放（随机落点）');
+    rg&&(rg.style.display='none');
+    S.drag.mode='castRandom';
+  } else if(inWorld && S.drag.moved){  // 在地面上 = 指定落点
+    g&&g.classList.remove('rec');
+    tip&&(tip.textContent='松手释放到此处');
+    if(rg){
+      const R=radiusPx(card[1]);
+      rg.style.display='block';
+      rg.style.left=sx+'px'; rg.style.top=sy+'px';
+      rg.style.width=(R*2)+'px';
+      rg.style.height=(R*2*(S.pitch>=55?0.9:0.5))+'px';
+      rg.classList.add('drop');
+    }
+    S.drag.mode='castAt'; S.drag.at={x:sx,y:sy};
+  } else {                         // 原地/未移出 = 还没决定
+    g&&g.classList.remove('rec');
+    tip&&(tip.textContent='拖到地面指定落点 · 向上拖随机释放');
+    rg&&(rg.style.display='none');
+    S.drag.mode='idle';
+  }
+}
+function endDrag(e){
+  document.removeEventListener('pointermove',onDrag);
+  const g=document.getElementById('ghost'); if(g) g.remove();
+  const rg=document.getElementById('range'); if(rg){ rg.style.display='none'; rg.classList.remove('drop'); }
+  const d=S.drag; S.drag=null;
+  if(!d) return;
+  if(d.mode==='reclaim') return reclaim();
+  if(d.mode==='castAt') return castAt(d.at.x, d.at.y);
+  if(d.mode==='castRandom') return castRandom();
+  if(!d.moved) { selectCard(d.i); return; }
+}
+
+/* =========================================================================
+   行为
+   ========================================================================= */
+function reclaimValue(card){ return card[1]===0?0:Math.round(5*Math.pow(1.5,card[1])*0.15); }
+function selectCard(i){ S.sel=i; render(); }
+function castAt(x,y){
+  const c=S.hand[S.sel]; if(!c) return;
+  const [el,tier,kind,name]=c;
+  const gain = tier===0?3:4+tier*2;
+  S.echo+=gain;
+  S.echoLog.unshift([fmt(S.minute), name+' · '+tier+' 环', Math.max(gain,2), tier<=3?'小':'中']);
+  addChron('干涉', '「'+name+'」落在 ('+Math.round(x)+','+Math.round(y)+')');
+  ping(x,y);
+  consumeAndDraw(S.sel);
+  S.lastAction='释放 '+name;
+  render(); toast('释放','「'+name+'」落在你指定的位置 · +'+gain+' 余响');
+}
+function castRandom(){
+  const c=S.hand[S.sel]; if(!c) return;
+  const x=760+Math.random()*440, y=560+Math.random()*140;
+  castAt(x,y);
+  toast('随机落点','没指定位置 → 落在世界中随机一处（拖着卡到地面可以指定）');
+}
+function reclaim(){
+  const c=S.hand[S.sel]; if(!c) return;
+  if(c[1]===0){ toast('不能回收','0 环卡免费且无限补，拆了不返余响'); return; }
+  if(c[1]>=9){ toast('不能回收','超环 / 禁物不可回收（回收是止损，不是换钱）'); return; }
+  const back=reclaimValue(c); S.echo+=back;
+  log('回收「'+c[3]+'」+'+back,true);
+  consumeAndDraw(S.sel);
+  render(); toast('回收','「'+c[3]+'」→ +'+back+' 余响');
+}
+/* 消耗一张手牌：手牌从「实体池」里补，不从牌库凭空生成 */
+function consumeAndDraw(i){
+  const c=S.hand[i];
+  S.hand.splice(i,1);
+  const inHand=new Set(S.hand.map(x=>x.join('|')));
+  const rest=S.owned.filter(x=>!inHand.has(x.join('|')));
+  if(rest.length) S.hand.splice(i,0,rest[Math.floor(Math.random()*rest.length)].slice());
+  S.sel=Math.min(S.sel, Math.max(0,S.hand.length-1));
+}
+function rerollHand(){
+  drawHand();
+  render(); log('从已有牌里重抽（不返余响）');
+  toast('重抽','只从你**已有**的卡里换一手；没有的卡要去「抽卡」里开出来');
+}
+function cycleSpeed(){
+  if(S.paused){S.paused=false;S.speed=4;}
+  else if(S.speed===4)S.speed=20; else if(S.speed===20)S.speed=1; else S.paused=true;
+  render();
+}
+function toggleAmbient(){ S.ambient=!S.ambient; render(); }
+function addChron(k,w){ S.chron.unshift([fmt(S.minute),k,w]); if(S.chron.length>50)S.chron.pop(); }
+function ping(x,y){
+  const p=document.getElementById('ping'); if(!p) return;
+  p.style.left=x+'px'; p.style.top=y+'px'; p.style.opacity=1;
+  p.animate([{transform:'scale(.4)',opacity:1},{transform:'scale(3)',opacity:0}],{duration:600});
+}
+function setPitch(p){ S.pitch=p; render(); applyWorld(); }
+function cycleZoom(d){ S.zoom=Math.min(4,Math.max(0,S.zoom+d)); render(); applyWorld(); }
+function applyWorld(){
+  const wg=document.getElementById('worldgroup'); if(!wg) return;
+  const z={0:0.78,1:0.9,2:1,3:1.55,4:2.4}[S.zoom]||1;
+  const shift={0:-30,1:-14,2:0,3:90,4:190}[S.zoom]||0;
+  const squash={15:0.62,30:0.78,55:1.05,88:1.42}[S.pitch]||0.78;
+  wg.style.transform=`translateY(${shift}px) scale(${z}) scaleY(${squash})`;
+}
+
+/* =========================================================================
+   面板：抽卡 / 卡库 / 年表 / 创世 / 设置 / 键位 / 帮助
+   ========================================================================= */
+let packStage=0;
+function openPanel(p){
+  if(p==='creator'){ S.screen='creator'; S.panel=null; render(); return; }
+  S.panel=p; if(p==='pack'){packStage=0;}
+  render(); log('打开：'+p,true);
+}
+function closePanel(){ S.panel=null; render(); }
+
+function panelHTML(){
+  const head={pack:'抽卡 · 主包（5 张 / 90 余响）',codex:'卡库 · 已有 '+S.owned.length+' 张（总数 252）',
+    chron:'年表',settings:'设置',keys:'设置 / 操作 · 键位',help:'帮助（只讲操作）'}[S.panel];
+  return `<div id="ovbg" onclick="closePanel()"></div>
+  <div id="panel">
+    <div id="phead"><span class="sm" style="color:#fff">${head}</span><span class="close xs" onclick="closePanel()">Esc ✕</span></div>
+    <div id="pbody">${bodyFor(S.panel)}</div>
+    <div id="pfoot">${footFor(S.panel)}</div>
+  </div>`;
+}
+function footFor(p){
+  if(p==='pack')   return `<div class="btn on" onclick="packNext()">下一帧 ▸</div>
+    <div class="btn ghost" onclick="closePanel()">跳过</div>
+    <span class="xs" style="margin-left:auto">每种卡只有一张：抽到的必定是你还没有的</span>`;
+  return `<div class="btn ghost" onclick="closePanel()">关闭</div>`;
+}
+function bodyFor(p){
+  if(p==='pack') return packBody();
+  if(p==='codex') return codexBody();
+  if(p==='chron') return chronBody();
+  if(p==='settings') return settingsBody();
+  if(p==='keys') return keysBody();
+  return helpBody();
+}
+
+/* ---- 抽卡：左列包种（价格 + 保底），中央四帧 ---- */
+const PACKS=[
+  ['主包','全 231 张 · 5 张',90,'10 包必出 1 张 7+','12'],
+  ['元素包','单元素 33 张 · 5 张',70,'3 包必出 1 张 4+','3'],
+  ['法则包','律卡 77 张 · 5 张',120,'含 1 张律卡，4+ 起步','4'],
+  ['至日包','7–9 环 + 超环 · 3 张',150,'每包至少 1 张 8+','0']
+];
+function packBody(){
+  const stages=['封印崩解','悬浮','逐张翻','结算'];
+  const got = S.packCards || [];
+  const sel = S.packKind||0;
+  return `<div style="display:flex;gap:14px;height:100%">
+    <div style="width:270px;border-right:1px solid var(--line);padding-right:12px">
+      <div class="xs" style="margin-bottom:8px">包种（价格 / 保底）</div>
+      ${PACKS.map((p,i)=>`<div class="w ${i===sel?'fill':''}" style="padding:9px;margin-bottom:6px;cursor:pointer;
+        border-color:${i===sel?'var(--acc)':'var(--line2)'}" onclick="S.packKind=${i};render()">
+        <div class="row" style="justify-content:space-between;align-items:baseline">
+          <span class="sm" style="color:${i===sel?'#fff':'var(--ink2)'}">${p[0]}</span>
+          <span class="mono" style="color:var(--acc)">${p[2]}</span>
+        </div>
+        <div class="xs" style="margin-top:2px">${p[1]}</div>
+        <div class="xs" style="margin-top:4px;color:#4c5563">保底：${p[3]}</div>
+        <div class="bar" style="margin-top:5px"><i style="width:${(9-parseInt(p[4]))*10}%"></i></div>
+      </div>`).join('')}
+      <div class="xs" style="margin-top:8px;line-height:1.6">进度条 = 距保底还差几包。<br>卡唯一：抽到的必定是新的。</div>
+    </div>
+    <div style="flex:1;min-width:0">
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    ${stages.map((t,i)=>`<span class="tag ${i===packStage?'a':''}">${i+1}. ${t}</span>`).join('')}
+    <span class="xs" style="margin-left:auto">已有 ${S.owned.length} / 252 · 余响 ${S.echo}</span>
+  </div>
+  <div style="height:520px;border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at 50% 50%,#141b23,#0a0d12)">
+    ${packStage===0?`<div style="width:200px;height:290px;border:1px dashed var(--acc);background:#1a1509;
+       display:flex;align-items:center;justify-content:center;color:var(--acc);font-family:var(--mono);font-size:11px">星尘崩解（不是撕纸）</div>`:''}
+    ${packStage===1?`<div style="display:flex">${[0,1,2,3,4].map(i=>
+       `<div style="width:140px;height:204px;border:1px solid var(--line2);background:#161c25;margin-left:-46px;
+         transform:rotate(${(i-2)*6}deg) translateY(${Math.abs(i-2)*10}px)"></div>`).join('')}</div>`:''}
+    ${packStage>=2?`<div style="display:flex;gap:10px">${got.map((c,i)=>{
+        const shown = packStage===3 || i<=1;
+        return shown?`<div style="width:140px;height:204px;border:1px solid ${i===got.length-1?'var(--acc)':'var(--line2)'};
+            background:#161c25;display:flex;flex-direction:column">
+            <div style="height:18px;border-bottom:1px solid var(--line2);display:flex;justify-content:space-between;
+              padding:0 5px;font-family:var(--mono);font-size:8.5px;color:var(--ink2)"><span>${c[0]}</span><span>${c[1]} 环</span></div>
+            <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--ink3);
+              font-family:var(--mono);font-size:9px">${c[2]}</div>
+            <div style="height:26px;display:flex;align-items:center;padding:0 6px;font-size:11px;border-top:1px dashed var(--line)">${c[3]}</div>
+          </div>`:`<div style="width:140px;height:204px;border:1px solid var(--line2);background:#0f141b"></div>`;
+      }).join('')}</div>`:''}
+  </div>
+  <div class="xs" style="margin-top:10px">抽到卡只进「实体池」——手牌只能从池里抽；<b>抽卡是获得新卡的唯一途径</b>。</div>
+    </div>
+  </div>`;
+}
+function packNext(){
+  const pk=PACKS[S.packKind||0];
+  if(packStage===0){
+    if(S.echo<pk[2]){ toast('余响不够',pk[0]+' 需要 '+pk[2]+' 余响，先做几次有意义的干涉'); return; }
+    S.packCards = drawFromUniverse(pk[0]==='至日包'?3:5);
+    S.echo-=pk[2]; log('抽卡「'+pk[0]+'」−'+pk[2]+' 余响',true);
+  }
+  if(packStage<3){
+    packStage++;
+    if(packStage===3) S.owned=uniqueOwned(S.owned.concat(S.packCards.map(c=>c.slice())));
+  }
+  else closePanel();
+  render();
+}
+function drawFromUniverse(n){
+  const have=new Set(S.owned.map(c=>c.join('|')));
+  const pool=MORE.filter(c=>!have.has(c.join('|')));
+  const src = pool.length?pool:MORE;
+  const pick=[]; const used=new Set();
+  while(pick.length<n){
+    const i=Math.floor(Math.random()*src.length);
+    if(used.has(i) && used.size<src.length) continue;
+    used.add(i); pick.push(src[i].slice());
+    if(used.size>=src.length) break;
+  }
+  pick.sort((a,b)=>a[1]-b[1]);   // 最后一张必为最高环
+  return pick;
+}
+
+/* ---- 卡库：元素可切、只看已获得、点格子出详情 ---- */
+function codexBody(){
+  const els=['金','木','水','火','土','光','暗'];
+  const el=S.codexEl||'水';
+  const onlyOwn=!!S.codexOwn;
+  const clsList=['物','术','律'];
+  const find=(r,c)=>S.owned.find(x=>x[0]===el&&x[1]===r&&x[2]===c);
+  const firstOwn=S.owned.find(x=>x[0]===el);
+  const sel=S.codexSel || (firstOwn?[firstOwn[0],firstOwn[1],firstOwn[2],firstOwn[3]]:null);
+  const cnt=els.reduce((n,e)=>n+S.owned.filter(c=>c[0]===e).length,0);
+  return `<div style="display:flex;gap:14px;height:100%">
+    <div style="width:92px;display:flex;flex-direction:column;gap:5px">
+      ${els.map(e=>{const n=S.owned.filter(c=>c[0]===e).length;
+        return `<div class="btn ${e===el?'on':'ghost'}" style="height:44px;flex-direction:column;gap:0"
+          onclick="S.codexEl='${e}';render()"><span>${e}</span>
+          <span style="font-size:8px;color:#4c5563">${n} / 33</span></div>`}).join('')}
+    </div>
+    <div style="flex:1">
+      <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+        <span class="mono xs" style="color:#8b99a6">已有 ${cnt} / 231</span>
+        <div class="btn ${onlyOwn?'on':'ghost'}" style="height:24px"
+          onclick="S.codexOwn=!S.codexOwn;render()">只看已获得</div>
+        <span class="xs">灰稿 = 未获得 · 点已获得的格子看详情</span>
+      </div>
+      <div class="row gap4" style="margin-bottom:10px" title="按环级的获取进度（0–9 环各 9 张，超环 3 张）">
+        ${Array.from({length:11},(_,r)=>{
+          const n=S.owned.filter(c=>c[0]===el&&c[1]===r).length, tot=r===10?3:9;
+          return `<div title="${r===10?'超环':r+' 环'}：${n} / ${tot}"
+            style="flex:1;height:5px;background:#1c242e;border-radius:1px;overflow:hidden">
+            <i style="display:block;height:100%;width:${Math.round(n/tot*100)}%;background:${n?'var(--acc)':'transparent'}"></i></div>`;
+        }).join('')}
+      </div>
+      ${Array.from({length:11},(_,r)=>`<div style="display:flex;gap:5px;margin-bottom:4px;align-items:center">
+        <span class="mono xs" style="width:22px;text-align:center">${r===10?'超':r}</span>
+        ${clsList.map(c=>{
+          const has=find(r,c);
+          if(onlyOwn && !has) return `<div style="width:52px;height:76px"></div>`;
+          return `<div onclick="${has?`S.codexSel=['${el}',${r},'${c}','${has[3]}'];render()`:''}"
+            style="width:52px;height:76px;border:1px ${has?'solid':'dashed'} ${has?'var(--line2)':'#232c36'};
+            background:${has?'#161c25':'rgba(255,255,255,.012)'};border-radius:2px;display:flex;flex-direction:column;
+            overflow:hidden;cursor:${has?'pointer':'default'}">
+            <div style="height:11px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:7px;
+              color:#4c5563;display:flex;align-items:center;padding:0 3px">${el}</div>
+            <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:2px">
+              ${has?`<span style="font-family:var(--mono);font-size:7.5px;color:#cfd8e2;text-align:center;
+                  line-height:1.2">${has[3]}</span>`
+                :`<svg viewBox="0 0 100 100" style="width:30px;height:30px;opacity:.17;color:#9db0c2">${SIGIL[el]}</svg>`}
+            </div>
+          </div>`;}).join('')}
+      </div>`).join('')}
+    </div>
+    <div style="width:430px;border-left:1px solid var(--line);padding-left:16px">
+      ${sel?`
+        <div style="display:flex;flex-direction:column;align-items:center">
+          <div style="transform:scale(1.26);transform-origin:top center;height:262px">${cardHTML([sel[0],sel[1],sel[2],sel[3]],-1)}</div>
+          <div style="font-size:17px;color:#fff;margin-top:4px">${sel[3]}</div>
+          <div class="xs">${sel[0]} · ${sel[1]===10?'超环':sel[1]+' 环'} · ${sel[2]}</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:14px;padding:10px 2px;
+          border-top:1px solid #1a212a;border-bottom:1px solid #1a212a">
+          ${[['◔','半径',(0.006*Math.pow(1.55,sel[1])).toFixed(2)+' W'],
+             ['◈','价值',String((5*Math.pow(1.5,sel[1]))|0)],
+             ['↩','回收',sel[1]===0?'—':'+'+Math.round((5*Math.pow(1.5,sel[1]))*0.15)]]
+            .map(([i,k,v])=>`<div style="text-align:center;flex:1">
+              <div style="font-size:15px;color:var(--acc)">${i}</div>
+              <div class="mono" style="font-size:12px;color:#e8eef4">${v}</div>
+              <div class="xs" style="color:#4c5563">${k}</div></div>`).join('')}
+        </div>
+        <div class="btn ghost" style="margin-top:12px;width:100%" onclick="S.codexMore=!S.codexMore;render()">
+          ${S.codexMore?'收起 ▴':'更多 ▾'}</div>
+        ${S.codexMore?`
+          <div class="xs" style="margin-top:10px">编号 <span class="mono">${sel[0].toLowerCase()}-${sel[1]}-${sel[2]}</span></div>
+          <div class="xs" style="margin-top:8px">同元素 · 相邻环级</div>
+          <div class="row gap6" style="margin-top:6px;flex-wrap:wrap">
+            ${S.owned.filter(x=>x[0]===sel[0]&&Math.abs(x[1]-sel[1])<=2&&x[3]!==sel[3])
+              .slice(0,6).map(x=>`<span class="tag">${x[3]}</span>`).join('')||'<span class="xs">暂无</span>'}
+          </div>`:''}`:`<div class="xs">点左侧任意已获得的格子 → 这里出详情</div>`}
+    </div>
+  </div>`;
+}
+
+/* ---- 年表：类型筛选 + 时间线 ---- */
+function chronBody(){
+  const kinds=['全部','干涉','气候','生态','灾变','文明'];
+  const kf=S.chronFilter||'全部';
+  const all=S.chron.length?S.chron:[
+    ['14:18','干涉','湖 → 沼泽'],['14:03','灾变','山火熄灭'],['13:55','气候','首次雷暴'],
+    ['09:12','生态','鱼群首次洄游'],['06:40','文明','第一座聚落']];
+  const list=all.filter(x=>kf==='全部'||x[1]===kf);
+  const dot=k=>k==='灾变'?'var(--warn)':k==='干涉'?'var(--acc)':k==='文明'?'var(--ok)':'var(--acc2)';
+  return `<div style="display:flex;height:100%">
+    <div style="flex:1;border-right:1px solid var(--line);padding-right:14px;overflow:auto">
+      <div class="row gap6" style="margin-bottom:12px">
+        ${kinds.map(k=>`<div class="btn ${kf===k?'on':'ghost'}" style="height:24px"
+          onclick="S.chronFilter='${k}';render()">${k}</div>`).join('')}
+        <span class="xs" style="align-self:center;margin-left:auto">共 ${all.length} 条 · 上限 500</span>
+      </div>
+      <div class="tl">
+        ${list.map(([t,k,w])=>`<div class="it" style="cursor:pointer;--dot:${CHRON_COL[k]||'#3f7fa8'}"
+          onclick="S.chronSel='${w}';render()">
+          <div class="xs"><span style="color:${CHRON_COL[k]||'#3f7fa8'};margin-right:4px;font-size:11px">${CHRON_ICON[k]||'·'}</span>
+            第 ${S.day} 天 · ${t}</div>
+          <div style="font-size:13px;color:${S.chronSel===w?'var(--acc)':'#fff'}">${w}</div>
+          <div class="xs" style="color:#4c5563">${k}</div></div>`).join('') || '<div class="xs">这一类还没有记录</div>'}
+      </div>
+    </div>
+    <div style="width:430px;padding-left:16px">
+      <div class="xs">${S.chronSel?'这一条改了什么':'点任一条 → 这里显示"改了什么"'}</div>
+      ${S.chronSel?`
+        <div style="font-size:14px;color:#fff;margin:8px 0">${S.chronSel}</div>
+        ${[['湿度','0.62 → 0.79'],['土壤水','+0.21'],['生态域','水域 → 湿地'],['余响','+18（中档：跨过阈值）']]
+          .map(([k,v])=>`<div class="irow"><span class="xs">${k}</span>
+            <span class="sm" style="margin-left:auto">${v}</span></div>`).join('')}
+        <div class="btn ghost" style="margin-top:12px" onclick="toast('回放','演示：镜头会切到那一刻并重放 3 秒')">跳到那一刻 ▸</div>`
+      :`<div class="xs" style="margin-top:10px">年表同时是记忆、回滚索引、因果重演入口。</div>`}
+    </div></div>`;
+}
+
+/* 设置示意小图：每项配一张缩略，而不是一排按钮干说 */
+function setPrev(g){
+  const art={
+    video:`<defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#2a4557"/><stop offset=".6" stop-color="#16242f"/><stop offset="1" stop-color="#0b1318"/>
+      </linearGradient></defs>
+      <rect x="0" y="0" width="300" height="120" fill="url(#pg)"/>
+      <ellipse cx="150" cy="80" rx="86" ry="26" fill="#33513c"/>
+      <path d="M120,80 L138,50 L156,80 Z" fill="#5b6b78"/>
+      <rect x="0" y="0" width="300" height="26" fill="#060a0e" opacity=".55"/>
+      <rect x="0" y="96" width="300" height="24" fill="#060a0e" opacity=".55"/>
+      <rect x="8" y="8" width="284" height="104" fill="none" stroke="#3d4a5c"/>`,
+    ui:`<rect x="0" y="0" width="300" height="120" fill="#080d12"/>
+      <rect x="8" y="8" width="34" height="104" fill="#121b24" stroke="#2b3644"/>
+      <rect x="252" y="8" width="40" height="104" fill="#121b24" stroke="#2b3644"/>
+      <rect x="56" y="8" width="182" height="104" fill="#16222c" stroke="#2b3644"/>
+      <rect x="92" y="84" width="26" height="26" fill="#1d2a35" stroke="#3d4a5c"/>
+      <rect x="122" y="84" width="26" height="26" fill="#1d2a35" stroke="#3d4a5c"/>
+      <rect x="152" y="84" width="26" height="26" fill="#1d2a35" stroke="#3d4a5c"/>
+      <rect x="8" y="8" width="284" height="104" fill="none" stroke="#e0a33e" opacity=".45"/>`,
+    world:`<rect x="0" y="0" width="300" height="120" fill="#08121a"/>
+      <ellipse cx="150" cy="62" rx="76" ry="34" fill="#33513c" stroke="#4a6b52"/>
+      <path d="M110,62 L128,34 L146,62 Z" fill="#5b6b78"/>
+      <ellipse cx="150" cy="62" rx="112" ry="52" fill="none" stroke="#2b3644" stroke-dasharray="4 6"/>
+      <ellipse cx="150" cy="62" rx="88" ry="40" fill="none" stroke="#2b3644" stroke-dasharray="4 6"/>`,
+    input:`<rect x="0" y="0" width="300" height="120" fill="#080d12"/>
+      <rect x="132" y="26" width="36" height="66" rx="17" fill="none" stroke="#3d4a5c"/>
+      <rect x="147" y="36" width="6" height="14" rx="3" fill="#e0a33e"/>
+      <path d="M150,16 L150,26" stroke="#5f9fc0" stroke-width="2"/><path d="M150,10 L145,20 L155,20 Z" fill="#5f9fc0"/>
+      <path d="M150,102 L150,112" stroke="#b4553f" stroke-width="2"/><path d="M150,118 L145,108 L155,108 Z" fill="#b4553f"/>`,
+    audio:`<rect x="0" y="0" width="300" height="120" fill="#080d12"/>
+      ${Array.from({length:18},(_,i)=>{const h=12+Math.abs(Math.sin(i*1.3))*52;
+        return `<rect x="${20+i*15}" y="${60-h/2}" width="6" height="${h}" fill="#3f7fa8" opacity="${.4+(i%3)*.2}"/>`}).join('')}`,
+    lang:`<rect x="0" y="0" width="300" height="120" fill="#080d12"/>
+      <text x="90" y="76" text-anchor="middle" font-size="42" fill="#e8eef4" font-family="Georgia,serif">A</text>
+      <text x="205" y="76" text-anchor="middle" font-size="40" fill="#e8eef4" font-family="serif">文</text>
+      <path d="M150,28 L150,96" stroke="#2b3644"/>`,
+    access:`<rect x="0" y="0" width="300" height="120" fill="#080d12"/>
+      <path d="M60,60 Q150,10 240,60 Q150,110 60,60 Z" fill="none" stroke="#5f9fc0" stroke-width="2"/>
+      <circle cx="150" cy="60" r="16" fill="none" stroke="#5f9fc0" stroke-width="2"/>
+      <circle cx="150" cy="60" r="6" fill="#e0a33e"/>`
+  };
+  return `<svg viewBox="0 0 300 120" style="display:block;width:100%;max-width:480px;height:auto;
+    border:1px solid #1b222b;background:#080d12;margin-bottom:14px">${art[g]||''}</svg>`;
+}
+
+/* ---- 设置 ---- */
+function settingsBody(){
+  const g=S.setGroup||'video';
+  const nav=[['video','画面'],['audio','声音'],['input','操作'],['ui','界面'],['world','世界'],['lang','语言'],['access','辅助']];
+  const rows={
+    video:[['画质',['低','标准','高'],1],['分辨率',['1280×720','1920×1080','2560×1440'],1],['抗锯齿',['TSR','TAA','关'],0]],
+    audio:[['主音量',null],['环境',null],['界面',null],['音效',null]],
+    input:[['相机速度',null],['Z 级过渡',null],['鼠标灵敏度',null]],
+    ui:[['常驻栏',['左功能+右信息','仅右信息','全隐'],0],['字号',['标准','大'],0]],
+    world:[['尺寸档',['128²','256²','512²'],1],['默认俯仰',['15°','30°','55°','88°'],1]],
+    lang:[['语言',['简体中文','English'],0]],
+    access:[['颗粒可关',['是','否'],0],['闪烁降低',['开','关'],1]]
+  }[g];
+  return `<div style="display:flex;height:100%">
+    <div style="width:170px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:4px;padding-right:12px">
+      ${nav.map(([k,t])=>`<div class="btn ${g===k?'on':'ghost'}" style="justify-content:flex-start"
+        onclick="S.setGroup='${k}';render()">${t}</div>`).join('')}
+    </div>
+    <div style="flex:1;padding-left:20px;display:flex;flex-direction:column;min-width:0">
+      ${setPrev(g)}
+      ${rows.map(([k,o,sel])=>`<div style="display:flex;justify-content:space-between;align-items:center;
+        padding:12px 0;border-bottom:1px dashed var(--line)">
+        <span class="sm">${k}</span>
+        ${Array.isArray(o)?`<div style="display:flex;gap:6px">${o.map((x,i)=>
+          `<div class="btn ${i===sel?'on':'ghost'}" style="height:26px">${x}</div>`).join('')}</div>`
+          :`<div class="bar" style="width:220px"><i style="width:55%"></i></div>`}
+      </div>`).join('')}
+      ${g==='input'?`<div class="btn on" style="margin-top:14px" onclick="S.panel='keys';render()">键位重绑 ▸</div>`:''}
+    </div></div>`;
+}
+
+/* ---- 键位 ---- */
+const KEYS=[['随机释放','空格','手牌',0],['回收','X','手牌',1],['重抽（已有牌）','R','手牌',1],
+  ['拖卡','鼠标拖拽','手牌',0],['选卡 1–10','1 … 0','手牌',1],['俯仰档','F1 – F4','视角',0],
+  ['方位旋转','[ / ]','视角',1],['Z 级','Z / Shift+Z','视角',1],['暂停','K','时间',1],['倍速','J','时间',1],
+  ['摆件','P','界面',1],['显隐 UI','Tab','界面',0],['退出','Esc','界面',0]];
+let waitingFor=-1;
+function keyConflicts(){
+  const seen={}, dup=new Set();
+  KEYS.forEach(([n,cur])=>{
+    if(!cur) return;
+    if(seen[cur]) dup.add(cur); else seen[cur]=n;
+  });
+  return dup;
+}
+function keysBody(){
+  const tabs=['全部','手牌','视角','时间','界面'];
+  const tab=S.keyTab||'全部';
+  const dup=keyConflicts();
+  const rows=KEYS.map((k,i)=>({k,i})).filter(o=>tab==='全部'||o.k[2]===tab);
+  return `<div class="row gap6" style="margin-bottom:8px">
+    ${tabs.map(t=>`<div class="btn ${tab===t?'on':'ghost'}" style="height:24px"
+      onclick="S.keyTab='${t}';render()">${t}</div>`).join('')}
+    <span class="xs" style="align-self:center;margin-left:auto">${
+      dup.size?`⚠ ${dup.size} 组键位冲突（红框）`:'点「可改」的键位 → 按下新键；锁死键防误操作'}</span>
+  </div>
+  ${rows.map(({k,i})=>{
+    const [name,cur,g,ed]=k, bad=dup.has(cur);
+    return `<div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #1a212a;${
+      bad?'box-shadow:inset 2px 0 0 #b4553f;padding-left:6px':''}">
+      <span class="xs" style="width:48px">${g}</span>
+      <span class="sm" style="flex:1">${name}${bad?'<span class="tag warn" style="margin-left:6px">冲突</span>':''}</span>
+      <div class="btn ${ed?'':'ghost'}" data-k="${i}" style="width:170px;height:26px"
+        onclick="${ed?`rebind(${i})`:''}">${cur}</div>
+      <span style="width:76px;text-align:right">${ed?'<span class="tag ok">可改</span>':'<span class="tag">锁死</span>'}</span>
+    </div>`;}).join('')}`;
+}
+function rebind(i){
+  waitingFor=i;
+  const el=document.querySelector('[data-k="'+i+'"]');
+  if(el){ el.textContent='等待按键…'; el.classList.add('on'); }
+  log('等待按键：'+KEYS[i][0],true);
+}
+function captureKey(e){
+  if(waitingFor<0) return false;
+  const k=e.key.length===1?e.key.toUpperCase():e.key;
+  const clash=KEYS.findIndex((r,j)=>j!==waitingFor && r[1].split(' / ').includes(k));
+  const el=document.querySelector('[data-k="'+waitingFor+'"]');
+  if(clash>=0){
+    if(el) el.textContent='冲突：'+KEYS[clash][0];
+    toast('键位冲突','「'+k+'」已被「'+KEYS[clash][0]+'」占用 → 交换 / 取消');
+    waitingFor=-1; return true;
+  }
+  const idx=waitingFor;
+  KEYS[idx][1]=k;
+  if(el){ el.textContent=k; el.classList.remove('on'); }
+  waitingFor=-1; render(); toast('已改键','「'+KEYS[idx][0]+'」→ '+k);
+  return true;
+}
+function helpBody(){
+  return `<div style="display:flex;gap:16px;height:100%">
+    <div style="flex:1.5;border:1px solid var(--line2);padding:16px;position:relative">
+      <div class="sm" style="color:#fff;margin-bottom:6px">手势（一套轴，三种结果）</div>
+      <svg viewBox="0 0 620 370" style="width:100%;height:auto">
+        <!-- 卡 -->
+        <rect x="250" y="120" width="120" height="160" rx="4" fill="#1a2230" stroke="#3d4a5c"/>
+        <text x="310" y="205" text-anchor="middle" font-family="ui-monospace,Consolas" font-size="11" fill="#7e8a9a">手牌</text>
+        <ellipse cx="76" cy="132" rx="52" ry="11" fill="#22402f" stroke="#3a5a48"/>
+        <text x="76" y="136" text-anchor="middle" font-family="ui-monospace,Consolas" font-size="8" fill="#7fa08c">地面</text>
+        <!-- 上：释放 -->
+        <path d="M310,112 L310,40" stroke="#e0a33e" stroke-width="2"/>
+        <path d="M310,34 L302,50 L318,50 Z" fill="#e0a33e"/>
+        <text x="326" y="52" font-family="ui-monospace,Consolas" font-size="11" fill="#e0a33e">向上拖 = 释放（随机落点）</text>
+        <text x="326" y="70" font-family="ui-monospace,Consolas" font-size="10" fill="#5d6b7a">或按 空格</text>
+        <!-- 左：拖到地面 -->
+        <path d="M240,200 C160,200 120,170 96,120" stroke="#5f9fc0" stroke-width="2" fill="none"/>
+        <path d="M90,112 L92,130 L108,124 Z" fill="#5f9fc0"/>
+        <text x="20" y="100" font-family="ui-monospace,Consolas" font-size="11" fill="#5f9fc0">拖到地面 = 指定落点</text>
+        <!-- 下：回收 -->
+        <path d="M310,292 L310,330" stroke="#b4553f" stroke-width="2"/>
+        <path d="M310,292 L302,308 L318,308 Z" fill="#b4553f"/>
+        <text x="326" y="300" font-family="ui-monospace,Consolas" font-size="11" fill="#b4553f">向下拖 = 回收</text>
+        <text x="326" y="318" font-family="ui-monospace,Consolas" font-size="10" fill="#5d6b7a">或按 X</text>
+      </svg>
+    </div>
+    <div style="width:360px;display:flex;flex-direction:column;gap:9px">
+      ${[['⌖','视角','F1–F4 俯仰 · [ ] 方位 · 滚轮 / Z 缩放'],
+         ['▤','界面','Tab 显隐 · P 摆件 · 左栏点开 · 右栏常驻'],
+         ['◇','世界','悬停看地块 · 点地面选落点'],
+         ['⚑','事件','E 演练 · Esc 关 · 承受 / 改写']]
+        .map(([i,t,d])=>`<div class="w" style="padding:12px;display:flex;gap:11px;align-items:flex-start">
+          <span style="font-size:16px;color:var(--acc);line-height:1">${i}</span>
+          <div><div class="sm" style="color:#fff">${t}</div>
+            <div class="xs" style="margin-top:4px;line-height:1.6">${d}</div></div>
+        </div>`).join('')}
+      <div class="row gap8" style="margin-top:auto">
+        <div class="btn ghost" style="flex:1" onclick="S.panel='keys';render()">全部键位 ▸</div>
+        <div class="btn ghost" style="flex:1" onclick="closePanel();fireEvent()">演练事件 ▸</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================================
+   世界交互：悬停地块信息 / 点击落点 / 落点环
+   ========================================================================= */
+const BIOMES=['水域','湿地','草原','林地','岩坡','雨林','荒漠','雪原','盐碱','灌丛','高山草甸','洞穴'];
+function tileAt(x,y){
+  const hx=Math.abs(Math.round(x*7+y*13));
+  return {
+    biome: BIOMES[hx%BIOMES.length],
+    moist: (0.25+((hx*37)%70)/100).toFixed(2),
+    bio: ['低','中','高'][hx%3],
+    elev: (6+((hx*17)%52))+' m'
+  };
+}
+function placeCursor(){
+  const c=document.getElementById('cursor'), rg=document.getElementById('range');
+  const scene=document.getElementById('scene');
+  if(!c||!rg||!S.cursor||!scene) return;
+  c.style.display='block'; c.style.left=S.cursor.x+'px'; c.style.top=S.cursor.y+'px';
+  const card=S.hand[S.sel];
+  if(card){
+    const R=radiusPx(card[1]);
+    rg.style.display='block'; rg.style.left=S.cursor.x+'px'; rg.style.top=S.cursor.y+'px';
+    rg.style.width=(R*2)+'px';
+    rg.style.height=(R*2*(S.pitch>=55?0.9:0.5))+'px';
+  }
+}
+function bindScene(){
+  const scene=document.getElementById('scene');
+  if(!scene) return;
+  scene.style.cursor='crosshair';
+  scene.onclick=e=>{
+    const r=scene.getBoundingClientRect(), k=r.width/scene.offsetWidth;
+    const x=(e.clientX-r.left)/k, y=(e.clientY-r.top)/k;
+    S.cursor={x,y}; placeCursor();
+    const t=tileAt(x,y);
+    log(`落点 ${Math.round(x)},${Math.round(y)} · ${t.biome}`);
+  };
+  scene.onmousemove=e=>{
+    const r=scene.getBoundingClientRect(), k=r.width/scene.offsetWidth;
+    const sx=(e.clientX-r.left)/k, sy=(e.clientY-r.top)/k;
+    const t=tileAt(sx,sy);
+    const ring=document.getElementById('hoverring'), info=document.getElementById('hoverinfo');
+    if(!ring||!info) return;
+    ring.style.display='block'; ring.style.left=sx+'px'; ring.style.top=sy+'px';
+    info.style.display='block';
+    info.style.left=Math.min(sx+24, scene.offsetWidth-200)+'px';
+    info.style.top=Math.max(8, sy-46)+'px';
+    info.innerHTML=`<b>${t.biome}</b> · 海拔 ${t.elev}<br>湿度 ${t.moist} · 生物量 ${t.bio}`;
+  };
+  scene.onmouseleave=()=>{
+    const ring=document.getElementById('hoverring'), info=document.getElementById('hoverinfo');
+    if(ring) ring.style.display='none';
+    if(info) info.style.display='none';
+  };
+  if(S.cursor) placeCursor();
+}
+
+/* =========================================================================
+   渲染主循环
+   ========================================================================= */
+function render(){
+  const st=document.getElementById('stage');
+  st.classList.toggle('ambient', !!S.ambient);
+  st.innerHTML = S.screen==='creator' ? creatorHTML() : worldHTML();
+  if(S.screen==='world'){
+    st.insertAdjacentHTML('beforeend','<div id="overlay" class="'+(S.panel?'show':'')+'">'+(S.panel?panelHTML():'')+'</div>');
+    st.insertAdjacentHTML('beforeend','<div id="toasts"></div>');
+  }
+  document.getElementById('barTitle').textContent =
+    S.screen==='creator'?'创世':(S.panel?({pack:'抽卡',codex:'卡库',chron:'年表',settings:'设置',keys:'键位',help:'帮助'})[S.panel]:'世界');
+  document.getElementById('barState').textContent=`俯仰 ${S.pitch}° · Z${S.zoom} · ${S.paused?'暂停':S.speed+'×'}`;
+  if(S.screen==='world'){ applyWorld(); bindScene(); }
+  syncSteps();
+}
+
+/* =========================================================================
+   键盘
+   ========================================================================= */
+document.addEventListener('keydown',e=>{
+  if(captureKey(e)){ e.preventDefault(); return; }
+  const k=e.key;
+  if(k==='Escape'){ if(S.event)closeEvent(); else if(S.panel)closePanel(); else if(S.ambient)toggleAmbient(); return; }
+  if(S.screen==='creator'){
+    if(k==='Enter') enterWorld();
+    return;
+  }
+  if(k===' '){ e.preventDefault(); castRandom(); }
+  else if(k==='x'||k==='X') reclaim();
+  else if(k==='r'||k==='R') rerollHand();
+  else if(k==='j'||k==='J') cycleSpeed();
+  else if(k==='p'||k==='P') toggleAmbient();
+  else if(k==='e'||k==='E') fireEvent();
+  else if(k==='Tab'){ e.preventDefault(); document.getElementById('leftrail').style.display =
+      document.getElementById('leftrail').style.display==='none'?'flex':'none'; }
+  else if(k==='z') cycleZoom(1);
+  else if(k==='Z') cycleZoom(-1);
+  else if(k==='F1') setPitch(15); else if(k==='F2') setPitch(30);
+  else if(k==='F3') setPitch(55); else if(k==='F4') setPitch(88);
+  else if(k==='c'||k==='C') openPanel('chron');
+  else if(k==='b'||k==='B') openPanel('pack');
+  else if(k==='l'||k==='L') openPanel('codex');
+  else if(k==='g'||k==='G') openPanel('creator');
+  else if(k==='o'||k==='O') openPanel('settings');
+  else if(k==='h'||k==='H') openPanel('help');
+  else if(/^[1-9]$/.test(k)) selectCard(Math.min(parseInt(k)-1,S.hand.length-1));
+  else if(k==='0') selectCard(Math.min(9,S.hand.length-1));
+});
+
+/* =========================================================================
+   流程栏
+   ========================================================================= */
+const STEPS=[
+  ['S0','创世（缺氧式）',()=>{S.screen='creator';S.panel=null;render();}],
+  ['S1','进入世界（动画）',()=>{S.screen='world';if(!S.hand.length)drawHand();S.panel=null;render();
+    setTimeout(()=>{const sc=document.getElementById('scene');if(sc)sc.classList.add('enter');},30);}],
+  ['S2','左栏：六个入口',()=>{S.screen='world';S.panel=null;render();toast('左栏','只放页面入口：抽卡 / 卡库 / 年表 / 创世 / 设置 / 帮助；底部是摆件开关');}],
+  ['S3','右栏：三段信息',()=>{S.screen='world';render();toast('右栏','一屏三段：这一界 / 生态 / 刚刚发生——不用切页签');}],
+  ['S4','拖卡到地面 → 指定落点',()=>{S.screen='world';S.sel=0;render();
+    toast('拖放','按住手牌拖到地面上，松手就在那里生效；向上拖=释放，向下拖=回收');}],
+  ['S5','空格 = 随机释放',()=>{S.screen='world';render();castRandom();}],
+  ['S6','抽卡（唯一获取途径）',()=>{S.screen='world';openPanel('pack');}],
+  ['S7','卡库（只显示已有）',()=>{openPanel('codex');}],
+  ['S8','R 重抽（从已有牌）',()=>{S.panel=null;S.screen='world';rerollHand();}],
+  ['S9','设置 / 键位重绑',()=>{openPanel('keys');}],
+  ['S10','视角 F1–F4',()=>{S.screen='world';setPitch(30);toast('视角','15 侧视 / 30 默认 / 55 俯瞰 / 88 图纸');}],
+  ['S11','缩放 Z0–Z4',()=>{S.screen='world';cycleZoom(1);}],
+  ['S12','摆件模式',()=>{S.screen='world';S.ambient=true;render();}]
+];
+STEPS.forEach(([id,name,fn])=>{
+  const li=document.createElement('li');
+  li.innerHTML=`<b>${id}</b><span>${name}</span>`;
+  li.onclick=fn;
+  document.getElementById('steps').appendChild(li);
+});
+function syncSteps(){
+  const cur = S.screen==='creator'?0:
+    S.panel==='pack'?6:S.panel==='codex'?7:S.panel==='keys'?9:S.panel?9:
+    S.ambient?12: S.lastAction?5:1;
+  [...document.getElementById('steps').children].forEach((li,i)=>li.classList.toggle('on',i===cur));
+}
+
+function reset(){
+  Object.assign(S,{screen:'creator',owned:ZERO.map(c=>c.slice()),hand:[],sel:0,echo:128,
+    pitch:30,zoom:2,speed:4,paused:false,panel:null,echoLog:[],chron:[],ambient:false,
+    lastAction:'',packCards:[]});
+  rollWorld();
+  document.getElementById('log').innerHTML=''; render();
+}
+
+function fit(){
+  const wrap=document.getElementById('wrap');
+  const s=Math.min((wrap.clientWidth-16)/1920,(wrap.clientHeight-16)/1080);
+  document.getElementById('stage').style.transform=`translate(-50%,-50%) scale(${s})`;
+}
+window.onresize=fit;
+rollWorld(); drawHand(); render(); fit();
+</script>
+</body>
+</html>

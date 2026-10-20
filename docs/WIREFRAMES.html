@@ -1,0 +1,1015 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Solstice · 线框原型 v2</title>
+<style>
+  :root{
+    --bg:#0e1014; --panel:#151a21; --line:#2b3441; --line2:#3d4a5c;
+    --ink:#c8d2de; --ink2:#7e8a9a; --ink3:#4e5764;
+    --accent:#e0a33e; --accent2:#3f7fa8; --warn:#b4553f; --ok:#5f8f6a;
+    --mono:ui-monospace,"Cascadia Mono","Consolas",monospace;
+    --sans:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);display:flex;overflow:hidden}
+
+  #nav{width:286px;flex:0 0 286px;background:#0b0d11;border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+  #nav h1{font-size:13px;margin:14px 14px 2px;letter-spacing:.14em;color:var(--accent);font-weight:600}
+  #nav .sub{font-family:var(--mono);font-size:10px;color:var(--ink3);margin:0 14px 8px;line-height:1.6}
+  #nav .sub b{color:var(--ok)}
+  #boards{list-style:none;margin:0;padding:0 8px;overflow:auto;flex:1}
+  #boards li{font-family:var(--mono);font-size:11px;color:var(--ink2);padding:5px 8px;border-radius:3px;cursor:pointer;display:flex;gap:7px;align-items:baseline;border:1px solid transparent}
+  #boards li:hover{background:#12161c;color:var(--ink)}
+  #boards li.on{background:#1b2531;color:#fff;border-color:var(--line2)}
+  #boards li b{color:var(--ink3);font-weight:400;min-width:24px}
+  #boards li.on b{color:var(--accent)}
+  #toggles{border-top:1px solid var(--line);padding:10px 14px;display:grid;gap:6px;font-family:var(--mono);font-size:10.5px;color:var(--ink2)}
+  #toggles label{display:flex;gap:7px;align-items:center;cursor:pointer}
+  #toggles input{accent-color:var(--accent);width:12px;height:12px}
+
+  main{flex:1;display:flex;flex-direction:column;min-width:0}
+  #topbar{height:38px;flex:0 0 38px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 16px;font-family:var(--mono);font-size:11px;color:var(--ink2)}
+  #topbar .t{color:var(--ink);font-size:12px}
+  #topbar .r{margin-left:auto;display:flex;gap:14px}
+  #stageWrap{flex:1;position:relative;overflow:hidden;background:repeating-linear-gradient(45deg,#0b0d11 0 10px,#0c0f14 10px 20px)}
+  #stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:center center;background:#10141a;outline:1px solid var(--line2)}
+  #notes{flex:0 0 auto;max-height:34%;overflow:auto;border-top:1px solid var(--line);background:#0b0d11;padding:12px 18px;font-size:12px;line-height:1.65}
+  #notes h2{font-size:12px;margin:0 0 6px;color:var(--accent);letter-spacing:.08em}
+  #notes .ref{font-family:var(--mono);font-size:10.5px;color:var(--ink3);margin-bottom:8px}
+  #notes ol{margin:0;padding-left:20px}
+  #notes ol li{margin:3px 0}
+  #notes .why{color:var(--ink2);font-size:11.5px;margin-top:8px}
+  #notes .why code{color:var(--accent);font-family:var(--mono);font-size:11px}
+
+  .abs{position:absolute}
+  .w{background:#12171e;border:1px dashed var(--line2)}
+  .w.solid{border-style:solid}
+  .w.fill{background:#171d26}
+  .lbl{font-family:var(--mono);font-size:11px;color:var(--ink2)}
+  .lbl.xs{font-size:9.5px;color:var(--ink3)}
+  .lbl.a{color:var(--accent)} .lbl.b{color:var(--accent2)} .lbl.w{color:var(--warn)} .lbl.ok{color:var(--ok)}
+  .h{font-size:12px;color:var(--ink);font-weight:600;letter-spacing:.06em}
+  .center{display:flex;align-items:center;justify-content:center;text-align:center}
+  .col{display:flex;flex-direction:column} .row{display:flex}
+  .gap4{gap:4px}.gap6{gap:6px}.gap8{gap:8px}.gap10{gap:10px}.gap12{gap:12px}
+  .btn{border:1px solid var(--line2);border-radius:3px;font-family:var(--mono);font-size:10.5px;color:var(--ink);display:flex;align-items:center;justify-content:center;gap:5px;background:#131922}
+  .btn.on{border-color:var(--accent);color:var(--accent)}
+  .btn.ghost{background:transparent;border-color:#2a323d;color:var(--ink2)}
+  .key{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:14px;padding:0 3px;border:1px solid var(--line2);border-radius:2px;font-family:var(--mono);font-size:9px;color:var(--ink2);background:#0f141b}
+  .tag{border:1px solid var(--line2);border-radius:2px;padding:0 5px;font-family:var(--mono);font-size:9px;color:var(--ink2);display:inline-flex;align-items:center;height:15px}
+  .tag.a{border-color:var(--accent);color:var(--accent)}
+  .tag.b{border-color:var(--accent2);color:var(--accent2)}
+  .tag.w{border-color:var(--warn);color:var(--warn)}
+  .tag.ok{border-color:var(--ok);color:var(--ok)}
+  .dot{border:1px dashed var(--accent);border-radius:50%}
+  .dot .in{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:var(--accent)}
+  .bar{height:5px;background:#1d2530;border:1px solid var(--line);position:relative;overflow:hidden}
+  .bar > i{position:absolute;left:0;top:0;bottom:0;background:var(--accent2);opacity:.75}
+  .bar.warn > i{background:var(--warn)}
+  .chip{height:22px;padding:0 8px;border:1px solid var(--line2);border-radius:11px;font-family:var(--mono);font-size:10px;color:var(--ink2);display:inline-flex;align-items:center;gap:5px}
+
+  /* ---- 卡：游戏王比例 59:86 ≈ 1:1.457 → 140×204 ---- */
+  .card{width:140px;height:204px;border:1px solid var(--line2);background:#161c25;position:relative;display:flex;flex-direction:column;overflow:hidden;border-radius:3px}
+  .card .ribbon{height:18px;border-bottom:1px solid var(--line2);display:flex;align-items:center;justify-content:space-between;padding:0 5px;font-family:var(--mono);font-size:8.5px;color:var(--ink2)}
+  .card .face{flex:1;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9.5px;color:var(--ink3);border-bottom:1px dashed var(--line);padding:4px;text-align:center;line-height:1.35}
+  .card .name{height:26px;display:flex;align-items:center;padding:0 6px;font-size:11.5px;color:var(--ink);border-bottom:1px dashed var(--line)}
+  .card .meta{height:22px;display:flex;align-items:center;justify-content:space-between;padding:0 6px;font-family:var(--mono);font-size:9px;color:var(--ink3)}
+  .card.sel{outline:2px solid var(--accent);outline-offset:-1px;box-shadow:0 0 0 1px #000 inset}
+  .card.dim{opacity:.3}
+  .card.sm{width:96px;height:140px}
+  .card.sm .name{height:22px;font-size:10.5px}
+  .card.sm .meta{height:18px;font-size:8px}
+  .card.mini{width:56px;height:82px;border-radius:2px}
+  .card.mini .ribbon{height:12px;font-size:7px;padding:0 3px}
+  .card.mini .name{height:14px;font-size:8px;padding:0 3px}
+  .card.mini .meta{display:none}
+  .card.mini .face{font-size:7.5px}
+
+  /* 抽屉把手 */
+  .handle{position:absolute;width:26px;height:132px;border:1px solid var(--line2);background:#141a22;
+          display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;
+          color:var(--ink2);writing-mode:vertical-rl;letter-spacing:.22em;border-radius:3px}
+  .drawer{position:absolute;border:1px solid var(--line2);background:rgba(18,23,30,.94);backdrop-filter:blur(2px)}
+
+  #stage.anno .annoBox{outline:1px solid rgba(224,163,62,.35);outline-offset:2px}
+  #stage:not(.anno) .anno{display:none}
+  #gridBox,#safeBox{position:absolute;inset:0;pointer-events:none;display:none}
+  #stage.grid #gridBox{display:block;background-image:linear-gradient(to right,rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,.045) 1px,transparent 1px);background-size:8px 8px}
+  #stage.safe #safeBox{display:block;outline:2px solid rgba(63,127,168,.5);outline-offset:-48px}
+</style>
+</head>
+<body>
+
+<aside id="nav">
+  <h1>SOLSTICE · 线框原型</h1>
+  <p class="sub">v2 · 2026-10-20 · 1920×1080<br>
+  <b style="color:#b4553f">B0–B3 已作废</b>：抽屉改为「左 56 功能栏 + 右 320 信息栏」<br>
+  现行交互以 <b style="color:#e0a33e">PROTOTYPE.html</b> 为准（可点、可拖卡）<br>
+  本文件其余板仍是版式参考：卡 140×204 / 30° 侧视 / 设置分组 / 可改键</p>
+  <ul id="boards"></ul>
+  <div id="toggles">
+    <label><input type="checkbox" id="tAnno" checked>显示标注</label>
+    <label><input type="checkbox" id="tGrid">8 pt 网格</label>
+    <label><input type="checkbox" id="tSafe">安全区</label>
+    <label><input type="checkbox" id="tNotes" checked>问题清单</label>
+  </div>
+</aside>
+
+<main>
+  <div id="topbar">
+    <span class="t" id="tbTitle">—</span>
+    <span id="tbDesc"></span>
+    <span class="r"><span id="tbIdx"></span><span>←/→ 切板</span></span>
+  </div>
+  <div id="stageWrap"><div id="stage"><div id="gridBox"></div><div id="safeBox"></div></div></div>
+  <div id="notes"><h2>这一板想请你定的事</h2><div class="ref" id="ntRef"></div><ol id="ntList"></ol><div class="why" id="ntWhy"></div></div>
+</main>
+
+<script>
+/* ================= 复用元件 ================= */
+const CARD=(el,tier,kind,name,o={})=>{
+  const cls=['card',o.sel?'sel':'',o.dim?'dim':'',o.size||''].join(' ');
+  return `<div class="${cls}" style="${o.style||''}">
+    <div class="ribbon"><span>${el}</span><span>${tier}${kind?' · '+kind:''}</span></div>
+    <div class="face">${o.face||'glyph'}</div>
+    <div class="name">${name}</div>
+    <div class="meta"><span>${o.left||''}</span><span>${o.right||''}</span></div>
+  </div>`;
+};
+const HAND=(list,sel)=>`<div class="abs row gap8" style="left:24px;top:822px">
+  ${list.map((c,i)=>CARD(c[0],c[1],c[2],c[3],{
+    sel:i===sel, style:i===sel?'transform:translateY(-18px)':'',
+    left:`<span class="key">${i===9?0:i+1}</span>`, right:c[4]||''
+  })).join('')}</div>`;
+
+const HANDBAR=()=>`
+  <div class="abs w fill" style="left:0;top:806px;width:1920px;height:274px;border-left:0;border-right:0;border-bottom:0"></div>
+  <div class="abs lbl xs anno" style="left:24px;top:812px">手牌 10 × 140×204（1:1.457，游戏王比例）· 选中上浮 18 px</div>
+
+  <!-- 右下动作条：只剩三个，图标＋键 -->
+  <div class="abs col gap6" style="left:1660px;top:826px;width:236px">
+    <div class="row gap6">
+      <div class="btn on" style="width:114px;height:34px"><span class="key">空格</span>释放</div>
+      <div class="btn" style="width:114px;height:34px"><span class="key">X</span>回收</div>
+    </div>
+    <div class="row gap6">
+      <div class="btn" style="width:114px;height:34px"><span class="key">R</span>换手</div>
+      <div class="btn" style="width:114px;height:34px"><span class="key">J</span>4×</div>
+    </div>
+    <div class="lbl xs anno">动作条只留"手上这张卡现在能做什么"，其余全进抽屉</div>
+  </div>`;
+
+const TOPBAR=()=>`
+  <div class="abs w fill" style="left:0;top:0;width:1920px;height:56px;border-left:0;border-right:0;border-top:0"></div>
+  <!-- 左：时钟（唯一常驻的大字） -->
+  <div class="abs row gap10" style="left:24px;top:8px;height:40px;align-items:center">
+    <div style="font-family:var(--mono);font-size:22px;color:#fff;line-height:1">14:20</div>
+    <div class="col" style="line-height:1.3">
+      <div class="lbl" style="font-size:10.5px">秋 · 第 312 天</div>
+      <div class="lbl xs">多云 17°C</div>
+    </div>
+    <div class="chip">4×</div>
+  </div>
+  <!-- 中：扰动（无文字，只有刻度与颜色） -->
+  <div class="abs" style="left:330px;top:20px;width:180px">
+    <div class="bar warn"><i style="width:42%"></i></div>
+    <div class="lbl xs" style="margin-top:3px">扰动 42</div>
+  </div>
+  <!-- 右：只剩图标，文字进悬停 -->
+  <div class="abs row gap6" style="right:24px;top:12px">
+    ${['C','B','L','G','O','H'].map(k=>`<div class="btn ghost" style="width:30px;height:30px"><span class="key">${k}</span></div>`).join('')}
+    <div class="chip" style="margin-left:8px"><span class="lbl a" style="font-size:13px">128</span><span class="lbl xs">余响</span></div>
+  </div>`;
+
+const WORLD=(tag='世界 · 侧视 30° · Z2')=>`
+  <div class="abs" style="left:0;top:56px;width:1920px;height:750px;border:0;
+       background:linear-gradient(#22303c 0%,#1a2530 38%,#141b23 62%,#0e1318 100%)">
+    <div class="lbl xs anno" style="position:absolute;left:16px;bottom:10px">${tag}</div>
+  </div>
+  <!-- 地平线 + 岛体（侧视轮廓） -->
+  <div class="abs" style="left:0;top:392px;width:1920px;height:1px;background:rgba(200,220,235,.16)"></div>
+  <div class="abs" style="left:470px;top:330px;width:980px;height:230px;border:1px dashed rgba(126,138,154,.4);
+       border-radius:50% 50% 42% 42%/62% 58% 38% 42%"></div>
+  <div class="abs" style="left:700px;top:352px;width:520px;height:120px;border:1px dashed rgba(126,138,154,.28);border-radius:50%"></div>
+  <div class="abs" style="left:840px;top:300px;width:250px;height:120px;border:1px dashed rgba(224,163,62,.4);transform:skewY(-12deg)"></div>
+  <div class="abs lbl xs anno" style="left:846px;top:282px;color:var(--accent)">山体侧面（能看到"坡"，不是俯视的圈）</div>
+  <div class="abs lbl xs anno" style="left:24px;top:374px">地平线 · 天空占 1/3</div>`;
+
+const BOARDS = [
+{
+  id:'B0', title:'B0 ·（作废）排版基准 v2',
+  desc:'默认态没有任何常驻侧板：顶栏 56 + 世界 + 底部手牌 250。左右各一个竖向把手，点开是悬浮抽屉。',
+  ref:'TECH §6.1（HUD 缩放）· ART §7（角度与缩放）· 本次改动 1/3',
+  q:[
+    '把手放**左右两侧中部**（如图）还是**顶栏两个按钮**？',
+    '抽屉展开时要不要**压暗世界**（焦点）还是保持世界可用？',
+    '底部手牌区 250 px（卡 204 + 标签）是否接受世界区让出这么多？'
+  ],
+  why:'v1 把左右侧板常驻，直接吃掉 620 px 宽。v2 改成抽屉后，世界区从 1300 恢复到 1920 全宽——这是"看得见世界"的前提。',
+  html:`
+    <div class="abs w fill" style="left:0;top:0;width:1920px;height:56px"></div>
+    <div class="abs w" style="left:0;top:56px;width:1920px;height:750px;border-left:0;border-right:0"></div>
+    <div class="abs w fill" style="left:0;top:806px;width:1920px;height:274px;border-left:0;border-right:0;border-bottom:0"></div>
+    <div class="handle" style="left:8px;top:360px">界 · 生态</div>
+    <div class="handle" style="left:1886px;top:360px">响 · 年表</div>
+    <div class="abs lbl a" style="left:14px;top:16px">顶栏 56 · 时钟 / 扰动 / 六个图标 / 余响</div>
+    <div class="abs lbl b" style="left:820px;top:400px">世界区 1920×750（全宽）</div>
+    <div class="abs lbl a" style="left:14px;top:822px">手牌区 250 · 10 × 140×204</div>
+    <div class="abs" style="left:24px;top:846px;width:140px;height:204px;border:1px dashed var(--line2)"></div>
+    <div class="abs lbl xs" style="left:24px;top:1058px">卡比例 1:1.457（游戏王 59:86）</div>
+    <div class="abs" style="left:1660px;top:826px;width:236px;height:96px;border:1px dashed var(--line2)"></div>
+    <div class="abs lbl xs" style="left:1660px;top:930px">动作条：释放 / 回收 / 换手 / 倍速</div>
+    <div class="abs lbl xs anno" style="left:1666px;top:960px">其余键位与读数一律进抽屉或帮助</div>
+  `
+},
+{
+  id:'B1', title:'B1 ·（作废·抽屉）主 HUD',
+  desc:'只留五类常驻信息：时钟、余响、扰动、手牌、落点。所有读数与流水收进抽屉。',
+  ref:'本次改动 1（抽屉）/ 3（文字减法）· OPS §5 · CARDS §8',
+  q:[
+    '常驻只剩这五类，够不够？（读数全进抽屉＝画面干净，但要动手点）',
+    '顶栏图标无文字（`C B L G O H`）够不够认得？',
+    '"余响 128" 放右上角还是和手牌放一起？'
+  ],
+  why:'原来的左板有 7 条读数条 + 世界摘要，右板有 5 条流水——这些是"看世界时不需要一直盯"的内容，属于抽屉。',
+  html:`
+    ${WORLD()}
+    ${TOPBAR()}
+    ${HANDBAR()}
+    ${HAND([['土','2','物','土丘'],['水','3','术','降雨','−10'],['木','1','物','苔毯'],['火','0','术','火星'],
+            ['土','5','物','土山'],['水','0','术','润湿'],['光','2','术','光斑'],['木','3','术','疯长'],
+            ['暗','1','术','蚀'],['土','0','术','扬尘']],1)}
+    <div class="abs dot" style="left:940px;top:470px;width:56px;height:56px"><div class="in"></div></div>
+    <div class="abs anno" style="left:820px;top:390px;width:290px;height:290px;border:1px dashed rgba(224,163,62,.5);border-radius:50%"></div>
+    <div class="abs lbl xs anno" style="left:820px;top:372px;color:var(--accent)">作用圈（5 环 = 0.07 W）</div>
+    <div class="handle" style="left:8px;top:340px">界 · 生态</div>
+    <div class="handle" style="left:1886px;top:340px">响 · 年表</div>
+  `
+},
+{
+  id:'B2', title:'B2 ·（作废·抽屉）左板',
+  desc:'点左侧把手 → 480 宽悬浮面板从左边滑出，覆盖世界左上，世界仍可见可操作。',
+  ref:'本次改动 1 · WORLD §9（生态域）/ §4.1（界名）',
+  q:[
+    '抽屉宽 480 够吗？（要放 7 条读数 + 界名 + 形制摘要）',
+    '抽屉里要不要**图表**（温度曲线 / 种群曲线），还是只给数值？',
+    '同一时刻能否两个抽屉都开？（建议：不能，互相替换）'
+  ],
+  why:'抽屉是可随时开合的"仪表盘"，不是常驻面板；它遮住的是世界左上一角，不是整块画面。',
+  html:`
+    ${WORLD('世界 · 抽屉覆盖左上（世界仍可点）')}
+    ${TOPBAR()}
+    <div class="drawer" style="left:0;top:56px;width:480px;height:750px">
+      <div class="row" style="justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)">
+        <span class="h">这一界</span><span class="btn ghost" style="width:24px;height:24px"><span class="key">Esc</span></span>
+      </div>
+      <div class="col gap10" style="padding:14px">
+        <div>
+          <div class="lbl xs">界名</div>
+          <div style="font-size:20px;color:#fff">白环礁</div>
+          <div class="lbl xs">环礁界 · 热带雨林 · 外海 · SOL-7K3M-9QX2</div>
+        </div>
+        ${[['植被覆盖','68%',68],['生物量','1 046',74],['多样性','7 种',46],['水体','43.6%',44],
+           ['土壤肥力','0.62',62],['温度','17°C',52],['扰动','42',42]]
+          .map(([k,v,w])=>`<div>
+            <div class="row" style="justify-content:space-between"><span class="lbl xs">${k}</span><span class="lbl xs">${v}</span></div>
+            <div class="bar"><i style="width:${w}%"></i></div></div>`).join('')}
+        <div class="w" style="padding:8px;margin-top:4px">
+          <div class="lbl xs">形制</div>
+          <div class="lbl" style="font-size:11px;margin-top:2px">群岛 5–12 · 折枝 · 外海 · 水 43 %</div>
+        </div>
+        <div class="w" style="padding:8px">
+          <div class="lbl xs" style="margin-bottom:4px">12 个生态域（本界 6 个）</div>
+          <div class="row gap4" style="flex-wrap:wrap">
+            ${['水域','湿地','草原','林地','岩坡','雨林','荒漠','雪原','盐碱','洞穴','高山','灌丛']
+              .map((t,i)=>`<span class="tag ${i<6?'b':''}">${t}</span>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="lbl xs anno" style="left:8px;top:340px;color:var(--accent)">把手位置（点开/收起）</div>
+    ${HANDBAR()}
+    ${HAND([['土','2','物','土丘'],['水','3','术','降雨'],['木','1','物','苔毯'],['火','0','术','火星'],['土','5','物','土山'],
+            ['水','0','术','润湿'],['光','2','术','光斑'],['木','3','术','疯长'],['暗','1','术','蚀'],['土','0','术','扬尘']],0)}
+  `
+},
+{
+  id:'B3', title:'B3 ·（作废·抽屉）右板',
+  desc:'两个页签：流水（余响来源）与年表尾（最近 8 条）。选中卡时第三页签"卡详情"自动出现。',
+  ref:'CARDS §8.3（余响三源）· WORLD §13（年表）· 本次改动 1/3',
+  q:[
+    '抽屉里放"最近 8 条年表"够不够，还是要跳完整年表？',
+    '流水要不要显示"这张卡一共赚了多少"（累计）？',
+    '卡详情做抽屉页签，还是做成点卡后的全屏浮层？'
+  ],
+  why:'右抽屉是"因果与账本"：余响从哪来、刚发生了什么、这张卡值多少——三件事共用一栏，避免开三个面板。',
+  html:`
+    ${WORLD('世界 · 抽屉覆盖右上')}
+    ${TOPBAR()}
+    <div class="drawer" style="left:1440px;top:56px;width:480px;height:750px">
+      <div class="row" style="border-bottom:1px solid var(--line)">
+        ${['流水','年表','卡详情'].map((t,i)=>`<div class="btn ${i===0?'on':'ghost'}" style="flex:1;height:38px;border:0;border-right:1px solid var(--line);border-radius:0">${t}</div>`).join('')}
+      </div>
+      <div class="col gap6" style="padding:12px">
+        <div class="row" style="justify-content:space-between;align-items:baseline">
+          <span class="h">余响</span><span style="font-family:var(--mono);font-size:24px;color:var(--accent)">128</span>
+        </div>
+        <div class="lbl xs">上限 20 / 分钟 · 本分钟 6</div>
+        <div class="w" style="height:1px;border-style:solid;margin:4px 0"></div>
+        ${[['14:18','湖 → 沼泽','+18','中'],['14:12','降雨 · 3 环','+6','小'],['14:03','山火熄灭','+11','中'],
+           ['13:55','初见 · 首场雷暴','+30','初见'],['13:41','抬升土丘 · 2 环','+3','小'],['13:38','鱼群洄游','+8','小']]
+          .map(([t,w,v,k])=>`<div class="row" style="justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line)">
+            <div><div class="lbl xs">${t}</div><div style="font-size:12px">${w}</div></div>
+            <div style="text-align:right"><div class="lbl a">${v}</div><div class="lbl xs">${k}</div></div>
+          </div>`).join('')}
+        <div class="lbl xs" style="margin-top:4px">每一笔都能追到一张卡或一个世界事件</div>
+      </div>
+    </div>
+    <div class="lbl xs anno" style="left:1170px;top:300px">世界仍可点选落点；抽屉只占右上</div>
+    ${HANDBAR()}
+    ${HAND([['土','2','物','土丘','−3'],['水','3','术','降雨'],['木','1','物','苔毯'],['火','0','术','火星'],['土','5','物','土山'],
+            ['水','0','术','润湿'],['光','2','术','光斑'],['木','3','术','疯长'],['暗','1','术','蚀'],['土','0','术','扬尘']],1)}
+  `
+},
+{
+  id:'B4', title:'B4 · 卡面与卡详情（140×204）',
+  desc:'卡比例改为游戏王 1:1.457。卡面资源 2048×2986。详情里所有字段都来自 CARDS §2，没有装饰性文字。',
+  ref:'ART §8.1（卡面规格，本次改动）· CARDS §2（字段）/ §4.1（W 分数）/ §7（回收 15%）',
+  q:[
+    '卡面画芯占比：游戏王是"上图 + 下文本框"，我们是否也留一条**效果文本框**？',
+    '卡名在顶还是中上？元素章放左上还是右上？',
+    '资源尺寸 2048×2986（3.5 MB/张 PNG）能不能接受？'
+  ],
+  why:'v1 的 150×142 接近正方形，读不出"这是一张卡"。改成 140×204 后，手牌 10 张刚好 1472 px 宽，仍留出动作条位置。',
+  html:`
+    <div class="abs" style="left:0;top:0;width:1920px;height:1080px;background:#0d1117"></div>
+    <div class="abs lbl a" style="left:24px;top:20px">卡面与详情 · 140×204（1:1.457）</div>
+    <!-- 三种尺寸 -->
+    <div class="abs row gap12" style="left:24px;top:56px">
+      ${CARD('水','3','术','降雨',{face:'画芯 848×1180<br>无文字无边框',left:'−10',right:'3 环'})}
+      ${CARD('水','3','术','降雨',{size:'sm',face:'96×140<br>列表用'})}
+      ${CARD('水','3','术','降雨',{size:'mini',face:'56×82'})}
+    </div>
+    <div class="abs col gap4" style="left:24px;top:280px">
+      <div class="lbl xs">手牌 / 详情大卡 140×204</div>
+      <div class="lbl xs">列表 96×140</div>
+      <div class="lbl xs">图鉴格 56×82</div>
+    </div>
+    <!-- 放大卡 -->
+    <div class="abs" style="left:560px;top:56px;width:280px;height:408px;border:1px solid var(--line2);background:#161c25;display:flex;flex-direction:column">
+      <div style="height:34px;border-bottom:1px solid var(--line2);display:flex;align-items:center;justify-content:space-between;padding:0 10px">
+        <span class="lbl" style="font-size:11px">水</span><span class="lbl xs">3 环 · 术</span>
+      </div>
+      <div style="flex:1;border-bottom:1px dashed var(--line);display:flex;align-items:center;justify-content:center">
+        <span class="lbl xs">画芯（安全区外不放主体）</span>
+      </div>
+      <div style="height:48px;border-bottom:1px dashed var(--line);display:flex;align-items:center;padding:0 10px;font-size:17px">降雨</div>
+      <div style="height:36px;display:flex;align-items:center;justify-content:space-between;padding:0 10px">
+        <span class="lbl xs">value 20</span><span class="lbl a">回收 +3</span>
+      </div>
+    </div>
+    <div class="abs lbl xs anno" style="left:560px;top:470px">放大 2× 的同一张卡（详情 / 开包结算用）</div>
+    <!-- 详情文字 -->
+    <div class="abs col gap8" style="left:880px;top:56px;width:420px">
+      <div class="lbl xs">card.water.3.rite.rain · glyph water-rain</div>
+      <div class="w" style="padding:10px">
+        ${[['效果原语','weather (target=rain)'],['半径','0.030 W（256² ≈ 7.7 m）'],
+           ['持续','10 分钟'],['形状','area · direction create'],['落地','生效即散 / 成实体'],
+           ['价值 / 回收','20 / +3'],['获取','主包 · 水元素包 · 预组（水系）']]
+          .map(([k,v])=>`<div class="row" style="justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--line)">
+            <span class="lbl xs">${k}</span><span class="lbl">${v}</span></div>`).join('')}
+      </div>
+      <div class="w" style="padding:10px">
+        <div class="lbl xs" style="margin-bottom:4px">卡面版式（2048×2986）</div>
+        <div class="row" style="justify-content:space-between"><span class="lbl xs">顶区 元素章 Ø120 + 卡名 + 环级</span><span class="lbl xs">高 300</span></div>
+        <div class="row" style="justify-content:space-between"><span class="lbl xs">画芯</span><span class="lbl xs">1696×1900</span></div>
+        <div class="row" style="justify-content:space-between"><span class="lbl xs">效果文本框（≤40 字 / ≤90 字符）</span><span class="lbl xs">高 560</span></div>
+        <div class="row" style="justify-content:space-between"><span class="lbl xs">底缘卡类色带 12 px</span><span class="lbl xs">—</span></div>
+      </div>
+      <div class="lbl xs">参考换算：游戏王实卡 59×86 mm → 1:1.457；我们的 2048×2986 = 同一比例</div>
+    </div>
+    <!-- 对比：为什么不是方块 -->
+    <div class="abs w" style="left:24px;top:520px;width:820px;height:170px;padding:12px">
+      <div class="lbl xs" style="margin-bottom:8px">v1 的比例问题</div>
+      <div class="row gap10" style="align-items:flex-end">
+        <div class="abs0" style="width:120px;height:114px;border:1px dashed var(--warn);display:flex;align-items:center;justify-content:center">
+          <span class="lbl xs">v1 150×142<br>1.06:1（几乎正方）</span></div>
+        <div style="width:120px;height:175px;border:1px dashed var(--ok);display:flex;align-items:center;justify-content:center">
+          <span class="lbl xs">v2 140×204<br>1:1.457</span></div>
+        <div class="lbl xs" style="max-width:420px">方块读作"图标/按钮"，竖长读作"卡"。同一屏 10 张时，竖卡还能露出画芯上下边界，方块只能露出一个色块。</div>
+      </div>
+    </div>
+  `
+},
+{
+  id:'B5', title:'B5 · 释放预览（3 / 7 / 9 环）',
+  desc:'同一机位换三张卡：作用圈 0.020 / 0.100 / 0.620 W。侧视下作用圈是**地面上的椭圆**，不是正圆。',
+  ref:'CARDS §4.1（radius_w）· WORLD §1.2（视野宽）· ART §7（30° 侧视导致压扁）',
+  q:['椭圆压扁程度（30° 俯角 → 纵向约 0.5）够不够读？','预览圈要不要同时显示"预计变化的读数"？','9 环覆盖大半个界，要不要二次确认？'],
+  why:'v1 用正圆示意，在侧视下是错的：地面上的圆在 30° 俯角下应该压成椭圆。这一版按 <code>sin30° = 0.5</code> 压扁。',
+  html:`
+    ${WORLD('世界 · 侧视 30°')}
+    ${TOPBAR()}
+    <div class="abs" style="left:0;top:56px;width:640px;height:750px;border-right:1px dashed var(--line)"></div>
+    <div class="abs" style="left:640px;top:56px;width:640px;height:750px;border-right:1px dashed var(--line)"></div>
+    <div class="abs dot" style="left:290px;top:420px;width:52px;height:52px"><div class="in"></div></div>
+    <div class="abs" style="left:222px;top:376px;width:190px;height:96px;border:1px dashed rgba(224,163,62,.65);border-radius:50%"></div>
+    <div class="abs dot" style="left:930px;top:400px;width:52px;height:52px"><div class="in"></div></div>
+    <div class="abs" style="left:648px;top:300px;width:600px;height:300px;border:1px dashed rgba(224,163,62,.65);border-radius:50%"></div>
+    <div class="abs dot" style="left:1244px;top:400px;width:52px;height:52px"><div class="in"></div></div>
+    <div class="abs" style="left:660px;top:86px;width:1210px;height:606px;border:1px dashed rgba(224,163,62,.5);border-radius:50%"></div>
+    <div class="abs lbl a" style="left:222px;top:356px">3 环 · 0.020 W</div>
+    <div class="abs lbl a" style="left:648px;top:280px">7 环 · 0.100 W</div>
+    <div class="abs lbl a" style="left:1284px;top:70px">9 环 · 0.620 W</div>
+    <div class="abs" style="left:1300px;top:120px;width:280px;padding:10px;border:1px dashed var(--line2);background:#12171e">
+      <div class="lbl xs">同一张卡三档</div>
+      <div class="row" style="justify-content:space-between"><span class="lbl xs">3 环</span><span class="lbl">0.020 W</span></div>
+      <div class="row" style="justify-content:space-between"><span class="lbl xs">7 环</span><span class="lbl">0.100 W</span></div>
+      <div class="row" style="justify-content:space-between"><span class="lbl xs">9 环</span><span class="lbl">0.620 W</span></div>
+      <div class="lbl xs" style="margin-top:6px">地面圆在 30° 下压扁为 0.50</div>
+    </div>
+    <div class="abs anno" style="left:1280px;top:300px;width:300px;height:200px;border:1px dashed var(--line2)">
+      <div class="lbl xs" style="padding:8px">落点环：3–4 m 淡色 · 只在手上有牌时出现</div>
+    </div>
+  `
+},
+{
+  id:'B6', title:'B6 · 回收态',
+  desc:'按 X 或下拖：卡面转灰、显示 +N、卡槽留空待补。零环与超环直接印"×"。',
+  ref:'CARDS §7（15% / 0 环·超环·禁物不可回收）· §8.2',
+  q:['回收要不要二次确认？','"+"数字写在卡上还是飘向余响计数器？','不可回收的卡是否干脆不响应下拖？'],
+  why:'统一 15% 后，回收是止损：必须一眼看出"这张卡拆了不值钱"，否则玩家会以为能套利。',
+  html:`
+    ${WORLD('世界 · 回收不改变世界')}
+    ${TOPBAR()}
+    ${HANDBAR()}
+    <div class="abs row gap8" style="left:24px;top:822px">
+      ${[['土','2','物','土丘',''],['水','3','术','降雨','rec'],['木','1','物','苔毯',''],['火','0','术','火星','no'],
+         ['土','5','物','土山',''],['水','0','术','润湿','no'],['光','2','术','光斑',''],['木','3','术','疯长',''],
+         ['暗','1','术','蚀',''],['土','0','术','扬尘','no']]
+        .map(([el,tier,kind,name,st])=>CARD(el,tier,kind,name,{
+          dim:!!st, face: st==='rec'?'↘ 已回收':st==='no'?'× 不可回收':'glyph',
+          left:`<span class="key">×</span>`, right: st==='rec'?'+3':st==='no'?'—':''
+        })).join('')}
+    </div>
+    <div class="abs" style="left:1560px;top:200px;width:330px;padding:12px;border:1px dashed var(--accent);background:#1a1509">
+      <div class="lbl xs">即将回收</div>
+      <div class="lbl" style="margin-top:4px">水 · 3 环 → <span style="color:var(--accent)">+3</span></div>
+      <div class="lbl xs" style="margin-top:4px">价值 20 × 15 % = 3</div>
+      <div class="lbl xs" style="margin-top:8px">0 环 / 超环 / 禁物：不可回收</div>
+    </div>
+    <div class="lbl xs anno" style="left:24px;top:1050px">下拖 = 收回 · 上拖 = 用出（同一轴，不靠按钮区分）</div>
+  `
+},
+{
+  id:'B7', title:'B7 · 开包四帧（新比例）',
+  desc:'包内卡背按 140×204 排布；翻面时长按环级 0.25 / 0.5 / 1.0 / 1.4 / 2.2 s。',
+  ref:'CARDS §10 · ART §8.4 · 本次改动 2（比例）',
+  q:['5 秒完整播放会不会太长？','要不要"跳过"？','超环 2.2 s 停顿够不够"值得"？'],
+  why:'卡背竖起来之后，扇形也变高，5 张 140×204 的扇形约占 720×300，比 v1 的方块更有"一整包卡"的感觉。',
+  html:`
+    <div class="abs" style="left:0;top:0;width:1920px;height:1080px;background:#0a0d12"></div>
+    ${[0,1,2,3].map(i=>`<div class="abs w" style="left:${(i%2)*960}px;top:${Math.floor(i/2)*540}px;width:960px;height:540px">
+      <div class="lbl a" style="position:absolute;left:16px;top:12px">帧 ${i+1} · ${['0.0–0.7 s 封印崩解','0.7–1.3 s 悬浮','1.3–4.5 s 逐张翻','4.5–6.0 s 结算'][i]}</div></div>`).join('')}
+    <div class="abs" style="left:360px;top:190px;width:200px;height:290px;border:1px dashed var(--accent);background:#1a1509"></div>
+    <div class="abs lbl xs" style="left:360px;top:490px">星尘崩解 · 光从裂缝透出（不是撕纸）</div>
+    <div class="abs row" style="left:1080px;top:150px">
+      ${[0,1,2,3,4].map(i=>`<div style="width:140px;height:204px;border:1px solid var(--line2);background:#161c25;margin-left:-46px;transform:rotate(${(i-2)*6}deg) translateY(${Math.abs(i-2)*10}px)"></div>`).join('')}
+    </div>
+    <div class="abs lbl xs" style="left:1080px;top:400px">5 张卡背（140×204）扇形浮起</div>
+    <div class="abs row gap10" style="left:170px;top:700px">
+      ${[['0–3','平翻 0.25 s'],['4–6','描金 0.5 s'],['7–8','浮雕 1.0 s'],['9','扫光 1.4 s'],['超环','星轨 2.2 s']]
+        .map(([t,a])=>CARD('—',t,'','翻面',{size:'sm',face:a})).join('')}
+    </div>
+    <div class="abs col gap8" style="left:1150px;top:660px;width:660px">
+      <div class="h">结算</div>
+      <div class="w" style="padding:10px">
+        <div class="row" style="justify-content:space-between"><span class="lbl">卡飞入图鉴 · 进度 +1</span><span class="tag a">新</span></div>
+        <div class="row" style="justify-content:space-between;margin-top:6px"><span class="lbl">重复卡</span><span class="tag">回声 +1</span></div>
+        <div class="row" style="justify-content:space-between;margin-top:6px"><span class="lbl">包内最高</span><span class="tag b">7 环 · 置末位</span></div>
+      </div>
+      <div class="btn" style="width:110px;height:32px">跳过 ▸</div>
+    </div>
+  `
+},
+{
+  id:'B8', title:'B8 · 卡库 231 格',
+  desc:'左列元素图标（无文字）+ 主区 11 行 × 3 列，格子是 56×82 的迷你卡；右下详情按 140×204。',
+  ref:'CARDS §1 / §11 / §12 · ART §8.4 · 本次改动 2（格也用卡比例）',
+  q:['图鉴格用 56×82 的迷你卡，还是纯色块 + 纹？','未获得的格子显示剪影还是直接隐藏效果？','套装达成放卡库内还是单独页？'],
+  why:'v1 的格子是横条，读不出"卡"。改成 56×82 后，一屏仍能放下 11 行（902 px），只是每格变成竖的。',
+  html:`
+    <div class="abs" style="left:0;top:0;width:1920px;height:1080px;background:#0d1117"></div>
+    <div class="abs w solid fill" style="left:0;top:0;width:120px;height:1080px;border-left:0;border-top:0;border-bottom:0"></div>
+    <div class="abs col gap8" style="left:24px;top:24px">
+      ${['金','木','水','火','土','光','暗','禁'].map((t,i)=>`<div class="btn ${i===2?'on':'ghost'}" style="width:72px;height:40px;flex-direction:column;gap:2px">
+        <span style="font-size:13px">${t}</span><span class="lbl xs">${[12,18,27,9,21,4,2,1][i]}/33</span></div>`).join('')}
+    </div>
+    <div class="abs lbl a" style="left:152px;top:20px">水 · 27 / 33 · 231 卡种</div>
+    <div class="abs row gap6" style="left:152px;top:52px">
+      ${['物 MATTER','术 RITE','律 LAW'].map((t,i)=>`<div class="btn ${i===0?'on':'ghost'}" style="height:28px;padding:0 16px">${t}</div>`).join('')}
+      <div class="btn ghost" style="height:28px;padding:0 16px;margin-left:12px">只看已获得</div>
+      <div class="lbl xs" style="align-self:center;margin-left:12px">虚线格 = 未获得（剪影 + 元素纹）</div>
+    </div>
+    <div class="abs col gap4" style="left:152px;top:96px">
+      ${Array.from({length:11},(_,r)=>{
+        const tier = r===10?'超':r, own=[1,1,1,0,0,1,0,0,0,0,0][r];
+        return `<div class="row gap6">
+          <div class="w center" style="width:34px;height:82px;font-family:var(--mono);font-size:12px;color:var(--ink2)">${tier}</div>
+          ${[0,1,2].map(c=>CARD('水',tier,['物','术','律'][c], own?['池塘','降雨','潮痕'][c]:'',{
+            size:'mini', dim:!own, face: own?'glyph':'剪影',
+            style: own?'':'border-style:dotted'
+          })).join('')}
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="abs w solid fill" style="left:700px;top:20px;width:1200px;height:1040px"></div>
+    <div class="abs row gap16" style="left:732px;top:52px">
+      ${CARD('水','3','物','池塘',{face:'画芯',left:'value 20',right:'回收 +3',style:'transform:scale(1.35);transform-origin:top left'})}
+      <div class="col gap8" style="margin-left:60px;width:880px">
+        <div class="row" style="justify-content:space-between"><span class="h" style="font-size:15px">池塘</span><span class="tag a">水 · 3 环 · 物</span></div>
+        <div class="lbl xs">card.water.3.matter.pond</div>
+        <div class="w" style="padding:10px">
+          ${[['效果原语','water (level, radius)'],['半径','0.020 W'],['duration','permanent'],['direction','create'],
+             ['持有','2 / 3（第 4 张自动折算 15 %）'],['获取','水元素包 · 主包 · 预组（水系）']]
+            .map(([k,v])=>`<div class="row" style="justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--line)">
+              <span class="lbl xs">${k}</span><span class="lbl">${v}</span></div>`).join('')}
+        </div>
+        <div class="lbl xs">同类：水洼 1 环 · 小溪 2 环 · 湖泊 4 环 · 河流 5 环</div>
+        <div class="w" style="padding:10px">
+          <div class="lbl xs" style="margin-bottom:6px">套装 · 集齐水 33 张 → 解锁该元素传说卡池</div>
+          <div class="bar"><i style="width:82%"></i></div>
+          <div class="lbl xs" style="margin-top:4px">27 / 33</div>
+        </div>
+      </div>
+    </div>
+  `
+},
+{
+  id:'B9', title:'B9 · 年表',
+  desc:'左列条目（时刻 + 类型点 + 一句话），右侧详情只在你点开时出现。默认没有右侧面板。',
+  ref:'WORLD §13 · CARDS §8.3 · 本次改动 3（文字减法）',
+  q:['条目要不要显示余响数字？（显示＝变账本；不显示＝纯记忆）','分组：按时间 / 按类型？','500 条上限是否够？'],
+  why:'年表是"记忆"，不是"账单"。余响数字放右侧详情，条目行只留"什么时候、发生了什么"。',
+  html:`
+    <div class="abs" style="left:0;top:0;width:1920px;height:1080px;background:#0d1117"></div>
+    <div class="abs lbl a" style="left:24px;top:20px">年表 · 第 312 天 14:20</div>
+    <div class="abs row gap6" style="left:24px;top:52px">
+      ${['全部','气候','生态','干涉','文明','灾变'].map((t,i)=>`<div class="btn ${i===0?'on':'ghost'}" style="height:26px;padding:0 12px">${t}</div>`).join('')}
+    </div>
+    <div class="abs col" style="left:24px;top:96px;width:1180px">
+      ${[['14:18','干涉','湖 → 沼泽','你用了「降雨」＋「润湿」'],
+         ['14:03','灾变','山火熄灭','火线断在溪谷，留下 40 m 焦土'],
+         ['13:55','气候','首次雷暴','对流云在山脊背风侧爆开'],
+         ['09:12','生态','鱼群首次洄游','种群越过 60 只'],
+         ['06:40','文明','第一座聚落','3 户人家在河口定居'],
+         ['18:22','干涉','抬升土丘','挡住了 1.5 m 高的一条小水道']]
+        .map(([t,k,w,d])=>`<div class="row" style="gap:14px;align-items:center;padding:10px 0;border-bottom:1px solid #1b222b">
+          <div style="width:64px" class="lbl xs">${t}</div>
+          <div style="width:8px;height:8px;border-radius:50%;background:${k==='灾变'?'var(--warn)':k==='干涉'?'var(--accent)':k==='文明'?'var(--ok)':'var(--accent2)'}"></div>
+          <div style="flex:1">
+            <div style="font-size:13px;color:#fff">${w}</div>
+            <div class="lbl xs" style="margin-top:2px">${d}</div>
+          </div>
+          <div class="lbl xs">${k}</div>
+          <div class="lbl xs">▸</div>
+        </div>`).join('')}
+    </div>
+    <div class="abs w solid fill" style="left:1236px;top:96px;width:660px;height:600px"></div>
+    <div class="abs col gap8" style="left:1256px;top:116px;width:620px">
+      <div class="lbl xs">第 312 天 14:18 · 湖 → 沼泽</div>
+      <div style="font-size:15px;color:#fff">这一下改了什么</div>
+      ${[['湿度','0.62 → 0.79'],['土壤水','+0.21'],['生态域','水域 → 湿地'],['余响','+18（中档：跨过阈值）']]
+        .map(([k,v])=>`<div class="row" style="justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line)">
+          <span class="lbl xs">${k}</span><span class="lbl">${v}</span></div>`).join('')}
+      <div class="btn" style="width:180px;height:30px;margin-top:8px">跳到那一刻 ▸</div>
+    </div>
+  `
+},
+{
+  id:'B10', title:'B10 · 创世（15 参数 + 锁轴）',
+  desc:'一屏三列；每行右侧只有"锁 / 不锁"。掷骰只重抽没锁的轴。',
+  ref:'WORLD §4 / §3.2 · LATER（M1 全量面板）',
+  q:['给不给滑杆直接改数？','15 个参数一屏塞得下吗？','要不要"世界配方库"（存锁定的组合）？'],
+  why:'锁轴而不是调参：玩家能复现"我想要的世界类型"，但不会把它玩成编辑器。',
+  html:`
+    <div class="abs" style="left:0;top:0;width:1920px;height:1080px;background:#0c1015"></div>
+    <div class="abs lbl a" style="left:24px;top:20px">创世 · 新的一界</div>
+    <div class="abs lbl" style="left:24px;top:46px;font-size:13px">SOL-7K3M-9QX2 · 生成器 v3 · 256²</div>
+    <div class="abs row gap8" style="left:24px;top:76px">
+      <div class="btn on" style="height:32px;padding:0 16px">重掷（保留锁定轴）</div>
+      <div class="btn ghost" style="height:32px;padding:0 16px">输入种子码</div>
+      <div class="btn ghost" style="height:32px;padding:0 16px">全部解锁</div>
+    </div>
+    <div class="abs row gap10" style="left:24px;top:130px;width:1872px">
+      ${[['形制',[['陆块拓扑','群岛 5–12',1],['陆块形状','折枝',1],['界缘交代','外海',0],['水覆盖','43 %',0]]],
+         ['地貌',[['relief','0.72',1],['山系数','3',0],['走向','NNE 32°',0],['陆海比','0.57',0]]],
+         ['气候·生命',[['气候带','热带雨林',1],['风向','ESE 108°',0],['植被密度','0.78',0],['物种池','9 种',0],['奇观','1 处',0]]]]
+        .map(([g,rows])=>`<div class="w" style="flex:1;padding:12px">
+          <div class="h" style="margin-bottom:6px">${g}</div>
+          ${rows.map(([k,v,on])=>`<div class="row" style="justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px dashed var(--line)">
+            <span class="lbl xs" style="width:80px">${k}</span><span class="lbl">${v}</span>
+            <span class="tag ${on?'a':''}">${on?'锁定':'解锁'}</span></div>`).join('')}
+        </div>`).join('')}
+    </div>
+    <div class="abs row gap10" style="left:24px;top:640px;width:1872px">
+      <div class="w" style="flex:1;padding:12px">
+        <div class="h" style="margin-bottom:6px">容量（随尺寸档）</div>
+        ${[['陆块上限','6'],['山系上限','3'],['聚落上限','5'],['物种池上界','9']]
+          .map(([k,v])=>`<div class="row" style="justify-content:space-between"><span class="lbl xs">${k}</span><span class="lbl">${v}</span></div>`).join('')}
+      </div>
+      <div class="w" style="flex:1.4;padding:12px">
+        <div class="h" style="margin-bottom:6px">预览（侧视 30° · Z2）</div>
+        <div style="height:150px;border:1px dashed var(--line2);background:linear-gradient(#22303c,#0e1318);display:flex;align-items:center;justify-content:center">
+          <span class="lbl xs">掷骰后直接进世界，这一格只是"形制缩略"</span>
+        </div>
+      </div>
+      <div class="w" style="flex:1;padding:12px">
+        <div class="h" style="margin-bottom:6px">七条判据</div>
+        ${['边缘有交代','有层次','有对比','有落点','有尺度物','无死面','三级成立']
+          .map(t=>`<div class="row" style="justify-content:space-between;padding:2px 0"><span class="lbl xs">${t}</span><span class="tag ok">PASS</span></div>`).join('')}
+      </div>
+    </div>
+    <div class="abs row gap10" style="left:24px;top:900px">
+      <div class="btn on" style="width:220px;height:44px">进入这一界 ▸</div>
+      <div class="btn ghost" style="width:160px;height:44px">回到上一界</div>
+    </div>
+  `
+},
+{
+  id:'B11', title:'B11 · 设置（左导航分组）',
+  desc:'左列 7 组导航，右侧只显示当前组；底部固定"恢复默认 / 应用"。',
+  ref:'本次改动 4（设置重做）· LATER（音频四总线）· TECH §6.1',
+  q:['分成 7 组够不够？（画面 / 声音 / 操作 / 界面 / 世界 / 语言 / 辅助）','要不要"搜索设置项"？','"恢复默认"按组还是全部？'],
+  why:'v1 是"一屏堆条"，找不到东西。v2 左侧固定 7 组，右侧只滚一组内容；底部两个动作固定不动。',
+  html:`
+    <div class="abs" style="left:0;top:0;width:1920px;height:1080px;background:#0c1015"></div>
+    <div class="abs w solid fill" style="left:0;top:0;width:300px;height:1080px;border-left:0;border-top:0;border-bottom:0"></div>
+    <div class="abs lbl a" style="left:28px;top:24px">设置</div>
+    <div class="abs col gap4" style="left:16px;top:64px;width:268px">
+      ${['画面','声音','操作','界面','世界','语言','辅助'].map((t,i)=>`<div class="btn ${i===0?'on':'ghost'}" style="height:36px;justify-content:flex-start;padding:0 12px">${t}</div>`).join('')}
+    </div>
+    <div class="abs lbl a" style="left:340px;top:24px">画面</div>
+    <div class="abs col gap14" style="left:340px;top:64px;width:900px">
+      ${[['画质预设',['低','标准','高'],1],['分辨率',['1280×720','1920×1080','2560×1440','3840×2160'],1],
+         ['抗锯齿',['TSR','TAA','关'],0],['颗粒强度',null,0],['移轴强度',null,0]]
+        .map(([k,opts,sel])=>`<div class="row" style="justify-content:space-between;align-items:center;border-bottom:1px dashed var(--line);padding:10px 0">
+          <span class="lbl" style="font-size:12.5px">${k}</span>
+          ${opts?`<div class="row gap6">${opts.map((o,i)=>`<div class="btn ${i===sel?'on':'ghost'}" style="height:28px;padding:0 12px">${o}</div>`).join('')}</div>`
+                 :`<div class="bar" style="width:280px"><i style="width:55%"></i></div>`}
+        </div>`).join('')}
+      <div class="w" style="padding:10px">
+        <div class="lbl xs">说明：世界由 ProceduralMesh 生成，Lumen / Nanite / VSM 在此工程无效（TECH §6），所以画质档只调 SSGI、TSR 与分辨 率，不调 Lumen。</div>
+      </div>
+    </div>
+    <div class="abs w" style="left:340px;top:938px;width:1540px;height:1px;border-style:solid"></div>
+    <div class="abs row gap8" style="left:340px;top:960px;width:1540px">
+      <div class="btn ghost" style="width:150px;height:36px">恢复本组默认</div>
+      <div class="btn ghost" style="width:150px;height:36px">恢复全部</div>
+      <div class="btn on" style="width:120px;height:36px;margin-left:auto">应用</div>
+    </div>
+  `
+},
+{
+  id:'B12', title:'B12 · 键位（可改）',
+  desc:'操作组里是重绑定表：点一行 → 按新键 → 冲突检测 → 需确认。保留键与"恢复默认"。',
+  ref:'本次改动 5（允许改键）· OPS §5（键位真源，本次加"可改"规则）',
+  q:['哪些键**锁死不可改**？（建议：Esc / 鼠标左键 / 滚轮 / Tab）','冲突时是覆盖还是拒绝？','要不要"一键回到默认"和导出？'],
+  why:'键位真源在 OPS §5，界面上这张表只是它的可写视图：改完写本地配置，不改代码。',
+  html:`
+    <div class="abs" style="left:0;top:0;width:1920px;height:1080px;background:#0c1015"></div>
+    <div class="abs w solid fill" style="left:0;top:0;width:300px;height:1080px;border-left:0;border-top:0;border-bottom:0"></div>
+    <div class="abs lbl a" style="left:28px;top:24px">设置 / 操作</div>
+    <div class="abs col gap4" style="left:16px;top:64px;width:268px">
+      ${['画面','声音','操作','界面','世界','语言','辅助'].map((t,i)=>`<div class="btn ${i===2?'on':'ghost'}" style="height:36px;justify-content:flex-start;padding:0 12px">${t}</div>`).join('')}
+    </div>
+    <div class="abs row gap8" style="left:340px;top:20px">
+      <div class="btn on" style="height:28px;padding:0 12px">键位</div>
+      <div class="btn ghost" style="height:28px;padding:0 12px">鼠标</div>
+      <div class="btn ghost" style="height:28px;padding:0 12px">相机速度</div>
+      <div class="btn ghost" style="height:28px;padding:0 12px;margin-left:auto">恢复默认</div>
+    </div>
+    <!-- 键位表 -->
+    <div class="abs col" style="left:340px;top:64px;width:1060px">
+      ${[['释放卡','空格','手牌',0],['回收卡','X','手牌',0],['换一手','R','手牌',0],
+         ['选卡 1–10','1 … 0','手牌',1],['切槽','Q / E','手牌',0],
+         ['俯仰档 1–4','F1 – F4','视角',1],['方位旋转','[ / ]','视角',0],['Z 级直跳','Z / Shift+Z','视角',0],
+         ['暂停','K','时间',0],['倍速','J','时间',0],['时相','T','时间',0],
+         ['摆件模式','P','界面',0],['显隐 UI','Tab','界面',1],['退出','Esc','界面',1]]
+        .map(([k,cur,g,locked],i)=>`<div class="row" style="align-items:center;padding:8px 0;border-bottom:1px solid #1b222b">
+          <div class="lbl xs" style="width:64px">${g}</div>
+          <div class="lbl" style="flex:1;font-size:12.5px">${k}</div>
+          <div class="btn ${i===1?'on':''}" style="width:150px;height:28px">
+            ${i===1?'<span class="lbl a">等待按键…</span>':cur}
+          </div>
+          <div style="width:90px;text-align:right">
+            ${locked?'<span class="tag">锁死</span>':'<span class="tag ok">可改</span>'}
+          </div>
+        </div>`).join('')}
+    </div>
+    <!-- 冲突提示 -->
+    <div class="abs" style="left:1440px;top:120px;width:440px;padding:12px;border:1px solid var(--warn);background:#1b1210">
+      <div class="lbl w">键位冲突</div>
+      <div class="lbl" style="margin-top:6px;font-size:12px">「X」已被 <b>回收卡</b> 使用</div>
+      <div class="row gap8" style="margin-top:10px">
+        <div class="btn" style="width:120px;height:30px">交换</div>
+        <div class="btn ghost" style="width:120px;height:30px">取消</div>
+      </div>
+    </div>
+    <div class="abs" style="left:1440px;top:300px;width:440px;padding:12px;border:1px dashed var(--line2)">
+      <div class="lbl xs" style="margin-bottom:6px">锁死不可改（防误操作）</div>
+      <div class="row gap6" style="flex-wrap:wrap">
+        ${['Esc','鼠标左键','滚轮','Tab','F1–F4'].map(t=>`<span class="tag">${t}</span>`).join('')}
+      </div>
+      <div class="lbl xs" style="margin-top:10px">改完写本地配置文件，不改代码；OPS §5 是默认值真源。</div>
+    </div>
+  `
+},
+{
+  id:'B13', title:'B13 · 帮助（一页）',
+  desc:'只剩三段：手势（上/下）、四组键位、视角与缩放。不再解释数值与规则。',
+  ref:'本次改动 3（文字减法）· OPS §5',
+  q:['帮助要不要做成"按提示做一遍"的引导？','首次开局强制显示吗？','键位表要不要链接到设置里的重绑定？'],
+  why:'v1 的帮助塞了卡的含义、余响、扰动等解释，属于"文档"，应该留在界面外。帮助只回答"我怎么操作"。',
+  html:`
+    <div class="abs" style="left:0;top:0;width:1920px;height:1080px;background:#0c1015"></div>
+    <div class="abs lbl a" style="left:24px;top:20px">帮助</div>
+    <div class="abs w solid" style="left:24px;top:56px;width:1872px;height:150px;display:flex;align-items:center;justify-content:center">
+      <div class="col center gap6">
+        <div class="lbl" style="font-size:26px">↑ 用出去　　↓ 收回来</div>
+        <div class="lbl xs">同一根轴：上拖 = 释放，下拖 = 回收；按住 Shift 拖动 = 连续施放</div>
+      </div>
+    </div>
+    ${[['手牌',['1–0 选卡','空格 释放','右键 落地/即散','X 回收','R 换手']],
+       ['视角',['F1–F4 俯仰 15/30/55/88°','[ ] 转 45°','滚轮 推拉','Z 跳缩放级','Y 巡游']],
+       ['时间',['T 时相','K 暂停','J 倍速']],
+       ['界面',['Tab 显隐','P 摆件','C 年表','B 开包','L 卡库','G 创世']]]
+      .map(([g,rows],i)=>`<div class="abs w" style="left:${(i%2)*940+24}px;top:${i<2?230:620}px;width:900px;height:340px;padding:16px">
+        <div class="h" style="margin-bottom:12px">${g}</div>
+        ${rows.map(r=>`<div class="lbl" style="padding:7px 0;border-bottom:1px dashed var(--line);font-size:12px">${r}</div>`).join('')}
+      </div>`).join('')}
+    <div class="abs lbl xs" style="left:24px;top:1000px">键位可在「设置 / 操作」里改（B12）；本页只列默认值。</div>
+  `
+},
+{
+  id:'B14', title:'B14 · 默认视角（饥荒式侧看，但是 3D）',
+  desc:'默认 = 斜俯视 30° + 长焦压缩 + 8 方位离散旋转；88° 图纸档才是"地图"。三档并排对比。',
+  ref:'本次改动 6（核心）· ART §7（角度与投影，本次重写）· WORLD §1.1–1.2',
+  q:[
+    '默认俯角 **30°** 还是更低的 **20°**（更"侧面"，但地形会互相遮挡）？',
+    '要不要用**正交投影**（更像饥荒）？还是长焦（透视但压缩）？',
+    '方位旋转 8 档够吗？饥荒是 4 向 90°。'
+  ],
+  why:'v1 默认 24° 但没有"侧看"的构图意识：山是压扁的圈。饥荒之所以"像沙盘又能看清侧面"，是因为**固定斜俯视 + 长焦/正交 + 地平线永远在画内**。这一版把默认档写成这三条。',
+  html:`
+    <div class="abs" style="left:0;top:0;width:1920px;height:1080px;background:#0c1015"></div>
+    <div class="abs lbl a" style="left:24px;top:20px">默认视角 · 三档对比（同一世界、同一方位）</div>
+    ${[['15° 侧视（更低）','能看到山体正面与树冠侧面；远处地形被近处遮挡',
+       'linear-gradient(#243442 0%,#1a2630 42%,#121a22 58%,#0b1015 100%)',1],
+      ['30° 默认（推荐）','坡度、树影、河床都读得出；遮挡可接受',
+       'linear-gradient(#22303c 0%,#1a2530 40%,#141b23 62%,#0e1318 100%)',2],
+      ['88° 图纸（地图）','整界铺满屏幕，屏幕就是地图；看不到立体',
+       'radial-gradient(ellipse at 50% 50%,#1b2734,#0d1219)',0]]
+      .map(([t,d,bg,hi],i)=>`<div class="abs w" style="left:${24+i*624}px;top:56px;width:600px;height:440px">
+        <div style="position:absolute;left:12px;top:10px" class="lbl ${hi?'a':''}">${t}</div>
+        <div style="position:absolute;left:12px;top:34px;right:12px;height:300px;background:${bg};border:1px solid var(--line2)">
+          ${i<2?`<div style="position:absolute;left:0;top:${i===0?205:170}px;width:100%;height:1px;background:rgba(200,220,235,.18)"></div>
+                  <div style="position:absolute;left:110px;top:${i===0?150:130}px;width:380px;height:${i===0?90:70}px;
+                       border:1px dashed rgba(126,138,154,.45);border-radius:50% 50% 40% 40%/60% 60% 40% 40%"></div>
+                  <div style="position:absolute;left:230px;top:${i===0?120:105}px;width:120px;height:${i===0?60:44}px;
+                       border:1px dashed rgba(224,163,62,.45);transform:skewY(-14deg)"></div>`
+                :`<div style="position:absolute;left:120px;top:60px;width:360px;height:180px;border:1px dashed rgba(126,138,154,.45);border-radius:50%"></div>
+                  <div style="position:absolute;left:210px;top:100px;width:180px;height:90px;border:1px dashed rgba(126,138,154,.3);border-radius:50%"></div>`}
+        </div>
+        <div class="lbl xs" style="position:absolute;left:12px;top:350px;right:12px;font-size:11px;line-height:1.5">${d}</div>
+      </div>`).join('')}
+    <div class="abs row gap10" style="left:24px;top:520px;width:1872px">
+      <div class="w" style="flex:1;padding:14px">
+        <div class="h" style="margin-bottom:8px">要让"3D 读成 2.5D"的三条</div>
+        <div class="lbl" style="font-size:12px;line-height:1.8">① 固定斜俯视 30°（不是顶视，也不是平视）<br>
+        ② 长焦/正交压缩：透视弱、远近同大，像等距画<br>
+        ③ 地平线永远留在画内（天空占 1/4–1/3）</div>
+      </div>
+      <div class="w" style="flex:1;padding:14px">
+        <div class="h" style="margin-bottom:8px">但仍然是 3D</div>
+        <div class="lbl" style="font-size:12px;line-height:1.8">· 8 方位离散旋转（[ ] 键）<br>
+        · 连续推拉（Z0–Z4）<br>
+        · 88° 图纸档看地图<br>
+        · 山体有真实遮挡与阴影方向</div>
+      </div>
+      <div class="w" style="flex:1;padding:14px">
+        <div class="h" style="margin-bottom:8px">代价</div>
+        <div class="lbl" style="font-size:12px;line-height:1.8">· 低角度遮挡多：Z0 全界只能在 55°/88° 成立<br>
+        · 正交下雾与反射要重算<br>
+        · 32 格点验收要按投影分类</div>
+      </div>
+    </div>
+    <div class="abs lbl xs" style="left:24px;top:960px">默认三件套：俯仰 30° · 方位 0 · 视野宽 0.30 W（Z2）—— 开局第一帧就是这个</div>
+  `
+},
+{
+  id:'B15', title:'B15 · 缩放阶梯 Z0–Z4',
+  desc:'缩放与俯仰解耦：Z 只改视野宽，俯仰另算。低角度下 Z0 不可用，只在 55°/88° 成立。',
+  ref:'WORLD §1.2（本次加"与俯仰解耦"）· ART §7.1（表现联动）· PLAN P-09',
+  q:['五级保留吗？','Z0 限定在 55°/88° 可行吗？','Z3 的个体指标（人 40 px / M0 兽鱼 20 px）认不认？'],
+  why:'v1 把"Z0 = 全界"写成绝对，但侧视下 Z0 会露出大量天空与雾，看不到整界——所以必须写"Z0 只在高层俯角成立"。',
+  html:`
+    <div class="abs" style="left:0;top:0;width:1920px;height:1080px;background:#0c1015"></div>
+    <div class="abs lbl a" style="left:24px;top:20px">缩放阶梯 · 视野宽 1.00 / 0.55 / 0.30 / 0.12 / 0.04 W</div>
+    ${[['Z0 全界','1.00 W','形制 · 海岸 · 地貌','仅 55° / 88°'],
+       ['Z1 区域','0.55 W','山脊 · 河湖 · 雪线','任意俯仰'],
+       ['Z2 生活圈','0.30 W','树 · 房屋 · 田垄','**默认**'],
+       ['Z3 个体','0.12 W','人 40 px / M0 兽鱼 20 px','任意'],
+       ['Z4 微观','0.04 W','苔 · 露水 · 涟漪','任意']]
+      .map(([t,fw,must,note],i)=>`<div class="abs w" style="left:${24+i*378}px;top:56px;width:352px;height:430px">
+        <div class="lbl a" style="position:absolute;left:12px;top:10px">${t}</div>
+        <div class="lbl xs" style="position:absolute;right:12px;top:10px">${fw}</div>
+        <div style="position:absolute;left:12px;top:38px;right:12px;height:250px;border:1px dashed var(--line2);
+             background:linear-gradient(#22303c,#0e1318)">
+           <div style="position:absolute;left:${12+i*3}%;top:${30+i*4}%;width:${76-i*14}%;height:${46-i*7}%;
+                border:1px dashed rgba(126,138,154,.5);border-radius:50%"></div>
+        </div>
+        <div class="lbl xs" style="position:absolute;left:12px;top:300px">必须读得出</div>
+        <div class="lbl" style="position:absolute;left:12px;top:318px;right:12px;font-size:11px">${must}</div>
+        <div class="lbl xs" style="position:absolute;left:12px;top:376px;color:${i===0?'var(--warn)':'var(--ink2)'}">${note}</div>
+      </div>`).join('')}
+    <div class="abs w solid fill" style="left:24px;top:510px;width:1872px;height:200px;padding:14px">
+      <div class="h" style="margin-bottom:8px">视角 × 缩放的可用矩阵</div>
+      <div class="row gap6">
+        ${['15° 侧视','30° 默认','55° 俯瞰','88° 图纸'].map((p,pi)=>`
+          <div class="w" style="flex:1;padding:8px">
+            <div class="lbl xs" style="margin-bottom:6px">${p}</div>
+            <div class="row gap4">
+              ${[0,1,2,3,4].map(z=>{const ok = pi>=2 || z>=1; return `<span class="tag ${ok?'ok':'w'}">Z${z}</span>`}).join('')}
+            </div>
+          </div>`).join('')}
+      </div>
+      <div class="lbl xs" style="margin-top:8px">绿色＝成立；红色＝低角度下露空/被雾吞，验收不通过</div>
+    </div>
+    <div class="abs w solid" style="left:24px;top:740px;width:1872px;height:260px;padding:14px">
+      <div class="h" style="margin-bottom:10px">三级验收</div>
+      <div class="row gap10">
+        ${['Z0（55°/88°）：整界进画 + 界缘有交代','Z2：树 / 房 / 田 / 烟都读得出','Z3：看得见"活的个体"']
+          .map(t=>`<div class="w" style="flex:1;height:180px;display:flex;align-items:center;justify-content:center;padding:16px">
+            <span class="lbl" style="text-align:center;font-size:12px">${t}</span></div>`).join('')}
+      </div>
+    </div>
+  `
+},
+{
+  id:'B16', title:'B16 · 形制画廊（10 种）',
+  desc:'同一套参数系统的十种结果。侧视角下也要各自可辨（不是俯视小图才能认）。',
+  ref:'WORLD §2.1–2.3（六轴 / 十名 / 六种界缘）',
+  q:['十种里有没有"侧看就一样"的？','全海 / 全陆是否保留？','硬切（图纸式）能出现在别的机位吗？'],
+  why:'形制是"世界的脸"，必须在不看地图的默认侧视下也能认出——这一板就是检查这件事。',
+  html:`
+    <div class="abs" style="left:0;top:0;width:1920px;height:1080px;background:#0c1015"></div>
+    <div class="abs lbl a" style="left:24px;top:18px">形制画廊 · 侧视 30° 下的识别度</div>
+    ${[['全海界','无陆 · 只有礁'],['全陆界','无海岸 · 内流湖'],['单岛界','一圈海 + 一块'],
+       ['群岛界','多块 · 水道'],['大陆界','一侧进雾'],['半岛界','一侧接界'],
+       ['环礁界','潟湖 + 礁冠'],['峡湾界','长水道 + 陡壁'],['内陆湖国','无海 + 大湖'],['裂谷界','深谷贯穿']]
+      .map(([n,d],i)=>{
+        const c=i%5, r=Math.floor(i/5);
+        const sky=`linear-gradient(#22303c 0%,#151d26 55%,#0b1015 100%)`;
+        const art = n==='全海界'?`<div style="position:absolute;left:20%;top:55%;width:60%;height:20%;border:1px dashed rgba(63,127,168,.8);border-radius:50%"></div>`
+          : n==='全陆界'?`<div style="position:absolute;left:0;top:46%;width:100%;height:44%;border-top:1px dashed rgba(126,138,154,.6);background:#141b23"></div>`
+          : n==='群岛界'?`${[0,1,2,3].map(k=>`<div style="position:absolute;left:${16+k*20}%;top:${58+ (k%2)*6}%;width:${18-k}%;height:${16-k}%;border:1px dashed rgba(126,138,154,.55);border-radius:50%"></div>`).join('')}`
+          : n==='环礁界'?`<div style="position:absolute;left:22%;top:56%;width:56%;height:22%;border:2px dashed rgba(224,163,62,.55);border-radius:50%"></div>`
+          : n==='峡湾界'?`<div style="position:absolute;left:14%;top:50%;width:70%;height:30%;border:1px dashed var(--line2)"></div>
+             ${[0,1,2].map(k=>`<div style="position:absolute;left:${26+k*4}%;top:${58+k*5}%;width:${44-k*10}%;height:6%;background:rgba(63,127,168,.45)"></div>`).join('')}`
+          : n==='裂谷界'?`<div style="position:absolute;left:8%;top:48%;width:84%;height:34%;border:1px dashed var(--line2)"></div>
+             <div style="position:absolute;left:20%;top:62%;width:60%;height:6%;background:rgba(180,85,63,.6)"></div>`
+          : n==='半岛界'?`<div style="position:absolute;left:6%;top:52%;width:66%;height:30%;border:1px dashed var(--line2);border-radius:50%"></div>
+             <div style="position:absolute;right:0;top:50%;width:26%;height:34%;border-left:2px dashed rgba(224,163,62,.6)"></div>`
+          : n==='内陆湖国'?`<div style="position:absolute;left:6%;top:48%;width:88%;height:38%;border:1px dashed var(--line2)"></div>
+             <div style="position:absolute;left:36%;top:58%;width:28%;height:14%;border:1px dashed rgba(63,127,168,.9);border-radius:50%"></div>`
+          : n==='大陆界'?`<div style="position:absolute;left:-10%;top:48%;width:120%;height:40%;border:1px dashed var(--line2)"></div>
+             <div style="position:absolute;right:2%;top:40%;width:26%;height:50%;background:linear-gradient(90deg,transparent,#1a2530)"></div>`
+          : `<div style="position:absolute;left:8%;top:50%;width:84%;height:32%;border:1px dashed var(--line2);border-radius:50%"></div>`;
+        return `<div class="abs w" style="left:${24+c*378}px;top:${56+r*500}px;width:352px;height:470px">
+          <div class="lbl a" style="position:absolute;left:12px;top:10px">${n}</div>
+          <div style="position:absolute;left:12px;top:34px;right:12px;height:300px;background:${sky};border:1px solid var(--line2);overflow:hidden">
+            <div style="position:absolute;left:0;top:52%;width:100%;height:1px;background:rgba(200,220,235,.16)"></div>
+            ${art}
+          </div>
+          <div class="lbl" style="position:absolute;left:12px;top:352px;right:12px;font-size:11px">${d}</div>
+          <div class="row gap6" style="position:absolute;left:12px;top:390px">
+            <span class="tag">Z0 可辨</span><span class="tag b">可施卡</span>
+          </div>
+        </div>`;
+      }).join('')}
+  `
+},
+{
+  id:'B17', title:'B17 · 状态提示（文字减法）',
+  desc:'只保留两类"必须知道"的打断（禁物漏入 / 奇观发现），其余降级为顶栏小圆点 + 年表。',
+  ref:'本次改动 3 · CARDS §6 · WORLD §4.1',
+  q:['只有两类值得打断，够不够？','扰动跨档要不要提示？','禁物给出"捡/不捡"二选一，还是自动生效？'],
+  why:'v1 有四种 toast 同时可能叠在左下，等于没有重点。v2：打断只留给"世界状态被永久改变"的事。',
+  html:`
+    ${WORLD('世界 · 只有两类会覆盖画面')}
+    ${TOPBAR()}
+    <div class="abs" style="left:600px;top:300px;width:720px;padding:16px;border:1px solid var(--accent);background:rgba(20,17,10,.96)">
+      <div class="row" style="justify-content:space-between"><span class="lbl a">界壁裂开 · 禁物漏入</span><span class="lbl xs">1 / 3</span></div>
+      <div class="lbl" style="margin-top:8px;font-size:13px">「不坠之律」漏了进来：漂浮物遮天，一切不再落地。</div>
+      <div class="row gap8" style="margin-top:12px">
+        <div class="btn on" style="width:150px;height:32px">捡起来（占用唯一槽位）</div>
+        <div class="btn ghost" style="width:110px;height:32px">不捡</div>
+      </div>
+    </div>
+    <div class="abs" style="left:1320px;top:120px;width:420px;padding:12px;border:1px dashed var(--accent2);background:rgba(12,18,24,.9)">
+      <div class="lbl b">奇观发现（不打断，3 s 自动消失）</div>
+      <div class="lbl" style="margin-top:6px;font-size:12px">西北方一座浮空岛 · 已写入年表</div>
+    </div>
+    <div class="abs row gap8 anno" style="left:24px;top:680px">
+      <span class="chip">顶栏小圆点：有未读年表</span>
+      <span class="chip">顶栏小圆点：禁物可捡</span>
+      <span class="lbl xs" style="align-self:center">其余一律不弹</span>
+    </div>
+  `
+},
+{
+  id:'B18', title:'B18 · 摆件模式',
+  desc:'UI 全隐，相机可巡游（默认 30°），用于"摆桌上 10 分钟"的验收。',
+  ref:'CHARTER D-3 · OPS §5 · PLAN 第 13 项',
+  q:['摆件模式放开自由相机吗？','这一态允许施卡吗？','要不要自动巡游（每档 3 s）？'],
+  why:'这一块板对应产品命题本身：摆 10 分钟不想关。所以它必须一键进出，且默认视觉就是最好看的那一档。',
+  html:`
+    <div class="abs" style="left:0;top:0;width:1920px;height:1080px;background:linear-gradient(#233342 0%,#1a2530 42%,#101820 70%,#090d11 100%)"></div>
+    <div class="abs" style="left:0;top:470px;width:1920px;height:1px;background:rgba(200,220,235,.14)"></div>
+    <div class="abs" style="left:360px;top:390px;width:1200px;height:300px;border:1px dashed rgba(126,138,154,.35);border-radius:50% 50% 44% 44%/62% 62% 38% 38%"></div>
+    <div class="abs" style="left:660px;top:330px;width:600px;height:190px;border:1px dashed rgba(126,138,154,.28);border-radius:50%"></div>
+    <div class="abs" style="left:880px;top:290px;width:220px;height:120px;border:1px dashed rgba(224,163,62,.4);transform:skewY(-14deg)"></div>
+    <div class="abs lbl xs" style="left:24px;bottom:20px">P 退出 · Y 巡游 · 无 UI</div>
+    <div class="abs w" style="left:24px;top:24px;width:380px;height:104px;padding:10px">
+      <div class="lbl xs">这一态要回答的问题</div>
+      <div class="lbl" style="margin-top:6px;font-size:13px">摆 10 分钟，你会不会想关掉？</div>
+      <div class="lbl xs" style="margin-top:6px">PLAN §2 第 13 项；前 12 项全绿也不代表它成立</div>
+    </div>
+  `
+}
+];
+
+/* ================= 渲染 ================= */
+const stage=document.getElementById('stage');
+const navUl=document.getElementById('boards');
+const ntList=document.getElementById('ntList');
+const ntRef=document.getElementById('ntRef');
+const ntWhy=document.getElementById('ntWhy');
+const tbTitle=document.getElementById('tbTitle');
+const tbDesc=document.getElementById('tbDesc');
+const tbIdx=document.getElementById('tbIdx');
+const notesEl=document.getElementById('notes');
+let cur=0;
+
+BOARDS.forEach((b,i)=>{
+  const li=document.createElement('li');
+  li.innerHTML=`<b>${b.id}</b><span>${b.title.replace(/^[A-Z]\d+ · /,'')}</span>`;
+  li.onclick=()=>show(i);
+  navUl.appendChild(li);
+});
+
+function show(i){
+  cur=(i+BOARDS.length)%BOARDS.length;
+  const b=BOARDS[cur];
+  stage.innerHTML=b.html;
+  const g=document.createElement('div'); g.id='gridBox';
+  const s=document.createElement('div'); s.id='safeBox';
+  stage.appendChild(g); stage.appendChild(s);
+  stage.classList.toggle('grid',document.getElementById('tGrid').checked);
+  stage.classList.toggle('safe',document.getElementById('tSafe').checked);
+  stage.classList.toggle('anno',document.getElementById('tAnno').checked);
+  [...navUl.children].forEach((li,k)=>li.classList.toggle('on',k===cur));
+  tbTitle.textContent=b.title;
+  tbDesc.textContent=b.desc;
+  tbIdx.textContent=`${cur+1} / ${BOARDS.length}`;
+  ntRef.textContent='规格出处：'+b.ref;
+  ntList.innerHTML=b.q.map(q=>`<li>${q}</li>`).join('');
+  ntWhy.innerHTML=b.why;
+  notesEl.style.display=document.getElementById('tNotes').checked?'':'none';
+  fit();
+}
+
+function fit(){
+  const wrap=document.getElementById('stageWrap');
+  const availW=wrap.clientWidth-24, availH=wrap.clientHeight-24;
+  const sc=Math.min(availW/1920,availH/1080);
+  stage.style.transform=`translate(-50%,-50%) scale(${sc})`;
+}
+
+document.getElementById('tGrid').onchange=e=>stage.classList.toggle('grid',e.target.checked);
+document.getElementById('tSafe').onchange=e=>stage.classList.toggle('safe',e.target.checked);
+document.getElementById('tAnno').onchange=e=>stage.classList.toggle('anno',e.target.checked);
+document.getElementById('tNotes').onchange=e=>{notesEl.style.display=e.target.checked?'':'none';fit();};
+window.onresize=fit;
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight')show(cur+1);
+  if(e.key==='ArrowLeft')show(cur-1);
+});
+show(0);
+</script>
+</body>
+</html>
