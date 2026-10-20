@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>夜沼鸟 · 卡牌重制（V2）</title>
+<style>
+:root{
+  /* 材质色：偏墨蓝 + 暗金，不用冷灰 UI 色 */
+  --ink0:#05080b;
+  --paper:#0b1218;      /* 卡纸 */
+  --paper2:#0e1620;     /* 效果框 */
+  --frame-hi:#5a4c31;   /* 金属框亮面 */
+  --frame-md:#2e2b23;
+  --frame-lo:#12171c;
+  --gold:#c9a961;
+  --gold-hi:#f0d493;
+  --gold-dim:#7a6636;
+  --text:#e9f0f5;
+  --text2:#b3c2ce;
+  --text3:#6f8090;
+  --text4:#47555f;
+  --water:#3f8fab; --water-hi:#8fd2e8;
+  --dark:#6a5a8a;  --dark-hi:#b0a0d4;
+  --wind:#7fa3a8;  --wind-hi:#c2e0e4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:radial-gradient(120% 80% at 50% 0%,#0b1219 0%,#05080b 60%);
+  color:var(--text);min-height:100vh;
+  font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;padding:26px 0 60px}
+.mono{font-family:ui-monospace,"SFMono-Regular",Consolas,monospace}
+.wrap{display:flex;flex-direction:column;align-items:center;gap:26px}
+.bar{display:flex;gap:8px}
+.tg{height:30px;padding:0 14px;border:1px solid #2a343d;background:#0b1218;color:#8fa0ad;
+  font-size:11.5px;cursor:pointer;border-radius:2px;letter-spacing:.06em;transition:.15s}
+.tg:hover{border-color:#4b5a66;color:#dbe6ee}
+.tg.on{border-color:var(--gold);color:var(--gold)}
+
+/* ============================================================
+   卡：三层（金属外框 → 内纸 → 内容）
+   640 × 933
+   ============================================================ */
+.card{width:640px;height:933px;position:relative;border-radius:10px;
+  padding:7px;
+  background:
+    linear-gradient(150deg,var(--frame-hi) 0%,var(--frame-md) 18%,var(--frame-lo) 42%,
+                    var(--frame-lo) 62%,var(--frame-md) 84%,var(--frame-hi) 100%);
+  box-shadow:0 30px 70px rgba(0,0,0,.75),0 2px 0 rgba(255,255,255,.05) inset,
+             0 -2px 0 rgba(0,0,0,.6) inset;
+  transition:.2s}
+.card.hide{display:none}
+/* 内纸 */
+.paper{position:relative;width:100%;height:100%;border-radius:5px;overflow:hidden;
+  display:flex;flex-direction:column;background:var(--paper);
+  box-shadow:0 0 0 1px rgba(0,0,0,.85),0 0 22px rgba(0,0,0,.7) inset}
+/* 纸纹 */
+.paper:before{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;opacity:.5;
+  background:
+    repeating-linear-gradient(102deg,rgba(255,255,255,.014) 0 1px,transparent 1px 5px),
+    radial-gradient(90% 60% at 50% 0%,rgba(201,169,97,.05),transparent 70%)}
+/* 内描线（金，离边 5px） */
+.paper:after{content:"";position:absolute;inset:5px;border:1px solid rgba(201,169,97,.22);
+  border-radius:3px;pointer-events:none;z-index:9}
+
+/* 四角云纹 */
+.cld{position:absolute;width:44px;height:44px;z-index:10;color:var(--gold-dim);opacity:.75}
+.cld.tl{left:9px;top:9px}
+.cld.tr{right:9px;top:9px;transform:scaleX(-1)}
+.cld.bl{left:9px;bottom:9px;transform:scaleY(-1)}
+.cld.br{right:9px;bottom:9px;transform:scale(-1,-1)}
+
+/* ---------- 名带 ---------- */
+.nameband{position:relative;height:96px;display:flex;align-items:center;gap:14px;
+  padding:0 30px 0 22px;z-index:3;
+  background:linear-gradient(180deg,#141d26 0%,#0e161e 55%,#0a1117 100%);
+  border-bottom:1px solid rgba(201,169,97,.22)}
+/* 名带下沿的金线（两端淡出） */
+.nameband:after{content:"";position:absolute;left:22px;right:22px;bottom:-1px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(201,169,97,.8) 18%,rgba(201,169,97,.8) 82%,transparent)}
+
+/* 类符（名带左端） */
+.clsym{flex:0 0 30px;width:30px;height:30px;border:1.5px solid rgba(201,169,97,.55);
+  display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--gold-hi);
+  border-radius:1px;background:rgba(201,169,97,.06)}
+.clsym.rite{transform:rotate(45deg)}
+.clsym.rite span{transform:rotate(-45deg)}
+.clsym.law{border-radius:50%}
+
+.nmwrap{flex:1;min-width:0;padding-top:2px}
+.nmwrap h1{font-size:36px;font-weight:300;letter-spacing:.14em;line-height:1.1;
+  color:var(--text);text-shadow:0 2px 12px rgba(0,0,0,.7)}
+.nmwrap .sub{display:flex;align-items:baseline;gap:15px;margin-top:7px}
+.nmwrap .sub b{font-size:11px;font-weight:400;color:var(--text3);letter-spacing:.22em}
+.nmwrap .sub s{font-family:ui-monospace,Consolas,monospace;font-size:9.5px;
+  color:var(--text4);text-decoration:none;letter-spacing:.24em}
+
+/* 右：属性章 + 星 */
+.emwrap{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:7px}
+.emblem{width:44px;height:44px;border-radius:50%;position:relative;
+  display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 34% 26%,rgba(255,255,255,.5),transparent 60%),
+             radial-gradient(circle at 50% 60%,var(--water) 0%,#173a49 100%);
+  box-shadow:0 0 0 1.5px rgba(0,0,0,.8),0 0 0 3px rgba(201,169,97,.35),
+             0 0 12px rgba(63,143,171,.4),inset 0 -6px 12px rgba(0,0,0,.5)}
+.emblem svg{width:26px;height:26px;color:#eaf7fb;opacity:.95}
+/* 属性章右上角小副元素 */
+.em-sub{position:absolute;right:-7px;top:-7px;display:flex;gap:2px}
+.em-sub s{width:11px;height:11px;border-radius:50%;display:block;
+  box-shadow:0 0 0 1px rgba(0,0,0,.85),0 0 0 2px rgba(201,169,97,.25)}
+/* 星阶：名带右下角独立一排（TCG 语言），不跟属性章叠 */
+.stars{position:absolute;right:30px;bottom:10px;display:flex;gap:4px;align-items:center}
+.stars s{font-size:15px;line-height:1;color:var(--gold-hi);text-decoration:none;
+  text-shadow:0 0 10px rgba(240,212,147,.9),0 1px 2px #000}
+.stars s.off{color:#39434d;text-shadow:none}
+.stars u{text-decoration:none;font-family:ui-monospace,Consolas,monospace;font-size:8.5px;
+  color:var(--text4);margin-left:6px;letter-spacing:.14em}
+
+/* ---------- 画芯 ---------- */
+.art{position:relative;flex:1;overflow:hidden;z-index:2;
+  box-shadow:0 0 0 1px rgba(201,169,97,.16),0 8px 22px rgba(0,0,0,.75) inset}
+.art svg{display:block;width:100%;height:100%}
+/* 内切角遮罩 */
+.art .cut{position:absolute;inset:0;pointer-events:none;z-index:4;
+  box-shadow:inset 0 0 92px 30px rgba(3,7,11,.9)}
+/* 画芯下沿融入纸面 */
+.art .fade{position:absolute;left:0;right:0;bottom:0;height:60px;z-index:4;pointer-events:none;
+  background:linear-gradient(180deg,transparent,rgba(10,17,23,.92))}
+
+/* ---------- 效果框 ---------- */
+.eff{position:relative;flex:0 0 176px;padding:16px 30px 14px;z-index:3;
+  background:linear-gradient(180deg,var(--paper2) 0%,#0a1015 100%);
+  border-top:1px solid rgba(201,169,97,.18)}
+/* 只留内凹阴影，不再画第二个矩形（不做方框套方框） */
+.eff:before{content:"";position:absolute;left:0;right:0;top:0;height:100%;pointer-events:none;
+  box-shadow:inset 0 14px 22px -14px rgba(0,0,0,.85)}
+.eff .hd{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.eff .hd i{width:14px;height:1px;background:rgba(201,169,97,.6);display:block}
+.eff .hd b{font-family:ui-monospace,Consolas,monospace;font-size:8.5px;font-weight:400;
+  color:var(--gold);letter-spacing:.3em}
+.eff .main{font-size:17px;line-height:1.78;color:var(--text2);letter-spacing:.01em}
+.eff .main u{text-decoration:none;color:var(--wind-hi);
+  border-bottom:1px solid rgba(194,224,228,.3)}
+.eff .main em{font-style:normal;color:var(--dark-hi)}
+.eff .main b{font-weight:400;color:var(--text)}
+.eff .cond{display:flex;align-items:baseline;gap:8px;margin-top:9px;font-size:11px;
+  color:var(--text3);line-height:1.55}
+.eff .cond s{text-decoration:none;font-size:8px;color:var(--text4);letter-spacing:.22em;flex:0 0 20px}
+.eff .nums{display:flex;gap:20px;margin-top:9px;font-family:ui-monospace,Consolas,monospace;
+  font-size:10.5px;color:var(--text3)}
+.eff .nums i{font-style:normal;color:var(--text4);margin-right:5px}
+
+/* ---------- 底栏 ---------- */
+.foot{flex:0 0 58px;display:flex;align-items:center;gap:20px;padding:0 30px;z-index:3;
+  background:linear-gradient(180deg,#0a1117,#080d12);
+  border-top:1px solid rgba(201,169,97,.2)}
+.foot .st{display:flex;gap:20px;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;
+  color:var(--text2);letter-spacing:.03em}
+.foot .st i{font-style:normal;color:var(--text4);margin-right:6px;font-size:12px}
+.foot .id{font-size:10px;color:var(--text3)}
+.foot .id{margin-left:auto;display:flex;align-items:center;gap:10px;
+  font-family:ui-monospace,Consolas,monospace;font-size:9.5px;color:var(--text4);letter-spacing:.16em}
+.foot .id em{font-style:normal;color:var(--gold-dim)}
+
+/* ============================================================
+   卡背：满版元素纹 + 中央圆章 + 环刻
+   ============================================================ */
+.back .paper{background:radial-gradient(120% 90% at 50% 42%,#101b24 0%,#080f15 58%,#050a0e 100%)}
+.back .pat{position:absolute;inset:0;z-index:1;opacity:.5}
+.back .vig{position:absolute;inset:0;z-index:2;
+  box-shadow:inset 0 0 160px 40px rgba(2,5,8,.95)}
+.back .crest{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:392px;height:392px;z-index:5;display:flex;align-items:center;justify-content:center}
+/* 外环：两道金圈 + 环刻 */
+.back .crest .ring{position:absolute;inset:0;border-radius:50%;
+  border:1px solid rgba(201,169,97,.55);
+  box-shadow:0 0 0 7px rgba(201,169,97,.05),0 0 0 8px rgba(201,169,97,.28),
+             0 0 34px rgba(201,169,97,.14),inset 0 0 70px rgba(0,0,0,.75)}
+.back .crest .ring2{position:absolute;inset:26px;border-radius:50%;
+  border:1px dashed rgba(201,169,97,.22)}
+/* 9 道环刻：亮的数量 = 环 */
+.back .crest .arcs s{position:absolute;left:50%;top:50%;width:3px;height:14px;
+  background:#202a33;transform-origin:50% 0;text-decoration:none;margin-left:-1.5px;border-radius:1px}
+.back .crest .arcs s.on{background:linear-gradient(180deg,var(--gold-hi),var(--gold));
+  box-shadow:0 0 9px rgba(201,169,97,.8)}
+/* 中央元素章 */
+.back .crest .core{width:214px;height:214px;position:relative;display:flex;align-items:center;
+  justify-content:center;border-radius:2px;
+  background:radial-gradient(circle at 50% 34%,rgba(63,143,171,.2),rgba(8,14,19,.9) 72%);
+  box-shadow:0 0 0 1.5px rgba(201,169,97,.5),0 0 0 8px rgba(6,10,14,.9),
+             0 0 0 9px rgba(201,169,97,.18),inset 0 0 40px rgba(0,0,0,.8)}
+.back .crest .core:before{content:"";position:absolute;inset:11px;
+  border:1px solid rgba(201,169,97,.26)}
+.back .crest .core svg{width:120px;height:120px;color:var(--water-hi);opacity:.92;
+  filter:drop-shadow(0 0 12px rgba(143,210,232,.35))}
+.back .crest .core .cn{position:absolute;width:9px;height:9px;border-color:var(--gold);
+  opacity:.7;transform:rotate(45deg);border:1px solid}
+.back .crest .core .cn.a{left:-5px;top:-5px}
+.back .crest .core .cn.b{right:-5px;top:-5px}
+.back .crest .core .cn.c{left:-5px;bottom:-5px}
+.back .crest .core .cn.d{right:-5px;bottom:-5px}
+
+.back .tline{position:absolute;left:50%;transform:translateX(-50%);z-index:5;text-align:center}
+.back .tline.top{top:74px}
+.back .tline.bot{bottom:118px}
+.back .tline .l{width:210px;height:1px;margin:10px auto;
+  background:linear-gradient(90deg,transparent,rgba(201,169,97,.55),transparent)}
+.back .tline .t{font-family:ui-monospace,Consolas,monospace;font-size:10px;color:#6c7c89;
+  letter-spacing:.34em}
+.back .tline .big{font-size:13px;color:#d6e3ec;letter-spacing:.3em}
+.back .seal{position:absolute;left:50%;transform:translateX(-50%);bottom:52px;z-index:5;
+  display:flex;align-items:center;gap:10px;font-family:ui-monospace,Consolas,monospace;
+  font-size:9.5px;color:#4d5b67;letter-spacing:.22em}
+.back .seal i{width:34px;height:34px;border:1px solid rgba(201,169,97,.45);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;color:var(--gold);font-style:normal;
+  font-size:14px;box-shadow:0 0 14px rgba(201,169,97,.14)}
+
+/* 说明 */
+.note{max-width:900px;color:#7b8b98;font-size:12.5px;line-height:1.9;text-align:center}
+.note b{color:#c5d3de;font-weight:400}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="s-water" viewBox="0 0 40 40"><path d="M4 22 C10 15 15 29 21 22 C27 15 32 29 38 22" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M4 30 C10 23 15 37 21 30 C27 23 32 37 38 30" fill="none" stroke="currentColor" stroke-width="1.7" opacity=".55"/></symbol>
+  <symbol id="s-cloud" viewBox="0 0 44 44">
+    <path d="M6 26 C6 20 12 17 16 19 C18 14 26 13 29 18 C34 17 38 21 37 26 C36 30 30 31 26 30 L12 30 C8 30 6 29 6 26 Z"
+      fill="none" stroke="currentColor" stroke-width="1.4" opacity=".9"/>
+    <path d="M14 25 C17 22 22 22 25 25" fill="none" stroke="currentColor" stroke-width="1" opacity=".6"/>
+  </symbol>
+</svg>
+
+<div class="wrap">
+  <div class="bar">
+    <button class="tg on" data-face="front">正面</button>
+    <button class="tg" data-face="back">背面</button>
+  </div>
+
+  <!-- ================= 正面 ================= -->
+  <div class="card" id="front">
+    <div class="paper">
+      <svg class="cld tl" viewBox="0 0 44 44"><use href="#s-cloud"/></svg>
+      <svg class="cld tr" viewBox="0 0 44 44"><use href="#s-cloud"/></svg>
+      <svg class="cld bl" viewBox="0 0 44 44"><use href="#s-cloud"/></svg>
+      <svg class="cld br" viewBox="0 0 44 44"><use href="#s-cloud"/></svg>
+
+      <div class="nameband">
+        <div class="clsym"><span>物</span></div>
+        <div class="nmwrap">
+          <h1>夜沼鸟</h1>
+          <div class="sub"><b>雾栖鸟</b><s>NIGHTMARSH BIRD</s></div>
+        </div>
+        <div class="emwrap">
+          <div class="emblem">
+            <svg viewBox="0 0 40 40"><use href="#s-water"/></svg>
+            <span class="em-sub">
+              <s style="background:var(--dark)"></s><s style="background:var(--wind)"></s>
+            </span>
+          </div>
+          <div class="stars">
+            <s>★</s><s class="off">★</s><s class="off">★</s><s class="off">★</s><s class="off">★</s>
+            <u>TIER 1</u>
+          </div>
+        </div>
+      </div>
+
+      <div class="art">
+        <svg viewBox="0 0 640 601" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#071320"/><stop offset=".45" stop-color="#0d2231"/>
+              <stop offset=".76" stop-color="#15303c"/>
+            </linearGradient>
+            <linearGradient id="wtr" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#0d2531"/><stop offset="1" stop-color="#040e13"/>
+            </linearGradient>
+            <radialGradient id="mg"><stop offset="0" stop-color="#f6efd9" stop-opacity=".55"/>
+              <stop offset=".48" stop-color="#e6dfc8" stop-opacity=".16"/>
+              <stop offset="1" stop-color="#e6dfc8" stop-opacity="0"/></radialGradient>
+            <linearGradient id="mist" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#dcebf0" stop-opacity="0"/>
+              <stop offset=".3" stop-color="#dcebf0" stop-opacity=".52"/>
+              <stop offset=".7" stop-color="#cfe2e9" stop-opacity=".34"/>
+              <stop offset="1" stop-color="#cfe2e9" stop-opacity="0"/></linearGradient>
+            <filter id="b1"><feGaussianBlur stdDeviation="10"/></filter>
+          </defs>
+
+          <rect width="640" height="601" fill="url(#sky)"/>
+          <g fill="#dbe9f2"><circle cx="76" cy="62" r="1.5" opacity=".4"/><circle cx="232" cy="48" r="1.2" opacity=".34"/>
+            <circle cx="392" cy="40" r="1.6" opacity=".36"/><circle cx="556" cy="58" r="1.2" opacity=".3"/></g>
+          <circle cx="500" cy="120" r="102" fill="url(#mg)"/>
+          <circle cx="500" cy="120" r="40" fill="#f1e9d3" opacity=".9"/>
+          <circle cx="513" cy="108" r="34" fill="#0c2030" opacity=".12"/>
+
+          <path d="M0,330 L96,262 L166,308 L262,232 L352,312 L452,256 L556,314 L640,270 L640,392 L0,392 Z" fill="#122a37" opacity=".5"/>
+          <path d="M0,374 L84,324 L172,368 L286,306 L392,374 L500,324 L596,370 L640,346 L640,410 L0,410 Z" fill="#0b202b" opacity=".95"/>
+
+          <rect y="372" width="640" height="229" fill="url(#wtr)"/>
+          <g fill="#e9e2cb" opacity=".42">
+            <rect x="452" y="388" width="92" height="3" rx="1.5" opacity=".5"/>
+            <rect x="462" y="410" width="76" height="3" rx="1.5" opacity=".36"/>
+            <rect x="446" y="434" width="100" height="2.5" rx="1.2" opacity=".26"/>
+          </g>
+          <g stroke="#8fbccb" stroke-width="1" opacity=".1" fill="none">
+            <path d="M0,398 C120,392 220,402 340,396 C452,390 552,400 640,394"/>
+            <path d="M0,442 C140,436 240,446 360,440 C470,434 560,444 640,438"/>
+            <path d="M0,500 C130,494 250,504 370,498 C480,492 570,502 640,496"/>
+          </g>
+          <g fill="#9fc9d3" opacity=".2">
+            <g><ellipse cx="392" cy="474" rx="26" ry="8"/><path d="M416,474 L434,464 L434,484 Z"/>
+              <animateTransform attributeName="transform" type="translate" values="0,0;20,-3;0,0" dur="11s" repeatCount="indefinite"/></g>
+            <g opacity=".7"><ellipse cx="250" cy="522" rx="19" ry="6"/><path d="M268,522 L282,514 L282,530 Z"/>
+              <animateTransform attributeName="transform" type="translate" values="0,0;-14,3;0,0" dur="13s" repeatCount="indefinite"/></g>
+          </g>
+          <!-- 芦苇 -->
+          <g stroke="#081820" stroke-width="3" fill="none" opacity=".85">
+            <path d="M44,601 C52,540 40,492 58,452"/><path d="M78,601 C72,548 88,506 74,470"/>
+          </g>
+          <g fill="#081820" opacity=".85">
+            <ellipse cx="58" cy="448" rx="4" ry="15" transform="rotate(8 58 448)"/>
+            <ellipse cx="74" cy="466" rx="3.4" ry="12" transform="rotate(-10 74 466)"/>
+          </g>
+
+          <!-- 横枝 -->
+          <path d="M0,258 C58,246 116,262 172,242 C196,234 214,236 226,242 L226,252 C212,246 196,244 174,252 C120,272 58,258 0,270 Z" fill="#081820"/>
+          <path d="M0,258 C58,246 116,262 172,242" stroke="#26444e" stroke-width="1.6" fill="none" opacity=".45"/>
+
+          <!-- 雾 -->
+          <g filter="url(#b1)" opacity=".72">
+            <path d="M212,292 C296,326 374,336 448,364 C512,388 574,390 640,412" stroke="url(#mist)" stroke-width="48" fill="none" stroke-linecap="round" opacity=".26"/>
+            <path d="M236,308 C316,342 390,350 458,378 C520,402 578,404 640,428" stroke="url(#mist)" stroke-width="28" fill="none" stroke-linecap="round" opacity=".32"/>
+            <path d="M258,326 C332,358 402,364 466,392 C526,416 582,418 640,442" stroke="url(#mist)" stroke-width="15" fill="none" stroke-linecap="round" opacity=".24"/>
+          </g>
+
+          <!-- 鸟 -->
+          <path d="M300,252 C272,208 218,184 156,192 C168,220 202,242 236,252 C258,258 282,258 300,262 Z" fill="#0a151c"/>
+          <path d="M300,252 C272,208 218,184 156,192" stroke="#d3e6ee" stroke-width="2.2" fill="none" opacity=".32"/>
+          <path d="M300,260 C272,248 236,240 202,238 C232,246 268,254 300,264 Z" fill="#02080c" opacity=".6"/>
+          <path d="M300,252 C328,208 382,184 444,192 C432,220 398,242 364,252 C342,258 318,258 300,262 Z" fill="#0a151c"/>
+          <path d="M300,252 C328,208 382,184 444,192" stroke="#d3e6ee" stroke-width="2.2" fill="none" opacity=".32"/>
+          <path d="M300,260 C328,248 364,240 398,238 C368,246 332,254 300,264 Z" fill="#02080c" opacity=".6"/>
+          <g fill="#0a151c">
+            <path d="M162,198 L142,184 L166,201 Z"/><path d="M153,208 L131,202 L156,214 Z"/><path d="M155,218 L136,220 L160,224 Z"/>
+            <path d="M438,198 L458,184 L434,201 Z"/><path d="M447,208 L469,202 L444,214 Z"/><path d="M445,218 L464,220 L440,224 Z"/>
+          </g>
+          <g stroke="#071016" stroke-width="1" opacity=".5" fill="none">
+            <path d="M296,254 C266,236 222,220 176,214"/><path d="M304,254 C334,236 378,220 424,214"/>
+          </g>
+          <path d="M300,292 L274,332 L292,324 L300,336 L308,324 L326,332 Z" fill="#0a151c"/>
+          <ellipse cx="300" cy="266" rx="16" ry="25" fill="#0a151c" transform="rotate(-4 300 266)"/>
+          <path d="M288,244 C286,274 292,292 300,298 C308,292 314,274 312,244" fill="#122c37" opacity=".55"/>
+          <path d="M290,242 C288,228 292,216 300,214 C308,216 312,228 310,242 Z" fill="#0a151c"/>
+          <ellipse cx="300" cy="214" rx="13.5" ry="12" fill="#0a151c" transform="rotate(-6 300 214)"/>
+          <path d="M291,205 L284,191 L296,202 Z" fill="#0a151c"/>
+          <path d="M309,205 L316,191 L304,202 Z" fill="#0a151c"/>
+          <path d="M288,214 L262,209 L288,203 Z" fill="#14323d"/>
+          <circle cx="307" cy="211" r="3.2" fill="#eef8fb"/><circle cx="307" cy="211" r="1.4" fill="#050e14"/>
+          <g fill="#dcebf0" opacity=".9">
+            <circle cx="246" cy="298" r="1.6" opacity=".4"/><circle cx="332" cy="314" r="2" opacity=".34"/>
+            <circle cx="398" cy="340" r="1.4" opacity=".28"/>
+          </g>
+        </svg>
+        <div class="cut"></div><div class="fade"></div>
+      </div>
+
+      <div class="eff">
+        <div class="hd"><i></i><b>EFFECT</b></div>
+        <div class="main">夜出<u>成雾</u>：贴水低飞时在身后留下 <b>0.03 W</b> 雾带，持续 20 秒，雾随鸟移动，白天不生成。</div>
+        <div class="cond"><s>条件</s>夜 18–6 · 附近有木本横枝可落 · 由 <em>夜枭</em> 进化而来</div>
+        <div class="nums">
+          <span><i>雾内</i>能见度 −1</span><span><i>湿度</i>+0.08/时</span><span><i>捕食</i>+0.02 W</span>
+        </div>
+      </div>
+
+      <div class="foot">
+        <div class="st"><span><i>◔</i>0.012 W</span><span><i>⚠</i>+3</span><span><i>⧗</i>30 s</span></div>
+        <div class="id"><em>W1-00</em><span>·</span><span>物 · 1 环</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 背面 ================= -->
+  <div class="card back hide" id="back">
+    <div class="paper">
+      <svg class="cld tl" viewBox="0 0 44 44"><use href="#s-cloud"/></svg>
+      <svg class="cld tr" viewBox="0 0 44 44"><use href="#s-cloud"/></svg>
+      <svg class="cld bl" viewBox="0 0 44 44"><use href="#s-cloud"/></svg>
+      <svg class="cld br" viewBox="0 0 44 44"><use href="#s-cloud"/></svg>
+
+      <svg class="pat" viewBox="0 0 640 933" preserveAspectRatio="none">
+        <defs>
+          <pattern id="wv" width="128" height="64" patternUnits="userSpaceOnUse">
+            <path d="M0,32 C21,21 43,43 64,32 C85,21 107,43 128,32" fill="none" stroke="#3f8fab" stroke-width="1.1" opacity=".55"/>
+            <path d="M0,50 C21,39 43,61 64,50 C85,39 107,61 128,50" fill="none" stroke="#3f8fab" stroke-width=".8" opacity=".32"/>
+            <path d="M0,14 C21,3 43,25 64,14 C85,3 107,25 128,14" fill="none" stroke="#3f8fab" stroke-width=".7" opacity=".22"/>
+          </pattern>
+        </defs>
+        <rect width="640" height="933" fill="url(#wv)"/>
+      </svg>
+      <div class="vig"></div>
+
+      <div class="tline top">
+        <div class="t">S O L S T I C E</div>
+        <div class="l"></div>
+      </div>
+
+      <div class="crest">
+        <div class="ring"></div>
+        <div class="ring2"></div>
+        <div class="arcs">
+          <s class="on" style="transform:rotate(0deg) translateY(-184px)"></s>
+          <s style="transform:rotate(40deg) translateY(-184px)"></s>
+          <s style="transform:rotate(80deg) translateY(-184px)"></s>
+          <s style="transform:rotate(120deg) translateY(-184px)"></s>
+          <s style="transform:rotate(160deg) translateY(-184px)"></s>
+          <s style="transform:rotate(200deg) translateY(-184px)"></s>
+          <s style="transform:rotate(240deg) translateY(-184px)"></s>
+          <s style="transform:rotate(280deg) translateY(-184px)"></s>
+          <s style="transform:rotate(320deg) translateY(-184px)"></s>
+        </div>
+        <div class="core">
+          <span class="cn a"></span><span class="cn b"></span>
+          <span class="cn c"></span><span class="cn d"></span>
+          <svg viewBox="0 0 40 40"><use href="#s-water"/></svg>
+        </div>
+      </div>
+
+      <div class="tline bot">
+        <div class="l"></div>
+        <div class="big">水 · 暗 · 风</div>
+        <div class="t" style="margin-top:7px">MATTER · TIER 1</div>
+      </div>
+
+      <div class="seal"><i>1</i>ONE</div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>V2 与上一版的差别</b>：金属框 + 内纸（不再是纯平板）；名带收金线、名字 36 px 细体；
+    属性章带元素纹与双副章；环级改 <b>五角星</b>（TCG 通行语言），不再用进度条；
+    效果框内凹；卡背满版水波 + 中央圆章 + 9 道环刻（亮几道 = 几环）。
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('[data-face]').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('[data-face]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    const back=b.dataset.face==='back';
+    document.getElementById('front').classList.toggle('hide',back);
+    document.getElementById('back').classList.toggle('hide',!back);
+  };
+});
+</script>
+</body>
+</html>

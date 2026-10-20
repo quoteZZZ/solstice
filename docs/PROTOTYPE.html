@@ -93,8 +93,8 @@
   #trees{position:absolute;left:50%;top:54%;width:960px;margin-left:-480px;height:140px}
   #trees i{position:absolute;bottom:0;background:linear-gradient(#3c7048,#1f3f2b);border:1px solid #2b5637;
     border-radius:46% 46% 12% 12%/64% 64% 10% 10%}
-  #scene.enter #island,#scene.enter #mount,#scene.enter #lagoon,#scene.enter #trees{
-    animation:pop .8s cubic-bezier(.2,.9,.2,1) both}
+  #scene.enter #island,#scene.enter #mount,#scene.enter #lagoon,#scene.enter #trees,
+  #scene.enter #worldgroup>svg{animation:pop .8s cubic-bezier(.2,.9,.2,1) both}
   @keyframes pop{from{opacity:0;transform:translateY(40px) scale(.9)}to{opacity:1;transform:none}}
   #fade{position:absolute;inset:0;background:#05070a;z-index:70;pointer-events:none;opacity:0;transition:opacity .5s}
   #fade.on{opacity:1}
@@ -195,11 +195,11 @@
   .irow:last-child{border-bottom:0}
 
   /* ===== 手牌：没有栏，十张卡直接浮在世界底边（自走棋 / 炉石口径） ===== */
-  #hand{position:absolute;left:56px;right:320px;bottom:0;height:300px;pointer-events:none;z-index:32}
-  .cardslot{position:absolute;bottom:8px;width:140px;height:204px;pointer-events:auto;
+  #hand{position:absolute;left:56px;right:320px;bottom:0;height:310px;pointer-events:none;z-index:32}
+  .cardslot{position:absolute;bottom:8px;width:148px;height:216px;pointer-events:auto;
     transition:bottom .16s cubic-bezier(.2,.9,.2,1)}
-  .cardslot:hover{bottom:30px;z-index:60}
-  .card{width:140px;height:204px;border:1px solid #2c3644;border-radius:5px;background:#111820;
+  .cardslot:hover{bottom:32px;z-index:60}
+  .card{width:148px;height:216px;border:1px solid #2c3644;border-radius:4px;background:#0e151c;
     display:flex;flex-direction:column;overflow:hidden;position:relative;cursor:grab;user-select:none;
     transform-origin:50% 160%;transform:rotate(var(--r,0deg)) translateY(var(--l,0px));
     transition:transform .16s cubic-bezier(.2,.9,.2,1),box-shadow .16s,border-color .16s;
@@ -208,25 +208,123 @@
     box-shadow:0 18px 34px rgba(0,0,0,.6);border-color:#7b8b9d}
   .card.sel{border-color:var(--acc);outline:1px solid var(--acc);outline-offset:-1px;
     transform:rotate(0deg) translateY(-24px) scale(1.04)}
-  .card.dragging{opacity:.3}
+
+  /* 内框 + 两个对角刻线：卡片感来自"边"，不是发光 */
+  .card .cbd{position:absolute;inset:3px;border:1px solid rgba(255,255,255,.06);border-radius:2px;
+    pointer-events:none;z-index:5}
+  .card .cbd:before,.card .cbd:after{content:"";position:absolute;width:8px;height:8px;
+    border-color:var(--c);opacity:.55}
+  .card .cbd:before{left:-1px;top:-1px;border-left:1.5px solid;border-top:1.5px solid}
+  .card .cbd:after{right:-1px;bottom:-1px;border-right:1.5px solid;border-bottom:1.5px solid}
+
+  /* 顶条：元素章 + 环级 */
+  .card .top{height:21px;flex:0 0 21px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 7px;background:linear-gradient(180deg,#151f29,#0e161e);border-bottom:1px solid #1d2630}
+  .card .elbar{display:flex;align-items:center;gap:2.5px}
+  .card .elbar i{width:6.5px;height:6.5px;border-radius:50%;display:block;
+    box-shadow:0 0 0 1px rgba(0,0,0,.65)}
+  .card .elbar i.main{width:11px;height:11px;box-shadow:0 0 0 1px rgba(0,0,0,.65),0 0 7px currentColor}
+  .card .tier{font-family:var(--mono);font-size:8px;color:#7e8b98;letter-spacing:.06em}
+  .card .tier b{font-size:11px;color:var(--acc);font-weight:500}
+
   .card .art{flex:1;position:relative;overflow:hidden;
-    background:radial-gradient(120% 90% at 50% 8%,color-mix(in srgb,var(--c) 46%,#0d1319) 0%,#121a24 60%,#0b1117 100%)}
+    background:radial-gradient(120% 90% at 50% 6%,color-mix(in srgb,var(--c) 40%,#0d1319) 0%,#111a23 58%,#0a1016 100%)}
   .card .art:after{content:"";position:absolute;inset:0;
-    background:repeating-linear-gradient(38deg,rgba(0,0,0,.22) 0 1px,transparent 1px 7px);opacity:.45}
-  .card .art svg{position:absolute;inset:0;width:100%;height:100%;opacity:.92;color:#e2eaf1}
-  .card .dots{position:absolute;right:7px;top:7px;display:flex;gap:2px}
-  .card .dots i{width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,.18)}
-  .card .dots i.on{background:var(--c)}
-  .card .nm{height:24px;display:flex;align-items:center;justify-content:center;font-size:11.5px;
-    color:#e8eef4;background:#0d141b;border-top:1px solid #222c38;letter-spacing:.04em}
+    background:repeating-linear-gradient(38deg,rgba(0,0,0,.2) 0 1px,transparent 1px 8px);opacity:.4}
+  .card .art svg{position:absolute;inset:0;width:100%;height:100%;opacity:.95;color:#e2eaf1}
+  /* 类别用形状区分，不用字：物=方 术=菱 律=圈 */
+  .card .cg{position:absolute;left:7px;bottom:5px;font-size:9px;color:#c8d4de;opacity:.32;z-index:2}
+  /* 进化来源标记 */
+  .card .ev{position:absolute;right:7px;bottom:5px;font-family:var(--mono);font-size:8px;
+    color:var(--ok);opacity:.8;z-index:2}
+
+  .card .ln{height:38px;flex:0 0 38px;background:#0f161d;border-top:1px solid #1d2630;
+    font-size:9px;line-height:1.55;color:#9fb0bd;text-align:center;padding:4px 7px;overflow:hidden}
+  .card .nm{height:23px;flex:0 0 23px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 7px;font-size:11.5px;color:#e8eef4;background:#0c1319;border-top:1px solid #1b232d;
+    letter-spacing:.04em}
+  .card .nm .cl{font-size:8px;color:#54616e;letter-spacing:.08em}
+  .card .ft{height:15px;flex:0 0 15px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 7px;font-family:var(--mono);font-size:7.5px;color:#5d6b7a;
+    background:#080d13;border-top:1px solid #161e27}
+  /* 余响进度：贴图标的细条 */
+  #echobar{width:26px;height:3px;background:#222b36;border-radius:2px;display:inline-block;overflow:hidden}
+  #echobar i{display:block;height:100%;background:var(--acc)}
+  /* 落点飘字 */
+  /* 夜幕只压地形（z3）：痕迹(4)、兽(5)、鸟(6) 仍在它上面，夜里也看得见 */
+  #nightveil{position:absolute;inset:0;background:#04070d;pointer-events:none;z-index:3;
+    transition:opacity 1.6s ease}
+  /* 夜沼鸟的雾：世界真的湿了一层（不是图标） */
+  #fogveil{position:absolute;inset:0;pointer-events:none;z-index:7;opacity:0;
+    transition:opacity 2.4s ease;
+    background:
+      radial-gradient(58% 30% at 28% 74%,rgba(206,224,232,.22),transparent 72%),
+      radial-gradient(48% 24% at 70% 66%,rgba(190,214,226,.17),transparent 74%),
+      radial-gradient(40% 20% at 48% 58%,rgba(210,228,236,.12),transparent 76%)}
+  #gainfly{position:absolute;z-index:9;font-family:var(--mono);font-size:15px;color:var(--acc);
+    pointer-events:none;text-shadow:0 2px 6px #000;opacity:0}
+  /* 点痕迹 → 回看那一刻 */
+  #tracepop{position:absolute;z-index:12;width:208px;border:1px solid #3d4a5c;
+    background:rgba(9,13,18,.96);padding:9px 11px;border-radius:3px;box-shadow:0 14px 30px rgba(0,0,0,.6)}
+  #tracepop .tp1{font-size:13px;color:#fff}
+  #tracepop .tp2{font-family:var(--mono);font-size:9.5px;color:#5d6b7a;margin-top:2px}
+  #tracepop .tp3{font-size:11px;color:#c6d2de;margin-top:6px;line-height:1.55}
+  #tracepop .tp4{font-family:var(--mono);font-size:9.5px;color:var(--acc);margin-top:7px;cursor:pointer}
+  /* 首次引导气泡 */
+  #coach{position:absolute;left:50%;bottom:252px;transform:translateX(-50%);z-index:36;
+    border:1px solid #3d4a5c;background:rgba(10,14,19,.94);padding:8px 14px;border-radius:16px;
+    font-size:12px;color:#dfe7ee;white-space:nowrap;box-shadow:0 10px 24px rgba(0,0,0,.5);
+    transition:opacity .3s;pointer-events:none}
+  #coach:after{content:"";position:absolute;left:50%;bottom:-6px;width:10px;height:10px;
+    margin-left:-5px;background:rgba(10,14,19,.94);border-right:1px solid #3d4a5c;
+    border-bottom:1px solid #3d4a5c;transform:rotate(45deg)}
+  #coach.hide{opacity:0}
 
   /* 悬浮卡详情（自走棋式：平时不解释，悬停才出） */
-  #cardtip{position:fixed;z-index:120;display:none;width:250px;border:1px solid #3d4a5c;
-    background:rgba(9,13,18,.97);padding:11px 13px;border-radius:3px;box-shadow:0 16px 34px rgba(0,0,0,.62)}
-  #cardtip .t1{font-size:15px;color:#fff}
-  #cardtip .t2{font-family:var(--mono);font-size:10px;color:var(--ink3);margin-top:2px}
-  #cardtip .t3{font-size:12.5px;color:#c6d2de;margin-top:8px;line-height:1.65}
-  #cardtip .t4{font-family:var(--mono);font-size:10px;color:var(--acc);margin-top:8px}
+  #cardtip{position:fixed;z-index:120;display:none;width:272px;border:1px solid #3d4a5c;
+    background:rgba(9,13,18,.97);padding:12px 14px;border-radius:3px;box-shadow:0 16px 34px rgba(0,0,0,.62)}
+  #cardtip .t1{font-size:16px;color:#fff;letter-spacing:.02em}
+  #cardtip .t2{font-family:var(--mono);font-size:10.5px;color:var(--ink3);margin-top:3px}
+  #cardtip .t3{font-size:13px;color:#c6d2de;margin-top:9px;line-height:1.65}
+  #cardtip .t4{font-family:var(--mono);font-size:10px;color:var(--acc);margin-top:8px;line-height:1.6}
+  #cardtip .t5{font-size:11.5px;color:#8b99a6;margin-top:8px;font-style:italic;line-height:1.6}
+  #cardtip .t6{font-family:var(--mono);font-size:9.5px;color:var(--ok);margin-top:7px;
+    padding-top:7px;border-top:1px solid #1a212a}
+  #cardtip .t7{font-family:var(--mono);font-size:9px;color:#5a6674;margin-top:6px;
+    text-align:right;letter-spacing:.04em}
+
+  /* 卡面说明条（游戏王卡下框的用法：只写这张卡才有的信息） */
+  .card .ln{height:35px;flex:0 0 35px;background:#0f161d;border-top:1px solid #1d2630;
+    font-size:9px;line-height:1.5;color:#9fb0bd;text-align:center;padding:3px 6px;overflow:hidden}
+  /* 图鉴 · 生态读数条 + 自由正文 + 关系行 */
+  .dex{margin-top:12px;padding:11px 12px;border:1px solid #1d2630;background:#0b1218}
+  .dex .stat{display:flex;align-items:center;gap:7px;padding:3px 0}
+  .dex .stat .sk{flex:0 0 26px;font-family:var(--mono);font-size:9px;color:#5a6674}
+  .dex .stat .sbar{flex:1;height:4px;background:#141d26;border-radius:2px;overflow:hidden}
+  .dex .stat .sbar i{display:block;height:100%;opacity:.85}
+  .dex .stat .sv{flex:0 0 62px;text-align:right;font-family:var(--mono);font-size:10px;color:#cfd8e2}
+  .dex .stat .st{flex:0 0 66px;font-size:8.5px;color:#4c5563;white-space:nowrap;overflow:hidden}
+  .dex .lore{margin-top:9px;padding-top:8px;border-top:1px solid #172029;font-size:11.5px;
+    line-height:1.8;color:#aab7c4}
+  .dex .lore b{display:block;font-family:var(--mono);font-size:9px;color:#6d7b89;
+    font-weight:400;letter-spacing:.1em;margin-bottom:2px}
+  .dex .rel{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;padding-top:8px;border-top:1px solid #172029}
+  .dex .rel .rl{font-family:var(--mono);font-size:9px;color:#54616e;
+    border:1px solid #1d2630;padding:2px 6px;border-radius:2px}
+  .dex .rel .rl b{color:var(--acc);font-weight:400;margin-left:4px;cursor:pointer}
+  .dex .rel .rl b:hover{text-decoration:underline}
+  .dex .drow{display:flex;gap:8px;padding:3px 0;border-bottom:1px dashed #172029;line-height:1.5}
+  .dex .drow:last-of-type{border-bottom:0}
+  .dex .drow span{flex:0 0 42px;font-family:var(--mono);font-size:9px;color:#5a6674;
+    letter-spacing:.06em;padding-top:1px}
+  .dex .drow b{flex:1;font-weight:400;font-size:11.5px;color:#c6d2de}
+  .dex .dtxt{margin-top:9px;padding-top:8px;border-top:1px solid #172029;
+    font-size:11.5px;line-height:1.8;color:#9fb0bd}
+
+  /* 图鉴里的完整效果块 */
+  .cdx{margin-top:12px;padding:10px 11px;border:1px solid #1d2630;background:#0c131a}
+  .cdx .cdtxt{font-size:12px;line-height:1.75;color:#c0ccd8;margin-top:5px}
+  .cdx .cdfl{font-size:11px;font-style:italic;color:#8b99a6;margin-top:8px}
 
   .el{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:middle}
   #ghost{position:fixed;width:140px;height:204px;pointer-events:none;z-index:99;opacity:.9;transform:translate(-70px,-102px)}
@@ -395,7 +493,9 @@ const ZERO = [
 const MORE = [
   ['土',2,'物','土丘'],['水',3,'术','降雨'],['木',1,'物','苔毯'],['火',3,'术','点燃'],
   ['土',5,'物','土山'],['水',6,'物','瀑布'],['光',2,'术','光斑'],['木',3,'术','疯长'],
-  ['暗',7,'术','暗潮'],['金',4,'物','铜钟'],['水',5,'术','引流'],['土',9,'物','大陆']
+  ['暗',7,'术','暗潮'],['金',4,'物','铜钟'],['水',5,'术','引流'],['土',9,'物','大陆'],
+  ['木',4,'物','兽群'],['光',8,'术','启智'],
+  ['木',1,'物','铁杉'],['木',2,'物','花楸'],['光',3,'物','晨鸟'],['暗',3,'物','夜枭']
 ];
 const S = {
   screen:'creator',                 // creator | world
@@ -404,9 +504,11 @@ const S = {
   form:'群岛界', climate:'热带雨林', name:'—',
   seed:['SOL','ARC','7K3M','9QX2'],
   traits:[], params:{}, log:[],
-  pitch:30, zoom:2, speed:4, paused:false, day:312, minute:838, azimuth:0,
+  pitch:30, zoom:2, speed:4, paused:false, day:312, minute:838, azimuth:0, disturb:42, coach:0,
   panel:null, echoLog:[], chron:[], ambient:false, event:null,
-  cursor:null, drag:null, lastAction:''
+  cursor:null, drag:null, lastAction:'', traces:[], traceSeq:0, traceSel:null,
+  life:{flora:0,fauna:0,sapient:0},
+  species:{moss:0,hemlock:0,rowan:0,lark:0,owl:0}
 };
 /* 卡唯一：同一 key 只保留一张 */
 const ckey = c => c.join('|');
@@ -424,14 +526,34 @@ function toast(t,d){
   el.innerHTML=`<div class="t">${t}</div><div class="d">${d}</div>`;
   box.appendChild(el); setTimeout(()=>el.remove(),6000);
 }
-function radiusPx(tier){ return [56,80,110,145,190,235,290,350,420,500][tier]||56; }
+/* 作用圈半径 = radius_w × 世界区宽（1544），与 CARDS §4.1 同源 */
+function radiusPx(tier){
+  return Math.round((RADW[tier]||0.006)*1544);
+}
 
 /* 手牌 = 从实体池抽 10（不重复） */
+/* 卡是消耗品：抽卡可重复、手上同名最多一张、用掉即消失（CARDS §8.1） */
+const ALL = ZERO.concat(MORE);
+function markSeen(c){ if(!S.owned.some(x=>x[3]===c[3])) S.owned.push(c.slice()); }
+function drawOne(exNames){
+  const pool = ALL.filter(c=>!exNames.has(c[3]));
+  if(!pool.length) return null;
+  /* 环级即稀有度：高环卡按 TW 降权，格子多少不影响概率 */
+  const w = pool.map(c=>TW[Math.min(c[1],10)]||0.02);
+  let r = Math.random()*w.reduce((a,b)=>a+b,0);
+  for(let i=0;i<pool.length;i++){ r-=w[i]; if(r<=0) return pool[i].slice(); }
+  return pool[pool.length-1].slice();
+}
 function drawHand(){
-  const pool = S.owned.slice();
-  for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
-  S.hand = pool.slice(0, Math.min(10,pool.length));
-  S.sel = 0;
+  const names=new Set(); S.hand=[];
+  for(let i=0;i<10;i++){
+    const c=drawOne(names); if(!c) break;
+    names.add(c[3]); S.hand.push(c); markSeen(c);
+  }
+  S.sel=0;
+  /* 样板卡：演示"两层信息 + 卡上进化"（M1 前手工放置，不进抽卡池） */
+  S.hand[0]=['水',1,'物','夜沼鸟'];
+  if(!S.owned.some(x=>x[3]==='夜沼鸟')) S.owned=uniqueOwned(S.owned.concat([['水',1,'物','夜沼鸟']]));
 }
 
 /* =========================================================================
@@ -1034,13 +1156,361 @@ function enterWorld(){
 /* =========================================================================
    世界界面
    ========================================================================= */
-function treesHTML(){
-  let h='';
-  for(let i=0;i<40;i++){
-    const x=30+(i*24)%900, ht=24+(i*31)%46, w=10+(i*13)%7;
-    h+=`<i style="left:${x}px;height:${ht}px;width:${w}px"></i>`;
+/* 痕迹寿命 = 这张卡实际留下的残留时间（世界日），不是元素属性。
+   同一元素完全可以是 40 分钟（火星）或 60 日（点燃）或永久（熔岩台）。 */
+const RESID={
+  /* 瞬时：只够看见 */
+  '闪':0.005,'火星':0.03,'露珠':0.02,'微光':0.02,'沙粒':0.01,'擦痕':0.1,'影斑':0.05,
+  /* 一段时间 */
+  '润湿':0.3,'渗':0.2,'暖':0.2,'扬尘':0.2,'引燃':0.3,'光斑':0.5,'降雨':1,
+  /* 生长（活了就并入植被） */
+  '萌发':10,'苔毯':20,'疯长':20,'种子':30,
+  /* 长期地貌 / 规则 */
+  '点燃':60,'古树':999,'土丘':999,'土山':999,'大陆':999,'水世界':999,
+  '瀑布':999,'引流':999,'不锈':999,'扎根':999,'松':999,'透':999,'隐':999,'遮':999,
+  '铁屑':999,'铜钟':999
+};
+const MINUTES=[1,2,5,10,20,40,80,160,480,1440,-1];
+function residOf(card){
+  const r=RESID[card[3]];
+  if(r!==undefined) return r;
+  const m=MINUTES[card[1]];
+  return m<0 ? 999 : m/1440;          // 没登记的卡：按效果时长折算成天
+}
+function expireTraces(){
+  const now=S.day*1440+S.minute;
+  const before=S.traces.length;
+  S.traces=S.traces.filter(t=> t.life>=999 || (now-t.born) <= t.life*1440);
+  return before!==S.traces.length;
+}
+function addTrace(x,y,card,gain,text){
+  const now=S.day*1440+S.minute;
+  const [el,tier,name]=[card[0],card[1],card[3]];
+  const life=residOf(card);
+  /* 同元素同位合并：寿命取更长的那个（火星碰上点燃 → 变成焦痕） */
+  const near=S.traces.find(t=>t.el===el && Math.abs(t.x-x)<24 && Math.abs(t.y-y)<24);
+  if(near){
+    const stronger = life >= near.life;
+    near.count=(near.count||1)+1;
+    near.born=now; near.life=Math.max(near.life,life);
+    near.tier=Math.max(near.tier,tier);
+    near.x=(near.x+x)/2; near.y=(near.y+y)/2;
+    near.minute=S.minute; near.day=S.day; near.gain+=gain;
+    if(stronger){ near.name=name; near.text=text; near.el=el; }
+    return near;
   }
-  return h;
+  const t={id:++S.traceSeq,x,y,el,tier,name,gain,life,count:1,born:now,day:S.day,minute:S.minute,text};
+  S.traces.push(t);
+  if(S.traces.length>200) S.traces.shift();
+  return t;
+}
+
+/* 物种档案：一张卡 = 一个物种，各自有季节性 / 昼夜节律（见 docs/SPECIES.md） */
+const SEASON=['春','夏','秋','冬'];
+function seasonIdx(){ return Math.floor(((S.day-1)%48)/12); }
+function nightAmt(){
+  const h=S.minute/60;
+  if(h>=8 && h<17) return 0;
+  if(h>=18 || h<6) return 0.62;
+  return 0.28;
+}
+/* 夜沼鸟在界里 → 夜里真的起雾；雾又反哺湿度读数（图鉴数值被世界读走的那一步） */
+function fogAmt(){
+  const n=(S.species&&S.species.nightbird)||0;
+  if(!n) return 0;
+  const h=S.minute/60, night = (h>=18 || h<6);
+  return night ? Math.min(0.85, 0.35+n*0.1) : 0;
+}
+function humidity(){
+  return 62 + (fogAmt()>0 ? 8 : 0);
+}
+/* 元素构成（1–3 个，首位为主）+ 卡面说明条（≤24 字）+ 图鉴完整效果 + 卡自带进化 */
+const FLORA={
+  moss:   {label:'苔',   els:['水','木'], ever:true,  color:'#4b7a4a', h:6,  w:5,
+           line:'铺苔；3 株后遇湿则结毯',
+           codex:'铺 1 片苔（0.005 W，需阴湿）。同处满 3 株且湿度 ≥0.40 时，30 日后进化为「苔毯」。',
+           evolve:'苔毯 · 3 株 + 湿 ≥0.40 + 30 日',
+           flavor:'贴着石头过冬，一碰就碎。'},
+  hemlock:{label:'铁杉', els:['木'], ever:true,  color:'#2f5a3c', h:28, w:7,
+           line:'种铁杉；冬季不落叶，压住坡面',
+           codex:'种 1 株铁杉（0.02 W，需湿土）。常绿：四季不落叶，坡面抗冲刷 +1 档。此卡无进化。',
+           evolve:null,
+           flavor:'雪压弯了也不落叶。'},
+  rowan:  {label:'花楸', els:['木','光'], ever:false, colors:['#8fae74','#3f7549','#b0723a',null], h:17, w:8,
+           flower:'#e6dbe8',
+           line:'种花楸；果熟时招来候鸟',
+           codex:'种 1 株花楸（需林缘）。若 30 日内有晨鸟栖枝，秋季结红果，果期 20 日；果期内候鸟每日把种子带走 0.02 W。生物量 ≥300 且满 5 年进化为「古树」。',
+           evolve:'古树 · 生物量 ≥300 + 5 年',
+           flavor:'春开一树白，秋落一地红。'}
+};
+const BIRD={
+  lark:{label:'晨鸟', els:['光','木'], active:'day',  color:'#2b2b28', n:4,
+        line:'放晨鸟；天亮即鸣，带走种子',
+        codex:'放入 4 只晨鸟（需林缘）。昼行 6–18；每日每只把种子带走 0.02 W，并吃掉少量虫。此卡无进化。',
+        flavor:'天亮第一声，比太阳早半刻。'},
+  owl: {label:'夜枭', els:['暗','木'], active:'night',color:'#9a8fb0', n:3,
+        line:'放夜枭；夜里控鼠，栖枝必为木本',
+        codex:'放入 3 只夜枭（需林或洞）。夜行 18–6；压制鼠类与虫豸；栖枝必须是木本。此卡无进化。',
+        flavor:'它叫的时候，整片林子都安静。'}
+};
+const RADW=[0.006,0.012,0.020,0.030,0.050,0.075,0.110,0.165,0.250,0.380,0.560];
+const CD={0:'—',1:'30 秒',2:'30 秒',3:'30 秒',4:'3 分',5:'3 分',6:'3 分',
+  7:'15 分',8:'15 分',9:'15 分',10:'60 分'};
+/* 抽卡权重只看环级（CARDS §9）：4 > 5 > 6，7 > 8 > 9，超环再降 */
+const TW=[1,1,0.9,0.75,0.62,0.44,0.31,0.16,0.11,0.075,0.03];
+/* 非动植物实体 / 单张样板：宝可梦式图鉴条目（dex） */
+const EXTRA={
+  nightbird:{label:'夜沼鸟', els:['水','暗','风'], from:'夜枭', kind:'雾栖鸟',
+    line:'由夜枭进化；夜出成雾，雾里捕食',
+    codex:'由普通夜枭进化而来（30 日内 3 次夜捕成雾）。夜里 18–6 低飞于水面之上，翼下绒膜收拢水汽，拖出一条 0.03 W 的雾带：雾内能见度 −1 档、湿度 +0.08/时，鸟自身不受影响。雾中凭听觉捕食，范围 +0.02 W。白天栖木本横枝，强光下不动。此卡不再进化。',
+    evolve:null,
+    /* 数值：世界读这几项，别处卡也引用这几项 */
+    stats:[
+      {k:'体型', v:'0.03 W', w:16, t:'翼展'},
+      {k:'活跃', v:'12 时/日', w:50, t:'18–6'},
+      {k:'雾域', v:'0.03 W', w:32, t:'能见度 −1'},
+      {k:'捕食', v:'0.6 尾/日', w:22, t:'+0.02 W 范围'},
+      {k:'耐温', v:'8–26 °C', w:62, t:'正午停飞'},
+      {k:'湿度', v:'≥ 0.35', w:42, t:'雾内 +0.08'}
+    ],
+    lore:[
+      ['习性','昼伏夜出。日落后离枝，贴水面低飞，天亮前归枝；白天在木本横枝上一动不动。'],
+      ['行为','翼下绒膜收水面凉气，飞一圈拖出一条雾。雾里靠听觉找鱼，不靠眼睛——所以它怕的不是黑，是安静。'],
+      ['传说','渔人把它的落羽缝在网边，说这样雾会认得人。没有人证实过，但雾确实总在那一段河湾起。']
+    ],
+    rel:[['食物','溪鱼'],['天敌','—'],['共生','苔'],['出现地','河湾']],
+    flavor:'雾不是它藏身的地方，是它的网。'}
+};
+function spOf(c){
+  const DB=Object.assign({},FLORA,BIRD,EXTRA);
+  const k=Object.keys(DB).find(k=>DB[k].label===c[3]);
+  return k?Object.assign({key:k},DB[k]):null;
+}
+const elsOf=c=>{ const s=spOf(c); return s?s.els:[c[0]]; };
+
+/* 生命层：植物是绿的、动物会动、智慧有屋（荒界时整层不发射） */
+function lifeSVG(){
+  const a=S.life.fauna, sp=S.life.sapient;
+  if(!a && !sp) return '';
+  const t=FT[S.form]||FT['单岛界'];
+  const surf=(t.peaks&&t.peaks[0])?t.peaks[0][1]:348;
+  const b=t.box&&t.box.length===4?t.box:[300,700,320,400];
+  const parts=[];
+  /* 在陆地上取点：椭圆岛用极坐标（保证落在陆上），大陆类用矩形但要压到岸线以下 */
+  const landSpot=(i,rim)=>{
+    if(t.isl && t.isl.length){
+      const [cx,cy,rx,ry]=t.isl[i%t.isl.length];
+      const ang=2.3999*(i+1);
+      const rr=rim?0.84+0.04*((i%3)):0.34+0.09*((i%5));
+      return [cx+Math.cos(ang)*rx*rr, cy+Math.sin(ang)*ry*rr];
+    }
+    const x=b[0]+20+((i*97)%(b[1]-b[0]-40));
+    const y=rim? surf+10+((i*7)%16) : surf+34+((i*47)%Math.max(40,b[3]-surf-40));
+    return [x,y];
+  };
+  if(a){
+    const n=Math.min(12, 2+a*2);
+    for(let i=0;i<n;i++){
+      /* 每三只里有一只在水边（饮水），其余在林缘（吃草） */
+      const shore=i%3===0;
+      const [x,y]=landSpot(i, shore);
+      const d=3.4+(i%3)*0.9;
+      const anim = shore
+        ? `values="0,0; ${10+(i%6)},${1-(i%3)}; ${-6+(i%4)},0; 0,0" dur="${7+(i%4)}s"`
+        : `values="0,0; ${7+(i%5)},${-3+(i%4)}; ${-5+(i%3)},${3-(i%2)}; 0,0" dur="${5+(i%5)}s"`;
+      parts.push(`<g><ellipse cx="${x}" cy="${y}" rx="${d}" ry="${d*0.62}" fill="#221f1b" opacity=".9">
+        <animateTransform attributeName="transform" type="translate" ${anim} repeatCount="indefinite"/>
+      </ellipse></g>`);
+    }
+  }
+  if(sp){
+    /* 聚落必在水边（取水），三间一院 */
+    const n=Math.min(4,1+sp);
+    const [hemx,hemy]=landSpot(0,true);
+    const cx=Math.round(hemx)-26, cy=Math.round(hemy)+6;
+    for(let i=0;i<n;i++){
+      const x=cx+i*52, y=cy+((i%2)*10);
+      parts.push(`<g>
+        <rect x="${x}" y="${y}" width="11" height="9" fill="#5a4a38"/>
+        <path d="M${x-2},${y} L${x+5.5},${y-6.5} L${x+13},${y} Z" fill="#8a7448"/>
+        <rect x="${x+4}" y="${y-1}" width="3" height="5" fill="#e0a33e" opacity=".85"/>
+      </g>`);
+    }
+  }
+  return `<svg viewBox="0 0 1544 774" preserveAspectRatio="none"
+    style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5">
+    <g id="life">${parts.join('')}</g></svg>`;
+}
+
+/* 鸟：各自有昼夜节律——晨鸟白天飞，夜枭晚上飞（同一片天，不同时段） */
+function birdsSVG(){
+  const hr=S.minute/60, isDay=hr>=6 && hr<18;
+  const list=[];
+  Object.keys(BIRD).forEach(k=>{
+    const c=S.species[k]||0; if(!c) return;
+    const B=BIRD[k];
+    if((B.active==='day')!==isDay) return;
+    for(let i=0;i<Math.min(B.n, c*2);i++){
+      const y=170+((i*41)%90), dur=17+(i%4)*5;
+      list.push(`<path d="M0,0 q4,-3.5 8,0" fill="none" stroke="${B.color}" stroke-width="1.7" opacity=".9">
+        <animateTransform attributeName="transform" type="translate"
+          values="-70,${y}; 1620,${y-24}" dur="${dur}s" repeatCount="indefinite"/>
+      </path>`);
+    }
+  });
+  if(!list.length) return '';
+  return `<svg viewBox="0 0 1544 774" preserveAspectRatio="none"
+    style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:6">
+    ${list.join('')}</svg>`;
+}
+
+/* 痕迹层：每次释放都在世界留下一个能看见的东西（否则玩家会觉得"卡没用"） */
+function tracesSVG(){
+  const list=(S.traces||[]).slice(-90);
+  if(!list.length) return '';
+  return `<svg viewBox="0 0 1544 774" preserveAspectRatio="none"
+    style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4">
+    ${list.map(o=>{
+      const c=ELC[o.el]||'#8fa3b6';
+      const s=(o.tier>=7?16:o.tier>=4?13:11)+Math.min(o.count||1,4)*1.6;
+      const on=o.id===S.traceSel;
+      return `<g style="pointer-events:auto;cursor:pointer" opacity="${o.tier>=7?.9:.62}"
+        onclick="event.stopPropagation();openTrace(${o.id})">
+        ${on?`<circle cx="${o.x}" cy="${o.y}" r="${s*1.1}" fill="none" stroke="${c}" stroke-width="1.4" opacity=".9"/>`:''}
+        <circle cx="${o.x}" cy="${o.y}" r="${s*0.62}" fill="${c}" opacity=".16"/>
+        <svg x="${o.x-s/2}" y="${o.y-s/2}" width="${s}" height="${s}" viewBox="0 0 100 100"
+          style="color:${c}">${SIGIL[o.el]||SIGIL['水']}</svg>
+        <circle cx="${o.x}" cy="${o.y}" r="15" fill="transparent"/>
+      </g>`}).join('')}
+  </svg>`;
+}
+function openTrace(id){ S.traceSel=(S.traceSel===id?null:id); render(); }
+function tracePop(){
+  const t=(S.traces||[]).find(o=>o.id===S.traceSel);
+  if(!t) return '';
+  return `<div id="tracepop" onclick="event.stopPropagation()">
+    <div class="tp1">${t.name}${(t.count||1)>1?` <span style="color:#5d6b7a;font-size:11px">×${t.count}</span>`:''}</div>
+    <div class="tp2">第 ${t.day} 天 ${fmt(t.minute)} · ${t.el} · ${t.tier===10?'超环':t.tier+' 环'}</div>
+    <div class="tp3">${fxOf([t.el,t.tier,'术',t.name])} · +${t.gain} 余响</div>
+    <div class="tp2">${traceLifeText(t)}</div>
+    <div class="tp4" onclick="jumpChron('${t.text}')">在年表里看这一刻 ▸</div>
+  </div>`;
+}
+function traceLifeText(t){
+  if(t.life>=999) return '永久（直到被别的效果覆盖）';
+  const now=S.day*1440+S.minute;
+  const left=Math.max(0, t.life*1440-(now-t.born));
+  if(left>=1440) return '还会留 ' + Math.ceil(left/1440) + ' 日';
+  if(left>=60) return '还会留 ' + Math.round(left/60) + ' 小时';
+  return '还会留 ' + Math.max(0,Math.round(left)) + ' 分';
+}
+function jumpChron(text){
+  S.chronSel=text; S.panel='chron'; S.traceSel=null; render();
+}
+
+/* 地形按形制生成：十种形制在 3D 里长得不一样（不再是"椭圆 + 两座山"） */
+const FT={
+  '单岛界':{isl:[[500,348,320,110]],peaks:[[500,348,170,140],[368,348,108,88]],box:[250,750,250,420]},
+  '群岛界':{isl:[[236,362,118,56],[432,336,150,68],[700,368,112,52],[596,414,78,36]],
+    peaks:[[432,336,118,100],[236,362,68,56]],box:[150,790,290,440]},
+  '大陆界':{main:'M-40,300 Q240,262 500,296 T1040,300 L1040,560 L-40,560 Z',
+    peaks:[[240,300,200,152],[600,300,240,172],[850,300,158,108]],box:[40,960,250,430]},
+  '半岛界':{main:'M-40,300 Q260,250 560,290 Q622,302 640,342 Q600,402 520,432 Q240,470 -40,430 Z',
+    peaks:[[300,300,196,148],[500,318,118,88]],box:[60,600,255,420]},
+  '环礁界':{isl:[[500,352,330,118],[500,354,205,66]],ring:true,
+    peaks:[[298,372,66,52],[702,376,58,44]],box:[220,780,310,420]},
+  '峡湾界':{main:'M-40,300 Q240,250 620,290 L640,560 L-40,560 Z',
+    notch:'M604,294 L556,342 L602,382 L642,346 L662,298 Z',
+    peaks:[[240,300,188,140],[478,300,148,108]],box:[80,580,255,430]},
+  '内陆湖国':{main:'M-40,300 Q240,256 500,292 T1040,298 L1040,560 L-40,560 Z',
+    lake:[500,352,150,46],peaks:[[262,300,178,132],[760,300,168,120]],box:[60,940,250,430]},
+  '裂谷界':{main:'M-40,300 Q240,258 500,294 T1040,300 L1040,560 L-40,560 Z',
+    rift:'M468,330 L514,402 L556,560 L388,560 L438,402 Z',
+    peaks:[[566,300,158,120],[840,300,150,110]],box:[60,420,250,430]},
+  '全海界':{reefs:[[214,362,66,24],[392,414,96,34],[598,378,78,28],[796,436,104,38],[498,472,58,22]],peaks:[],box:[]},
+  '全陆界':{main:'M-40,214 Q240,188 500,212 T1040,218 L1040,560 L-40,560 Z',
+    peaks:[[220,214,220,168],[560,214,258,188],[860,214,178,128]],box:[40,960,200,430]}
+};
+function terrainSVG(){
+  const t=FT[S.form]||FT['单岛界'];
+  const shapes=[];
+  (t.isl||[]).forEach(([cx,cy,rx,ry],i)=>{
+    if(t.ring && i>0) return;
+    shapes.push(`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"/>`);
+  });
+  if(t.main) shapes.push(`<path d="${t.main}"/>`);
+  const landDef=shapes.join('');
+
+  const peaks=(t.peaks||[]).map(([x,y,w,h])=>`
+    <path d="M${x-w/2},${y} L${x},${y-h} L${x+w/2},${y} Z" fill="url(#peakG)"/>
+    <path d="M${x},${y-h} L${x+w/2},${y} L${x-w*0.06},${y} Z" fill="#16212b" opacity=".45"/>
+    <path d="M${x-w*0.1},${y-h*0.6} L${x},${y-h} L${x+w*0.1},${y-h*0.6} Z" fill="#e8f0f3" opacity=".82"/>`).join('');
+
+  const trees=[];
+  const b=t.box||[];
+  if(S.life.flora && b.length===4){
+    const si=seasonIdx();
+    const list=[];
+    Object.keys(FLORA).forEach(k=>{
+      const c=S.species[k]||0;
+      for(let j=0;j<Math.min(10,c*3+1);j++) list.push(k);
+    });
+    list.forEach((k,i)=>{
+      const x=b[0]+((i*97)%(b[1]-b[0]));
+      const y=b[2]+((i*53)%(b[3]-b[2]));
+      const F=FLORA[k], h=F.h*(0.8+((i*13)%5)/10), w=F.w;
+      if(k==='moss'){
+        trees.push(`<ellipse cx="${x}" cy="${y}" rx="${w*1.4}" ry="2.6" fill="${F.color}" opacity=".85"/>`);
+        return;
+      }
+      let fill=F.color;
+      if(!F.ever){
+        fill=F.colors[si];
+        if(!fill){
+          trees.push(`<path d="M${x},${y} L${x},${y-h*0.7}" stroke="#6b5a4a" stroke-width="2"/>
+            <path d="M${x},${y-h*0.5} L${x-3},${y-h*0.62} M${x},${y-h*0.56} L${x+3},${y-h*0.68}"
+              stroke="#6b5a4a" stroke-width="1.4"/>`);
+          return;
+        }
+        if(si===0) trees.push(`<circle cx="${x}" cy="${y-h*0.82}" r="${w*0.85}" fill="${F.flower}" opacity=".5"/>`);
+      }
+      trees.push(`<path d="M${x},${y-h} L${x+w},${y} L${x-w},${y} Z" fill="${fill}" opacity=".92"/>`);
+    });
+  }
+
+  const holes=
+    (t.ring?`<ellipse cx="${t.isl[0][0]}" cy="${t.isl[0][1]}" rx="205" ry="66" fill="#12303f"/>
+      <ellipse cx="${t.isl[0][0]}" cy="${t.isl[0][1]}" rx="205" ry="66" fill="none" stroke="#7fb2c8" opacity=".45"/>`:'')
+    +(t.lake?`<ellipse cx="${t.lake[0]}" cy="${t.lake[1]}" rx="${t.lake[2]}" ry="${t.lake[3]}" fill="#12303f"/>
+      <ellipse cx="${t.lake[0]}" cy="${t.lake[1]}" rx="${t.lake[2]}" ry="${t.lake[3]}" fill="none" stroke="#7fb2c8" opacity=".4"/>`:'')
+    +(t.notch?`<path d="${t.notch}" fill="#12303f"/>`:'')
+    +(t.rift?`<path d="${t.rift}" fill="#0b1117"/>
+      <path d="${t.rift}" fill="none" stroke="#3a4a56" stroke-width="1.4" opacity=".8"/>`:'');
+
+  const reefs=(t.reefs||[]).map(([x,y,rx,ry])=>
+    `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="#2c4632" opacity=".92"/>`).join('');
+
+  return `<svg viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid slice"
+    style="position:absolute;inset:0;width:100%;height:100%">
+    <defs>
+      <linearGradient id="landG" x1="0" y1="0" x2="0" y2="1">
+        ${S.life.flora
+          ? `<stop offset="0" stop-color="#416b3f"/><stop offset=".58" stop-color="#2c4a2b"/><stop offset="1" stop-color="#1d321f"/>`
+          : `<stop offset="0" stop-color="#6b6152"/><stop offset=".55" stop-color="#4a4237"/><stop offset="1" stop-color="#2e2b26"/>`}
+      </linearGradient>
+      <linearGradient id="peakG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#66798a"/><stop offset="1" stop-color="#26333f"/>
+      </linearGradient>
+      <clipPath id="lc">${landDef}</clipPath>
+    </defs>
+    ${landDef?`<g fill="url(#landG)" stroke="#4a6b52" stroke-width="1.4">${landDef}</g>
+      <g clip-path="url(#lc)">
+        <rect x="0" y="356" width="1000" height="24" fill="#3b3226" opacity=".5"/>
+        <rect x="0" y="380" width="1000" height="140" fill="#20262e" opacity=".6"/>
+      </g>`:''}
+    ${reefs}${trees.join('')}${peaks}${holes}
+    ${landDef?`<g fill="none" stroke="#94b184" stroke-width="2" opacity=".5">${landDef}</g>`:''}
+  </svg>`;
 }
 /* 年表类型：一个图标 + 一个颜色，扫读靠形不靠字 */
 const CHRON_ICON={'干涉':'✦','气候':'☁','生态':'✿','灾变':'⚠','文明':'⌂'};
@@ -1049,6 +1519,13 @@ const CHRON_COL={'干涉':'#e0a33e','气候':'#5f9fc0','生态':'#6aa86a','灾�
 /* 生态构成环：5 段环形图，中心是植被占比 */
 const ECO_SEGS=[['林地',34,'#3f7549'],['草原',26,'#5d8a4a'],['水体',18,'#3f7fab'],['岩坡',14,'#5b6b78'],['裸地',8,'#38424c']];
 function ecoRing(){
+  if(!S.life.flora){
+    return `<circle cx="42" cy="42" r="32" fill="none" stroke="#38424c" stroke-width="9"/>
+      <text x="42" y="41" text-anchor="middle" font-family="ui-monospace,Consolas" font-size="11"
+        fill="#6a7683">荒界</text>
+      <text x="42" y="53" text-anchor="middle" font-family="ui-monospace,Consolas" font-size="7"
+        fill="#4c5563">无植物</text>`;
+  }
   const C=2*Math.PI*32; let acc=0;
   const segs=ECO_SEGS.map(([n,v,c])=>{
     const len=C*v/100;
@@ -1067,19 +1544,21 @@ function ecoRing(){
 function worldHTML(){
   return `
   <div id="scene">
-    <div id="seaband" style="top:${S.pitch>=88?0:(S.pitch>=55?34:42)}%"></div>
-    <div id="horizon" style="top:${S.pitch>=88?0:(S.pitch>=55?34:42)}%;${S.pitch>=88?'display:none':''}"></div>
-    <div id="ridge1" style="${S.pitch>=88?'display:none':''}"></div>
-    <div id="ridge2" style="${S.pitch>=88?'display:none':''}"></div>
+    ${S.form==='全陆界'?'':
+      `<div id="seaband" style="top:${S.pitch>=88?0:(S.pitch>=55?34:42)}%"></div>
+       <div id="horizon" style="top:${S.pitch>=88?0:(S.pitch>=55?34:42)}%;${S.pitch>=88?'display:none':''}"></div>`}
+    <div id="ridge1" style="${S.pitch>=88||S.form==='全陆界'?'display:none':''}"></div>
+    <div id="ridge2" style="${S.pitch>=88||S.form==='全陆界'?'display:none':''}"></div>
     <div class="cloud" style="left:12%;top:16%;width:280px;height:70px"></div>
     <div class="cloud" style="right:16%;top:9%;width:340px;height:80px"></div>
-    <div id="worldgroup">
-      <div id="island"></div><div id="lagoon"></div>
-      <div id="trees">${treesHTML()}</div>
-      <div id="mount"></div><div id="peak2"></div>
-    </div>
+    <div id="worldgroup">${terrainSVG()}${tracesSVG()}${lifeSVG()}${birdsSVG()}</div>
     <div id="cursor"></div><div id="range"></div><div id="ping"></div>
     <div id="hoverring"></div><div id="hoverinfo"></div>
+    <div id="nightveil" style="opacity:${nightAmt()}"></div>
+    <div id="fogveil" style="opacity:${fogAmt()}"></div>
+    <div id="gainfly"></div>
+    ${tracePop()}
+    <div id="coach" class="${(S.coach||0)>=2?'hide':''}">${(S.coach||0)===0?'拖一张卡到地面':'余响攒到 90 就能开包'}</div>
     <div id="scalebar"><span>${[100,50,25,10,5][S.zoom]} m</span><div class="ln"></div></div>
     <div id="compass"><b>N</b><i style="transform:rotate(${S.azimuth||0}deg)"></i></div>
     <div id="ambhint">摆件模式 · Esc 退出</div>
@@ -1213,9 +1692,12 @@ function topHTML(){
   const yearPct = Math.round(((S.day-1)%360)/360*100);
   return `<div id="top">
     <div id="clock">${fmt(S.minute)}</div>
-    <div style="line-height:1.3" title="秋 · 多云 17°C · 湿度 62% · 扰动 42">
-      <div class="sm">秋 · 第 ${S.day} 天</div>
-      <div class="mono xs" style="color:#7e8b98">☁ 17° · ◔ 62% · ⚠ 42</div>
+    <div style="line-height:1.3" title="${SEASON[seasonIdx()]} · 多云 17°C · 湿度 ${humidity()}%${fogAmt()>0?'（夜沼鸟的雾 +8）':''}">
+      <div class="sm">${SEASON[seasonIdx()]} · 第 ${S.day} 天</div>
+      <div class="mono xs" style="color:#7e8b98">☁ 17° · ◔ ${humidity()}% ·
+        <span style="cursor:pointer;color:${(S.disturb||0)>=60?'var(--warn)':'#7e8b98'}"
+          title="扰动 ${S.disturb||0}/100 · 点一下平息（1 余响 / 2 点）"
+          onclick="calm()">⚠ ${S.disturb||0}</span></div>
     </div>
     <!-- 世界年进度环：一眼看出"这一年在哪" -->
     <div title="第 ${S.day} 天 / 一年 360 天" style="width:30px;height:30px;border-radius:50%;
@@ -1228,9 +1710,10 @@ function topHTML(){
     <div id="icons">
       <span class="chip" style="cursor:pointer" onclick="cycleSpeed()" title="J 倍速">
         ${S.paused?'⏸ 暂停':S.speed+'×'}</span>
-      <span class="chip" style="gap:4px" title="余响：干涉世界换来，用来抽卡">
+      <span class="chip" style="gap:5px" title="余响 ${S.echo} · 距主包还差 ${Math.max(0,90-S.echo)}">
         <span style="color:var(--acc);font-size:11px">◈</span>
-        <span class="mono" style="color:var(--acc);font-size:12px">${S.echo}</span></span>
+        <span class="mono" style="color:var(--acc);font-size:12px">${S.echo}</span>
+        <span id="echobar"><i style="width:${Math.min(100,Math.round(S.echo/90*100))}%"></i></span></span>
       ${[['C','年表','chron'],['B','抽卡','pack'],['L','卡库','codex'],['G','创世','creator'],['O','设置','settings'],['H','帮助','help']]
         .map(([k,t,p])=>`<div class="ic" title="${t}（${k}）" onclick="openPanel('${p}')">
           ${glyph(p)}<span>${t}</span></div>`).join('')}
@@ -1259,16 +1742,19 @@ function rightPanelHTML(){
       <div class="big">${S.name}</div>
       <div class="xs" style="margin-top:2px">${S.form} · ${S.climate}</div>
       <div class="mono xs" style="margin-top:2px;color:#5d6b7a">${S.seed.join('-')}</div>
+      <div class="rowline" style="margin-top:4px" title="你在这个世界留下的痕迹数">
+        <span class="xs">✧ 痕迹</span>
+        <span class="mono xs">${(S.traces||[]).length}</span></div>
     </div>
     <div class="rp">
       <div style="display:flex;justify-content:space-between;align-items:baseline">
         <span class="h" style="margin:0">生态</span>
-        <span class="tag ok">${S.echo>200?'丰饶':S.echo>60?'起色':'贫瘠'}</span>
+        <span class="tag ${S.life.flora?'ok':''}">${!S.life.flora?'荒界':S.echo>200?'丰饶':S.echo>60?'起色':'初绿'}</span>
       </div>
       <div class="row" style="gap:10px;margin-top:2px">
         <svg viewBox="0 0 84 84" style="width:84px;height:84px;flex:0 0 84px">${ecoRing()}</svg>
         <div style="flex:1">
-          ${ECO_SEGS.map(([n,v,c])=>`<div class="row" style="justify-content:space-between;padding:1px 0">
+          ${(S.life.flora?ECO_SEGS:[['裸地',100,'#38424c']]).map(([n,v,c])=>`<div class="row" style="justify-content:space-between;padding:1px 0">
             <span class="xs"><i style="display:inline-block;width:6px;height:6px;border-radius:1px;
               background:${c};margin-right:5px"></i>${n}</span>
             <span class="mono xs" style="color:#8b99a6">${v}%</span></div>`).join('')}
@@ -1276,12 +1762,28 @@ function rightPanelHTML(){
       </div>
       <div class="row" style="justify-content:space-between;margin-top:9px;padding-top:8px;
         border-top:1px solid #171e27">
-        ${[['✿','多样性','7 种'],['◔','肥力','0.62'],['◈','生物量','1 046']].map(([i,k,v])=>
+        ${[['✿','多样性',(S.life.flora+S.life.fauna+S.life.sapient)+' 种'],
+           ['◔','肥力','0.62'],
+           ['◈','生物量',S.life.flora?'1 046':'0']].map(([i,k,v])=>
           `<div style="text-align:center;flex:1">
             <div style="font-size:12px;color:#5d6b7a">${i}</div>
             <div class="mono" style="font-size:11px;color:#dfe7ee">${v}</div>
             <div class="xs" style="color:#4c5563;font-size:8.5px">${k}</div></div>`).join('')}
       </div>
+      <div class="row" style="justify-content:space-between;margin-top:8px;padding-top:7px;
+        border-top:1px solid #171e27" title="世界开局没有生命，三层只能由卡引入，且不能跳级">
+        ${[['植物',S.life.flora,'#5e8f47'],['动物',S.life.fauna,'#c8a94b'],['智慧',S.life.sapient,'#e0d6b8']]
+          .map(([k,v,c])=>`<div style="text-align:center;flex:1">
+            <div style="font-size:9px;color:${v?c:'#333d48'}">●</div>
+            <div class="mono" style="font-size:11px;color:${v?'#dfe7ee':'#3a4652'}">${v}</div>
+            <div class="xs" style="color:#4c5563;font-size:8.5px">${k}</div></div>`).join('')}
+      </div>
+      ${Object.keys(S.species).filter(k=>S.species[k]).length?`
+        <div class="row" style="flex-wrap:wrap;gap:4px;margin-top:7px">
+          ${Object.keys(S.species).filter(k=>S.species[k]).map(k=>{
+            const S1=FLORA[k]||BIRD[k]||{label:k};
+            return `<span class="tag">${S1.label} ${S.species[k]}</span>`}).join('')}
+        </div>`:''}
       <div class="xs" style="margin-top:10px">水循环 · 强/中/弱</div>
       <svg viewBox="0 0 276 56" style="width:100%;height:56px">
         <path d="M16,42 C56,14 96,14 136,40 C176,66 216,66 260,34" fill="none"
@@ -1311,18 +1813,18 @@ function rightPanelHTML(){
 }
 
 function handHTML(){
-  const n=S.hand.length, mid=(n-1)/2, sp=n>9?96:(n>7?108:120);
+  const n=S.hand.length, mid=(n-1)/2, sp=n>9?104:(n>7?116:128);
   return `<div id="hand">
     ${S.hand.map((c,i)=>{
       const d=i-mid, ang=(d*3.2).toFixed(2), lift=(Math.abs(d)*Math.abs(d)*1.4).toFixed(1);
       const z=(i===S.sel?200:100-Math.round(Math.abs(d)*3));
-      return `<div class="cardslot" style="left:calc(50% + ${(d*sp).toFixed(1)}px - 70px);z-index:${z}">
+      return `<div class="cardslot" style="left:calc(50% + ${(d*sp).toFixed(1)}px - 74px);z-index:${z}">
         ${cardHTML(c,i,{r:ang,l:lift})}
       </div>`;
     }).join('')}
   </div>
   <div id="deck">
-    <div class="dk" title="实体池：已拥有 / 252"><b>${S.owned.length}</b><span>池</span></div>
+    <div class="dk" title="图鉴：见过的卡（不代表持有）"><b>${S.owned.length}</b><span>见</span></div>
     <div class="dk" title="手牌：当前 / 10"><b>${S.hand.length}</b><span>手</span></div>
   </div>
   <div id="actbar">
@@ -1333,12 +1835,16 @@ function handHTML(){
   </div>
   <div id="cardtip"></div>`;
 }
-const ELC={'金':'#c8a94b','木':'#5e8f47','水':'#3f8fab','火':'#b4432e','土':'#8a6a45','光':'#e0d6b8','暗':'#6a5a8a'};
+const ELC={'金':'#c8a94b','木':'#5e8f47','水':'#3f8fab','火':'#b4432e','土':'#8a6a45',
+  '光':'#e0d6b8','暗':'#6a5a8a','风':'#7fa3a8'};
 /* 后果写在卡上（Against the Storm 口径）：没有条目就退回"物/术/律"的通用语义 */
 const FX={
   '铁屑':'落 1 撮铁屑','擦痕':'金属留痕','不锈':'该地不锈','铜钟':'放钟，声及聚落',
   '种子':'种 1 株幼苗','萌发':'幼苗生长','扎根':'抗冲刷 +1','苔毯':'铺苔 0.01 W',
   '疯长':'植被速生 ×1.6','古树':'巨树成冠',
+  '兽群':'放入 3 只走兽（需有植物）','启智':'点亮智慧（需有兽）',
+  '铁杉':'种 1 株铁杉（需湿土）','花楸':'种 1 株花楸（需林缘）','苔':'铺 1 片苔（需阴湿）',
+  '晨鸟':'放入晨鸟（需林）','夜枭':'放入夜枭（需林）',
   '露珠':'叶面结露','润湿':'湿度 +0.04','渗':'入渗加快','降雨':'局部雨 3 分钟',
   '瀑布':'造瀑布 ≥6 m','引流':'改河道','水世界':'水位盖全界',
   '火星':'火星 3 秒','引燃':'点燃可燃物','暖':'局部 +2 °C','点燃':'起火 30 秒',
@@ -1357,20 +1863,46 @@ const SIGIL={
   '火':'<path d="M50 14 C60 34 74 42 66 60 C61 72 51 80 43 74 C31 66 37 50 45 44 C45 58 51 56 51 48 C51 36 48 26 50 14 Z" fill="currentColor" opacity=".85"/>',
   '土':'<path d="M22 62 L50 38 L78 62 L78 80 L22 80 Z" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M34 62 L50 48 L66 62" fill="none" stroke="currentColor" stroke-width="2" opacity=".6"/>',
   '光':'<circle cx="50" cy="50" r="11" fill="currentColor"/><path d="M50 6 L50 20 M50 80 L50 94 M6 50 L20 50 M80 50 L94 50 M19 19 L29 29 M71 71 L81 81 M81 19 L71 29 M29 71 L19 81" stroke="currentColor" stroke-width="2.4" opacity=".8"/>',
-  '暗':'<path d="M62 18 A32 32 0 1 0 62 82 A25 25 0 1 1 62 18 Z" fill="currentColor" opacity=".85"/>'
+  '暗':'<path d="M62 18 A32 32 0 1 0 62 82 A25 25 0 1 1 62 18 Z" fill="currentColor" opacity=".85"/>',
+  '风':'<path d="M16 40 C34 30 50 50 68 40 C78 34 86 36 90 40" fill="none" stroke="currentColor" stroke-width="2.6" opacity=".85"/><path d="M20 56 C38 46 52 66 70 56 C80 50 88 52 92 56" fill="none" stroke="currentColor" stroke-width="2" opacity=".55"/><path d="M26 72 C42 64 54 82 70 72" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".35"/>'
+};
+/* 单体画芯：有专属纹样的卡不必借用元素纹 */
+const ART={
+  '夜沼鸟':`<path d="M8,70 C26,64 44,74 62,68 C76,63 88,70 94,67" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".4"/>
+    <path d="M12,79 C30,73 48,83 66,77 C80,72 90,79 96,76" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".22"/>
+    <path d="M50,54 C40,42 26,36 14,40 C26,46 38,52 50,56 Z" fill="currentColor" opacity=".92"/>
+    <path d="M50,54 C60,42 74,36 86,40 C74,46 62,52 50,56 Z" fill="currentColor" opacity=".92"/>
+    <ellipse cx="50" cy="59" rx="6" ry="10" fill="currentColor"/>
+    <circle cx="50" cy="47" r="4" fill="currentColor"/>
+    <path d="M46,46 L37,44.5 L46,42.5 Z" fill="currentColor" opacity=".8"/>
+    <path d="M50,69 L46,85 L54,85 Z" fill="currentColor" opacity=".5"/>
+    <circle cx="30" cy="65" r="1.2" fill="currentColor" opacity=".5"/>
+    <circle cx="70" cy="63" r="1" fill="currentColor" opacity=".38"/>`
 };
 function cardHTML(c,i,fan){
   const [el,tier,kind,name]=c;
-  const col=ELC[el]||'#7e8a9a';
+  const els=elsOf(c);
+  const col=ELC[els[0]]||'#7e8a9a';
+  const sp=spOf(c);
+  const line=sp?sp.line:fxOf(c);
   const vars=fan?`--r:${fan.r}deg;--l:${fan.l}px;`:'';
   const hover=i>=0?`onmouseenter="showCardTip(event,${i})" onmouseleave="hideCardTip()"`:'';
   return `<div class="card ${i===S.sel?'sel':''}" data-i="${i}" style="${vars}" ${hover}
     onpointerdown="startDrag(event,${i})">
-    <div class="art" style="--c:${col}">
-      <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">${SIGIL[el]||SIGIL['水']}</svg>
-      <div class="dots">${Array.from({length:10},(_,k)=>`<i class="${k<tier?'on':''}"></i>`).join('')}</div>
+    <div class="cbd"></div>
+    <div class="top">
+      <div class="elbar">${els.map((e,k)=>`<i class="${k===0?'main':''}" style="background:${ELC[e]};color:${ELC[e]}" title="${e}"></i>`).join('')}</div>
+      <div class="tier"><b>${tier===10?'超':tier}</b> 环</div>
     </div>
-    <div class="nm">${name}</div>
+    <div class="art" style="--c:${col}">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">${ART[name]||SIGIL[els[0]]||SIGIL['水']}</svg>
+      <span class="cg" title="${kind}">${{'物':'▣','术':'◆','律':'◯'}[kind]||''}</span>
+      ${sp&&sp.from?`<span class="ev">↑ ${sp.from}</span>`:''}
+    </div>
+    <div class="ln">${line}</div>
+    <div class="nm"><span>${name}</span><span class="cl">${kind}</span></div>
+    <div class="ft"><span>◔${(RADW[tier]||0.006).toFixed(3)}</span>
+      <span>⚠+${disturbOf(tier)}</span><span>⧗${CD[tier]||'—'}</span></div>
   </div>`;
 }
 function showCardTip(e,i){
@@ -1378,12 +1910,20 @@ function showCardTip(e,i){
   const c=S.hand[i]; if(!c) return;
   const tip=document.getElementById('cardtip'); if(!tip) return;
   const r=e.currentTarget.getBoundingClientRect();
+  const sp=spOf(c);
+  const els=elsOf(c);
+  /* 两层信息（SPECIES §4.1）：卡上说要点，图鉴说全部 */
   tip.innerHTML=`<div class="t1">${c[3]}</div>
-    <div class="t2">${c[0]} · ${c[1]===10?'超环':c[1]+' 环'} · ${c[2]}</div>
-    <div class="t3">${fxOf(c)}</div>
-    <div class="t4">${c[1]===0?'0 环 · 免费 · 用完即回':(c[1]<9?'回收 +'+reclaimValue(c):'9 环 · 不可回收')}</div>`;
+    <div class="t2">${els.join(' + ')} · ${c[1]===10?'超环':c[1]+' 环'} · ${c[2]}
+      <span style="color:#5a6674">（环高 = 更稀有 · 更强）</span></div>
+    <div class="t3">${sp?sp.line:fxOf(c)}</div>
+    <div class="t4">◔ ${(RADW[c[1]]||0.006).toFixed(3)} W · ⚠ +${disturbOf(c[1])} · ⧗ ${CD[c[1]]||'—'}
+      ${c[1]===0?'':' · 回收 +'+reclaimValue(c)}</div>
+    ${sp&&sp.evolve?`<div class="t6">进化 ▸ ${sp.evolve}</div>`:''}
+    ${sp?`<div class="t5">“${sp.flavor}”</div>`:''}
+    <div class="t7">图鉴 ▸ 完整效果</div>`;
   tip.style.display='block';
-  const w=250, h=tip.offsetHeight;
+  const w=272, h=tip.offsetHeight;
   tip.style.left=Math.max(10,Math.min(r.left+r.width/2-w/2, window.innerWidth-w-12))+'px';
   tip.style.top=Math.max(10, r.top-h-14)+'px';
 }
@@ -1474,23 +2014,68 @@ function endDrag(e){
    ========================================================================= */
 function reclaimValue(card){ return card[1]===0?0:Math.round(5*Math.pow(1.5,card[1])*0.15); }
 function selectCard(i){ S.sel=i; render(); }
+/* 余响与扰动：按 CARDS §8.3 / §14.3 的三档 */
+function gainOf(tier){ return tier===0 ? 1 : tier<=2 ? 3+(tier-1)*2 : tier<=5 ? 10+(tier-3)*5 : tier<=8 ? 30+(tier-6)*20 : 80; }
+/* 生命三层：世界开局没有生命，只能由卡引入；不能跳级（WORLD §9.0） */
+const LIFE_CARD={'种子':'flora','萌发':'flora','苔毯':'flora','疯长':'flora','古树':'flora',
+  '苔':'flora','铁杉':'flora','花楸':'flora','晨鸟':'fauna','夜枭':'fauna',
+  '兽群':'fauna','鱼苗':'fauna','启智':'sapient'};
+/* 一张卡 = 一个物种；卡片决定"是哪一种"，而不是"多一棵树" */
+const SPECIES_OF={'苔':'moss','苔毯':'moss','铁杉':'hemlock','花楸':'rowan','种子':'rowan',
+  '萌发':'rowan','晨鸟':'lark','夜枭':'owl'};
+function lifeGate(name){
+  const L=LIFE_CARD[name]; if(!L) return null;
+  if(L==='fauna' && !S.life.flora) return '这里还没有植物——先种下去';
+  if(L==='sapient' && !S.life.fauna) return '这里还没有兽——启智无从谈起';
+  return null;
+}
+function disturbOf(tier){ return tier<=2 ? 3 : tier<=5 ? 8 : tier<=8 ? 20 : 40; }
 function castAt(x,y){
   const c=S.hand[S.sel]; if(!c) return;
   const [el,tier,kind,name]=c;
-  const gain = tier===0?3:4+tier*2;
-  S.echo+=gain;
-  S.echoLog.unshift([fmt(S.minute), name+' · '+tier+' 环', Math.max(gain,2), tier<=3?'小':'中']);
-  addChron('干涉', '「'+name+'」落在 ('+Math.round(x)+','+Math.round(y)+')');
+  const gate=lifeGate(name);
+  if(gate){ toast('还不行', gate); return; }
+  const gain=gainOf(tier), dp=disturbOf(tier);
+  S.echo+=gain; S.disturb=Math.min(100,(S.disturb||0)+dp);
+  const chronText='「'+name+'」落在 ('+Math.round(x)+','+Math.round(y)+')';
+  addTrace(x,y,c,gain,chronText);
+  const LV=LIFE_CARD[name];
+  if(LV){
+    S.life[LV]++;
+    const sp=SPECIES_OF[name];
+    if(sp) S.species[sp]=(S.species[sp]||0)+1;
+  }
+  S.echoLog.unshift([fmt(S.minute), name+' · '+tier+' 环', gain, tier<=2?'小':tier<=5?'中':'大']);
+  addChron('干涉', chronText);
   ping(x,y);
   consumeAndDraw(S.sel);
   S.lastAction='释放 '+name;
-  render(); toast('释放','「'+name+'」落在你指定的位置 · +'+gain+' 余响');
+  render(); flyGain(x,y,gain);
+  toast('释放','+'+gain+' 余响 · 扰动 +'+dp);
+  if(S.coach===0){
+    S.coach=1; render();
+    setTimeout(()=>{ if(S.coach===1){ S.coach=2; render(); } }, 4200);
+  }
+  if(S.disturb>=70 && !S.event && Math.random()<0.35) setTimeout(()=>{ if(!S.event) fireEvent(); }, 700);
+}
+function flyGain(x,y,n){
+  const g=document.getElementById('gainfly'); if(!g) return;
+  g.textContent='+'+n; g.style.left=(x-8)+'px'; g.style.top=(y-14)+'px'; g.style.opacity=1;
+  g.animate([{transform:'translateY(0)',opacity:1},{transform:'translateY(-46px)',opacity:0}],
+    {duration:900,easing:'ease-out'});
+}
+function calm(){
+  const pts=Math.min(S.disturb||0, 20);
+  if(pts<=0){ toast('已经是稳定的','扰动 0'); return; }
+  const cost=Math.ceil(pts/2);
+  if(S.echo<cost){ toast('余响不够','平息需要 '+cost+' 余响'); return; }
+  S.echo-=cost; S.disturb=Math.max(0,(S.disturb||0)-pts);
+  render(); toast('已平息','−'+pts+' 扰动 · −'+cost+' 余响');
 }
 function castRandom(){
   const c=S.hand[S.sel]; if(!c) return;
   const x=760+Math.random()*440, y=560+Math.random()*140;
   castAt(x,y);
-  toast('随机落点','没指定位置 → 落在世界中随机一处（拖着卡到地面可以指定）');
 }
 function reclaim(){
   const c=S.hand[S.sel]; if(!c) return;
@@ -1503,17 +2088,21 @@ function reclaim(){
 }
 /* 消耗一张手牌：手牌从「实体池」里补，不从牌库凭空生成 */
 function consumeAndDraw(i){
-  const c=S.hand[i];
-  S.hand.splice(i,1);
-  const inHand=new Set(S.hand.map(x=>x.join('|')));
-  const rest=S.owned.filter(x=>!inHand.has(x.join('|')));
-  if(rest.length) S.hand.splice(i,0,rest[Math.floor(Math.random()*rest.length)].slice());
+  S.hand.splice(i,1);                       // 打出去就消失
+  const names=new Set(S.hand.map(x=>x[3]));
+  let c=null;
+  const zeroPool=ZERO.filter(x=>!names.has(x[3]));   // 0 环是工具，优先补
+  if(Math.random()<0.55 && zeroPool.length)
+    c=zeroPool[Math.floor(Math.random()*zeroPool.length)].slice();
+  if(!c) c=drawOne(names);
+  if(c){ S.hand.splice(i,0,c); markSeen(c); }
   S.sel=Math.min(S.sel, Math.max(0,S.hand.length-1));
 }
 function rerollHand(){
-  drawHand();
-  render(); log('从已有牌里重抽（不返余响）');
-  toast('重抽','只从你**已有**的卡里换一手；没有的卡要去「抽卡」里开出来');
+  if(S.echo<5){ toast('余响不够','重抽 5 余响'); return; }
+  S.echo-=5; drawHand();
+  render(); log('重抽 −5 余响',true);
+  toast('重抽','只从已有卡里换一手 · −5');
 }
 function cycleSpeed(){
   if(S.paused){S.paused=false;S.speed=4;}
@@ -1575,10 +2164,10 @@ function bodyFor(p){
 
 /* ---- 抽卡：左列包种（价格 + 保底），中央四帧 ---- */
 const PACKS=[
-  ['主包','全 231 张 · 5 张',90,'10 包必出 1 张 7+','12'],
-  ['元素包','单元素 33 张 · 5 张',70,'3 包必出 1 张 4+','3'],
-  ['法则包','律卡 77 张 · 5 张',120,'含 1 张律卡，4+ 起步','4'],
-  ['至日包','7–9 环 + 超环 · 3 张',150,'每包至少 1 张 8+','0']
+  ['主包','0–9 环 · 5 张',90,'42 包集齐 · 前 5 包不出 9 环','池 210 张'],
+  ['元素包','单元素 33 张 · 5 张',70,'7 包集齐','池 33 张'],
+  ['法则包','律卡 77 张 · 5 张',120,'16 包集齐','池 77 张'],
+  ['至日包','7–9 环 + 超环 · 3 张',150,'每包必含剩余最多的档','池 84 张']
 ];
 function packBody(){
   const stages=['封印崩解','悬浮','逐张翻','结算'];
@@ -1594,8 +2183,8 @@ function packBody(){
           <span class="mono" style="color:var(--acc)">${p[2]}</span>
         </div>
         <div class="xs" style="margin-top:2px">${p[1]}</div>
-        <div class="xs" style="margin-top:4px;color:#4c5563">保底：${p[3]}</div>
-        <div class="bar" style="margin-top:5px"><i style="width:${(9-parseInt(p[4]))*10}%"></i></div>
+        <div class="xs" style="margin-top:4px;color:#4c5563">${p[3]}</div>
+        <div class="mono xs" style="margin-top:5px;color:#3f4b58">${p[4]}</div>
       </div>`).join('')}
       <div class="xs" style="margin-top:8px;line-height:1.6">进度条 = 距保底还差几包。<br>卡唯一：抽到的必定是新的。</div>
     </div>
@@ -1636,24 +2225,33 @@ function packNext(){
   }
   if(packStage<3){
     packStage++;
-    if(packStage===3) S.owned=uniqueOwned(S.owned.concat(S.packCards.map(c=>c.slice())));
+    if(packStage===3){
+      /* 抽到的卡进「见过」，能用的直接进手牌（同名只留一张） */
+      S.owned=uniqueOwned(S.owned.concat(S.packCards.map(c=>c.slice())));
+      S.packCards.forEach(c=>{
+        if(S.hand.length<10 && !S.hand.some(x=>x[3]===c[3])) S.hand.push(c.slice());
+      });
+    }
   }
   else closePanel();
   render();
 }
 function drawFromUniverse(n){
-  const have=new Set(S.owned.map(c=>c.join('|')));
-  const pool=MORE.filter(c=>!have.has(c.join('|')));
-  const src = pool.length?pool:MORE;
-  const pick=[]; const used=new Set();
-  while(pick.length<n){
-    const i=Math.floor(Math.random()*src.length);
-    if(used.has(i) && used.size<src.length) continue;
-    used.add(i); pick.push(src[i].slice());
-    if(used.size>=src.length) break;
+  /* 允许重复：池子是全部卡，不再过滤"已有" */
+  const names=new Set(), pick=[];
+  for(let i=0;i<n;i++){
+    const c=drawOne(names); if(!c) break;
+    names.add(c[3]); pick.push(c);
   }
   pick.sort((a,b)=>a[1]-b[1]);   // 最后一张必为最高环
   return pick;
+}
+
+/* 图鉴互跳：关系行里的卡名 → 直接切到那张卡（没见过的给提示） */
+function jumpCard(name){
+  const c=S.owned.find(x=>x[3]===name);
+  if(!c){ toast('还未记录', `「${name}」还没有进过你的图鉴`); return; }
+  S.codexEl=c[0]; S.codexSel=[c[0],c[1],c[2],c[3]]; render();
 }
 
 /* ---- 卡库：元素可切、只看已获得、点格子出详情 ---- */
@@ -1675,14 +2273,14 @@ function codexBody(){
     </div>
     <div style="flex:1">
       <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
-        <span class="mono xs" style="color:#8b99a6">已有 ${cnt} / 231</span>
+        <span class="mono xs" style="color:#8b99a6">已见 ${cnt} / 231 格</span>
         <div class="btn ${onlyOwn?'on':'ghost'}" style="height:24px"
           onclick="S.codexOwn=!S.codexOwn;render()">只看已获得</div>
         <span class="xs">灰稿 = 未获得 · 点已获得的格子看详情</span>
       </div>
       <div class="row gap4" style="margin-bottom:10px" title="按环级的获取进度（0–9 环各 9 张，超环 3 张）">
         ${Array.from({length:11},(_,r)=>{
-          const n=S.owned.filter(c=>c[0]===el&&c[1]===r).length, tot=r===10?3:9;
+          const n=S.owned.filter(c=>c[0]===el&&c[1]===r).length, tot=3;
           return `<div title="${r===10?'超环':r+' 环'}：${n} / ${tot}"
             style="flex:1;height:5px;background:#1c242e;border-radius:1px;overflow:hidden">
             <i style="display:block;height:100%;width:${Math.round(n/tot*100)}%;background:${n?'var(--acc)':'transparent'}"></i></div>`;
@@ -1710,20 +2308,42 @@ function codexBody(){
     <div style="width:430px;border-left:1px solid var(--line);padding-left:16px">
       ${sel?`
         <div style="display:flex;flex-direction:column;align-items:center">
-          <div style="transform:scale(1.26);transform-origin:top center;height:262px">${cardHTML([sel[0],sel[1],sel[2],sel[3]],-1)}</div>
+          <div style="transform:scale(1.45);transform-origin:top center;height:318px">${cardHTML([sel[0],sel[1],sel[2],sel[3]],-1)}</div>
           <div style="font-size:17px;color:#fff;margin-top:4px">${sel[3]}</div>
           <div class="xs">${sel[0]} · ${sel[1]===10?'超环':sel[1]+' 环'} · ${sel[2]}</div>
         </div>
         <div style="display:flex;justify-content:space-between;margin-top:14px;padding:10px 2px;
           border-top:1px solid #1a212a;border-bottom:1px solid #1a212a">
-          ${[['◔','半径',(0.006*Math.pow(1.55,sel[1])).toFixed(2)+' W'],
+          ${[['◔','半径',(RADW[sel[1]]||0.006).toFixed(3)+' W'],
              ['◈','价值',String((5*Math.pow(1.5,sel[1]))|0)],
-             ['↩','回收',sel[1]===0?'—':'+'+Math.round((5*Math.pow(1.5,sel[1]))*0.15)]]
+             ['↩','回收',sel[1]===0?'—':'+'+reclaimValue([sel[0],sel[1],sel[2],sel[3]])]]
             .map(([i,k,v])=>`<div style="text-align:center;flex:1">
               <div style="font-size:15px;color:var(--acc)">${i}</div>
               <div class="mono" style="font-size:12px;color:#e8eef4">${v}</div>
               <div class="xs" style="color:#4c5563">${k}</div></div>`).join('')}
         </div>
+        ${(()=>{const sp=spOf([sel[0],sel[1],sel[2],sel[3]]);
+          if(!sp) return '';
+          const col=ELC[(sp.els||[sel[0]])[0]]||'#3f7fab';
+          return `<div class="dex">
+            ${sp.kind?`<div class="mono xs" style="color:#5a6674;letter-spacing:.1em">
+              ${sp.kind} · ${(sp.els||[sel[0]]).join(' / ')}</div>`:''}
+            ${(sp.stats||[]).map(s=>`<div class="stat">
+              <span class="sk">${s.k}</span>
+              <div class="sbar"><i style="width:${s.w}%;background:${col}"></i></div>
+              <span class="sv">${s.v}</span>
+              ${s.t?`<span class="st">${s.t}</span>`:''}</div>`).join('')}
+            ${(sp.lore||[]).map(([k,t])=>`<div class="lore"><b>${k}</b><span>${t}</span></div>`).join('')}
+            ${sp.rel?`<div class="rel">${sp.rel.map(([k,v])=>
+              `<span class="rl">${k}${v==='—'?'—':`<b onclick="jumpCard('${v}')">${v}</b>`}</span>`).join('')}</div>`:''}
+          </div>`})()}
+        ${(()=>{const sp=spOf([sel[0],sel[1],sel[2],sel[3]]);
+          if(!sp) return '';
+          return `<div class="cdx">
+            <div class="mono xs" style="color:var(--acc);letter-spacing:.1em">完整效果</div>
+            <div class="cdtxt">${sp.codex}</div>
+            ${sp.evolve?`<div class="mono xs" style="color:var(--ok);margin-top:7px">进化 ▸ ${sp.evolve}</div>`:''}
+            <div class="cdfl">“${sp.flavor}”</div></div>`})()}
         <div class="btn ghost" style="margin-top:12px;width:100%" onclick="S.codexMore=!S.codexMore;render()">
           ${S.codexMore?'收起 ▴':'更多 ▾'}</div>
         ${S.codexMore?`
@@ -1986,6 +2606,7 @@ function bindScene(){
   scene.onclick=e=>{
     const r=scene.getBoundingClientRect(), k=r.width/scene.offsetWidth;
     const x=(e.clientX-r.left)/k, y=(e.clientY-r.top)/k;
+    if(S.traceSel){ S.traceSel=null; render(); return; }
     S.cursor={x,y}; placeCursor();
     const t=tileAt(x,y);
     log(`落点 ${Math.round(x)},${Math.round(y)} · ${t.biome}`);
@@ -2008,6 +2629,19 @@ function bindScene(){
     if(info) info.style.display='none';
   };
   if(S.cursor) placeCursor();
+  placeTracePop();
+}
+/* 痕迹在地形层里被 scale/scaleY 变换过，弹窗要用变换后的位置 */
+function placeTracePop(){
+  const pop=document.getElementById('tracepop'); if(!pop) return;
+  const t=(S.traces||[]).find(o=>o.id===S.traceSel); if(!t) return;
+  const wg=document.getElementById('worldgroup'), sc=document.getElementById('scene');
+  if(!wg||!sc) return;
+  const wr=wg.getBoundingClientRect(), sr=sc.getBoundingClientRect();
+  const x=(wr.left-sr.left)+t.x*(wr.width/1544);
+  const y=(wr.top-sr.top)+t.y*(wr.height/774);
+  pop.style.left=Math.max(8, Math.min(x+18, sr.width-224))+'px';
+  pop.style.top=Math.max(8, y-102)+'px';
 }
 
 /* =========================================================================
@@ -2097,7 +2731,7 @@ function syncSteps(){
 function reset(){
   Object.assign(S,{screen:'creator',owned:ZERO.map(c=>c.slice()),hand:[],sel:0,echo:128,
     pitch:30,zoom:2,speed:4,paused:false,panel:null,echoLog:[],chron:[],ambient:false,
-    lastAction:'',packCards:[]});
+    lastAction:'',packCards:[],traces:[],traceSel:null,event:null,coach:0,disturb:42});
   rollWorld();
   document.getElementById('log').innerHTML=''; render();
 }
@@ -2109,6 +2743,25 @@ function fit(){
 }
 window.onresize=fit;
 rollWorld(); drawHand(); render(); fit();
+
+/* 世界钟：2 秒 = 1 世界小时（4x 下约 1.875 秒/小时），只为了让痕迹会老去 */
+setInterval(()=>{
+  if(S.screen!=='world' || S.paused || S.drag || S.panel || S.event) return;
+  S.minute += 60;
+  if(S.minute>=1440){ S.minute-=1440; S.day++; }
+  const changed=expireTraces();
+  if(changed){
+    if(S.traceSel && !S.traces.find(t=>t.id===S.traceSel)) S.traceSel=null;
+    render();
+  }else{
+    const clk=document.getElementById('clock');
+    if(clk) clk.textContent=fmt(S.minute);
+    const v=document.getElementById('nightveil');
+    if(v) v.style.opacity=nightAmt();
+    const fv=document.getElementById('fogveil');
+    if(fv) fv.style.opacity=fogAmt();
+  }
+}, 2000);
 </script>
 </body>
 </html>

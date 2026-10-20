@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>夜沼鸟 · 卡面设计稿</title>
+<style>
+:root{
+  --bg:#070b0f; --panel:#0b1117; --line:#1b242e; --line2:#2b3742;
+  --ink:#dfe8ef; --ink2:#9fb0bd; --ink3:#5d6b7a; --acc:#e0a33e;
+  --water:#3f8fab; --dark:#6a5a8a; --wind:#7fa3a8;
+  --sky1:#081521; --sky2:#0f2634; --sky3:#16323d;
+  --water1:#0d2531; --water2:#051016;
+  --mistA:.92; --moonA:1;
+  --card-w:640px; --card-h:933px;
+}
+body.day{
+  --sky1:#3d6070; --sky2:#6d8f9d; --sky3:#9db4ba;
+  --water1:#3a6270; --water2:#22434f;
+  --mistA:.42; --moonA:0;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);
+  font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased}
+body{display:flex;flex-direction:column;min-height:100vh}
+.mono{font-family:ui-monospace,"SFMono-Regular",Consolas,monospace}
+
+/* ---------- 顶部工具条 ---------- */
+header{display:flex;align-items:flex-end;gap:24px;padding:22px 34px 16px;
+  border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0a1016,#070b0f)}
+header h1{font-size:19px;font-weight:500;letter-spacing:.04em}
+header .sub{font-size:11.5px;color:var(--ink3);margin-top:5px;letter-spacing:.03em}
+header .sub b{color:var(--ink2);font-weight:400}
+.tools{margin-left:auto;display:flex;gap:8px;align-items:center}
+.tg{height:28px;padding:0 12px;border:1px solid var(--line2);background:#0e151c;color:var(--ink2);
+  font-size:11.5px;cursor:pointer;border-radius:2px;letter-spacing:.04em;
+  transition:.14s}
+.tg:hover{border-color:#4a5b6b;color:var(--ink)}
+.tg.on{border-color:var(--acc);color:var(--acc)}
+
+/* ---------- 主体两栏 ---------- */
+main{display:flex;gap:40px;padding:30px 34px 44px;align-items:flex-start}
+
+/* ---------- 卡 ---------- */
+.stage{display:flex;flex-direction:column;gap:20px;align-items:center}
+.slot{width:var(--card-w);height:var(--card-h);position:relative}
+.slot.mid{width:296px;height:431px}
+.slot.sm{width:148px;height:216px}
+.slot > .card{transform-origin:0 0}
+.slot.mid > .card{transform:scale(.4625)}
+.slot.sm > .card{transform:scale(.23125)}
+
+.card{width:var(--card-w);height:var(--card-h);position:relative;overflow:hidden;
+  border:2px solid #303b47;border-radius:6px;
+  background:#0a1016;
+  box-shadow:0 26px 60px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.03) inset;
+  display:flex;flex-direction:column;
+  transition:box-shadow .3s}
+/* 内框 + 元素色细线 */
+.card .inner{position:absolute;inset:7px;border:1px solid rgba(120,160,180,.16);
+  border-radius:3px;pointer-events:none;z-index:6}
+/* 四角饰 */
+.corner{position:absolute;width:26px;height:26px;z-index:7;pointer-events:none;
+  border-color:var(--water);opacity:.62}
+.corner.tl{left:9px;top:9px;border-left:2px solid;border-top:2px solid}
+.corner.tr{right:9px;top:9px;border-right:2px solid;border-top:2px solid}
+.corner.bl{left:9px;bottom:9px;border-left:2px solid;border-bottom:2px solid}
+.corner.br{right:9px;bottom:9px;border-right:2px solid;border-bottom:2px solid}
+
+/* 顶区：元素章 + 环级 */
+.card .top{height:92px;flex:0 0 92px;display:flex;align-items:center;
+  padding:0 26px;position:relative;z-index:3;
+  background:linear-gradient(180deg,#121c25 0%,#0c141b 100%);
+  border-bottom:1px solid #1e2833}
+.emblems{display:flex;align-items:center}
+.em{width:44px;height:44px;border-radius:50%;position:relative;
+  box-shadow:0 0 0 2px #0a1016,0 0 0 3px rgba(255,255,255,.07),inset 0 -6px 14px rgba(0,0,0,.55)}
+.em.sub{width:31px;height:31px;margin-left:-9px}
+.em i{position:absolute;inset:0;border-radius:50%;opacity:.9;
+  background:radial-gradient(120% 110% at 32% 22%,rgba(255,255,255,.5),transparent 58%)}
+.em b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:400;color:#eaf2f6;letter-spacing:.04em;
+  text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.em.sub b{font-size:10px}
+.elname{margin-left:14px;line-height:1.5}
+.elname .n{font-size:12px;color:var(--ink3);letter-spacing:.1em}
+.elname .v{font-size:15px;color:#cdd9e2;letter-spacing:.02em}
+
+.tiermark{margin-left:auto;text-align:right}
+.tiermark .tbar{display:flex;gap:3px;justify-content:flex-end;margin-bottom:8px}
+.tiermark .tbar i{width:11px;height:5px;border-radius:1px;background:#1c2731;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.045);transition:.2s}
+.tiermark .tbar i.on{background:linear-gradient(180deg,#f2ba55,#c98d2c);
+  box-shadow:0 0 8px rgba(224,163,62,.7)}
+.tiermark .t{font-size:11.5px;color:var(--ink3);letter-spacing:.14em}
+.tiermark .t b{font-size:19px;color:var(--acc);font-weight:500;margin-right:4px}
+
+/* 画芯 */
+.card .art{flex:1;position:relative;overflow:hidden;background:#08121a}
+.card .art svg{display:block;width:100%;height:100%}
+/* 暗角：让插画沉进卡里，而不是贴在上面 */
+.card .art:before{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;
+  box-shadow:inset 0 0 84px 24px rgba(3,8,12,.86)}
+/* 画芯内画框 */
+.card .art .artframe{position:absolute;inset:11px;border:1px solid rgba(184,212,226,.12);
+  z-index:3;pointer-events:none}
+.card .art .veil{position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(6,11,16,.55) 0%,transparent 16%,transparent 82%,rgba(6,11,16,.72) 100%)}
+.card .art .catmark{position:absolute;left:20px;bottom:16px;display:flex;align-items:center;gap:8px;
+  font-family:ui-monospace,Consolas,monospace;font-size:12px;color:rgba(220,232,240,.5);
+  letter-spacing:.14em;z-index:4}
+.card .art .catmark s{width:15px;height:15px;border:1.5px solid currentColor;display:block;text-decoration:none}
+.card .art .evoflag{position:absolute;right:20px;bottom:16px;z-index:4;
+  font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:rgba(126,196,150,.85);
+  letter-spacing:.06em;display:flex;align-items:center;gap:6px}
+.card .art .evoflag s{width:7px;height:7px;border-left:1.5px solid;border-top:1.5px solid;
+  transform:rotate(45deg);display:block;text-decoration:none}
+
+/* 说明条：三段（效果 → 条件 → 数值），不是一句话 */
+.card .line{flex:0 0 136px;display:flex;padding:16px 30px 14px;
+  background:linear-gradient(180deg,#0d151c,#090f15);border-top:1px solid #1d2832;position:relative}
+.card .line:before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(135deg,rgba(255,255,255,.014) 0 1px,transparent 1px 6px)}
+.card .line .q{flex:0 0 14px;font-size:9px;color:#3d4b59;letter-spacing:.3em;
+  writing-mode:vertical-rl;margin-right:16px;padding-top:2px;z-index:1}
+.card .line .body{flex:1;min-width:0;z-index:1}
+.card .line .fx{font-size:19.5px;line-height:1.55;color:#dbe6ee;letter-spacing:.01em;
+  margin-bottom:9px}
+.card .line .fx b{color:#fff;font-weight:500}
+.card .line .fx u{text-decoration:none;color:var(--wind);border-bottom:1px solid rgba(127,163,168,.4);
+  padding-bottom:1px}
+.card .line .fx em{font-style:normal;color:#cbb8ea}
+.card .line .cond{font-size:12.5px;line-height:1.5;color:#66757f;margin-bottom:7px;
+  display:flex;gap:8px;align-items:baseline}
+.card .line .cond s{text-decoration:none;color:#3f4d5a;font-size:9px;letter-spacing:.22em;
+  flex:0 0 26px}
+.card .line .num{display:flex;gap:16px;font-family:ui-monospace,Consolas,monospace;
+  font-size:11.5px;color:#8fa4b4}
+.card .line .num i{font-style:normal;color:#4a5866;margin-right:5px}
+
+/* 名条 */
+.card .name{flex:0 0 80px;display:flex;align-items:center;padding:0 28px;gap:14px;
+  background:linear-gradient(180deg,#111b24,#0b131a);border-top:1px solid #1f2a35}
+.card .name h2{font-size:31px;font-weight:500;letter-spacing:.08em;color:#f0f5f9}
+.card .name .k{font-size:13px;color:#6f7f8e;letter-spacing:.14em;padding-top:8px}
+.card .name .id{margin-left:auto;text-align:right;line-height:1.5}
+.card .name .id .c{font-size:10.5px;color:#4c5a68;letter-spacing:.18em}
+.card .name .id .s{font-size:13px;color:#8b9aa8;letter-spacing:.1em}
+
+/* 底条 */
+.card .foot{flex:0 0 50px;display:flex;align-items:center;padding:0 28px;gap:26px;
+  background:#070d12;border-top:1px solid #18222c;
+  font-family:ui-monospace,Consolas,monospace;font-size:12.5px;color:#728596}
+.card .foot span{display:flex;align-items:center;gap:6px}
+.card .foot i{font-style:normal;color:#3f4e5c;font-size:13px}
+.card .foot .rt{margin-left:auto;color:#5d6b7a;letter-spacing:.08em}
+
+/* ---------- 右侧图鉴 ---------- */
+.dex{flex:1;min-width:0;max-width:620px}
+.dex h3{font-size:16px;font-weight:500;letter-spacing:.06em;color:#e8f0f6}
+.dex .path{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:#4c5a68;
+  margin-top:6px;letter-spacing:.1em}
+.dex .head{font-size:12px;color:var(--ink2);margin-top:12px;letter-spacing:.03em}
+.dex .head b{color:#cdd9e2;font-weight:400}
+.chain{display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap;
+  font-family:ui-monospace,Consolas,monospace;font-size:11.5px}
+.chain .node{border:1px solid var(--line2);padding:4px 10px;border-radius:2px;color:#b9c8d5;background:#0d151d}
+.chain .node.cur{border-color:var(--water);color:#dff0f6;box-shadow:0 0 0 1px rgba(63,143,171,.22)}
+.chain .arr{color:#3f4e5c;font-size:10px;letter-spacing:.06em}
+.chain .arr small{display:block;font-size:9px;color:#465565;letter-spacing:.02em}
+
+.stats{margin-top:22px;border-top:1px solid var(--line);padding-top:16px}
+.stats .h{font-size:9.5px;letter-spacing:.26em;color:#465565;margin-bottom:12px}
+.key{font-family:ui-monospace,Consolas,monospace;font-size:9px;color:#33424f;
+  letter-spacing:.06em;margin-left:8px;text-transform:none}
+.stat{display:grid;grid-template-columns:44px 1fr 92px 84px;align-items:center;gap:10px;
+  padding:5px 0}
+.stat .k{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:#5d6b7a}
+.stat .bar{height:6px;background:#121b24;border-radius:3px;overflow:hidden}
+.stat .bar i{display:block;height:100%;border-radius:3px;
+  background:linear-gradient(90deg,rgba(63,143,171,.55),rgba(127,163,168,.95))}
+.stat .v{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:#d3dfe8;text-align:right}
+.stat .t{font-size:10.5px;color:#4c5a68}
+
+.lore{margin-top:22px;border-top:1px solid var(--line);padding-top:16px}
+.lore .seg{display:grid;grid-template-columns:52px 1fr;gap:12px;padding:9px 0;
+  border-bottom:1px dashed #141d26}
+.lore .seg:last-child{border-bottom:0}
+.lore .k{font-family:ui-monospace,Consolas,monospace;font-size:10px;color:#5d6b7a;
+  letter-spacing:.16em;padding-top:3px}
+.lore .t{font-size:13px;line-height:1.9;color:#b6c4d1}
+.lore .t b{color:#e6eef4;font-weight:400}
+
+.rel{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.rel .chip{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:#6b7a89;
+  border:1px solid #1d2833;padding:5px 10px;border-radius:2px;background:#0b131a;
+  transition:.14s}
+.rel .chip b{color:#a9bccb;font-weight:400;margin-left:6px}
+.rel .chip:hover{border-color:var(--water);color:#cdd9e2}
+.rel .chip:hover b{color:#dff0f6}
+
+.eff{margin-top:22px;padding:16px 18px;border:1px solid #1c2833;background:#0a1218}
+.eff .h{font-family:ui-monospace,Consolas,monospace;font-size:9.5px;color:var(--acc);
+  letter-spacing:.22em;margin-bottom:10px}
+.eff p{font-size:12.5px;line-height:1.95;color:#b3c1ce;margin-bottom:7px;
+  padding-left:16px;position:relative}
+.eff p:before{content:"";position:absolute;left:0;top:9px;width:5px;height:5px;
+  border-radius:50%;background:#31414f}
+.eff p:last-child{margin-bottom:0}
+.eff p b{color:#e2ecf3;font-weight:400}
+
+.flav{margin-top:20px;font-size:13.5px;line-height:1.8;color:#7f8f9d;font-style:italic;
+  border-left:2px solid #263440;padding-left:14px}
+.flav span{display:block;font-style:normal;font-size:10.5px;color:#465565;margin-top:6px;
+  letter-spacing:.06em}
+
+/* 读数基准刻度 */
+.stat .bar{position:relative}
+.stat .bar s{position:absolute;top:-3px;bottom:-3px;width:1px;background:rgba(255,255,255,.32);
+  text-decoration:none;pointer-events:none}
+
+/* 关系 chip 的注 */
+.rel .chip i{font-style:normal;color:#465565;margin-left:6px;font-size:9.5px}
+
+/* 怎么用 */
+.usage{margin-top:22px;border-top:1px solid var(--line);padding-top:16px}
+.usage .h{font-family:ui-monospace,Consolas,monospace;font-size:9.5px;letter-spacing:.22em;
+  color:var(--acc);margin-bottom:10px}
+.usage .u{font-size:13px;line-height:1.9;color:#c4d2de}
+.usage ul{margin-top:9px;padding-left:0;list-style:none}
+.usage li{font-size:12px;line-height:1.85;color:#8fa0af;padding-left:14px;position:relative}
+.usage li:before{content:"";position:absolute;left:0;top:8px;width:5px;height:5px;
+  border:1px solid #3a4a58;border-radius:50%}
+
+/* 首次记录 */
+.seen{display:flex;gap:12px;align-items:baseline;margin-top:20px;padding-top:14px;
+  border-top:1px solid var(--line);font-family:ui-monospace,Consolas,monospace}
+.seen .k{font-size:9.5px;color:#465565;letter-spacing:.2em;flex:0 0 52px}
+.seen .v{font-size:10.5px;color:#7c8f9f;line-height:1.7}
+
+.jsonbox{display:none;margin-top:16px;padding:14px 16px;border:1px solid #1c2833;
+  background:#070d12;font-family:ui-monospace,Consolas,monospace;font-size:10.5px;
+  line-height:1.8;color:#8ea2b2;white-space:pre;overflow:auto;max-height:560px}
+.jsonbox.on{display:block}
+
+.wire{margin-top:22px;border-top:1px solid var(--line);padding-top:14px;
+  font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:#5d6b7a;line-height:2}
+.wire b{color:#8fa4b4;font-weight:400}
+.wire em{color:var(--acc);font-style:normal}
+
+/* ---------- 画芯分层 ---------- */
+section.layers{border-top:1px solid var(--line);padding:26px 34px 40px}
+section.layers .h{font-size:9.5px;letter-spacing:.26em;color:#465565;margin-bottom:16px}
+.lrow{display:flex;gap:18px;flex-wrap:wrap}
+.lcell{width:220px}
+.lcell .cap{font-size:11px;color:#7f8f9d;margin-top:9px;line-height:1.6}
+.lcell .cap b{color:#c3d1dd;font-weight:400}
+.lthumb{width:220px;height:196px;border:1px solid #1d2833;overflow:hidden;position:relative;
+  background:#08121a}
+.lthumb svg{width:100%;height:100%;display:block}
+
+/* 分层显隐（只作用于拆解缩略图，主卡不受影响） */
+.lthumb.only-sky .L-water,.lthumb.only-sky .L-bird{display:none}
+.lthumb.only-water .L-sky,.lthumb.only-water .L-bird{display:none}
+.lthumb.only-bird .L-sky,.lthumb.only-bird .L-water{display:none}
+
+@media (max-width:1280px){
+  main{flex-direction:column;align-items:center}
+  .dex{max-width:780px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>夜沼鸟 · 卡面设计稿</h1>
+    <div class="sub">水 / 暗 / 风 · <b>1 环</b> · 物 &nbsp;·&nbsp; 卡面 640 × 933（比例 1 : 1.4578）&nbsp;·&nbsp; 三档尺寸共用同一套版式</div>
+  </div>
+  <div class="tools">
+    <button class="tg on" data-view="big">大卡 640</button>
+    <button class="tg" data-view="mid">图鉴 296</button>
+    <button class="tg" data-view="sm">手牌 148</button>
+    <button class="tg" id="dayBtn">切换昼 / 夜</button>
+    <button class="tg" id="jsonBtn">字段 / JSON</button>
+  </div>
+</header>
+
+<main>
+  <div class="stage">
+    <div class="slot" id="slot">
+      <!-- ===================== 卡 ===================== -->
+      <div class="card" id="card">
+        <div class="inner"></div>
+        <span class="corner tl"></span><span class="corner tr"></span>
+        <span class="corner bl"></span><span class="corner br"></span>
+
+        <div class="top">
+          <div class="emblems">
+            <span class="em" style="background:var(--water)"><i></i><b>水</b></span>
+            <span class="em sub" style="background:var(--dark)"><i></i><b>暗</b></span>
+            <span class="em sub" style="background:var(--wind)"><i></i><b>风</b></span>
+          </div>
+          <div class="elname">
+            <div class="n">ELEMENT</div>
+            <div class="v">水 · 暗 · 风　主 水</div>
+          </div>
+          <div class="tiermark">
+            <div class="tbar">
+              <i class="on"></i><i></i><i></i><i></i><i></i>
+              <i></i><i></i><i></i><i></i><i></i>
+            </div>
+            <div class="t"><b>1</b>环 · 常见</div>
+          </div>
+        </div>
+
+        <div class="art">
+          <!-- 画芯 640 × 601 -->
+          <svg viewBox="0 0 640 601" preserveAspectRatio="xMidYMid slice">
+            <defs>
+              <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0"   style="stop-color:var(--sky1)"/>
+                <stop offset=".42" style="stop-color:var(--sky2)"/>
+                <stop offset=".72" style="stop-color:var(--sky3)"/>
+              </linearGradient>
+              <linearGradient id="wtr" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" style="stop-color:var(--water1)"/>
+                <stop offset="1" style="stop-color:var(--water2)"/>
+              </linearGradient>
+              <radialGradient id="moonGlow">
+                <stop offset="0"   stop-color="#f4ecd6" stop-opacity=".55"/>
+                <stop offset=".45" stop-color="#e6dfc8" stop-opacity=".16"/>
+                <stop offset="1"   stop-color="#e6dfc8" stop-opacity="0"/>
+              </radialGradient>
+              <linearGradient id="mistG" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0"   stop-color="#dcebf0" stop-opacity="0"/>
+                <stop offset=".28" stop-color="#dcebf0" stop-opacity=".5"/>
+                <stop offset=".62" stop-color="#cfe2e9" stop-opacity=".38"/>
+                <stop offset="1"   stop-color="#cfe2e9" stop-opacity="0"/>
+              </linearGradient>
+              <filter id="soft" x="-30%" y="-60%" width="160%" height="240%">
+                <feGaussianBlur stdDeviation="9"/>
+              </filter>
+              <filter id="soft2" x="-30%" y="-60%" width="160%" height="240%">
+                <feGaussianBlur stdDeviation="4"/>
+              </filter>
+            </defs>
+
+            <!-- ===== 天空层 ===== -->
+            <g id="L-sky">
+              <rect x="0" y="0" width="640" height="601" fill="url(#sky)"/>
+              <!-- 星 -->
+              <g fill="#dbe9f2">
+                <circle cx="76"  cy="62"  r="1.5" opacity=".5"/>
+                <circle cx="148" cy="118" r="1"   opacity=".34"/>
+                <circle cx="232" cy="48"  r="1.2" opacity=".42"/>
+                <circle cx="318" cy="96"  r="1"   opacity=".3"/>
+                <circle cx="392" cy="40"  r="1.6" opacity=".46"/>
+                <circle cx="470" cy="186" r="1"   opacity=".26"/>
+                <circle cx="556" cy="58"  r="1.2" opacity=".38"/>
+                <circle cx="604" cy="140" r="1"   opacity=".3"/>
+                <circle cx="196" cy="176" r="1"   opacity=".22"/>
+                <circle cx="86"  cy="212" r="1.3" opacity=".24"/>
+              </g>
+              <!-- 月 -->
+              <g style="opacity:var(--moonA)">
+                <circle cx="500" cy="122" r="104" fill="url(#moonGlow)"/>
+                <circle cx="500" cy="122" r="42" fill="#f0e8d2" opacity=".9"/>
+                <circle cx="514" cy="110" r="36" fill="#0d2230" opacity=".14"/>
+                <circle cx="488" cy="132" r="6"  fill="#0d2230" opacity=".1"/>
+                <circle cx="508" cy="140" r="4"  fill="#0d2230" opacity=".08"/>
+              </g>
+              <!-- 远山 -->
+              <path d="M0,322 L96,254 L166,300 L262,224 L352,304 L452,248 L556,306 L640,262 L640,360 L0,360 Z"
+                    fill="#15303c" opacity=".45"/>
+              <!-- 近山 -->
+              <path d="M0,368 L84,318 L172,362 L286,300 L392,368 L500,318 L596,364 L640,340 L640,392 L0,392 Z"
+                    fill="#0e2530" opacity=".92"/>
+            </g>
+
+            <!-- ===== 水层 ===== -->
+            <g id="L-water">
+              <rect x="0" y="366" width="640" height="235" fill="url(#wtr)"/>
+              <!-- 月光倒影 -->
+              <g fill="#e9e2cb" style="opacity:calc(var(--moonA) * .55)">
+                <rect x="452" y="382" width="92" height="3" rx="1.5" opacity=".55"/>
+                <rect x="462" y="400" width="76" height="3" rx="1.5" opacity=".42"/>
+                <rect x="446" y="420" width="104" height="2.5" rx="1.2" opacity=".33"/>
+                <rect x="470" y="442" width="62" height="2.5" rx="1.2" opacity=".26"/>
+                <rect x="456" y="466" width="88" height="2" rx="1" opacity=".2"/>
+                <rect x="478" y="492" width="54" height="2" rx="1" opacity=".14"/>
+              </g>
+              <!-- 水面横向纹理 -->
+              <g stroke="#8fbccb" stroke-width="1" opacity=".13">
+                <path d="M0,392 C120,386 220,396 340,390 C452,384 552,394 640,388" fill="none"/>
+                <path d="M0,424 C140,418 240,428 360,422 C470,416 560,426 640,420" fill="none"/>
+                <path d="M0,462 C130,456 250,466 370,460 C480,454 570,464 640,458" fill="none"/>
+                <path d="M0,506 C150,500 260,510 380,504 C490,498 580,508 640,502" fill="none"/>
+                <path d="M0,552 C140,546 270,556 390,550 C500,544 590,554 640,548" fill="none"/>
+              </g>
+              <!-- 鱼影 -->
+              <g fill="#9fc9d3" opacity=".24">
+                <g>
+                  <ellipse cx="392" cy="452" rx="30" ry="9"/>
+                  <path d="M420,452 L442,440 L442,464 Z"/>
+                  <animateTransform attributeName="transform" type="translate"
+                    values="0,0; 26,-3; 0,0" dur="9s" repeatCount="indefinite"/>
+                </g>
+                <g opacity=".72">
+                  <ellipse cx="256" cy="498" rx="22" ry="7"/>
+                  <path d="M277,498 L294,489 L294,507 Z"/>
+                  <animateTransform attributeName="transform" type="translate"
+                    values="0,0; -18,3; 0,0" dur="11s" repeatCount="indefinite"/>
+                </g>
+              </g>
+              <!-- 鸟在水面的倒影（模糊、压暗） -->
+              <g transform="translate(84,612) scale(.72,-.72)" opacity=".085" filter="url(#soft2)">
+                <path d="M300,250 C272,206 218,182 156,190 C168,218 202,240 236,250 C258,256 282,256 300,260 Z" fill="#cfe4ec"/>
+                <path d="M300,250 C328,206 382,182 444,190 C432,218 398,240 364,250 C342,256 318,256 300,260 Z" fill="#cfe4ec"/>
+                <ellipse cx="300" cy="264" rx="17" ry="29" fill="#cfe4ec"/>
+                <ellipse cx="300" cy="212" rx="13.5" ry="12" fill="#cfe4ec"/>
+              </g>
+
+              <!-- 芦苇 -->
+              <g stroke="#0a1b21" stroke-width="3" fill="none" opacity=".85">
+                <path d="M44,601 C52,540 40,492 58,452"/>
+                <path d="M78,601 C72,548 88,506 74,470"/>
+                <path d="M108,601 C116,552 104,514 120,488"/>
+              </g>
+              <g fill="#0a1b21" opacity=".85">
+                <ellipse cx="58" cy="448" rx="4" ry="15" transform="rotate(8 58 448)"/>
+                <ellipse cx="74" cy="466" rx="3.4" ry="12" transform="rotate(-10 74 466)"/>
+                <ellipse cx="120" cy="484" rx="3.6" ry="13" transform="rotate(6 120 484)"/>
+              </g>
+            </g>
+
+            <!-- ===== 主体层：横枝 + 鸟 + 雾 ===== -->
+            <g id="L-bird">
+              <!-- 左侧横枝（亲近：木本横枝） -->
+              <g>
+                <path d="M0,258 C58,246 116,262 172,242 C196,234 214,236 226,242
+                         L226,252 C212,246 196,244 174,252 C120,272 58,258 0,270 Z"
+                      fill="#0a1a20"/>
+                <path d="M0,258 C58,246 116,262 172,242" stroke="#2b4a52" stroke-width="1.6"
+                      fill="none" opacity=".45"/>
+                <g fill="#12303a" opacity=".9">
+                  <path d="M96,252 C104,238 118,232 128,236 C120,246 108,252 96,256 Z"/>
+                  <path d="M140,246 C150,232 166,228 176,232 C166,242 154,248 140,250 Z"/>
+                </g>
+              </g>
+
+              <!-- 鸟 -->
+              <g>
+                <!-- 翼下雾（先画，压在最底） -->
+                <g filter="url(#soft)" style="opacity:calc(var(--mistA) * .72)">
+                  <path d="M212,288 C296,322 374,332 448,360 C512,384 574,386 640,408"
+                        stroke="url(#mistG)" stroke-width="42" fill="none" stroke-linecap="round"
+                        opacity=".3"/>
+                  <path d="M236,304 C316,338 390,346 458,374 C520,398 578,400 640,424"
+                        stroke="url(#mistG)" stroke-width="26" fill="none" stroke-linecap="round"
+                        opacity=".34"/>
+                  <path d="M258,322 C332,354 402,360 466,388 C526,412 582,414 640,438"
+                        stroke="url(#mistG)" stroke-width="14" fill="none" stroke-linecap="round"
+                        opacity=".26"/>
+                  <path d="M196,268 C280,300 356,308 426,334 C488,358 552,360 640,384"
+                        stroke="url(#mistG)" stroke-width="9" fill="none" stroke-linecap="round"
+                        opacity=".2"/>
+                </g>
+
+                <!-- 左翼（翼面更宽、翼尖上翘） -->
+                <path d="M300,250 C272,206 218,182 156,190
+                         C168,218 202,240 236,250 C258,256 282,256 300,260 Z"
+                      fill="#0d1a22"/>
+                <path d="M300,250 C272,206 218,182 156,190"
+                      stroke="#cfe4ec" stroke-width="2" fill="none" opacity=".3"/>
+                <!-- 翼下阴影：给翼面厚度 -->
+                <path d="M300,258 C272,246 236,238 202,236 C232,244 268,252 300,262 Z"
+                      fill="#050d12" opacity=".55"/>
+                <path d="M292,244 C266,222 226,206 190,202"
+                      stroke="#09131a" stroke-width="1.4" fill="none" opacity=".65"/>
+                <!-- 右翼 -->
+                <path d="M300,250 C328,206 382,182 444,190
+                         C432,218 398,240 364,250 C342,256 318,256 300,260 Z"
+                      fill="#0d1a22"/>
+                <path d="M300,250 C328,206 382,182 444,190"
+                      stroke="#cfe4ec" stroke-width="2" fill="none" opacity=".3"/>
+                <path d="M300,258 C328,246 364,238 398,236 C368,244 332,252 300,262 Z"
+                      fill="#050d12" opacity=".55"/>
+                <path d="M308,244 C334,222 374,206 410,202"
+                      stroke="#09131a" stroke-width="1.4" fill="none" opacity=".65"/>
+                <!-- 初级飞羽：翼尖分叉 -->
+                <g fill="#0d1a22">
+                  <path d="M162,196 L144,184 L166,199 Z"/>
+                  <path d="M154,205 L134,200 L157,211 Z"/>
+                  <path d="M156,215 L138,217 L161,221 Z"/>
+                  <path d="M438,196 L456,184 L434,199 Z"/>
+                  <path d="M446,205 L466,200 L443,211 Z"/>
+                  <path d="M444,215 L462,217 L439,221 Z"/>
+                </g>
+                <!-- 翼膜细线 -->
+                <g stroke="#09131a" stroke-width="1" opacity=".45" fill="none">
+                  <path d="M296,252 C266,234 222,218 176,212"/>
+                  <path d="M304,252 C334,234 378,218 424,212"/>
+                  <path d="M294,256 C268,242 232,230 196,226"/>
+                  <path d="M306,256 C332,242 368,230 404,226"/>
+                </g>
+                <!-- 尾羽（扇开三片） -->
+                <path d="M300,290 L276,330 L292,322 L300,334 L308,322 L324,330 Z" fill="#0d1a22"/>
+                <path d="M300,294 L290,322 L300,328 L310,322 Z" fill="#1b3540" opacity=".6"/>
+                <!-- 身体（微倾） -->
+                <ellipse cx="300" cy="264" rx="16" ry="25" fill="#0d1a22"
+                         transform="rotate(-4 300 264)"/>
+                <path d="M288,242 C286,272 292,290 300,296 C308,290 314,272 312,242"
+                      fill="#16303c" opacity=".5"/>
+                <!-- 颈 + 头（一体，不再是叠圆） -->
+                <path d="M290,240 C288,226 292,214 300,212 C308,214 312,226 310,240 Z"
+                      fill="#0d1a22"/>
+                <ellipse cx="300" cy="212" rx="13.5" ry="12" fill="#0d1a22"
+                         transform="rotate(-6 300 212)"/>
+                <path d="M289,206 C293,198 308,198 312,206" stroke="#cfe4ec" stroke-width="1.8"
+                      fill="none" opacity=".34"/>
+                <!-- 耳羽（夜枭特征） -->
+                <path d="M291,203 L285,190 L296,200 Z" fill="#0d1a22"/>
+                <path d="M309,203 L315,190 L304,200 Z" fill="#0d1a22"/>
+                <!-- 喙（短、下钩） -->
+                <path d="M288,212 L264,207 L288,201 Z" fill="#183640"/>
+                <path d="M288,212 L264,207" stroke="#cfe4ec" stroke-width="1.1" opacity=".22"/>
+                <!-- 眼 -->
+                <circle cx="307" cy="209" r="3.2" fill="#eaf5f9"/>
+                <circle cx="307" cy="209" r="1.5" fill="#07121a"/>
+              </g>
+
+              <!-- 雾中微粒 -->
+              <g fill="#dcebf0" style="opacity:var(--mistA)">
+                <circle cx="246" cy="296" r="1.6" opacity=".5"/>
+                <circle cx="332" cy="310" r="2.2" opacity=".42"/>
+                <circle cx="398" cy="336" r="1.4" opacity=".36"/>
+                <circle cx="470" cy="352" r="2"   opacity=".3"/>
+                <circle cx="540" cy="378" r="1.6" opacity=".24"/>
+                <circle cx="286" cy="330" r="1.2" opacity=".34"/>
+              </g>
+            </g>
+          </svg>
+
+          <div class="veil"></div>
+          <div class="artframe"></div>
+          <div class="catmark"><s></s>物 MATTER</div>
+          <div class="evoflag"><s></s>夜枭 进化</div>
+        </div>
+
+        <div class="line">
+          <div class="q">EFFECT</div>
+          <div class="body">
+            <div class="fx">夜出<u>成雾</u>：贴水低飞时在身后留下 <b>0.03 W</b> 雾带，持续 20 秒，雾随鸟移动，白天不生成。</div>
+            <div class="cond"><s>条件</s>夜 18–6 · 附近有木本横枝可落 · 由 <em>夜枭</em> 进化而来</div>
+            <div class="num">
+              <span><i>雾内</i>能见度 −1</span>
+              <span><i>湿度</i>+0.08/时</span>
+              <span><i>捕食</i>+0.02 W</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="name">
+          <h2>夜沼鸟</h2>
+          <div class="k">雾栖鸟</div>
+          <div class="id">
+            <div class="c">NIGHTMARSH BIRD</div>
+            <div class="s">W1-00</div>
+          </div>
+        </div>
+
+        <div class="foot">
+          <span><i>◔</i>0.012 W</span>
+          <span><i>⚠</i>+3</span>
+          <span><i>⧗</i>30 秒</span>
+          <span class="rt">回收 +1 · 价值 5</span>
+        </div>
+      </div>
+      <!-- =================== /卡 =================== -->
+    </div>
+    <div class="mono" style="font-size:10.5px;color:#465565;letter-spacing:.1em">
+      640 × 933 原寸 · 缩放后仍保持同一版式（148 宽时说明条自动折两行）
+    </div>
+  </div>
+
+  <!-- ===================== 图鉴 ===================== -->
+  <aside class="dex">
+    <h3>夜沼鸟</h3>
+    <div class="path">SPECIES · fauna.nightmarsh_bird</div>
+    <div class="head">雾栖鸟 · <b>水 / 暗 / 风</b> · 1 环 · 物 · 编号 W1-00</div>
+
+    <div class="chain">
+      <span class="node">夜枭</span>
+      <span class="arr">→<small>30 日内 3 次夜捕成雾</small></span>
+      <span class="node cur">夜沼鸟</span>
+      <span class="arr">×<small>不再进化</small></span>
+    </div>
+
+    <div class="stats">
+      <div class="h">生 态 读 数 <span class="key">stats[6]</span></div>
+      <div class="stat"><span class="k">体型</span><div class="bar"><i style="width:16%"></i><s style="left:24%"></s></div><span class="v">0.03 W</span><span class="t">翼展 · 一掌</span></div>
+      <div class="stat"><span class="k">活跃</span><div class="bar"><i style="width:50%"></i><s style="left:44%"></s></div><span class="v">12 时/日</span><span class="t">18–6 夜行</span></div>
+      <div class="stat"><span class="k">雾域</span><div class="bar"><i style="width:32%"></i><s style="left:12%"></s></div><span class="v">0.03 W</span><span class="t">能见度 −1</span></div>
+      <div class="stat"><span class="k">捕食</span><div class="bar"><i style="width:22%"></i><s style="left:30%"></s></div><span class="v">0.6 尾/日</span><span class="t">范围 +0.02 W</span></div>
+      <div class="stat"><span class="k">耐温</span><div class="bar"><i style="width:62%"></i><s style="left:58%"></s></div><span class="v">8–26 °C</span><span class="t">正午停飞</span></div>
+      <div class="stat"><span class="k">湿度</span><div class="bar"><i style="width:42%"></i><s style="left:36%"></s></div><span class="v">≥ 0.35</span><span class="t">雾内 +0.08</span></div>
+    </div>
+
+    <div class="lore">
+      <div class="h" style="font-size:9.5px;letter-spacing:.26em;color:#465565;margin-bottom:8px">
+        正 文 <span class="key">lore[3]</span></div>
+      <div class="seg">
+        <div class="k">习性</div>
+        <div class="t">昼伏夜出。日落后离枝，贴水面低飞，天亮前归枝；白天在木本横枝上一动不动，<b>强光下不进食也不换枝</b>。</div>
+      </div>
+      <div class="seg">
+        <div class="k">行为</div>
+        <div class="t">翼下的绒膜收拢水面凉气，飞一圈就拖出一条雾。雾里靠听觉找鱼，不靠眼睛——<b>所以它怕的不是黑，是安静</b>。雾散得比它飞得慢，于是它总在自己的雾里多待一会儿。</div>
+      </div>
+      <div class="seg">
+        <div class="k">传说</div>
+        <div class="t">渔人把它的落羽缝在网边，说这样雾会认得人。没有人证实过，但那一段河湾确实总在入夜后先起雾，<b>雾起的方向和鸟飞的方向一致</b>。</div>
+      </div>
+    </div>
+
+    <div class="rel">
+      <span class="chip">食物<b>溪鱼</b><i>每日 0.6 尾</i></span>
+      <span class="chip">天敌<b>无记录</b><i>雾中不被捕</i></span>
+      <span class="chip">共生<b>苔</b><i>雾养苔</i></span>
+      <span class="chip">出现地<b>河湾 / 静水</b><i>需湿土</i></span>
+      <span class="chip">前提<b>夜枭在场</b><i>否则不出现</i></span>
+    </div>
+
+    <div class="usage">
+      <div class="h">怎 么 用 <span class="key">usage / tips[2]</span></div>
+      <p class="u">夜里放在河湾，用雾把鱼赶到浅处；天亮前让晨鸟来收，雾散之前它们都在。</p>
+      <ul>
+        <li>先放夜枭——没有夜枭，夜沼鸟不会出现。</li>
+        <li>别在正午用：强光下它不动，雾也不起。</li>
+      </ul>
+    </div>
+
+    <div class="eff">
+      <div class="h">完 整 效 果 <span class="key">effect[6]</span></div>
+      <p><b>来源</b>　由普通夜枭进化：30 日内完成 3 次夜捕并成雾。</p>
+      <p><b>成雾</b>　每夜 18–6，贴水面飞行时在身后留下 <b>0.03 W</b> 雾带，持续 20 秒；雾随鸟移动。</p>
+      <p><b>雾内</b>　能见度 −1 档；湿度 +0.08 / 时；鸟自身不受影响。</p>
+      <p><b>捕食</b>　雾中凭听觉捕鱼，捕食范围 +0.02 W，每日约 0.6 尾。</p>
+      <p><b>限制</b>　白天不动；正午强光下不捕食；附近无木本横枝则不落枝、不繁殖。</p>
+    </div>
+
+    <div class="flav">
+      “雾不是它藏身的地方，是它的网。”
+      <span>THE MIST IS NOT WHERE IT HIDES — THE MIST IS ITS NET.</span>
+    </div>
+
+    <div class="seen">
+      <span class="k">首次记录</span>
+      <span class="v">第 312 天 22:41 · 河湾 (0.42, 0.55) · 雾内 · 由夜枭进化</span>
+    </div>
+
+    <div class="wire">
+      数值接线（<b>stats[].bind</b>）：雾域 → <b>fog.opacity</b>　·　湿度 → <b>world.humidity</b> <em>62 → 70 %</em>　·　捕食 → <b>fish.count</b> −0.6/日
+    </div>
+
+    <pre class="jsonbox" id="jsonbox">{
+  "id": "fauna.water.1.matter.nightmarsh_bird",
+  "number": "W1-00",
+  "name":  { "zh": "夜沼鸟", "en": "Nightmarsh Bird" },
+  "title": "雾栖鸟",
+  "elements": ["水","暗","风"], "primary": "水",
+  "tier": 1, "rarity_word": "常见", "class": "matter", "duration": "sustain",
+
+  "line": {
+    "fx":   "夜出成雾：贴水飞行时身后留下 0.03 W 雾带，持续 20 秒。",
+    "cond": ["夜 18–6", "附近有木本横枝", "由夜枭进化而来"],
+    "num":  [ {"k":"雾内","v":"能见度 −1"},
+              {"k":"湿度","v":"+0.08/时"},
+              {"k":"捕食","v":"+0.02 W"} ],
+    "hl":   ["成雾","夜枭"]
+  },
+
+  "radius_w": 0.012, "disturb": 3, "cooldown_s": 30,
+  "value": 5, "reclaim": 1,
+
+  "stats": [
+    {"k":"体型","v":"0.03 W","w":16,"t":"翼展 · 一掌","bind":null},
+    {"k":"活跃","v":"12 时/日","w":50,"t":"18–6 夜行","bind":"clock.hour"},
+    {"k":"雾域","v":"0.03 W","w":32,"t":"能见度 −1","bind":"fog.opacity"},
+    {"k":"捕食","v":"0.6 尾/日","w":22,"t":"范围 +0.02 W","bind":"fish.count"},
+    {"k":"耐温","v":"8–26 °C","w":62,"t":"正午停飞","bind":"weather.temp"},
+    {"k":"湿度","v":"≥ 0.35","w":42,"t":"雾内 +0.08","bind":"world.humidity"}
+  ],
+
+  "lore": [ {"k":"habit","t":"昼伏夜出……"},
+            {"k":"behavior","t":"翼下绒膜收凉气……"},
+            {"k":"legend","t":"渔人把落羽缝在网边……"} ],
+
+  "rel": [ {"k":"food","to":"fauna.water.0.fish.stream","note":"0.6 尾/日"},
+           {"k":"sym","to":"flora.water.0.moss","note":"雾养苔"},
+           {"k":"where","to":"terrain.water.bay"},
+           {"k":"req","to":"fauna.dark.0.bird.owl","note":"否则不出现"} ],
+
+  "flavor": { "zh": "雾不是它藏身的地方，是它的网。",
+              "en": "The mist is not where it hides — the mist is its net." },
+
+  "evolve": { "from":"fauna.dark.0.bird.owl", "to":null,
+              "req":"30 日内 3 次夜捕成雾", "auto":false },
+
+  "art": { "src":"art/cards/nightmarsh_bird.webp", "sigil":"水波",
+           "palette":["#081521","#12303c","#0a1a20"],
+           "focus":{"x":0.47,"y":0.42}, "frames":"回纹" },
+
+  "runtime": { "tags":["nocturnal","mist","shore"], "gate":"fauna" }
+}</pre>
+  </aside>
+</main>
+
+<!-- ===================== 画芯拆解 ===================== -->
+<section class="layers">
+  <div class="h">画 芯 结 构（三 层）</div>
+  <div class="lrow">
+    <div class="lcell">
+      <div class="lthumb only-sky" id="th1"></div>
+      <div class="cap"><b>第一层 · 天</b><br>夜空渐变 + 月与星 + 两层远山，给"夜"定调。</div>
+    </div>
+    <div class="lcell">
+      <div class="lthumb only-water" id="th2"></div>
+      <div class="cap"><b>第二层 · 水</b><br>水面与月光倒影、横向纹理、两条鱼影、左下芦苇。</div>
+    </div>
+    <div class="lcell">
+      <div class="lthumb only-bird" id="th3"></div>
+      <div class="cap"><b>第三层 · 主体</b><br>左侧木本横枝、展翼的鸟、翼下拖出的三条雾带与雾中微粒。</div>
+    </div>
+  </div>
+</section>
+
+<script>
+/* 三档尺寸 */
+const slot=document.getElementById('slot');
+document.querySelectorAll('[data-view]').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('[data-view]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    slot.className='slot'+(b.dataset.view==='big'?'':b.dataset.view==='mid'?' mid':' sm');
+  };
+});
+/* 昼夜 */
+document.getElementById('dayBtn').onclick=e=>{
+  document.body.classList.toggle('day');
+  e.currentTarget.classList.toggle('on', document.body.classList.contains('day'));
+};
+/* 字段 / JSON 视图：同一份数据，卡面与图鉴都由它渲染 */
+document.getElementById('jsonBtn').onclick=e=>{
+  const box=document.getElementById('jsonbox');
+  box.classList.toggle('on');
+  e.currentTarget.classList.toggle('on', box.classList.contains('on'));
+  if(box.classList.contains('on')) box.scrollIntoView({behavior:'smooth',block:'center'});
+};
+/* 画芯拆解：复制主画芯 SVG，按层显隐 */
+const src=document.querySelector('.card .art svg');
+[['th1','only-sky'],['th2','only-water'],['th3','only-bird']].forEach(([id,cls])=>{
+  const box=document.getElementById(id);
+  const clone=src.cloneNode(true);
+  clone.removeAttribute('style');
+  /* 把 id 降级成 class，避免与主卡画芯的 #L-* 互相命中 */
+  clone.querySelectorAll('g[id^="L-"]').forEach(g=>{
+    g.setAttribute('class', g.getAttribute('id'));
+    g.removeAttribute('id');
+  });
+  box.appendChild(clone);
+});
+</script>
+</body>
+</html>

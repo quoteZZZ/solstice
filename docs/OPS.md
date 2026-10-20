@@ -45,6 +45,7 @@ powershell -ExecutionPolicy Bypass -File tools\run\launch-editor.ps1      # 起�
 | 命令 | 用途 | 期望输出 |
 |---|---|---|
 | `python tools/checks/check-links.py` | 文档相对链接 | `broken links : 0` |
+| `python tools/checks/check-design-numbers.py` | 设计数值自检（卡矩阵 / 包数 / 余响 / 扰动 / 生态 / 尺寸） | `design numbers: all OK` |
 | `python tools/checks/validate-contracts.py` | 6 对契约 / id / 双语 | `errors : 0` |
 | `powershell -File tools\run\bench.ps1 -Days 2` | 无头确定性 | `digest A == digest B`，`bench: ok` |
 
