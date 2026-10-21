@@ -9,11 +9,11 @@
   --ink0:#05080b;
   --paper:#0b1218;      /* 卡纸 */
   --paper2:#0e1620;     /* 效果框 */
-  --frame-hi:#5a4c31;   /* 金属框亮面 */
-  --frame-md:#2e2b23;
+  --frame-hi:#6d5b3b;   /* 金属框亮面 */
+  --frame-md:#332f26;
   --frame-lo:#12171c;
-  --gold:#c9a961;
-  --gold-hi:#f0d493;
+  --gold:#d2ae66;
+  --gold-hi:#f4dc9f;
   --gold-dim:#7a6636;
   --text:#e9f0f5;
   --text2:#b3c2ce;
@@ -40,13 +40,15 @@ body{background:radial-gradient(120% 80% at 50% 0%,#0b1219 0%,#05080b 60%);
    卡：三层（金属外框 → 内纸 → 内容）
    640 × 933
    ============================================================ */
-.card{width:640px;height:933px;position:relative;border-radius:10px;
-  padding:7px;
+.card{width:640px;height:933px;position:relative;border-radius:12px;
+  padding:12px;
   background:
-    linear-gradient(150deg,var(--frame-hi) 0%,var(--frame-md) 18%,var(--frame-lo) 42%,
-                    var(--frame-lo) 62%,var(--frame-md) 84%,var(--frame-hi) 100%);
-  box-shadow:0 30px 70px rgba(0,0,0,.75),0 2px 0 rgba(255,255,255,.05) inset,
-             0 -2px 0 rgba(0,0,0,.6) inset;
+    linear-gradient(148deg,#8a7448 0%,var(--frame-hi) 9%,var(--frame-md) 26%,var(--frame-lo) 46%,
+                    var(--frame-lo) 56%,var(--frame-md) 76%,var(--frame-hi) 92%,#8a7448 100%);
+  box-shadow:0 30px 70px rgba(0,0,0,.78),
+             0 1px 0 rgba(255,255,255,.14) inset,
+             0 -1px 0 rgba(0,0,0,.7) inset,
+             0 0 0 1px rgba(0,0,0,.9);
   transition:.2s}
 .card.hide{display:none}
 /* 内纸 */
@@ -58,25 +60,43 @@ body{background:radial-gradient(120% 80% at 50% 0%,#0b1219 0%,#05080b 60%);
   background:
     repeating-linear-gradient(102deg,rgba(255,255,255,.014) 0 1px,transparent 1px 5px),
     radial-gradient(90% 60% at 50% 0%,rgba(201,169,97,.05),transparent 70%)}
-/* 内描线（金，离边 5px） */
-.paper:after{content:"";position:absolute;inset:5px;border:1px solid rgba(201,169,97,.22);
-  border-radius:3px;pointer-events:none;z-index:9}
+/* 内槽 + 金线：卡框与纸面之间要有一道"沟"，卡才有厚度 */
+.paper:after{content:"";position:absolute;inset:0;border-radius:4px;pointer-events:none;z-index:9;
+  box-shadow:
+    inset 0 0 0 3px #04070a,
+    inset 0 0 0 4px rgba(210,174,102,.34),
+    inset 0 0 0 5px rgba(0,0,0,.6),
+    inset 0 0 0 6px rgba(210,174,102,.1)}
 
-/* 四角云纹 */
-.cld{position:absolute;width:44px;height:44px;z-index:10;color:var(--gold-dim);opacity:.75}
-.cld.tl{left:9px;top:9px}
-.cld.tr{right:9px;top:9px;transform:scaleX(-1)}
-.cld.bl{left:9px;bottom:9px;transform:scaleY(-1)}
-.cld.br{right:9px;bottom:9px;transform:scale(-1,-1)}
+/* 框上连续回纹（沿内缘一圈，希腊回纹单元 16×16） */
+.trim{position:absolute;inset:0;z-index:8;pointer-events:none}
 
-/* ---------- 名带 ---------- */
-.nameband{position:relative;height:96px;display:flex;align-items:center;gap:14px;
-  padding:0 30px 0 22px;z-index:3;
-  background:linear-gradient(180deg,#141d26 0%,#0e161e 55%,#0a1117 100%);
-  border-bottom:1px solid rgba(201,169,97,.22)}
-/* 名带下沿的金线（两端淡出） */
-.nameband:after{content:"";position:absolute;left:22px;right:22px;bottom:-1px;height:1px;
-  background:linear-gradient(90deg,transparent,rgba(201,169,97,.8) 18%,rgba(201,169,97,.8) 82%,transparent)}
+/* 四角：三层套角（外 L + 内 L + 金菱形） */
+.cset{position:absolute;width:44px;height:44px;z-index:10;pointer-events:none}
+.cset i{position:absolute;display:block}
+.cset .l1{inset:0;border-left:1.6px solid var(--gold-dim);border-top:1.6px solid var(--gold-dim);
+  opacity:.85}
+.cset .l2{inset:8px;border-left:1px solid var(--gold-dim);border-top:1px solid var(--gold-dim);
+  opacity:.45}
+.cset .d{left:-4px;top:-4px;width:8px;height:8px;background:var(--gold-dim);
+  transform:rotate(45deg);box-shadow:0 0 8px rgba(210,174,102,.35)}
+.cset.tl{left:9px;top:9px}
+.cset.tr{right:9px;top:9px;transform:scaleX(-1)}
+.cset.bl{left:9px;bottom:9px;transform:scaleY(-1)}
+.cset.br{right:9px;bottom:9px;transform:scale(-1,-1)}
+
+/* ---------- 名带：斜切横幅 ---------- */
+.nameband{position:relative;height:88px;display:flex;align-items:center;gap:14px;
+  margin:6px 6px 0;padding:0 26px 0 20px;z-index:3;
+  background:linear-gradient(180deg,#18222c 0%,#101921 52%,#0a1117 100%);
+  border-bottom:1px solid rgba(210,174,102,.32);
+  clip-path:polygon(0 0,100% 0,100% calc(100% - 13px),calc(100% - 13px) 100%,0 100%)}
+/* 名带下沿金线 */
+.nameband:after{content:"";position:absolute;left:20px;right:26px;bottom:-1px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(210,174,102,.85) 16%,rgba(210,174,102,.85) 84%,transparent)}
+/* 左端竖条（横幅的"装订边"） */
+.nameband:before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;
+  background:linear-gradient(180deg,rgba(210,174,102,.55),rgba(210,174,102,.12))}
 
 /* 类符（名带左端） */
 .clsym{flex:0 0 30px;width:30px;height:30px;border:1.5px solid rgba(201,169,97,.55);
@@ -96,40 +116,53 @@ body{background:radial-gradient(120% 80% at 50% 0%,#0b1219 0%,#05080b 60%);
 
 /* 右：属性章 + 星 */
 .emwrap{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:7px}
-.emblem{width:44px;height:44px;border-radius:50%;position:relative;
+.emblem{width:48px;height:48px;border-radius:50%;position:relative;
   display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(circle at 34% 26%,rgba(255,255,255,.5),transparent 60%),
-             radial-gradient(circle at 50% 60%,var(--water) 0%,#173a49 100%);
-  box-shadow:0 0 0 1.5px rgba(0,0,0,.8),0 0 0 3px rgba(201,169,97,.35),
-             0 0 12px rgba(63,143,171,.4),inset 0 -6px 12px rgba(0,0,0,.5)}
-.emblem svg{width:26px;height:26px;color:#eaf7fb;opacity:.95}
+  background:radial-gradient(circle at 34% 26%,rgba(255,255,255,.55),transparent 58%),
+             radial-gradient(circle at 50% 62%,var(--water) 0%,#12303c 100%);
+  box-shadow:0 0 0 2px rgba(0,0,0,.9),0 0 0 4px rgba(210,174,102,.42),
+             0 0 16px rgba(63,143,171,.45),inset 0 -7px 14px rgba(0,0,0,.55)}
+.emblem svg{width:29px;height:29px;color:#f2fbff;opacity:.95}
 /* 属性章右上角小副元素 */
 .em-sub{position:absolute;right:-7px;top:-7px;display:flex;gap:2px}
 .em-sub s{width:11px;height:11px;border-radius:50%;display:block;
   box-shadow:0 0 0 1px rgba(0,0,0,.85),0 0 0 2px rgba(201,169,97,.25)}
-/* 星阶：名带右下角独立一排（TCG 语言），不跟属性章叠 */
-.stars{position:absolute;right:30px;bottom:10px;display:flex;gap:4px;align-items:center}
+/* 星阶：画芯上沿右侧的独立星条（游戏王式：星贴在画面上方，不混进名带） */
+.starbar{position:absolute;right:12px;top:12px;z-index:6;display:flex;align-items:center;gap:3px;
+  padding:4px 9px;background:rgba(4,8,12,.62);border:1px solid rgba(210,174,102,.28);
+  border-radius:2px;backdrop-filter:blur(2px)}
+.stars{display:flex;gap:4px;align-items:center}
 .stars s{font-size:15px;line-height:1;color:var(--gold-hi);text-decoration:none;
   text-shadow:0 0 10px rgba(240,212,147,.9),0 1px 2px #000}
 .stars s.off{color:#39434d;text-shadow:none}
 .stars u{text-decoration:none;font-family:ui-monospace,Consolas,monospace;font-size:8.5px;
   color:var(--text4);margin-left:6px;letter-spacing:.14em}
+/* 名带右下的栖息行：填掉属性章与星之间的空档 */
+.hab{position:absolute;right:30px;bottom:33px;font-family:ui-monospace,Consolas,monospace;
+  font-size:8.5px;color:var(--text4);letter-spacing:.18em}
 
 /* ---------- 画芯 ---------- */
-.art{position:relative;flex:1;overflow:hidden;z-index:2;
-  box-shadow:0 0 0 1px rgba(201,169,97,.16),0 8px 22px rgba(0,0,0,.75) inset}
+.art{position:relative;flex:1;overflow:hidden;z-index:2;margin:6px 6px 0;
+  box-shadow:0 0 0 1px rgba(210,174,102,.2),0 8px 22px rgba(0,0,0,.72) inset}
 .art svg{display:block;width:100%;height:100%}
 /* 内切角遮罩 */
 .art .cut{position:absolute;inset:0;pointer-events:none;z-index:4;
-  box-shadow:inset 0 0 92px 30px rgba(3,7,11,.9)}
+  box-shadow:inset 0 0 76px 24px rgba(3,7,11,.82)}
 /* 画芯下沿融入纸面 */
-.art .fade{position:absolute;left:0;right:0;bottom:0;height:60px;z-index:4;pointer-events:none;
-  background:linear-gradient(180deg,transparent,rgba(10,17,23,.92))}
+.art .fade{position:absolute;left:0;right:0;bottom:0;height:42px;z-index:4;pointer-events:none;
+  background:linear-gradient(180deg,transparent,rgba(10,17,23,.82))}
 
 /* ---------- 效果框 ---------- */
-.eff{position:relative;flex:0 0 176px;padding:16px 30px 14px;z-index:3;
-  background:linear-gradient(180deg,var(--paper2) 0%,#0a1015 100%);
-  border-top:1px solid rgba(201,169,97,.18)}
+.eff{position:relative;flex:0 0 196px;margin:10px 6px 0;padding:20px 26px 14px;z-index:3;
+  background:linear-gradient(180deg,#101a22 0%,#0a1117 62%,#080d12 100%);
+  border-top:2px solid rgba(210,174,102,.42);
+  box-shadow:0 -1px 0 rgba(0,0,0,.8),0 1px 0 rgba(210,174,102,.08) inset}
+/* 左上角"效果"小旗 */
+.eff .flag{position:absolute;left:0;top:-12px;height:23px;display:flex;align-items:center;
+  padding:0 16px 0 14px;background:linear-gradient(180deg,#2b3742,#18222b);
+  border:1px solid rgba(210,174,102,.5);border-bottom:0;border-radius:0 12px 0 0;
+  font-size:9.5px;color:var(--gold-hi);letter-spacing:.22em;
+  box-shadow:0 -1px 0 rgba(255,255,255,.08) inset}
 /* 只留内凹阴影，不再画第二个矩形（不做方框套方框） */
 .eff:before{content:"";position:absolute;left:0;right:0;top:0;height:100%;pointer-events:none;
   box-shadow:inset 0 14px 22px -14px rgba(0,0,0,.85)}
@@ -150,27 +183,31 @@ body{background:radial-gradient(120% 80% at 50% 0%,#0b1219 0%,#05080b 60%);
 .eff .nums i{font-style:normal;color:var(--text4);margin-right:5px}
 
 /* ---------- 底栏 ---------- */
-.foot{flex:0 0 58px;display:flex;align-items:center;gap:20px;padding:0 30px;z-index:3;
-  background:linear-gradient(180deg,#0a1117,#080d12);
-  border-top:1px solid rgba(201,169,97,.2)}
-.foot .st{display:flex;gap:20px;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;
+.foot{flex:0 0 64px;display:flex;align-items:center;padding:0 14px;z-index:3;
+  background:linear-gradient(180deg,#0a1117,#070c11);
+  border-top:1px solid rgba(210,174,102,.26)}
+.foot .grp{display:flex;align-items:center;gap:7px;padding:0 16px;
+  border-right:1px solid rgba(210,174,102,.14)}
+.foot .grp:first-child{padding-left:8px}
+.foot .grp:last-child{border-right:0;margin-left:auto;padding-right:10px}
+.foot .grp i{font-style:normal;font-size:13px;color:var(--gold-dim)}
+.foot .grp b{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;font-weight:400;
   color:var(--text2);letter-spacing:.03em}
-.foot .st i{font-style:normal;color:var(--text4);margin-right:6px;font-size:12px}
-.foot .id{font-size:10px;color:var(--text3)}
-.foot .id{margin-left:auto;display:flex;align-items:center;gap:10px;
-  font-family:ui-monospace,Consolas,monospace;font-size:9.5px;color:var(--text4);letter-spacing:.16em}
-.foot .id em{font-style:normal;color:var(--gold-dim)}
+.foot .grp.id{font-family:ui-monospace,Consolas,monospace;font-size:9.5px;
+  color:var(--text4);letter-spacing:.16em}
+.foot .grp.id em{font-style:normal;color:var(--gold-dim);margin-right:7px}
 
 /* ============================================================
    卡背：满版元素纹 + 中央圆章 + 环刻
    ============================================================ */
 .back .paper{background:radial-gradient(120% 90% at 50% 42%,#101b24 0%,#080f15 58%,#050a0e 100%)}
-.back .pat{position:absolute;inset:0;z-index:1;opacity:.5}
+.back .pat{position:absolute;inset:0;z-index:1;opacity:.85}
 .back .vig{position:absolute;inset:0;z-index:2;
   box-shadow:inset 0 0 160px 40px rgba(2,5,8,.95)}
 .back .crest{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
   width:392px;height:392px;z-index:5;display:flex;align-items:center;justify-content:center}
 /* 外环：两道金圈 + 环刻 */
+.back .crest .arc{position:absolute;inset:0;z-index:3;pointer-events:none}
 .back .crest .ring{position:absolute;inset:0;border-radius:50%;
   border:1px solid rgba(201,169,97,.55);
   box-shadow:0 0 0 7px rgba(201,169,97,.05),0 0 0 8px rgba(201,169,97,.28),
@@ -179,7 +216,7 @@ body{background:radial-gradient(120% 80% at 50% 0%,#0b1219 0%,#05080b 60%);
   border:1px dashed rgba(201,169,97,.22)}
 /* 9 道环刻：亮的数量 = 环 */
 .back .crest .arcs s{position:absolute;left:50%;top:50%;width:3px;height:14px;
-  background:#202a33;transform-origin:50% 0;text-decoration:none;margin-left:-1.5px;border-radius:1px}
+  background:#3d4d59;transform-origin:50% 0;text-decoration:none;margin-left:-1.5px;border-radius:1px}
 .back .crest .arcs s.on{background:linear-gradient(180deg,var(--gold-hi),var(--gold));
   box-shadow:0 0 9px rgba(201,169,97,.8)}
 /* 中央元素章 */
@@ -239,10 +276,19 @@ body{background:radial-gradient(120% 80% at 50% 0%,#0b1219 0%,#05080b 60%);
   <!-- ================= 正面 ================= -->
   <div class="card" id="front">
     <div class="paper">
-      <svg class="cld tl" viewBox="0 0 44 44"><use href="#s-cloud"/></svg>
-      <svg class="cld tr" viewBox="0 0 44 44"><use href="#s-cloud"/></svg>
-      <svg class="cld bl" viewBox="0 0 44 44"><use href="#s-cloud"/></svg>
-      <svg class="cld br" viewBox="0 0 44 44"><use href="#s-cloud"/></svg>
+      <svg class="trim" viewBox="0 0 616 909" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <pattern id="meander" width="16" height="16" patternUnits="userSpaceOnUse">
+            <path d="M1,14 H14 V1 H5 V9 H10" fill="none" stroke="#d2ae66" stroke-width="1.05"/>
+          </pattern>
+        </defs>
+        <rect x="3" y="3" width="610" height="903" fill="none" stroke="url(#meander)"
+              stroke-width="5" opacity=".32"/>
+      </svg>
+      <span class="cset tl"><i class="l1"></i><i class="l2"></i><i class="d"></i></span>
+      <span class="cset tr"><i class="l1"></i><i class="l2"></i><i class="d"></i></span>
+      <span class="cset bl"><i class="l1"></i><i class="l2"></i><i class="d"></i></span>
+      <span class="cset br"><i class="l1"></i><i class="l2"></i><i class="d"></i></span>
 
       <div class="nameband">
         <div class="clsym"><span>物</span></div>
@@ -257,14 +303,16 @@ body{background:radial-gradient(120% 80% at 50% 0%,#0b1219 0%,#05080b 60%);
               <s style="background:var(--dark)"></s><s style="background:var(--wind)"></s>
             </span>
           </div>
+        </div>
+      </div>
+
+      <div class="art">
+        <div class="starbar">
           <div class="stars">
             <s>★</s><s class="off">★</s><s class="off">★</s><s class="off">★</s><s class="off">★</s>
             <u>TIER 1</u>
           </div>
         </div>
-      </div>
-
-      <div class="art">
         <svg viewBox="0 0 640 601" preserveAspectRatio="xMidYMid slice">
           <defs>
             <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
@@ -288,14 +336,28 @@ body{background:radial-gradient(120% 80% at 50% 0%,#0b1219 0%,#05080b 60%);
           <rect width="640" height="601" fill="url(#sky)"/>
           <g fill="#dbe9f2"><circle cx="76" cy="62" r="1.5" opacity=".4"/><circle cx="232" cy="48" r="1.2" opacity=".34"/>
             <circle cx="392" cy="40" r="1.6" opacity=".36"/><circle cx="556" cy="58" r="1.2" opacity=".3"/></g>
-          <circle cx="500" cy="120" r="102" fill="url(#mg)"/>
-          <circle cx="500" cy="120" r="40" fill="#f1e9d3" opacity=".9"/>
-          <circle cx="513" cy="108" r="34" fill="#0c2030" opacity=".12"/>
+          <circle cx="504" cy="104" r="94" fill="url(#mg)"/>
+          <circle cx="504" cy="104" r="35" fill="#f1e9d3" opacity=".88"/>
+          <circle cx="515" cy="94" r="29" fill="#0c2030" opacity=".12"/>
 
           <path d="M0,330 L96,262 L166,308 L262,232 L352,312 L452,256 L556,314 L640,270 L640,392 L0,392 Z" fill="#122a37" opacity=".5"/>
           <path d="M0,374 L84,324 L172,368 L286,306 L392,374 L500,324 L596,370 L640,346 L640,410 L0,410 Z" fill="#0b202b" opacity=".95"/>
 
-          <rect y="372" width="640" height="229" fill="url(#wtr)"/>
+          <rect y="356" width="640" height="245" fill="url(#wtr)"/>
+          <!-- 水面低雾：让下半不空（雾脚贴着水走，不是一团白） -->
+          <g filter="url(#b1)" opacity=".5">
+            <path d="M-20,392 C120,382 260,396 400,386 C500,380 580,390 660,384"
+                  stroke="#cfe4ea" stroke-width="22" fill="none" stroke-linecap="round" opacity=".22"/>
+            <path d="M-20,424 C130,414 270,430 410,418 C510,410 590,420 660,414"
+                  stroke="#cfe4ea" stroke-width="14" fill="none" stroke-linecap="round" opacity=".16"/>
+          </g>
+          <!-- 倒影碎片：不是完整镜像，只是几段被打碎的光 -->
+          <g fill="#e9e2cb" opacity=".3">
+            <rect x="268" y="412" width="54" height="2.5" rx="1.2" opacity=".55"/>
+            <rect x="292" y="428" width="38" height="2" rx="1" opacity=".4"/>
+            <rect x="252" y="446" width="66" height="2" rx="1" opacity=".3"/>
+            <rect x="300" y="466" width="30" height="1.8" rx=".9" opacity=".22"/>
+          </g>
           <g fill="#e9e2cb" opacity=".42">
             <rect x="452" y="388" width="92" height="3" rx="1.5" opacity=".5"/>
             <rect x="462" y="410" width="76" height="3" rx="1.5" opacity=".36"/>
@@ -307,23 +369,30 @@ body{background:radial-gradient(120% 80% at 50% 0%,#0b1219 0%,#05080b 60%);
             <path d="M0,500 C130,494 250,504 370,498 C480,492 570,502 640,496"/>
           </g>
           <g fill="#9fc9d3" opacity=".2">
-            <g><ellipse cx="392" cy="474" rx="26" ry="8"/><path d="M416,474 L434,464 L434,484 Z"/>
+            <g><ellipse cx="392" cy="452" rx="26" ry="8"/><path d="M416,452 L434,442 L434,462 Z"/>
               <animateTransform attributeName="transform" type="translate" values="0,0;20,-3;0,0" dur="11s" repeatCount="indefinite"/></g>
-            <g opacity=".7"><ellipse cx="250" cy="522" rx="19" ry="6"/><path d="M268,522 L282,514 L282,530 Z"/>
+            <g opacity=".7"><ellipse cx="250" cy="500" rx="19" ry="6"/><path d="M268,500 L282,492 L282,508 Z"/>
               <animateTransform attributeName="transform" type="translate" values="0,0;-14,3;0,0" dur="13s" repeatCount="indefinite"/></g>
           </g>
           <!-- 芦苇 -->
-          <g stroke="#081820" stroke-width="3" fill="none" opacity=".85">
-            <path d="M44,601 C52,540 40,492 58,452"/><path d="M78,601 C72,548 88,506 74,470"/>
+          <g stroke="#0f2229" stroke-width="3" fill="none" opacity=".9">
+            <path d="M44,601 C54,556 42,512 60,470"/><path d="M80,601 C74,560 90,520 76,482"/>
           </g>
-          <g fill="#081820" opacity=".85">
-            <ellipse cx="58" cy="448" rx="4" ry="15" transform="rotate(8 58 448)"/>
-            <ellipse cx="74" cy="466" rx="3.4" ry="12" transform="rotate(-10 74 466)"/>
+          <g fill="#0f2229" opacity=".9">
+            <ellipse cx="60" cy="466" rx="4" ry="15" transform="rotate(8 60 466)"/>
+            <ellipse cx="76" cy="478" rx="3.4" ry="12" transform="rotate(-10 76 478)"/>
           </g>
+          <path d="M596,601 C588,552 604,516 588,478" stroke="#0f2229" stroke-width="2.6"
+                fill="none" opacity=".8"/>
+          <ellipse cx="586" cy="474" rx="3" ry="11" fill="#0f2229" opacity=".8"
+                   transform="rotate(-8 586 474)"/>
 
+          <!-- 主体整体下移 46：鸟落到画面中线，给下方水面留出层次 -->
+          <g transform="translate(0,46)">
           <!-- 横枝 -->
-          <path d="M0,258 C58,246 116,262 172,242 C196,234 214,236 226,242 L226,252 C212,246 196,244 174,252 C120,272 58,258 0,270 Z" fill="#081820"/>
-          <path d="M0,258 C58,246 116,262 172,242" stroke="#26444e" stroke-width="1.6" fill="none" opacity=".45"/>
+          <path d="M0,258 C58,246 116,262 172,242 C196,234 214,236 226,242 L226,252 C212,246 196,244 174,252 C120,272 58,258 0,270 Z" fill="#102028"/>
+          <path d="M0,258 C58,246 116,262 172,242" stroke="#5d8a96" stroke-width="1.8" fill="none" opacity=".55"/>
+          <path d="M0,270 C58,258 120,272 174,252" stroke="#3e6572" stroke-width="1.2" fill="none" opacity=".35"/>
 
           <!-- 雾 -->
           <g filter="url(#b1)" opacity=".72">
@@ -332,12 +401,14 @@ body{background:radial-gradient(120% 80% at 50% 0%,#0b1219 0%,#05080b 60%);
             <path d="M258,326 C332,358 402,364 466,392 C526,416 582,418 640,442" stroke="url(#mist)" stroke-width="15" fill="none" stroke-linecap="round" opacity=".24"/>
           </g>
 
-          <!-- 鸟 -->
+          <!-- 鸟（整组顺时针 10°，从"十字"变成侧身滑翔） -->
+          <g transform="rotate(-10 300 296)">
           <path d="M300,252 C272,208 218,184 156,192 C168,220 202,242 236,252 C258,258 282,258 300,262 Z" fill="#0a151c"/>
-          <path d="M300,252 C272,208 218,184 156,192" stroke="#d3e6ee" stroke-width="2.2" fill="none" opacity=".32"/>
+          <path d="M300,252 C272,208 218,184 156,192" stroke="#d3e6ee" stroke-width="2.4" fill="none" opacity=".46"/>
           <path d="M300,260 C272,248 236,240 202,238 C232,246 268,254 300,264 Z" fill="#02080c" opacity=".6"/>
           <path d="M300,252 C328,208 382,184 444,192 C432,220 398,242 364,252 C342,258 318,258 300,262 Z" fill="#0a151c"/>
-          <path d="M300,252 C328,208 382,184 444,192" stroke="#d3e6ee" stroke-width="2.2" fill="none" opacity=".32"/>
+          <path d="M300,252 C328,208 382,184 444,192" stroke="#d3e6ee" stroke-width="2.4" fill="none" opacity=".46"/>
+          <path d="M288,246 C285,276 291,294 300,300" stroke="#9fc4d2" stroke-width="1.3" fill="none" opacity=".38"/>
           <path d="M300,260 C328,248 364,240 398,238 C368,246 332,254 300,264 Z" fill="#02080c" opacity=".6"/>
           <g fill="#0a151c">
             <path d="M162,198 L142,184 L166,201 Z"/><path d="M153,208 L131,202 L156,214 Z"/><path d="M155,218 L136,220 L160,224 Z"/>
@@ -355,16 +426,19 @@ body{background:radial-gradient(120% 80% at 50% 0%,#0b1219 0%,#05080b 60%);
           <path d="M309,205 L316,191 L304,202 Z" fill="#0a151c"/>
           <path d="M288,214 L262,209 L288,203 Z" fill="#14323d"/>
           <circle cx="307" cy="211" r="3.2" fill="#eef8fb"/><circle cx="307" cy="211" r="1.4" fill="#050e14"/>
+          </g><!-- /鸟 -->
+
           <g fill="#dcebf0" opacity=".9">
             <circle cx="246" cy="298" r="1.6" opacity=".4"/><circle cx="332" cy="314" r="2" opacity=".34"/>
             <circle cx="398" cy="340" r="1.4" opacity=".28"/>
           </g>
+          </g><!-- /主体组 -->
         </svg>
         <div class="cut"></div><div class="fade"></div>
       </div>
 
       <div class="eff">
-        <div class="hd"><i></i><b>EFFECT</b></div>
+      <div class="flag">效果</div>
         <div class="main">夜出<u>成雾</u>：贴水低飞时在身后留下 <b>0.03 W</b> 雾带，持续 20 秒，雾随鸟移动，白天不生成。</div>
         <div class="cond"><s>条件</s>夜 18–6 · 附近有木本横枝可落 · 由 <em>夜枭</em> 进化而来</div>
         <div class="nums">
@@ -373,8 +447,10 @@ body{background:radial-gradient(120% 80% at 50% 0%,#0b1219 0%,#05080b 60%);
       </div>
 
       <div class="foot">
-        <div class="st"><span><i>◔</i>0.012 W</span><span><i>⚠</i>+3</span><span><i>⧗</i>30 s</span></div>
-        <div class="id"><em>W1-00</em><span>·</span><span>物 · 1 环</span></div>
+        <div class="grp"><i>◔</i><b>0.012 W</b></div>
+        <div class="grp"><i>⚠</i><b>+3</b></div>
+        <div class="grp"><i>⧗</i><b>30 s</b></div>
+        <div class="grp id"><em>W1-00</em>物 · 1 环</div>
       </div>
     </div>
   </div>
@@ -382,17 +458,32 @@ body{background:radial-gradient(120% 80% at 50% 0%,#0b1219 0%,#05080b 60%);
   <!-- ================= 背面 ================= -->
   <div class="card back hide" id="back">
     <div class="paper">
-      <svg class="cld tl" viewBox="0 0 44 44"><use href="#s-cloud"/></svg>
-      <svg class="cld tr" viewBox="0 0 44 44"><use href="#s-cloud"/></svg>
-      <svg class="cld bl" viewBox="0 0 44 44"><use href="#s-cloud"/></svg>
-      <svg class="cld br" viewBox="0 0 44 44"><use href="#s-cloud"/></svg>
+      <svg class="trim" viewBox="0 0 616 909" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <pattern id="meander" width="16" height="16" patternUnits="userSpaceOnUse">
+            <path d="M1,14 H14 V1 H5 V9 H10" fill="none" stroke="#d2ae66" stroke-width="1.05"/>
+          </pattern>
+        </defs>
+        <rect x="3" y="3" width="610" height="903" fill="none" stroke="url(#meander)"
+              stroke-width="5" opacity=".32"/>
+      </svg>
+      <span class="cset tl"><i class="l1"></i><i class="l2"></i><i class="d"></i></span>
+      <span class="cset tr"><i class="l1"></i><i class="l2"></i><i class="d"></i></span>
+      <span class="cset bl"><i class="l1"></i><i class="l2"></i><i class="d"></i></span>
+      <span class="cset br"><i class="l1"></i><i class="l2"></i><i class="d"></i></span>
 
       <svg class="pat" viewBox="0 0 640 933" preserveAspectRatio="none">
         <defs>
-          <pattern id="wv" width="128" height="64" patternUnits="userSpaceOnUse">
-            <path d="M0,32 C21,21 43,43 64,32 C85,21 107,43 128,32" fill="none" stroke="#3f8fab" stroke-width="1.1" opacity=".55"/>
-            <path d="M0,50 C21,39 43,61 64,50 C85,39 107,61 128,50" fill="none" stroke="#3f8fab" stroke-width=".8" opacity=".32"/>
-            <path d="M0,14 C21,3 43,25 64,14 C85,3 107,25 128,14" fill="none" stroke="#3f8fab" stroke-width=".7" opacity=".22"/>
+          <pattern id="wv" width="112" height="112" patternUnits="userSpaceOnUse">
+            <!-- 菱格：给满版一个骨架 -->
+            <path d="M56,2 L110,56 L56,110 L2,56 Z" fill="none" stroke="#3f8fab" stroke-width=".9" opacity=".34"/>
+            <path d="M56,26 L86,56 L56,86 L26,56 Z" fill="none" stroke="#3f8fab" stroke-width=".7" opacity=".2"/>
+            <circle cx="56" cy="56" r="3" fill="#3f8fab" opacity=".3"/>
+            <!-- 菱内的水波 -->
+            <path d="M28,62 C35,56 42,68 49,62 C56,56 63,68 70,62 C77,56 84,68 91,62"
+                  fill="none" stroke="#3f8fab" stroke-width="1" opacity=".4"/>
+            <path d="M34,74 C41,68 48,80 55,74 C62,68 69,80 76,74"
+                  fill="none" stroke="#3f8fab" stroke-width=".8" opacity=".26"/>
           </pattern>
         </defs>
         <rect width="640" height="933" fill="url(#wv)"/>
@@ -405,6 +496,13 @@ body{background:radial-gradient(120% 80% at 50% 0%,#0b1219 0%,#05080b 60%);
       </div>
 
       <div class="crest">
+        <svg class="arc" viewBox="0 0 392 392">
+          <defs><path id="arcTop" d="M196,196 m-162,0 a162,162 0 1,1 324,0"/></defs>
+          <text font-size="9.5" letter-spacing="5.5" fill="#8a7244"
+                font-family="ui-monospace,Consolas,monospace">
+            <textPath href="#arcTop" startOffset="50%" text-anchor="middle">SOLSTICE · WATER · MATTER · TIER 1</textPath>
+          </text>
+        </svg>
         <div class="ring"></div>
         <div class="ring2"></div>
         <div class="arcs">

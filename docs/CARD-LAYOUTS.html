@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>卡面版式 · 四套方案</title>
+<style>
+:root{
+  --gold:#d2ae66; --gold-hi:#f4dc9f; --gold-dim:#8a7244;
+  --ink:#eef4f8; --ink2:#b8c7d3; --ink3:#7e8f9d; --ink4:#4e5c69;
+  --water:#3f8fab; --water-hi:#8fd2e8; --dark:#6a5a8a; --wind:#7fa3a8;
+  --paper:#0b1218;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#05080b;color:var(--ink);padding:28px 30px 60px;
+  font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif}
+.mono{font-family:ui-monospace,Consolas,monospace}
+h1{font-size:18px;font-weight:400;letter-spacing:.06em;margin-bottom:6px}
+.lead{font-size:11.5px;color:var(--ink4);letter-spacing:.04em;margin-bottom:26px}
+.row{display:flex;gap:34px;align-items:flex-start;margin-bottom:44px;flex-wrap:wrap}
+.row .desc{width:300px;padding-top:4px}
+.row .desc h2{font-size:14px;font-weight:500;letter-spacing:.08em;margin-bottom:4px}
+.row .desc .en{font-family:ui-monospace,Consolas,monospace;font-size:9px;
+  color:var(--gold-dim);letter-spacing:.2em;margin-bottom:12px}
+.row .desc p{font-size:11.5px;line-height:1.85;color:var(--ink3);margin-bottom:12px}
+.row .desc table{width:100%;border-collapse:collapse;font-size:10.5px}
+.row .desc td{padding:4px 0;border-bottom:1px dashed #16202a;color:var(--ink4)}
+.row .desc td:first-child{color:var(--ink3);width:64px;font-family:ui-monospace,Consolas,monospace}
+
+/* ============ 通用：卡与画芯 ============ */
+.card{position:relative;overflow:hidden}
+.card .pic{display:block;width:100%;height:100%}
+.card .pic svg{display:block;width:100%;height:100%}
+
+/* ============ A · 经典竖版（游戏王式） ============ */
+.A{--bw:3px;--wb:2px;width:520px;height:760px;border:var(--bw) solid var(--gold-dim);border-radius:3px;
+  background:var(--paper);box-shadow:0 24px 60px rgba(0,0,0,.75);
+  display:flex;flex-direction:column}
+.A .band{height:74px;position:relative;display:flex;align-items:center;gap:10px;
+  padding:0 13px 0 11px;
+  background:linear-gradient(180deg,#202b36 0%,#111a22 58%,#0a1117 100%);
+  box-shadow:0 1px 0 rgba(255,255,255,.07) inset}
+/* 名带底沿 = 类型色线（物 · 术 · 律 各一色） */
+.A .band:after{content:"";position:absolute;left:0;right:0;bottom:0;height:2.5px;
+  background:linear-gradient(90deg,rgba(128,136,146,.9),rgba(128,136,146,.08))}
+.A.rite .band:after{background:linear-gradient(90deg,rgba(91,107,158,.95),rgba(91,107,158,.08))}
+.A.law .band:after{background:linear-gradient(90deg,rgba(168,121,74,.95),rgba(168,121,74,.08))}
+
+/* 类型签：徽记 + 竖排小字 */
+.A .cltag{flex:0 0 26px;display:flex;flex-direction:column;align-items:center;gap:2px;
+  color:#cfdde7;padding-top:3px}
+.A .cltag svg{width:19px;height:19px}
+.A .cltag s{text-decoration:none;font-size:7.5px;letter-spacing:.16em;color:#8b9ca9}
+
+.A .band h3{font-size:27px;font-weight:300;letter-spacing:.13em;color:#f0f6fa}
+
+/* 属性：主球 + 两颗副元素球（各带徽记，不是色点） */
+.A .em{margin-left:auto;position:relative;width:44px;height:44px;margin-right:50px}
+.A .orb{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 34% 24%,rgba(255,255,255,.3),transparent 56%),
+             radial-gradient(circle at 50% 68%,#3f8fab 0%,#163b4a 60%,#0b2430 100%);
+  box-shadow:0 0 0 1.5px #05080b,0 0 0 3px rgba(210,174,102,.6),0 0 0 4.5px rgba(0,0,0,.5),
+             inset 0 -8px 16px rgba(0,0,0,.55),0 0 20px rgba(63,143,171,.4)}
+.A .orb svg{width:25px;height:25px;color:#f4fdff;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
+/* 副元素球横排在主球右侧，不叠、不溢出卡边 */
+.A .em-sub{position:absolute;left:47px;top:50%;transform:translateY(-50%);display:flex;gap:3px}
+.A .em-sub i{width:21px;height:21px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  color:#e9f5fa;
+  background:radial-gradient(circle at 34% 26%,rgba(255,255,255,.22),transparent 60%),
+             radial-gradient(circle at 50% 66%,var(--c),#0d1b22 92%);
+  box-shadow:0 0 0 1px #05080b,0 0 0 2px rgba(210,174,102,.35),inset 0 -4px 8px rgba(0,0,0,.5)}
+.A .em-sub i svg{width:11.5px;height:11.5px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))}
+
+.A .win{margin:8px;border:var(--wb,2px) solid rgba(210,174,102,.55);border-radius:2px;overflow:hidden;
+  height:404px;position:relative;
+  box-shadow:0 0 0 1px #05080b,inset 0 0 46px rgba(0,0,0,.65)}
+
+/* 环级：画芯右下六边形徽（数字 + 环），不再压五行星 */
+.A .tier{position:absolute;right:10px;bottom:10px;z-index:6;width:48px;height:52px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:linear-gradient(180deg,rgba(12,19,26,.94),rgba(5,9,13,.94));
+  clip-path:polygon(50% 0,100% 22%,100% 78%,50% 100%,0 78%,0 22%);
+  box-shadow:0 0 0 1px rgba(210,174,102,.55) inset,0 6px 16px rgba(0,0,0,.6)}
+.A .tier b{font-size:20px;line-height:1;color:#f7e3ab;text-shadow:0 0 10px rgba(210,174,102,.65)}
+.A .tier s{text-decoration:none;font-size:7px;color:#a08a58;letter-spacing:.14em;margin-top:1px}
+
+/* 效果框：冷调羊皮纸（去黄，与深蓝卡身同温） */
+.A .box{margin:0 8px;flex:0 0 212px;padding:13px 15px 10px;border:1px solid #7d7a70;border-radius:2px;
+  background:radial-gradient(120% 86% at 28% 0%,#eae8de 0%,#dcdad0 52%,#cbc9bf 100%);
+  color:#22262a;display:flex;flex-direction:column;gap:6px;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.42),0 1px 0 rgba(0,0,0,.45)}
+.A .box .t{display:flex;align-items:center;gap:7px;
+  font-family:ui-monospace,Consolas,monospace;font-size:8px;color:#7b7a6c;letter-spacing:.26em}
+.A .box .t i{flex:0 0 14px;height:1px;background:#a8a69c;display:block}
+.A .box .fx{font-size:13.5px;line-height:1.66;color:#22262a}
+.A .box .fx b{font-weight:600;color:#000}
+.A .box .trig{font-size:10.5px;line-height:1.55;color:#5e6469}
+.A .box .trig u{text-decoration:none;color:#2f5d6b;font-weight:500}
+.A .box .flav{font-size:10px;font-style:italic;color:#767b80}
+/* 数值：三栏竖排（图标 / 数值 / 标签），像 ATK-DEF 的固定位 */
+.A .box .nums{margin-top:auto;display:flex;align-items:flex-end;
+  border-top:1px solid #a8a69c;padding-top:7px;color:#4c5257}
+.A .box .nums span{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;
+  border-right:1px solid #b8b6ac}
+.A .box .nums span:last-child{border-right:0}
+.A .box .nums svg{width:13px;height:13px;color:#6b6a5e}
+.A .box .nums b{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;font-weight:400;color:#2f3438}
+.A .box .nums em{font-style:normal;font-size:8px;color:#83837a;letter-spacing:.1em}
+
+/* 底栏：图鉴号 / 分类 / 回收 */
+.A .ft{height:40px;display:flex;align-items:center;padding:0 13px;
+  border-top:1px solid rgba(210,174,102,.25);
+  font-family:ui-monospace,Consolas,monospace;font-size:9.5px;color:#7f8f9d;letter-spacing:.1em}
+.A .ft .no{color:#a08a58}
+.A .ft .mid{flex:1;text-align:center;color:#8fa0ad;letter-spacing:.18em}
+.A .ft .rc{color:#8a7244}
+
+/* ============ B · 全出血（MTG 式） ============ */
+.B{width:520px;height:760px;background:#05080b;border-radius:6px;
+  box-shadow:0 24px 60px rgba(0,0,0,.8);position:relative;overflow:hidden}
+.B .art{position:absolute;inset:0 0 232px 0}
+.B .art svg{width:100%;height:100%;display:block}
+.B .top{position:absolute;left:0;right:0;top:0;height:76px;z-index:4;display:flex;align-items:center;
+  gap:10px;padding:16px 18px;
+  background:linear-gradient(180deg,rgba(4,8,11,.82) 0%,rgba(4,8,11,.5) 60%,transparent 100%)}
+.B .top h3{font-size:27px;font-weight:300;letter-spacing:.1em;text-shadow:0 2px 10px #000}
+.B .top .cost{margin-left:auto;width:38px;height:38px;border-radius:50%;
+  background:rgba(6,11,15,.75);border:1px solid rgba(210,174,102,.6);color:var(--gold-hi);
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+  box-shadow:0 0 16px rgba(210,174,102,.2)}
+.B .subtitle{position:absolute;left:18px;top:64px;z-index:4;
+  font-family:ui-monospace,Consolas,monospace;font-size:9.5px;color:#a9bccb;letter-spacing:.22em;
+  text-shadow:0 1px 6px #000}
+.B .txt{position:absolute;left:0;right:0;bottom:0;height:232px;z-index:4;padding:14px 18px;
+  background:linear-gradient(180deg,rgba(8,13,18,.9) 0%,rgba(6,10,14,.97) 30%,#05080b 100%);
+  border-top:1px solid rgba(210,174,102,.45);display:flex;flex-direction:column;gap:7px}
+.B .txt .type{display:flex;align-items:center;gap:8px;font-family:ui-monospace,Consolas,monospace;
+  font-size:9px;color:var(--ink3);letter-spacing:.16em}
+.B .txt .type s{color:var(--gold-hi);text-decoration:none;letter-spacing:0}
+.B .txt .fx{font-size:12.5px;line-height:1.75;color:var(--ink2)}
+.B .txt .fx b{color:#fff;font-weight:400}
+.B .txt .ft{margin-top:auto;display:flex;justify-content:space-between;
+  font-family:ui-monospace,Consolas,monospace;font-size:9.5px;color:var(--ink4);letter-spacing:.12em}
+.B .side{position:absolute;right:8px;top:96px;z-index:4;writing-mode:vertical-rl;
+  font-family:ui-monospace,Consolas,monospace;font-size:8.5px;color:rgba(200,215,225,.5);
+  letter-spacing:.3em}
+
+/* ============ C · 宝石框（炉石式） ============ */
+.C{width:520px;height:760px;border-radius:22px;padding:10px;
+  background:linear-gradient(150deg,#3a4350 0%,#1a222b 30%,#121922 60%,#2c3541 100%);
+  box-shadow:0 28px 64px rgba(0,0,0,.8),0 1px 0 rgba(255,255,255,.14) inset;
+  position:relative}
+.C .inner{position:relative;height:100%;border-radius:15px;overflow:hidden;background:#070d12;
+  box-shadow:0 0 0 1px rgba(210,174,102,.35),inset 0 0 60px rgba(0,0,0,.7);
+  display:flex;flex-direction:column}
+.C .art{position:relative;height:470px;overflow:hidden;border-radius:15px 15px 0 0}
+.C .art svg{width:100%;height:100%;display:block}
+.C .art .frame{position:absolute;inset:10px;border-radius:10px;pointer-events:none;
+  box-shadow:inset 0 0 0 1px rgba(210,174,102,.28),inset 0 0 30px rgba(0,0,0,.55)}
+/* 顶部名带：横幅压在画面上 */
+.C .banner{position:absolute;left:50%;top:16px;transform:translateX(-50%);z-index:5;
+  min-width:250px;text-align:center;padding:7px 26px;
+  background:linear-gradient(180deg,rgba(20,28,36,.95),rgba(10,16,22,.95));
+  border:1px solid rgba(210,174,102,.5);border-radius:3px;
+  box-shadow:0 6px 18px rgba(0,0,0,.6)}
+.C .banner h3{font-size:25px;font-weight:300;letter-spacing:.14em}
+.C .banner .sub{font-family:ui-monospace,Consolas,monospace;font-size:8.5px;
+  color:var(--ink4);letter-spacing:.22em;margin-top:3px}
+/* 属性宝石：压在画芯左下 */
+.C .gem{position:absolute;left:16px;bottom:-24px;z-index:6;width:62px;height:62px;
+  transform:rotate(45deg);border-radius:8px;
+  background:radial-gradient(circle at 32% 28%,#7fc4da,#2b5d6e 60%,#12303c);
+  box-shadow:0 0 0 2px #06090d,0 0 0 4px rgba(210,174,102,.45),0 10px 22px rgba(0,0,0,.7);
+  display:flex;align-items:center;justify-content:center}
+.C .gem svg{width:30px;height:30px;transform:rotate(-45deg);color:#f2fbff}
+/* 右下环级宝石 */
+.C .tiergem{position:absolute;right:16px;bottom:-22px;z-index:6;width:56px;height:56px;
+  border-radius:50%;background:radial-gradient(circle at 34% 28%,#f4dc9f,#a9832f 70%,#5d4318);
+  box-shadow:0 0 0 2px #06090d,0 0 0 4px rgba(210,174,102,.4),0 10px 20px rgba(0,0,0,.7);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;color:#241b08}
+.C .tiergem b{font-size:19px;font-weight:600;line-height:1}
+.C .tiergem em{font-style:normal;font-size:7px;letter-spacing:.16em;margin-top:2px}
+.C .txt{flex:1;padding:34px 22px 14px;background:linear-gradient(180deg,#0d151c,#080d12);
+  border-top:1px solid rgba(210,174,102,.28);display:flex;flex-direction:column;gap:6px;
+  clip-path:polygon(0 8px,100% 0,100% 100%,0 100%)}
+.C .txt .fx{font-size:12.5px;line-height:1.75;color:var(--ink2)}
+.C .txt .fx b{color:#fff;font-weight:400}
+.C .txt .cond{font-size:10.5px;color:var(--ink4);line-height:1.6}
+.C .txt .ft{margin-top:auto;display:flex;gap:14px;font-family:ui-monospace,Consolas,monospace;
+  font-size:9.5px;color:var(--ink3)}
+
+/* ============ D · 横版事件（landscape） ============ */
+.D{width:760px;height:520px;display:flex;border-radius:6px;overflow:hidden;
+  border:2px solid var(--gold-dim);background:var(--paper);
+  box-shadow:0 24px 60px rgba(0,0,0,.78)}
+.D .art{width:440px;position:relative;overflow:hidden}
+.D .art svg{width:100%;height:100%;display:block}
+.D .art:after{content:"";position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent 76%,rgba(11,18,24,.95) 100%)}
+.D .side{flex:1;padding:18px 18px 14px;display:flex;flex-direction:column;gap:9px;
+  background:linear-gradient(180deg,#0e1620,#090f15);border-left:1px solid rgba(210,174,102,.3)}
+.D .side .kicker{font-family:ui-monospace,Consolas,monospace;font-size:8px;color:var(--gold);
+  letter-spacing:.28em}
+.D .side h3{font-size:26px;font-weight:300;letter-spacing:.1em;line-height:1.15}
+.D .side .sub{font-family:ui-monospace,Consolas,monospace;font-size:8.5px;color:var(--ink4);
+  letter-spacing:.2em}
+.D .side .row1{display:flex;gap:7px;align-items:center;margin-top:2px}
+.D .side .row1 s{width:12px;height:12px;border-radius:50%;text-decoration:none}
+.D .side .row1 u{text-decoration:none;font-family:ui-monospace,Consolas,monospace;
+  font-size:8.5px;color:var(--ink3);margin-left:4px;letter-spacing:.1em}
+.D .side .fx{font-size:12px;line-height:1.72;color:var(--ink2);margin-top:2px}
+.D .side .fx b{color:#fff;font-weight:400}
+.D .side .cond{font-size:10px;color:var(--ink4);line-height:1.65;
+  border-left:2px solid rgba(210,174,102,.3);padding-left:8px}
+.D .side .nums{margin-top:auto;display:flex;justify-content:space-between;
+  font-family:ui-monospace,Consolas,monospace;font-size:10px;color:var(--ink3);
+  border-top:1px solid rgba(210,174,102,.2);padding-top:9px}
+
+.note{font-size:11px;color:var(--ink4);line-height:1.9;margin-top:10px}
+
+/* ================= 三档尺寸实测 ================= */
+.sizes{padding:6px 0 10px;border-top:1px solid #141d26;margin-top:6px}
+.sizes h2{font-size:14px;font-weight:500;letter-spacing:.08em;margin:22px 0 4px}
+.sizes .sub2{font-family:ui-monospace,Consolas,monospace;font-size:9px;color:var(--gold-dim);
+  letter-spacing:.2em;margin-bottom:18px}
+.sizerow{display:flex;gap:40px;align-items:flex-end;flex-wrap:wrap}
+.slot{position:relative;overflow:hidden}
+.slot > .A{transform-origin:0 0}
+.slot.s296{width:296px;height:433px}
+.slot.s296 > .A{transform:scale(.5692)}
+.slot.s214{width:214px;height:313px}
+.slot.s214 > .A{transform:scale(.4115)}
+.slotcap{font-family:ui-monospace,Consolas,monospace;font-size:9.5px;color:var(--ink4);
+  letter-spacing:.12em;margin-top:8px}
+.slotcap b{color:var(--ink3);font-weight:400}
+
+/* ---- 10 张并排（模拟手牌） ---- */
+.handrow{display:flex;justify-content:center;align-items:flex-end;padding:26px 0 20px;min-height:252px}
+.hc{width:148px;height:216px;margin-left:-48px;transform-origin:50% 100%;
+  transform:rotate(var(--r,0deg)) translateY(var(--y,0px));
+  filter:drop-shadow(0 8px 18px rgba(0,0,0,.65))}
+.hc:first-child{margin-left:0}
+
+/* ---- 148 真·缩略版式（不是缩放） ---- */
+.A.mini{width:148px;height:216px;border-width:2px;border-radius:2px}
+.A.mini .band{height:27px;padding:0 5px;gap:4px}
+.A.mini .cls{width:10px;height:10px}
+.A.mini .cls svg{width:10px;height:10px}
+.A.mini .band h3{font-size:12px;letter-spacing:.04em}
+.A.mini .em{width:20px;height:20px}
+.A.mini .orb{width:20px;height:20px;
+  box-shadow:0 0 0 1px #05080b,0 0 0 1.5px rgba(210,174,102,.5),inset 0 -3px 6px rgba(0,0,0,.5)}
+.A.mini .orb svg{width:12px;height:12px}
+.A.mini .em-sub{display:none}
+.A.mini .win{margin:3px;border-width:1px;height:auto;flex:1}
+/* 缩略不画五颗星（6 px 只剩点），改成"★1"数字徽 */
+.A.mini .lv{display:none}
+.A.mini .lvnum{position:absolute;right:3px;top:3px;z-index:5;display:flex;align-items:center;gap:1.5px;
+  padding:1.5px 4px;background:rgba(4,8,12,.66);border:1px solid rgba(210,174,102,.5);border-radius:2px}
+.A.mini .lvnum b{font-size:7px;color:#f6e0a6;line-height:1}
+.A.mini .lvnum s{text-decoration:none;font-family:ui-monospace,Consolas,monospace;
+  font-size:8px;color:#f6e0a6;line-height:1}
+
+/* 抽卡揭示版：只给 图 + 名 + 星，不给效果 */
+.A.reveal{--bw:2.5px;--wb:1.5px}
+.A.reveal .band{height:58px}
+.A.reveal .band h3{font-size:23px}
+.A.reveal .win{height:auto;flex:1}
+.A.reveal .box{display:none}
+.A.reveal .lv{right:9px;top:10px;gap:3px}
+.A.reveal .lv .st{width:19px;height:19px}
+.A.reveal .ft{height:34px;font-size:9px}
+.A.mini .box{flex:0 0 40px;margin:0 3px;padding:3px 4px 2px;gap:0;border-width:1px}
+.A.mini .box .t,.A.mini .box .cond,.A.mini .box .flav{display:none}
+.A.mini .box .fx{font-size:7.5px;line-height:1.35;color:#2b241a}
+.A.mini .box .nums{margin-top:auto;border-top:0;padding-top:1px;gap:5px;font-size:6.5px}
+.A.mini .box .nums svg{width:7px;height:7px}
+.A.mini .box .nums .cls2{font-size:6.5px;letter-spacing:0}
+.A.mini .ft{height:14px;font-size:6.5px;padding:0 5px;gap:3px;letter-spacing:.02em}
+
+/* ===== A 版 v3 覆盖：类型图标去字 / 环徽 / 游戏王式效果框 / 底栏 ===== */
+.A .cltag{flex:0 0 24px;padding-top:3px;color:#eaf3f9;
+  filter:drop-shadow(0 1px 3px rgba(0,0,0,.8))}
+.A .cltag svg{width:23px;height:23px}
+.A .cltag s{display:none}
+
+.A .win{height:388px}
+
+/* 环徽：环形刻度（亮弧 = 环级），中心只留数字 */
+.A .tier{position:absolute;right:10px;bottom:10px;z-index:6;width:52px;height:52px;
+  display:flex;align-items:center;justify-content:center;border-radius:50%;
+  background:radial-gradient(circle at 50% 38%,rgba(12,19,26,.88),rgba(5,9,13,.94));
+  box-shadow:0 6px 16px rgba(0,0,0,.6),0 0 0 1px rgba(210,174,102,.25) inset;
+  clip-path:none}
+.A .tier svg{position:absolute;inset:0;width:52px;height:52px}
+.A .tier .tn{position:relative;font-family:ui-monospace,Consolas,monospace;font-size:17px;
+  color:#f7e3ab;line-height:1;text-shadow:0 0 10px rgba(210,174,102,.7)}
+
+/* 效果框：条件 / 效果 / 限制 三段 */
+.A .box{flex:0 0 226px;padding:12px 15px 10px;gap:5px}
+.A .box .rule{display:flex;gap:7px;font-size:11.5px;line-height:1.6;color:#2b2f33}
+.A .box .rule s{flex:0 0 27px;height:15px;line-height:14px;text-decoration:none;text-align:center;
+  font-size:8px;letter-spacing:.1em;color:#8a7a55;border:1px solid #b3ad9a;border-radius:2px;
+  margin-top:2px;background:rgba(255,255,255,.35)}
+.A .box .rule b{font-weight:600;color:#000}
+.A .box .fx,.A .box .trig{display:none}
+
+/* 底栏：图鉴号 / 分类 / 回收图标 */
+.A .ft{height:42px;padding:0 12px;gap:8px}
+.A .ft .no{color:#b5945c;letter-spacing:.06em}
+.A .ft .no i{font-style:normal;color:#7b7470;margin-left:3px;font-size:8.5px}
+.A .ft .mid{font-family:"PingFang SC","Microsoft YaHei",sans-serif;font-size:10px;
+  color:#93a3b0;letter-spacing:.2em}
+.A .ft .rc{display:flex;align-items:center;gap:4px;color:#b5945c}
+.A .ft .rc svg{width:12px;height:12px}
+
+/* ===== A 版 v4：效果区同边框深色 + 六段裁定 + 去数值/底栏 ===== */
+.A .band .no{margin-left:11px;font-family:ui-monospace,Consolas,monospace;font-size:9px;
+  color:#b5945c;letter-spacing:.1em;padding:2px 5px;border:1px solid rgba(210,174,102,.3);
+  border-radius:2px;background:rgba(210,174,102,.05)}
+.A .win{height:342px}
+.A .box{flex:1;padding:15px 16px 12px;gap:5px;
+  background:linear-gradient(180deg,#101922 0%,#0b1219 62%,#080e13 100%);
+  border:1px solid rgba(210,174,102,.3);color:#bccad6;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),inset 0 -20px 30px rgba(0,0,0,.35)}
+.A .box .t{color:#8a7244}
+.A .box .t i{background:#57492e}
+.A .box .rule{color:#c2d0dc;font-size:12.5px;line-height:1.72}
+.A .box .rule s{color:#d2ae66;border-color:rgba(210,174,102,.42);background:rgba(210,174,102,.07)}
+.A .box .rule b{color:#f2f8fc;font-weight:600}
+.A .box .flav{color:#74838f;font-size:9.5px;border-top:1px solid rgba(210,174,102,.16);
+  padding-top:7px;margin-top:3px}
+.A .box .nums,.A .ft{display:none}
+
+/* ================= A 版 v5 精修：圆角 / 金属框 / 浅淡花纹 / 文字区重排 ================= */
+.A{position:relative;border-radius:18px;overflow:hidden;
+  padding:11px;
+  background:
+    linear-gradient(158deg,#8a7448 0%,#4a4234 7%,#1a2026 20%,#0d1218 46%,
+                    #0d1218 54%,#1a2026 80%,#4a4234 93%,#8a7448 100%);
+  border:none;
+  box-shadow:0 36px 84px rgba(0,0,0,.82),
+             0 1px 0 rgba(255,255,255,.18) inset,
+             0 -2px 0 rgba(0,0,0,.8) inset,
+             0 0 0 1px rgba(0,0,0,.92)}
+/* 内金线（离边 8px，圆角跟随） */
+.A:after{content:"";position:absolute;inset:8px;border:1px solid rgba(210,174,102,.26);
+  border-radius:12px;pointer-events:none;z-index:11}
+/* 浅淡回纹框 */
+.A .trim{position:absolute;inset:0;z-index:9;pointer-events:none;opacity:.85}
+/* 四角卷云（很淡，只做"收边"） */
+.A .cnr{position:absolute;width:36px;height:36px;z-index:10;color:#e2c98f;opacity:.17;
+  pointer-events:none}
+.A .cnr.tl{left:13px;top:13px}
+.A .cnr.tr{right:13px;top:13px;transform:scaleX(-1)}
+.A .cnr.bl{left:13px;bottom:13px;transform:scaleY(-1)}
+.A .cnr.br{right:13px;bottom:13px;transform:scale(-1,-1)}
+
+/* 名带：圆角上沿 + 内高光 + 下沿金线 */
+.A .band{height:80px;border-radius:12px 12px 0 0;gap:10px;padding:0 16px 0 14px;
+  background:linear-gradient(180deg,#222d38 0%,#141d26 52%,#0c141b 100%);
+  box-shadow:0 1px 0 rgba(255,255,255,.09) inset,0 -1px 0 rgba(0,0,0,.6) inset}
+.A .band:after{height:1px;bottom:0;
+  background:linear-gradient(90deg,transparent,rgba(210,174,102,.8) 14%,rgba(210,174,102,.8) 86%,transparent)}
+.A .band h3{font-size:28px;letter-spacing:.14em;color:#f2f8fc;text-shadow:0 2px 10px rgba(0,0,0,.6)}
+
+/* 画芯：圆角 + 深内阴影 + 细金边 */
+.A .win{margin:7px 9px;height:352px;border-radius:7px;overflow:hidden;
+  border:1px solid rgba(210,174,102,.34);
+  box-shadow:0 0 0 1px rgba(0,0,0,.8),inset 0 0 78px 16px rgba(2,6,10,.78)}
+
+/* 效果区：圆角 + 内高光 + 顶部金发丝 + 悬挂缩进 */
+.A .box{flex:1;margin:0 9px 9px;border-radius:7px;padding:14px 17px 13px;gap:0;
+  background:linear-gradient(180deg,#0f1820 0%,#0a1117 60%,#080d12 100%);
+  border:1px solid rgba(210,174,102,.2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),inset 0 -26px 34px rgba(0,0,0,.4)}
+.A .box .t{display:flex;align-items:center;gap:7px;margin-bottom:9px;
+  font-size:8px;color:#8a7244;letter-spacing:.28em}
+.A .box .t i{flex:0 0 16px;height:1px;background:rgba(210,174,102,.45)}
+.A .box .rule{display:flex;gap:9px;font-size:12px;line-height:1.8;color:#c2d0dc;
+  padding:2.5px 0}
+.A .box .rule s{flex:0 0 28px;height:15px;line-height:14px;text-decoration:none;text-align:center;
+  font-size:8px;letter-spacing:.08em;color:#d2ae66;border:1px solid rgba(210,174,102,.4);
+  border-radius:2px;margin-top:3px;background:rgba(210,174,102,.07)}
+.A .box .rule b{color:#f4fafd;font-weight:600}
+.A .box .flav{margin-top:auto;padding-top:11px;border-top:1px solid rgba(210,174,102,.13);
+  text-align:center;font-style:italic;color:#7c8b97;font-size:9.5px;letter-spacing:.1em}
+
+/* ================= A 版 v6：按游戏王比例（名 8% / 画 45% / 效果 33% / 攻防 6%） ================= */
+.A.matter .band{height:64px;padding:0 15px 0 13px}
+.A.matter .band h3{font-size:24px;letter-spacing:.13em}
+.A.matter .cltag{flex:0 0 21px}
+.A.matter .cltag svg{width:20px;height:20px}
+.A.matter .em{width:40px;height:40px;margin-right:46px}
+.A.matter .orb{width:40px;height:40px}
+.A.matter .orb svg{width:23px;height:23px}
+.A.matter .em-sub i{width:19px;height:19px}
+.A.matter .em-sub i svg{width:10.5px;height:10.5px}
+
+.A.matter .win{height:366px;margin:6px 8px 0}
+.A.matter .tier{width:46px;height:46px;right:9px;bottom:9px}
+.A.matter .tier svg{width:46px;height:46px}
+.A.matter .tier .tn{font-size:15px}
+
+/* 效果区：只剩 条件 + ①②③（不再分七类） */
+.A.matter .box{flex:0 0 252px;margin:6px 8px 0;padding:11px 15px 8px;border-radius:6px}
+.A.matter .box .t{margin-bottom:6px}
+.A.matter .box .cond{font-size:10.5px;line-height:1.6;color:#8d9dab;letter-spacing:.01em;
+  padding-bottom:6px;margin-bottom:4px;border-bottom:1px solid rgba(210,174,102,.12)}
+.A.matter .box .fx2{display:flex;gap:7px;font-size:12.5px;line-height:1.85;color:#c2d0dc;
+  padding:3px 0}
+.A.matter .box .fx2 s{flex:0 0 12px;text-decoration:none;color:#d2ae66;font-size:10px;
+  line-height:1.9}
+.A.matter .box .fx2 b{color:#f4fafd;font-weight:600}
+.A.matter .box .rule,.A.matter .box .flav,.A.matter .box .fx{display:none}
+
+/* 攻防带：游戏王的 ATK / DEF 位 */
+.A.matter .atkdef{flex:0 0 48px;display:flex;align-items:center;gap:7px;padding:0 16px;
+  margin:6px 8px 8px;border-radius:6px;
+  background:linear-gradient(180deg,#0e161e,#090f14);
+  border:1px solid rgba(210,174,102,.24);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.A.matter .atkdef .k{font-family:ui-monospace,Consolas,monospace;font-size:8px;
+  letter-spacing:.22em;color:#8a7244}
+.A.matter .atkdef .v{font-family:ui-monospace,Consolas,monospace;font-size:18px;
+  color:#eef5fa;letter-spacing:.04em;text-shadow:0 0 12px rgba(210,174,102,.25)}
+.A.matter .atkdef .r{margin-left:auto;display:flex;align-items:center;gap:7px}
+
+/* ================= A 版 v7：明度分层 / 花纹上位 / 画芯内框 / 底部合板 ================= */
+/* ① 金属框：更亮一档，并在框面上压浅斜纹（花纹长在"框"上，不是内线） */
+.A.matter{background-image:
+  radial-gradient(115% 72% at 50% -8%,rgba(var(--el),.20),transparent 68%),
+  radial-gradient(90% 40% at 50% 108%,rgba(var(--el),.10),transparent 72%),
+  linear-gradient(158deg,#8f7749 0%,#57492f 5%,#25221c 16%,#0f141a 44%,
+                  #0f141a 56%,#25221c 84%,#57492f 95%,#8f7749 100%)}
+.A.matter:before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:repeating-linear-gradient(46deg,rgba(255,255,255,.055) 0 1px,transparent 1px 5px)}
+/* 内线回纹降淡，让框面花纹成为主角 */
+.A.matter .trim{opacity:.34}
+
+/* ② 四段明度：名带 1A2430 / 效果区 101A23 / 攻防 080D12 */
+.A.matter .band{background:linear-gradient(180deg,#24313d 0%,#161f29 54%,#0d151c 100%)}
+.A.matter .box{background:linear-gradient(180deg,#121c26 0%,#0c141b 62%,#080e13 100%)}
+
+/* ③ 画芯：内框 + 主体微移（原来重心偏左） */
+.A.matter .win{height:376px}
+.A.matter .win:after{content:"";position:absolute;inset:5px;border:1px solid rgba(210,174,102,.34);
+  border-radius:3px;pointer-events:none;z-index:5;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.5)}
+.A.matter .win .pic svg{transform:translateX(5.5%) scale(1.05)}
+
+/* ④ 文字层级：条件更小更暗，编号改金圆底 */
+.A.matter .box{flex:0 0 240px;padding:11px 15px 0}
+.A.matter .box .cond{font-size:9.5px;line-height:1.62;color:#798896;letter-spacing:.01em;
+  padding-bottom:7px;margin-bottom:5px;border-bottom:1px solid rgba(210,174,102,.14)}
+.A.matter .box .fx2{font-size:12px;line-height:1.82;gap:8px;padding:3.5px 0}
+.A.matter .box .fx2 s{flex:0 0 15px;width:15px;height:15px;line-height:15px;display:block;
+  text-align:center;font-size:9px;color:#0a1016;background:#d2ae66;border-radius:50%;
+  margin-top:3px;border:none;letter-spacing:0}
+
+/* ⑤ 攻防：并进效果区，只留一条金发丝（不再是一块独立板） */
+.A.matter .atkdef{flex:0 0 44px;margin:4px -15px 0;padding:0 15px;
+  border:0;border-top:1px solid rgba(210,174,102,.26);border-radius:0;
+  background:linear-gradient(180deg,rgba(8,13,18,.2),rgba(6,10,14,.75));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.A.matter .atkdef .k{font-size:9px;letter-spacing:.24em;color:#9a834f}
+.A.matter .atkdef .v{font-size:21px;letter-spacing:.02em;color:#f2f8fc;
+  text-shadow:0 0 14px rgba(210,174,102,.22)}
+
+/* ================= A 版 v8：环到左上 / 编码细化 / 效果合并（介绍 + 效果 + 注） ================= */
+/* 环徽移到画芯左上，与右上属性球形成对角 */
+.A.matter .tier{left:14px;top:14px;right:auto;bottom:auto}
+/* 编号：主号 + 总分 */
+.A.matter .band .no{display:inline-flex;align-items:baseline;gap:3px;
+  font-size:10px;padding:2.5px 6px}
+.A.matter .band .no i{font-style:normal;font-family:ui-monospace,Consolas,monospace;
+  font-size:9px;color:#7a7264;letter-spacing:.06em}
+/* 介绍段：斜线引子 + 浅灰 */
+.A.matter .box{flex:0 0 280px;padding:11px 15px 0}
+.A.matter .box .intro{font-size:11px;line-height:1.76;color:#8b9aa8;
+  padding:0 0 8px 10px;margin-bottom:8px;border-bottom:1px solid rgba(210,174,102,.14);
+  border-left:2px solid rgba(210,174,102,.35)}
+/* 合并效果：一段连续正文 */
+.A.matter .box .rule1{font-size:12.5px;line-height:1.88;color:#c6d3de;letter-spacing:.005em}
+.A.matter .box .rule1 b{color:#f4fafd;font-weight:600}
+/* 注：※ 起头，比正文暗一档 */
+.A.matter .box .note1{margin-top:9px;font-size:11px;line-height:1.76;color:#82909d}
+.A.matter .box .note1 em{font-style:normal;color:#b5945c;margin-right:3px}
+/* 旧结构隐藏 */
+.A.matter .box .cond,.A.matter .box .fx2,.A.matter .box .rule{display:none}
+
+/* ===== v9：球组对齐 / 段间节奏 ===== */
+.A.matter .em{width:40px;height:40px}
+.A.matter .em-sub{left:44px}
+.A.matter .em-sub i{width:18px;height:18px}
+.A.matter .em-sub i svg{width:10px;height:10px}
+.A.matter .box .intro{margin-bottom:10px;padding-bottom:9px}
+.A.matter .box .rule1{line-height:1.85}
+
+/* ================= 质感三参数：元素(色) × 类别(线) × 环(密度/光) ================= */
+/* 元素：只给 RGB，交给纹样与底色共用 */
+.elmetal{--el:200,169,75}
+.elwood {--el:94,143,71}
+.elwater{--el:63,143,171}
+.elfire {--el:180,67,46}
+.elearth{--el:138,106,69}
+.ellight{--el:224,214,184}
+.eldark {--el:106,90,138}
+
+/* 类别：决定"线条语言" */
+.matter{--pat:repeating-linear-gradient(48deg,rgba(var(--el),1) 0 1px,transparent 1px var(--d))}
+.rite  {--pat:repeating-radial-gradient(circle at 24% -10%,rgba(var(--el),1) 0 1px,transparent 1px var(--d))}
+.law   {--pat:repeating-linear-gradient(45deg,rgba(var(--el),1) 0 1px,transparent 1px var(--d)),
+                repeating-linear-gradient(-45deg,rgba(var(--el),1) 0 1px,transparent 1px var(--d))}
+
+/* 环：12 档 = 0–9 + 超环 + 禁物，控制密度 / 不透明度 / 外光 */
+.t0{--d:22px;--o:.045;--glow:0}
+.t1{--d:19px;--o:.055;--glow:0}
+.t2{--d:18px;--o:.06;--glow:.08}
+.t3{--d:16px;--o:.07;--glow:.16}
+.t4{--d:15px;--o:.08;--glow:.24}
+.t5{--d:13px;--o:.09;--glow:.32}
+.t6{--d:12px;--o:.10;--glow:.42}
+.t7{--d:10px;--o:.115;--glow:.55}
+.t8{--d:9px; --o:.13;--glow:.7}
+.t9{--d:8px; --o:.145;--glow:.85}
+.tx{--d:7px; --o:.16;--glow:1}      /* 超环 */
+.tb{--d:9px; --o:.14;--glow:1}      /* 禁物 */
+
+/* 纹理层：在金属框之上、内容之下 */
+.card .tx{position:absolute;inset:0;z-index:1;pointer-events:none;
+  background-image:var(--pat);background-size:var(--d) var(--d);opacity:var(--o);
+  mix-blend-mode:screen}
+/* 外光：环越高越亮（用 inset 光圈模拟） */
+.card .tx:after{content:"";position:absolute;inset:0;
+  box-shadow:inset 0 0 60px 10px rgba(var(--el),var(--glow))}
+
+/* 元素色渗进卡面：底色加一层元素 tint */
+.card{background-blend-mode:normal}
+.card:not(.sw) .tx{background-color:rgba(var(--el),.02)}
+
+/* ================= 质感矩阵样张 ================= */
+section.mx{padding:8px 32px 46px;border-top:1px solid #141d26;margin-top:10px}
+section.mx h2{font-size:14px;font-weight:500;letter-spacing:.08em;margin:22px 0 4px}
+section.mx .sub2{font-family:ui-monospace,Consolas,monospace;font-size:9px;color:var(--gold-dim);
+  letter-spacing:.2em;margin-bottom:16px}
+.mxrow{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.sw{position:relative;width:150px;height:96px;border-radius:8px;overflow:hidden;
+  border:2px solid #3a3327;
+  background-image:
+    radial-gradient(120% 90% at 50% -12%,rgba(var(--el),.34),transparent 70%),
+    radial-gradient(90% 46% at 50% 112%,rgba(var(--el),.16),transparent 74%),
+    linear-gradient(158deg,#7a6740 0%,#2b2620 22%,#0d1218 52%,#2b2620 80%,#7a6740 100%);
+  box-shadow:0 10px 24px rgba(0,0,0,.6)}
+.sw .tx{position:absolute;inset:0;background-image:var(--pat);
+  background-size:var(--d) var(--d);opacity:calc(var(--o) * 1.7);mix-blend-mode:screen}
+.sw .tx:after{content:"";position:absolute;inset:0;
+  box-shadow:inset 0 0 40px 6px rgba(var(--el),var(--glow))}
+.sw .cap{position:absolute;left:8px;bottom:6px;font-family:ui-monospace,Consolas,monospace;
+  font-size:8.5px;color:rgba(230,240,246,.55);letter-spacing:.1em}
+.sw .dot{position:absolute;right:8px;top:8px;width:8px;height:8px;border-radius:50%;
+  background:rgba(var(--el),1);box-shadow:0 0 8px rgba(var(--el),.8)}
+
+/* ================= 质感 v2：三种线条各自成立 / 元素亮度分档 / 纹理透出文字区 ================= */
+/* 兜底：没有元素类的卡按 1 算 */
+.card,.sw{--elK:1}
+
+/* 术：弧心移到卡上方外部，弧线从顶边发散（原来圆心在画面内，弧太散） */
+.rite{--pat:repeating-radial-gradient(circle at 50% -18%,rgba(var(--el),1) 0 1px,transparent 1px var(--d))}
+/* 律：主对角 90 % + 副对角 45 %，两向不等强，读作"菱"而不是"网" */
+.law{--pat:repeating-linear-gradient(45deg,rgba(var(--el),.95) 0 1px,transparent 1px var(--d)),
+                repeating-linear-gradient(-45deg,rgba(var(--el),.42) 0 1px,transparent 1px var(--d))}
+
+/* 元素亮度分档：浅色（光 / 金）压低系数，深色（暗 / 木）抬一点，避免"光卡发灰、暗卡消失" */
+.elmetal{--elK:.92}
+.elwood {--elK:1.08}
+.elwater{--elK:1.00}
+.elfire {--elK:.96}
+.elearth{--elK:.96}
+.ellight{--elK:.52}
+.eldark {--elK:1.12}
+
+/* 元素光用系数 */
+.A.matter{background-image:
+  radial-gradient(115% 72% at 50% -8%,rgba(var(--el),calc(.20 * var(--elK))),transparent 68%),
+  radial-gradient(90% 40% at 50% 108%,rgba(var(--el),calc(.10 * var(--elK))),transparent 72%),
+  linear-gradient(158deg,#8f7749 0%,#57492f 5%,#25221c 16%,#0f141a 44%,
+                  #0f141a 56%,#25221c 84%,#57492f 95%,#8f7749 100%)}
+
+/* 关键：名带与效果区改半透明，让底层纹样透出来（之前被不透明面板完全遮住） */
+.A.matter .band{background-image:
+  linear-gradient(90deg,rgba(var(--el),calc(.10 * var(--elK))),transparent 62%),
+  linear-gradient(180deg,rgba(36,49,61,.92) 0%,rgba(22,31,41,.94) 54%,rgba(13,21,28,.96) 100%)}
+.A.matter .box{background-image:
+  linear-gradient(180deg,rgba(18,28,38,.92) 0%,rgba(12,20,27,.95) 62%,rgba(8,14,19,.97) 100%)}
+
+/* 不去改混合模式（screen 在卡多时掉帧），改提高淡纹不透明度补偿 */
+.card .tx{mix-blend-mode:normal}
+.sw .tx{mix-blend-mode:normal;opacity:calc(var(--o) * 2.1)}
+
+/* 高环环徽外沿带元素色光（金环里透出本卡颜色） */
+.t7 .tier,.t8 .tier,.t9 .tier,.tx .tier,.tb .tier{
+  box-shadow:0 6px 16px rgba(0,0,0,.6),0 0 0 1px rgba(var(--el),.55) inset,
+             0 0 18px rgba(var(--el),.35)}
+
+/* ================= 残留修复：低环可见 / 文字对比 / 画芯过渡 ================= */
+/* ① 低环把"线"提上来（原来 1 环 .055 几乎不可见），只提高不透明度，不改密度 */
+.A.t0{--o:.05}
+.A.t1{--o:.075}
+.A.t2{--o:.085}
+
+/* ② 面板拉回不透明（.92→.96），保 4 % 纹理透出；文字整体提亮一档 */
+.A.matter .band{background-image:
+  linear-gradient(90deg,rgba(var(--el),calc(.10 * var(--elK))),transparent 62%),
+  linear-gradient(180deg,rgba(36,49,61,.96) 0%,rgba(22,31,41,.97) 54%,rgba(13,21,28,.98) 100%)}
+.A.matter .box{background-image:
+  linear-gradient(180deg,rgba(18,28,38,.96) 0%,rgba(12,20,27,.97) 62%,rgba(8,14,19,.98) 100%)}
+.A.matter .box .intro{color:#93a3b0}
+.A.matter .box .rule1{color:#d2dde7}
+.A.matter .box .note1{color:#8b99a6}
+
+/* ③ 画芯上下各 26 px 渐隐，让纹理在图的边缘淡出，不再"一刀断" */
+.A.matter .win .pic:before,.A.matter .win .pic:after{content:"";position:absolute;left:0;right:0;
+  height:26px;pointer-events:none;z-index:3}
+.A.matter .win .pic:before{top:0;
+  background:linear-gradient(180deg,rgba(16,24,32,.85),transparent)}
+.A.matter .win .pic:after{bottom:0;
+  background:linear-gradient(0deg,rgba(10,16,22,.92),transparent)}
+.A.matter .win .pic{position:relative}
+
+/* ================= 卡背 ================= */
+.A.back{display:flex;align-items:center;justify-content:center;padding:11px}
+.A.back .bk{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;
+  gap:14px;width:100%}
+.A.back .bktop{font-family:ui-monospace,Consolas,monospace;font-size:10px;letter-spacing:.42em;
+  color:#8a7244;margin-top:6px}
+.A.back .bcline{width:210px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(210,174,102,.55),transparent)}
+.A.back .crest{position:relative;width:360px;height:360px;display:flex;
+  align-items:center;justify-content:center}
+.A.back .crest .ring{position:absolute;inset:0;border-radius:50%;
+  border:1px solid rgba(210,174,102,.5);
+  box-shadow:0 0 0 6px rgba(210,174,102,.05),0 0 0 7px rgba(210,174,102,.24),
+             0 0 30px rgba(var(--el),.18),inset 0 0 64px rgba(0,0,0,.7)}
+.A.back .crest .ring2{position:absolute;inset:22px;border-radius:50%;
+  border:1px dashed rgba(210,174,102,.2)}
+.A.back .crest .arcs s{position:absolute;left:50%;top:50%;width:2.5px;height:12px;
+  background:#33414d;transform-origin:50% 0;margin-left:-1.25px;border-radius:1px;display:block}
+.A.back .crest .arcs s.on{background:linear-gradient(180deg,#f4dc9f,#c9a24a);
+  box-shadow:0 0 9px rgba(210,174,102,.8)}
+.A.back .crest .core{width:196px;height:196px;position:relative;display:flex;
+  align-items:center;justify-content:center;border-radius:2px;
+  border:2.5px solid rgba(210,174,102,.55);
+  background:radial-gradient(circle at 50% 34%,rgba(var(--el),.22),rgba(8,14,19,.92) 74%);
+  box-shadow:inset 0 0 42px rgba(0,0,0,.8)}
+.A.back .crest .core:after{content:"";position:absolute;inset:10px;
+  border:1px solid rgba(210,174,102,.2)}
+.A.back .crest .core svg{width:110px;height:110px;color:rgba(var(--el),1);
+  filter:drop-shadow(0 0 16px rgba(var(--el),.5))}
+.A.back .crest .core .cn{position:absolute;width:8px;height:8px;border:1px solid #d2ae66;
+  transform:rotate(45deg);opacity:.75}
+.A.back .crest .core .cn.a{left:-5px;top:-5px}
+.A.back .crest .core .cn.b{right:-5px;top:-5px}
+.A.back .crest .core .cn.c{left:-5px;bottom:-5px}
+.A.back .crest .core .cn.d{right:-5px;bottom:-5px}
+.A.back .bkbot{font-size:13px;letter-spacing:.32em;color:#c9d6e0}
+.A.back .bktiny{font-family:ui-monospace,Consolas,monospace;font-size:9px;
+  letter-spacing:.24em;color:#6c7a87}
+
+/* ================= 卡背 v2：刻度环 / 纹理提亮 / 过渡圈 / 一行信息 ================= */
+.A.back .tx{opacity:calc(var(--o) * 1.35)}
+/* 旧 9 道短刻让位给整圈刻度（保留结构，视觉隐藏） */
+.A.back .crest .arcs{display:none}
+/* 刻度环：亮弧 = 环数 / 10，与正面环徽同一逻辑 */
+.A.back .crest .arcring{position:absolute;inset:0;z-index:2;pointer-events:none;
+  filter:drop-shadow(0 0 10px rgba(210,174,102,.28))}
+/* 方框与圆环之间的过渡虚线圈 */
+.A.back .crest .ring3{position:absolute;inset:62px;border-radius:50%;
+  border:1px dashed rgba(210,174,102,.16)}
+/* 背面补一行信息（分类 · 出现地 · 昼夜） */
+.A.back .bkline2{font-family:ui-monospace,Consolas,monospace;font-size:9px;
+  color:#6f7d8a;letter-spacing:.2em;margin-top:2px}
+</style>
+</head>
+<body>
+
+<h1>卡面版式 · 四套方案</h1>
+<div class="lead">同一张卡（夜沼鸟 · 水暗风 · 1 环 · 物）、同一张插画、同一份数据，只改<b style="color:#8fa0ad">信息位置</b>。卡图之后替换，这里只看版式。</div>
+
+<!-- 共用插画 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="pic" viewBox="0 0 640 601" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#071320"/><stop offset=".45" stop-color="#0d2231"/>
+        <stop offset=".76" stop-color="#15303c"/>
+      </linearGradient>
+      <linearGradient id="wtr" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#0d2531"/><stop offset="1" stop-color="#040e13"/>
+      </linearGradient>
+      <radialGradient id="mg"><stop offset="0" stop-color="#f6efd9" stop-opacity=".55"/>
+        <stop offset=".48" stop-color="#e6dfc8" stop-opacity=".16"/>
+        <stop offset="1" stop-color="#e6dfc8" stop-opacity="0"/></radialGradient>
+      <linearGradient id="mist" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#dcebf0" stop-opacity="0"/>
+        <stop offset=".3" stop-color="#dcebf0" stop-opacity=".5"/>
+        <stop offset=".7" stop-color="#cfe2e9" stop-opacity=".32"/>
+        <stop offset="1" stop-color="#cfe2e9" stop-opacity="0"/></linearGradient>
+      <filter id="b1"><feGaussianBlur stdDeviation="10"/></filter>
+    </defs>
+    <rect width="640" height="601" fill="url(#sky)"/>
+    <g fill="#dbe9f2"><circle cx="76" cy="62" r="1.5" opacity=".4"/><circle cx="232" cy="48" r="1.2" opacity=".3"/>
+      <circle cx="392" cy="40" r="1.6" opacity=".34"/><circle cx="556" cy="58" r="1.2" opacity=".28"/></g>
+    <circle cx="504" cy="104" r="94" fill="url(#mg)"/>
+    <circle cx="504" cy="104" r="35" fill="#f1e9d3" opacity=".88"/>
+    <circle cx="515" cy="94" r="29" fill="#0c2030" opacity=".12"/>
+    <path d="M0,330 L96,262 L166,308 L262,232 L352,312 L452,256 L556,314 L640,270 L640,400 L0,400 Z" fill="#122a37" opacity=".5"/>
+    <path d="M0,374 L84,324 L172,368 L286,306 L392,374 L500,324 L596,370 L640,346 L640,410 L0,410 Z" fill="#0b202b" opacity=".95"/>
+    <rect y="356" width="640" height="245" fill="url(#wtr)"/>
+    <g fill="#e9e2cb" opacity=".34">
+      <rect x="452" y="388" width="92" height="3" rx="1.5"/>
+      <rect x="462" y="410" width="76" height="3" rx="1.5" opacity=".7"/>
+      <rect x="446" y="434" width="100" height="2.5" rx="1.2" opacity=".5"/>
+    </g>
+    <g stroke="#8fbccb" stroke-width="1" opacity=".1" fill="none">
+      <path d="M0,398 C120,392 220,402 340,396 C452,390 552,400 640,394"/>
+      <path d="M0,442 C140,436 240,446 360,440 C470,434 560,444 640,438"/>
+      <path d="M0,500 C130,494 250,504 370,498 C480,492 570,502 640,496"/>
+    </g>
+    <g fill="#9fc9d3" opacity=".2">
+      <ellipse cx="392" cy="452" rx="26" ry="8"/><path d="M416,452 L434,442 L434,462 Z"/>
+      <ellipse cx="250" cy="500" rx="19" ry="6" opacity=".7"/><path d="M268,500 L282,492 L282,508 Z"/>
+    </g>
+    <g stroke="#0f2229" stroke-width="3" fill="none" opacity=".9">
+      <path d="M44,601 C54,556 42,512 60,470"/><path d="M80,601 C74,560 90,520 76,482"/>
+    </g>
+    <g fill="#0f2229" opacity=".9">
+      <ellipse cx="60" cy="466" rx="4" ry="15" transform="rotate(8 60 466)"/>
+      <ellipse cx="76" cy="478" rx="3.4" ry="12" transform="rotate(-10 76 478)"/>
+    </g>
+    <g transform="translate(0,46)">
+      <path d="M0,258 C58,246 116,262 172,242 C196,234 214,236 226,242 L226,252 C212,246 196,244 174,252 C120,272 58,258 0,270 Z" fill="#102028"/>
+      <path d="M0,258 C58,246 116,262 172,242" stroke="#5d8a96" stroke-width="1.8" fill="none" opacity=".5"/>
+      <g filter="url(#b1)" opacity=".7">
+        <path d="M212,292 C296,326 374,336 448,364 C512,388 574,390 640,412" stroke="url(#mist)" stroke-width="48" fill="none" stroke-linecap="round" opacity=".26"/>
+        <path d="M236,308 C316,342 390,350 458,378 C520,402 578,404 640,428" stroke="url(#mist)" stroke-width="28" fill="none" stroke-linecap="round" opacity=".32"/>
+      </g>
+      <g transform="rotate(-10 300 296)">
+        <path d="M300,252 C272,208 218,184 156,192 C168,220 202,242 236,252 C258,258 282,258 300,262 Z" fill="#0a151c"/>
+        <path d="M300,252 C272,208 218,184 156,192" stroke="#d3e6ee" stroke-width="2.4" fill="none" opacity=".44"/>
+        <path d="M300,252 C328,208 382,184 444,192 C432,220 398,242 364,252 C342,258 318,258 300,262 Z" fill="#0a151c"/>
+        <path d="M300,252 C328,208 382,184 444,192" stroke="#d3e6ee" stroke-width="2.4" fill="none" opacity=".44"/>
+        <g fill="#0a151c">
+          <path d="M162,198 L142,184 L166,201 Z"/><path d="M153,208 L131,202 L156,214 Z"/>
+          <path d="M438,198 L458,184 L434,201 Z"/><path d="M447,208 L469,202 L444,214 Z"/>
+        </g>
+        <path d="M300,292 L274,332 L292,324 L300,336 L308,324 L326,332 Z" fill="#0a151c"/>
+        <ellipse cx="300" cy="266" rx="16" ry="25" fill="#0a151c"/>
+        <path d="M290,242 C288,228 292,216 300,214 C308,216 312,228 310,242 Z" fill="#0a151c"/>
+        <ellipse cx="300" cy="214" rx="13.5" ry="12" fill="#0a151c"/>
+        <path d="M291,205 L284,191 L296,202 Z" fill="#0a151c"/>
+        <path d="M309,205 L316,191 L304,202 Z" fill="#0a151c"/>
+        <path d="M288,214 L262,209 L288,203 Z" fill="#14323d"/>
+        <circle cx="307" cy="211" r="3.2" fill="#eef8fb"/><circle cx="307" cy="211" r="1.4" fill="#050e14"/>
+      </g>
+    </g>
+  </symbol>
+
+  <symbol id="sig-water" viewBox="0 0 40 40">
+    <path d="M4 22 C10 15 15 29 21 22 C27 15 32 29 38 22" fill="none" stroke="currentColor" stroke-width="2.6"/>
+    <path d="M4 30 C10 23 15 37 21 30 C27 23 32 37 38 30" fill="none" stroke="currentColor" stroke-width="1.7" opacity=".55"/>
+  </symbol>
+
+  <!-- ============ 元素徽记（实心，用于属性球内） ============ -->
+  <symbol id="el-water" viewBox="0 0 48 48">
+    <path d="M24 5 C24 5 38 21 38 30 A14 14 0 0 1 10 30 C10 21 24 5 24 5 Z" fill="currentColor"/>
+    <path d="M25 15 C25 20 20 23 18.5 28" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2.4" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="el-dark" viewBox="0 0 48 48">
+    <path d="M31 7 A17.5 17.5 0 1 0 31 41 A13.5 13.5 0 1 1 31 7 Z" fill="currentColor"/>
+    <circle cx="33" cy="17" r="1.8" fill="rgba(255,255,255,.7)"/>
+    <circle cx="29" cy="27" r="1.2" fill="rgba(255,255,255,.5)"/>
+  </symbol>
+  <symbol id="el-wind" viewBox="0 0 48 48">
+    <path d="M7 17 C16 10 24 24 34 17 C38 14 42 15 44 17" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/>
+    <path d="M9 26 C17 19 25 33 35 26 C39 23 43 24 45 26" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" opacity=".8"/>
+    <path d="M13 35 C19 30 25 40 33 35" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" opacity=".55"/>
+  </symbol>
+  <symbol id="el-metal" viewBox="0 0 48 48">
+    <path d="M24 4 L44 24 L24 44 L4 24 Z" fill="currentColor"/>
+    <path d="M24 13 L35 24 L24 35 L13 24 Z" fill="#0a1016" opacity=".5"/>
+  </symbol>
+  <symbol id="el-wood" viewBox="0 0 48 48">
+    <path d="M24 43 C24 30 18 22 9 17 C9 30 15 39 24 43 Z" fill="currentColor"/>
+    <path d="M24 43 C24 30 30 22 39 17 C39 30 33 39 24 43 Z" fill="currentColor" opacity=".72"/>
+    <path d="M24 43 L24 25" stroke="#0a1016" stroke-width="1.8"/>
+  </symbol>
+  <symbol id="el-fire" viewBox="0 0 48 48">
+    <path d="M24 4 C29 16 39 21 34 32 C31 40 26 44 22 43 C14 41 12 32 17 26 C17 33 22 31 22 26 C22 18 22 12 24 4 Z" fill="currentColor"/>
+    <path d="M24 26 C26 32 29 34 27 38" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="el-earth" viewBox="0 0 48 48">
+    <path d="M4 40 L17 16 L26 30 L32 21 L44 40 Z" fill="currentColor"/>
+    <path d="M17 16 L20 24 L14 24 Z" fill="#0a1016" opacity=".4"/>
+  </symbol>
+  <symbol id="el-light" viewBox="0 0 48 48">
+    <circle cx="24" cy="24" r="9.5" fill="currentColor"/>
+    <g stroke="currentColor" stroke-width="3.4" stroke-linecap="round">
+      <path d="M24 4 L24 11"/><path d="M24 37 L24 44"/><path d="M4 24 L11 24"/><path d="M37 24 L44 24"/>
+      <path d="M10 10 L15 15" opacity=".7"/><path d="M33 33 L38 38" opacity=".7"/>
+      <path d="M38 10 L33 15" opacity=".7"/><path d="M15 33 L10 38" opacity=".7"/>
+    </g>
+  </symbol>
+
+  <!-- ============ 类型徽记（物 / 术 / 律） ============ -->
+  <!-- 物：等轴测立方（顶面亮 / 侧面暗，读作"实体"） -->
+  <symbol id="cl-matter" viewBox="0 0 24 24">
+    <path d="M12 2 L21 7 L21 16.8 L12 21.8 L3 16.8 L3 7 Z" fill="none"
+          stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M12 2 L21 7 L12 12 L3 7 Z" fill="currentColor" opacity=".95"/>
+    <path d="M12 12 L21 7 L21 16.8 L12 21.8 Z" fill="currentColor" opacity=".42"/>
+    <path d="M12 12 L3 7 L3 16.8 L12 21.8 Z" fill="currentColor" opacity=".62"/>
+  </symbol>
+  <!-- 术：双弧旋转 + 中核（读作"改变/流转"） -->
+  <symbol id="cl-rite" viewBox="0 0 24 24">
+    <path d="M12 2.4 A9.6 9.6 0 0 1 21.6 12" fill="none" stroke="currentColor"
+          stroke-width="2.1" stroke-linecap="round"/>
+    <path d="M12 21.6 A9.6 9.6 0 0 1 2.4 12" fill="none" stroke="currentColor"
+          stroke-width="2.1" stroke-linecap="round"/>
+    <path d="M12 6.4 A5.6 5.6 0 0 1 17.6 12" fill="none" stroke="currentColor"
+          stroke-width="1.3" opacity=".55"/>
+    <path d="M12 17.6 A5.6 5.6 0 0 1 6.4 12" fill="none" stroke="currentColor"
+          stroke-width="1.3" opacity=".55"/>
+    <circle cx="12" cy="12" r="2.6" fill="currentColor"/>
+  </symbol>
+  <!-- 律：六边封印 + 十字（读作"规则/封印"） -->
+  <symbol id="cl-law" viewBox="0 0 24 24">
+    <path d="M12 2.2 L20.6 7.1 V16.9 L12 21.8 L3.4 16.9 V7.1 Z" fill="none"
+          stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M12 2.2 L12 8.4 M6.6 12 H17.4 M12 15.6 L12 21.8" stroke="currentColor"
+          stroke-width="1.4" opacity=".55"/>
+    <path d="M12 8.4 L17.4 12 L12 15.6 L6.6 12 Z" fill="currentColor" opacity=".9"/>
+  </symbol>
+
+  <!-- ============ 星 / 数值图标 ============ -->
+  <symbol id="orn-cloud" viewBox="0 0 44 44">
+    <path d="M2 15 C2 8 8 2 15 2 C22 2 27 6 28 11 C29 15 26 18 22 18
+             C19 18 17 15 18 12 C19 9.5 22 9.5 23 11.5" fill="none"
+          stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+    <path d="M5 22 C8 26 13 28 18 27" fill="none" stroke="currentColor"
+          stroke-width="1" stroke-linecap="round" opacity=".7"/>
+  </symbol>
+  <symbol id="ic-star" viewBox="0 0 24 24">
+    <path d="M12 2.6 L14.9 9.1 L22 9.9 L16.7 14.7 L18.2 21.8 L12 18.3 L5.8 21.8 L7.3 14.7 L2 9.9 L9.1 9.1 Z"
+          fill="currentColor" stroke="rgba(0,0,0,.55)" stroke-width="1.1"/>
+  </symbol>
+  <symbol id="ic-radius" viewBox="0 0 20 20">
+    <circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".55"/>
+    <circle cx="10" cy="10" r="2.2" fill="currentColor"/>
+    <path d="M10 10 L15.2 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="ic-warn" viewBox="0 0 20 20">
+    <path d="M10 2.6 L18.4 17.4 L1.6 17.4 Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M10 7.4 L10 12.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    <circle cx="10" cy="14.6" r="1" fill="currentColor"/>
+  </symbol>
+  <symbol id="ic-reclaim" viewBox="0 0 20 20">
+    <path d="M6.4 6.2 H13 A4.6 4.6 0 0 1 13 15.4 H7.2" fill="none"
+          stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    <path d="M8.6 3.4 L5.2 6.3 L8.8 9" fill="none" stroke="currentColor"
+          stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="ic-cd" viewBox="0 0 20 20">
+    <circle cx="10" cy="10.6" r="7.2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <path d="M10 10.6 L10 6.4 M10 10.6 L13.2 12.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    <path d="M7.6 2.4 L12.4 2.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  </symbol>
+</svg>
+
+<!-- ================= A ================= -->
+<section class="row">
+  <div class="card A matter t1 elwater">
+    <div class="tx"></div>
+    <svg class="trim" viewBox="0 0 500 740" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <pattern id="hz" width="18" height="18" patternUnits="userSpaceOnUse">
+          <path d="M1,15 H15 V1 H6 V9 H11" fill="none" stroke="#d2ae66" stroke-width="1"/>
+        </pattern>
+      </defs>
+      <rect x="5" y="5" width="490" height="730" fill="none" stroke="url(#hz)"
+            stroke-width="4" opacity=".6"/>
+    </svg>
+    <svg class="cnr tl" viewBox="0 0 44 44"><use href="#orn-cloud"/></svg>
+    <svg class="cnr tr" viewBox="0 0 44 44"><use href="#orn-cloud"/></svg>
+    <svg class="cnr bl" viewBox="0 0 44 44"><use href="#orn-cloud"/></svg>
+    <svg class="cnr br" viewBox="0 0 44 44"><use href="#orn-cloud"/></svg>
+
+    <div class="band">
+      <span class="cltag"><svg viewBox="0 0 24 24"><use href="#cl-matter"/></svg></span>
+      <h3>夜沼鸟</h3>
+      <span class="no">№ 0112<i>/ 231</i></span>
+      <div class="em">
+        <div class="orb"><svg viewBox="0 0 48 48"><use href="#el-water"/></svg></div>
+        <span class="em-sub">
+          <i style="--c:#6a5a8a"><svg viewBox="0 0 48 48"><use href="#el-dark"/></svg></i>
+          <i style="--c:#7fa3a8"><svg viewBox="0 0 48 48"><use href="#el-wind"/></svg></i>
+        </span>
+      </div>
+    </div>
+    <div class="win">
+      <div class="pic"><svg viewBox="0 0 640 601" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg></div>
+      <div class="tier" title="1 环（共 10 档：0–9 与超环）">
+        <svg viewBox="0 0 52 52">
+          <circle cx="26" cy="26" r="18" fill="none" stroke="#3a3323" stroke-width="3.6"/>
+          <circle cx="26" cy="26" r="18" fill="none" stroke="#f7e3ab" stroke-width="3.6"
+                  stroke-linecap="round"
+                  stroke-dasharray="11.3 101.8" transform="rotate(-90 26 26)"/>
+          <circle cx="26" cy="26" r="18" fill="none" stroke="rgba(210,174,102,.3)"
+                  stroke-width="3.6" stroke-dasharray="1 10.35" transform="rotate(-90 26 26)"/>
+        </svg>
+        <span class="tn">1</span>
+      </div>
+    </div>
+    <div class="box">
+      <div class="t"><i></i>EFFECT</div>
+      <div class="intro">雾栖鸟。夜里贴着水面低飞，翼下的绒膜收拢水气，飞过之处拖出一条雾。</div>
+      <div class="rule1">夜 18–6、且场上有「夜枭」时发动：在身后生成 <b>0.03 W</b> 雾带，持续 <b>20 秒</b>，雾随鸟移动；雾内能见度 −1 档、湿度 +0.08/时，捕食范围 +0.02 W。</div>
+      <div class="note1"><em>※</em> 白天不生成；正午停飞；与「雨」重叠时取强者。与「晨鸟」同场时，雾带外缘的鱼更易被晨鸟捕到（+0.01 W）。</div>
+      <div class="atkdef">
+        <span class="k">ATK</span><span class="v">25</span>
+        <span class="r"><span class="k">DEF</span><span class="v">25</span></span>
+      </div>
+    </div>
+  </div>
+  <div class="desc">
+    <h2>A · 经典竖版</h2>
+    <div class="en">CLASSIC VERTICAL</div>
+    <p>游戏王的骨架：<b>名带在顶部</b>、属性球右上、<b>等级星竖排在画芯内侧</b>、画芯有实体框、<b>效果框是浅色羊皮纸</b>（深字），底栏一条细信息。</p>
+    <table>
+      <tr><td>名</td><td>名带左侧 27 px 细体</td></tr>
+      <tr><td>属性</td><td>名带右侧：主球 Ø44 + 副球 Ø21 横排（各带徽记）</td></tr>
+      <tr><td>环</td><td>画芯右下**环形刻度**（亮弧 = 环级，中心只有数字）</td></tr>
+      <tr><td>类</td><td>名带左端**单枚图标**（立方 / 双弧 / 六边封印，无文字）+ 底沿类型色线</td></tr>
+      <tr><td>效果</td><td>**一句条件 + ①②③ 三条**（游戏王式），深色同边框</td></tr>
+      <tr><td>攻防</td><td>底部 **ATK / DEF 带**（48 px，左右分列）</td></tr>
+      <tr><td>编号</td><td>名带内 `№ 0112`（金色小签）</td></tr>
+      <tr><td>数值</td><td>半径 / 扰动 / 冷却**不上卡面**（移入图鉴）</td></tr>
+      <tr><td>风味</td><td>**已删除**（移入图鉴）</td></tr>
+    </table>
+    <div class="note">优点：读法最成熟，玩家一秒能定位。缺点：名带右侧要同时放主球与两颗副球，窄卡会挤。</div>
+  </div>
+</section>
+
+<!-- ================= A 版卡背 ================= -->
+<section class="row" style="margin-top:8px">
+  <div class="card A back elwater matter t1">
+    <div class="tx"></div>
+    <svg class="trim" viewBox="0 0 500 740" preserveAspectRatio="none" aria-hidden="true">
+      <rect x="5" y="5" width="490" height="730" fill="none" stroke="#d2ae66"
+            stroke-width="4" opacity=".22"/>
+    </svg>
+    <svg class="cnr tl" viewBox="0 0 44 44"><use href="#orn-cloud"/></svg>
+    <svg class="cnr tr" viewBox="0 0 44 44"><use href="#orn-cloud"/></svg>
+    <svg class="cnr bl" viewBox="0 0 44 44"><use href="#orn-cloud"/></svg>
+    <svg class="cnr br" viewBox="0 0 44 44"><use href="#orn-cloud"/></svg>
+
+    <div class="bk">
+      <div class="bktop">S O L S T I C E</div>
+      <div class="bcline"></div>
+      <div class="crest">
+        <div class="ring"></div>
+        <div class="ring2"></div>
+        <div class="ring3"></div>
+        <svg class="arcring" viewBox="0 0 360 360">
+          <circle cx="180" cy="180" r="169" fill="none" stroke="rgba(210,174,102,.16)"
+                  stroke-width="5"/>
+          <circle cx="180" cy="180" r="169" fill="none" stroke="#f4dc9f" stroke-width="5"
+                  stroke-linecap="round" stroke-dasharray="106.2 955.6"
+                  transform="rotate(-90 180 180)"/>
+          <circle cx="180" cy="180" r="169" fill="none" stroke="rgba(210,174,102,.3)"
+                  stroke-width="5" stroke-dasharray="1 105.2" transform="rotate(-90 180 180)"/>
+        </svg>
+        <div class="arcs">
+          <s class="on" style="transform:rotate(0deg) translateY(-196px)"></s>
+          <s style="transform:rotate(40deg) translateY(-196px)"></s>
+          <s style="transform:rotate(80deg) translateY(-196px)"></s>
+          <s style="transform:rotate(120deg) translateY(-196px)"></s>
+          <s style="transform:rotate(160deg) translateY(-196px)"></s>
+          <s style="transform:rotate(200deg) translateY(-196px)"></s>
+          <s style="transform:rotate(240deg) translateY(-196px)"></s>
+          <s style="transform:rotate(280deg) translateY(-196px)"></s>
+          <s style="transform:rotate(320deg) translateY(-196px)"></s>
+        </div>
+        <div class="core">
+          <span class="cn a"></span><span class="cn b"></span>
+          <span class="cn c"></span><span class="cn d"></span>
+          <svg viewBox="0 0 48 48"><use href="#el-water"/></svg>
+        </div>
+      </div>
+      <div class="bcline"></div>
+      <div class="bkbot">水 · 暗 · 风</div>
+      <div class="bktiny">MATTER · TIER 1 · № 0112</div>
+      <div class="bkline2">雾栖鸟 · 河湾 · 夜行</div>
+    </div>
+  </div>
+  <div class="desc">
+    <h2>A · 卡背</h2>
+    <div class="en">BACK · SAME THREE AXES</div>
+    <p>背面不再是独立设计：<b>元素色 / 类线条 / 环密度</b> 三个参数与正面共用，只是把"信息位置"换成中央章。翻过来也能认出这是<b>水 · 物 · 1 环</b>。</p>
+    <table>
+      <tr><td>元素</td><td>纹理色 + 中央徽记 + 上下元素光</td></tr>
+      <tr><td>类别</td><td>纹理线条 + **中央方框**（物）/ 菱 / 圆</td></tr>
+      <tr><td>环</td><td>纹理密度 + **外圈 9 道刻痕**（亮 = 环）</td></tr>
+      <tr><td>固定</td><td>`SOLSTICE` 字标 + 金线 + 属性行</td></tr>
+    </table>
+    <div class="note">优点：正反同源，换卡只改三个类。缺点：中央章占了 40 %，卡面偏空。</div>
+  </div>
+</section>
+
+<!-- ================= 三档尺寸实测 ================= -->
+<section class="sizes">
+  <h2>A 版 · 三档尺寸实测</h2>
+  <div class="sub2">SIZE TEST · 296 / 214 / 148</div>
+
+  <div class="sizerow">
+    <!-- 296：缩放 -->
+    <div>
+      <div class="slot s296">
+        <div class="card A">
+          <div class="band">
+            <span class="cls"><svg viewBox="0 0 24 24"><use href="#cl-matter"/></svg></span>
+            <h3>夜沼鸟</h3>
+            <div class="em"><div class="orb"><svg viewBox="0 0 48 48"><use href="#el-water"/></svg></div>
+              <span class="em-sub"><s style="background:var(--dark)"></s><s style="background:var(--wind)"></s></span></div>
+          </div>
+          <div class="win">
+            <div class="lv">
+              <svg class="st" viewBox="0 0 24 24"><use href="#ic-star"/></svg>
+              <svg class="st off" viewBox="0 0 24 24"><use href="#ic-star"/></svg>
+              <svg class="st off" viewBox="0 0 24 24"><use href="#ic-star"/></svg>
+              <svg class="st off" viewBox="0 0 24 24"><use href="#ic-star"/></svg>
+              <svg class="st off" viewBox="0 0 24 24"><use href="#ic-star"/></svg>
+            </div>
+            <div class="pic"><svg viewBox="0 0 640 601" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg></div>
+          </div>
+          <div class="box">
+            <div class="t"><i></i>EFFECT · 效果</div>
+            <div class="fx">夜出成雾：贴水低飞时在身后留下 <b>0.03 W</b> 雾带，持续 20 秒，雾随鸟移动。</div>
+            <div class="cond">条件：夜 18–6 · 附近有木本横枝 · 由夜枭进化</div>
+            <div class="flav">“雾不是它藏身的地方，是它的网。”</div>
+            <div class="nums">
+              <span><svg viewBox="0 0 20 20"><use href="#ic-radius"/></svg>0.012 W</span>
+              <span><svg viewBox="0 0 20 20"><use href="#ic-warn"/></svg>+3</span>
+              <span><svg viewBox="0 0 20 20"><use href="#ic-cd"/></svg>30 s</span>
+              <span class="cls2">物 · 1 环</span>
+            </div>
+          </div>
+          <div class="ft"><span>W1-00</span><span>·</span><span>雾栖鸟</span><span style="margin-left:auto">水 / 暗 / 风</span></div>
+        </div>
+      </div>
+      <div class="slotcap">296 px　<b>图鉴 / 悬浮大图</b>　缩放 0.569</div>
+    </div>
+
+    <!-- 214：缩放 -->
+    <div>
+      <div class="slot s214">
+        <div class="card A reveal">
+          <div class="band">
+            <span class="cls"><svg viewBox="0 0 24 24"><use href="#cl-matter"/></svg></span>
+            <h3>夜沼鸟</h3>
+            <div class="em"><div class="orb"><svg viewBox="0 0 48 48"><use href="#el-water"/></svg></div>
+              <span class="em-sub"><s style="background:var(--dark)"></s><s style="background:var(--wind)"></s></span></div>
+          </div>
+          <div class="win">
+            <div class="lv">
+              <svg class="st" viewBox="0 0 24 24"><use href="#ic-star"/></svg>
+              <svg class="st off" viewBox="0 0 24 24"><use href="#ic-star"/></svg>
+              <svg class="st off" viewBox="0 0 24 24"><use href="#ic-star"/></svg>
+              <svg class="st off" viewBox="0 0 24 24"><use href="#ic-star"/></svg>
+              <svg class="st off" viewBox="0 0 24 24"><use href="#ic-star"/></svg>
+            </div>
+            <div class="pic"><svg viewBox="0 0 640 601" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg></div>
+          </div>
+          <div class="box">
+            <div class="t"><i></i>EFFECT · 效果</div>
+            <div class="fx">夜出成雾：贴水低飞时在身后留下 <b>0.03 W</b> 雾带，持续 20 秒，雾随鸟移动。</div>
+            <div class="cond">条件：夜 18–6 · 附近有木本横枝 · 由夜枭进化</div>
+            <div class="flav">“雾不是它藏身的地方，是它的网。”</div>
+            <div class="nums">
+              <span><svg viewBox="0 0 20 20"><use href="#ic-radius"/></svg>0.012 W</span>
+              <span><svg viewBox="0 0 20 20"><use href="#ic-warn"/></svg>+3</span>
+              <span><svg viewBox="0 0 20 20"><use href="#ic-cd"/></svg>30 s</span>
+              <span class="cls2">物 · 1 环</span>
+            </div>
+          </div>
+          <div class="ft"><span>W1-00</span><span>·</span><span>雾栖鸟</span><span style="margin-left:auto">水 / 暗 / 风</span></div>
+        </div>
+      </div>
+      <div class="slotcap">214 px　<b>抽卡翻牌</b>　缩放 0.412</div>
+    </div>
+
+    <!-- 148：缩放（不合格） -->
+    <div>
+      <div class="slot s148" style="width:148px;height:216px">
+        <div class="card A" style="transform:scale(.2846)">
+          <div class="band">
+            <span class="cls"><svg viewBox="0 0 24 24"><use href="#cl-matter"/></svg></span>
+            <h3>夜沼鸟</h3>
+            <div class="em"><div class="orb"><svg viewBox="0 0 48 48"><use href="#el-water"/></svg></div></div>
+          </div>
+          <div class="win">
+            <div class="lv">
+              <svg class="st" viewBox="0 0 24 24"><use href="#ic-star"/></svg>
+              <svg class="st off" viewBox="0 0 24 24"><use href="#ic-star"/></svg>
+              <svg class="st off" viewBox="0 0 24 24"><use href="#ic-star"/></svg>
+              <svg class="st off" viewBox="0 0 24 24"><use href="#ic-star"/></svg>
+              <svg class="st off" viewBox="0 0 24 24"><use href="#ic-star"/></svg>
+            </div>
+            <div class="pic"><svg viewBox="0 0 640 601" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg></div>
+          </div>
+          <div class="box">
+            <div class="t"><i></i>EFFECT · 效果</div>
+            <div class="fx">夜出成雾：贴水低飞时在身后留下 <b>0.03 W</b> 雾带，持续 20 秒。</div>
+            <div class="cond">条件：夜 18–6 · 附近有木本横枝</div>
+            <div class="nums">
+              <span><svg viewBox="0 0 20 20"><use href="#ic-radius"/></svg>0.012 W</span>
+              <span><svg viewBox="0 0 20 20"><use href="#ic-warn"/></svg>+3</span>
+              <span><svg viewBox="0 0 20 20"><use href="#ic-cd"/></svg>30 s</span>
+            </div>
+          </div>
+          <div class="ft"><span>W1-00</span><span style="margin-left:auto">水/暗/风</span></div>
+        </div>
+      </div>
+      <div class="slotcap">148 px　<b>手牌（纯缩放）</b>　字 3–7 px，不可读</div>
+    </div>
+
+    <!-- 148：重排 -->
+    <div>
+      <div class="card A mini">
+        <div class="band">
+          <span class="cls"><svg viewBox="0 0 24 24"><use href="#cl-matter"/></svg></span>
+          <h3>夜沼鸟</h3>
+          <div class="em"><div class="orb"><svg viewBox="0 0 48 48"><use href="#el-water"/></svg></div></div>
+        </div>
+        <div class="win">
+          <div class="lvnum"><b>★</b><s>1</s></div>
+          <div class="pic"><svg viewBox="0 0 640 601" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg></div>
+        </div>
+        <div class="box">
+          <div class="fx">夜出成雾 0.03 W · 20 秒</div>
+          <div class="nums">
+            <span>◔0.012</span><span>⚠+3</span><span>⧗30s</span><span class="cls2">物·1环</span>
+          </div>
+        </div>
+        <div class="ft"><span>W1-00</span></div>
+      </div>
+      <div class="slotcap">148 px　<b>手牌（重排版式）</b>　字号 7–12 px</div>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top:18px">
+    纯缩放到 148 时：名字 7 px、条件 3 px、星 4 px —— <b style="color:#c98d6a">全部不可读</b>，只剩"一张深色小牌"。
+    所以手牌必须走<b style="color:#8fb6a0">重排版式</b>：隐藏条件/风味/EFFECT 标签，名 12 px，效果压成一行 7.5 px，星缩到 6 px、去掉发光。
+  </div>
+
+  <h2 style="margin-top:30px">10 张并排（模拟手牌）</h2>
+  <div class="sub2">HAND · 148 × 10 · 间距 100 px · 扇形 2.2°</div>
+  <div class="handrow" id="handrow"></div>
+  <div class="note">这一排就是手牌的真实条件：<b style="color:#8fb6a0">名 12 px 能读</b>、属性球能分辨、<b style="color:#f6e0a6">★1</b> 能看出几环；
+    效果行 7.5 px 只够认出"成雾 0.03 W"，细节必须靠悬停。</div>
+
+  <script>
+  (function(){
+    var row=document.getElementById('handrow');
+    var tpl=document.querySelector('.A.mini');
+    if(!row||!tpl) return;
+    var html=tpl.outerHTML;
+    for(var i=0;i<10;i++){
+      var d=i-4.5;
+      var w=document.createElement('div');
+      w.className='hc';
+      w.style.setProperty('--r',(d*2.2).toFixed(2)+'deg');
+      w.style.setProperty('--y',(Math.abs(d)*2.4).toFixed(1)+'px');
+      w.style.zIndex=String(30-Math.round(Math.abs(d)));
+      w.innerHTML=html;
+      row.appendChild(w);
+    }
+  })();
+  </script>
+</section>
+
+<!-- ================= B ================= -->
+<section class="row">
+  <div class="card B">
+    <div class="art"><svg viewBox="0 0 640 601" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg></div>
+    <div class="top">
+      <h3>夜沼鸟</h3>
+      <div class="cost">1</div>
+    </div>
+    <div class="subtitle">雾栖鸟　NIGHTMARSH BIRD</div>
+    <div class="side">W1-00　水 · 暗 · 风</div>
+    <div class="txt">
+      <div class="type">物 MATTER <s>★</s><s style="opacity:.35">★★★★</s>　TIER 1</div>
+      <div class="fx">夜出成雾：贴水低飞时在身后留下 <b>0.03 W</b> 雾带，持续 20 秒，雾随鸟移动，白天不生成。</div>
+      <div class="fx" style="color:var(--ink4);font-size:11px">条件：夜 18–6 · 附近有木本横枝可落 · 由夜枭进化而来</div>
+      <div class="ft"><span>◔ 0.012 W</span><span>⚠ +3</span><span>⧗ 30 s</span><span>回收 +1</span></div>
+    </div>
+  </div>
+  <div class="desc">
+    <h2>B · 全出血</h2>
+    <div class="en">FULL BLEED</div>
+    <p>万智牌的路子：<b>画芯顶到卡边</b>，名与费用压在画面上（半透明渐变底），底部 30 % 是<b>半透明文本带</b>。没有框，只有一条金线分隔。</p>
+    <table>
+      <tr><td>名</td><td>压在画面左上 27 px</td></tr>
+      <tr><td>属性</td><td>无球，用竖排小字在右侧</td></tr>
+      <tr><td>环</td><td>文本带第一行的星</td></tr>
+      <tr><td>类</td><td>文本带第一行开头</td></tr>
+      <tr><td>效果</td><td>文本带主体</td></tr>
+      <tr><td>数值</td><td>文本带底行</td></tr>
+    </table>
+    <div class="note">优点：图最大，最有"美术品"感。缺点：信息全压底部，弱读。</div>
+  </div>
+</section>
+
+<!-- ================= C ================= -->
+<section class="row">
+  <div class="card C">
+    <div class="inner">
+      <div class="art">
+        <div class="pic"><svg viewBox="0 0 640 601" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg></div>
+        <div class="frame"></div>
+        <div class="banner"><h3>夜沼鸟</h3><div class="sub">W1-00 · NIGHTMARSH BIRD</div></div>
+        <div class="gem"><svg viewBox="0 0 40 40"><use href="#sig-water"/></svg></div>
+        <div class="tiergem"><b>1</b><em>TIER</em></div>
+      </div>
+      <div class="txt">
+        <div class="fx">夜出成雾：贴水低飞时在身后留下 <b>0.03 W</b> 雾带，持续 20 秒，雾随鸟移动。</div>
+        <div class="cond">条件：夜 18–6 · 附近有木本横枝可落 · 由夜枭进化而来</div>
+        <div class="ft"><span>◔ 0.012 W</span><span>⚠ +3</span><span>⧗ 30 s</span><span style="margin-left:auto">物 · 水暗风</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="desc">
+    <h2>C · 宝石框</h2>
+    <div class="en">GEM FRAME</div>
+    <p>炉石的路子：<b>厚圆角外框</b> + 内嵌大画窗，名做成<b>横幅压在画面上</b>，属性与环是<b>两颗宝石</b>挂在画芯下沿（半露）。</p>
+    <table>
+      <tr><td>名</td><td>横幅悬在画面上方 16 px</td></tr>
+      <tr><td>属性</td><td>菱形宝石 Ø62（画芯左下）</td></tr>
+      <tr><td>环</td><td>圆形宝石 Ø56（画芯右下）</td></tr>
+      <tr><td>类</td><td>文本带末行</td></tr>
+      <tr><td>效果</td><td>文本带，斜切顶边</td></tr>
+      <tr><td>数值</td><td>文本带底行</td></tr>
+    </table>
+    <div class="note">优点：最有"实体感"，宝石好记。缺点：信息被两颗宝石挤到边角。</div>
+  </div>
+</section>
+
+<!-- ================= D ================= -->
+<section class="row">
+  <div class="card D">
+    <div class="art"><svg viewBox="0 0 640 601" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg></div>
+    <div class="side">
+      <div class="kicker">WORLD EVENT · 物</div>
+      <h3>夜沼鸟</h3>
+      <div class="sub">NIGHTMARSH BIRD</div>
+      <div class="row1">
+        <s style="background:var(--water)"></s><s style="background:var(--dark)"></s><s style="background:var(--wind)"></s>
+        <u>水 · 暗 · 风</u><u style="margin-left:auto;color:var(--gold-hi)">1 环</u>
+      </div>
+      <div class="fx">夜出成雾：贴水低飞时在身后留下 <b>0.03 W</b> 雾带，持续 20 秒，随鸟移动。</div>
+      <div class="cond">条件：夜 18–6 · 附近有木本横枝 · 由夜枭进化而来</div>
+      <div class="nums"><span>◔ 0.012 W</span><span>⚠ +3</span><span>⧗ 30 s</span></div>
+    </div>
+  </div>
+  <div class="desc">
+    <h2>D · 横版</h2>
+    <div class="en">LANDSCAPE</div>
+    <p>横版不是"竖版转过来"，而是把卡当<b>一幅画 + 一块铭牌</b>：左 58 % 画芯（右侧渐隐入信息栏），右 42 % 竖排信息。适合世界事件 / 律卡 / 剧情卡。</p>
+    <table>
+      <tr><td>名</td><td>信息栏顶部 26 px</td></tr>
+      <tr><td>属性</td><td>名下的三个色点 + 文字</td></tr>
+      <tr><td>环</td><td>同名行右端「1 环」</td></tr>
+      <tr><td>类</td><td>顶部 kicker 行</td></tr>
+      <tr><td>效果</td><td>信息栏中部</td></tr>
+      <tr><td>数值</td><td>信息栏底部一行</td></tr>
+    </table>
+    <div class="note">优点：与竖版形成"手牌 / 事件"两种节奏，不易混。缺点：抽卡与手牌不适合横版。</div>
+  </div>
+</section>
+
+<section class="mx">
+  <h2>质感三参数：元素（色）× 类别（线）× 环（密度 / 光）</h2>
+  <div class="sub2">TEXTURE = F(ELEMENT, CLASS, TIER)</div>
+    <div class="mxrow">
+      <div class="sw elwater matter t1"><div class="tx"></div>
+        <span class="dot"></span><span class="cap">物 · 直线 · 1 环</span></div>
+      <div class="sw elwater matter t5"><div class="tx"></div>
+        <span class="dot"></span><span class="cap">物 · 直线 · 5 环</span></div>
+      <div class="sw elwater matter t9"><div class="tx"></div>
+        <span class="dot"></span><span class="cap">物 · 直线 · 9 环</span></div>
+      <div class="sw elwater matter tx"><div class="tx"></div>
+        <span class="dot"></span><span class="cap">物 · 直线 · 超环</span></div>
+    </div>
+    <div class="mxrow">
+      <div class="sw elwater rite t1"><div class="tx"></div>
+        <span class="dot"></span><span class="cap">术 · 弧线 · 1 环</span></div>
+      <div class="sw elwater rite t5"><div class="tx"></div>
+        <span class="dot"></span><span class="cap">术 · 弧线 · 5 环</span></div>
+      <div class="sw elwater rite t9"><div class="tx"></div>
+        <span class="dot"></span><span class="cap">术 · 弧线 · 9 环</span></div>
+      <div class="sw elwater rite tx"><div class="tx"></div>
+        <span class="dot"></span><span class="cap">术 · 弧线 · 超环</span></div>
+    </div>
+    <div class="mxrow">
+      <div class="sw elwater law t1"><div class="tx"></div>
+        <span class="dot"></span><span class="cap">律 · 菱格 · 1 环</span></div>
+      <div class="sw elwater law t5"><div class="tx"></div>
+        <span class="dot"></span><span class="cap">律 · 菱格 · 5 环</span></div>
+      <div class="sw elwater law t9"><div class="tx"></div>
+        <span class="dot"></span><span class="cap">律 · 菱格 · 9 环</span></div>
+      <div class="sw elwater law tx"><div class="tx"></div>
+        <span class="dot"></span><span class="cap">律 · 菱格 · 超环</span></div>
+    </div>
+    <div class="mxrow">
+      <div class="sw elmwater matter t5"><div class="tx"></div>
+      <span class="dot"></span><span class="cap">水 · 物 · 5 环</span></div>
+      <div class="sw elfire matter t5"><div class="tx"></div>
+      <span class="dot"></span><span class="cap">火 · 物 · 5 环</span></div>
+      <div class="sw elwood matter t5"><div class="tx"></div>
+      <span class="dot"></span><span class="cap">木 · 物 · 5 环</span></div>
+      <div class="sw elmetal matter t5"><div class="tx"></div>
+      <span class="dot"></span><span class="cap">金 · 物 · 5 环</span></div>
+      <div class="sw elearth matter t5"><div class="tx"></div>
+      <span class="dot"></span><span class="cap">土 · 物 · 5 环</span></div>
+      <div class="sw ellight matter t5"><div class="tx"></div>
+      <span class="dot"></span><span class="cap">光 · 物 · 5 环</span></div>
+      <div class="sw eldark matter t5"><div class="tx"></div>
+      <span class="dot"></span><span class="cap">暗 · 物 · 5 环</span></div>
+    </div>
+  <div class="note">
+    同一条纹理公式，三个参数各管一件事：<b style="color:#8fb6a0">元素只改 RGB</b>（色相与光晕），
+    <b style="color:#8fb6a0">类别只改线条</b>（物=48° 直线 / 术=同心弧 / 律=45°×2 菱格），
+    <b style="color:#8fb6a0">环只改密度与亮度</b>（单元 22→7 px、不透明度 .045→.16、外光 0→1）。
+    12 档是 0–9 环 + 超环 + 禁物，不是 12 个手写样式。
+  </div>
+</section>
+
+</body>
+</html>
