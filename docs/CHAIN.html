@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>至日 · 食物链</title>
+<style>
+:root{
+  --bg:#070b10;--panel:#0c1319;--line:#1b242e;
+  --ink:#e4ecf3;--ink2:#9fb0bd;--ink3:#5d6b7a;
+  --gold:#c8a94b;--me:#c25a2a;--foe:#3f7fab;
+  --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:radial-gradient(1000px 560px at 50% -10%,#13212b,transparent 72%),var(--bg);
+  color:var(--ink);font:14px/1.5 "PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  overflow:hidden;
+}
+#wrap{height:100vh;display:grid;grid-template-rows:auto 1fr auto;gap:9px;padding:9px}
+
+/* 顶栏 */
+#top{display:flex;align-items:center;gap:20px;padding:8px 14px;
+  background:var(--panel);border:1px solid var(--line);border-radius:3px}
+#top .turn{font-family:var(--mono);font-size:11px;color:var(--ink3);letter-spacing:.08em}
+#top .turn b{color:var(--ink);font-size:16px}
+#top .sc{font-family:var(--mono);font-size:11px;color:var(--ink3)}
+#top .sc span{font-size:20px;margin:0 4px}
+#top .sc .a{color:var(--me)} #top .sc .b{color:var(--foe)}
+#top .grow{flex:1}
+#top .ring{font-family:var(--mono);font-size:11px;color:var(--ink3)}
+#top .ring b{color:var(--gold);font-size:14px}
+
+/* 链条 */
+#stage{position:relative;background:var(--panel);border:1px solid var(--line);
+  border-radius:3px;overflow:hidden;display:flex;flex-direction:column}
+#stage .hd{display:flex;align-items:center;gap:10px;padding:9px 14px;
+  border-bottom:1px solid #161f28;font-family:var(--mono);font-size:10px;color:var(--ink3)}
+#stage .hd .now{color:var(--gold);font-size:12px}
+#stage .hd .mx{margin-left:auto;color:var(--ink2)}
+#chain{flex:1;display:flex;align-items:center;gap:0;padding:18px 22px;
+  overflow-x:auto;overflow-y:hidden;scroll-behavior:smooth}
+#chain::-webkit-scrollbar{height:5px}
+#chain::-webkit-scrollbar-thumb{background:#243039;border-radius:3px}
+
+.node{position:relative;flex:0 0 92px;width:92px;height:126px;border-radius:3px;
+  background:#0d151c;border:1px solid #2a3542;display:flex;flex-direction:column;
+  overflow:hidden;animation:pop .22s cubic-bezier(.2,1.4,.4,1)}
+@keyframes pop{from{transform:scale(.72);opacity:0}to{transform:scale(1);opacity:1}}
+.node .nb{height:3px;flex:0 0 3px}
+.node .nbody{flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:5px;padding:8px 6px;text-align:center}
+.node .nn{font-size:12px;letter-spacing:.05em;line-height:1.3}
+.node .nr{font-family:var(--mono);font-size:8px;color:var(--ink3)}
+.node .ns{font-family:var(--mono);font-size:15px;color:var(--gold)}
+.node .nf{height:15px;flex:0 0 15px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:9px;background:#070c11;color:var(--ink3)}
+.node.mine{border-color:rgba(194,90,42,.6)}
+.node.foe{border-color:rgba(63,127,171,.6)}
+.node .dot{position:absolute;right:5px;top:5px;width:5px;height:5px;border-radius:50%}
+
+.link{flex:0 0 22px;width:22px;height:2px;background:linear-gradient(90deg,#1e2933,#3a4a58);
+  position:relative;align-self:center}
+.link:after{content:"";position:absolute;right:-1px;top:-3px;width:0;height:0;
+  border-left:5px solid #3a4a58;border-top:4px solid transparent;border-bottom:4px solid transparent}
+
+#ghost{flex:0 0 92px;width:92px;height:126px;border:1px dashed #3b4a58;border-radius:3px;
+  display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;
+  font-family:var(--mono);font-size:9px;color:#4d5c6a;margin-left:22px;
+  animation:breathe 2.2s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:.45}50%{opacity:.9}}
+
+/* 飘分 */
+#pops{position:absolute;inset:0;pointer-events:none;z-index:20}
+.pop{position:absolute;font-family:var(--mono);font-size:22px;color:var(--gold);
+  text-shadow:0 2px 10px rgba(0,0,0,.9);animation:up 1s ease-out forwards}
+.pop.foe{color:#6ea8cc}
+@keyframes up{0%{transform:translateY(0);opacity:0}20%{opacity:1}
+  100%{transform:translateY(-52px);opacity:0}}
+
+/* 手牌 */
+#hand{display:flex;gap:8px;align-items:flex-end;height:150px;padding:0 2px}
+.card{width:96px;height:132px;flex:0 0 96px;border:1px solid #2a3542;border-radius:3px;
+  background:#0c131a;display:flex;flex-direction:column;overflow:hidden;
+  cursor:pointer;transition:transform .13s,box-shadow .13s,border-color .13s,opacity .13s}
+.card.ok{border-color:#4a5b6c}
+.card.ok:hover{transform:translateY(-10px);border-color:var(--gold);
+  box-shadow:0 0 0 1px var(--gold) inset,0 14px 26px rgba(0,0,0,.6)}
+.card.dead{opacity:.28;filter:grayscale(.8);cursor:default}
+.card .cb{height:3px;flex:0 0 3px}
+.card .cbody{flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:4px;text-align:center;padding:6px}
+.card .cn{font-size:12px}
+.card .cr{font-family:var(--mono);font-size:8px;color:var(--ink3)}
+.card .cs{font-family:var(--mono);font-size:14px;color:var(--gold)}
+.card .cf{height:14px;flex:0 0 14px;background:#070c11;font-family:var(--mono);
+  font-size:8px;color:var(--ink3);display:flex;align-items:center;justify-content:center}
+
+#bar{display:flex;gap:8px;align-items:center}
+#msg{flex:1;font-family:var(--mono);font-size:11px;color:var(--ink3);line-height:1.6}
+#msg b{color:var(--gold)}
+#pass{padding:10px 18px;background:#16202a;border:1px solid #26313d;border-radius:3px;
+  color:var(--ink);font:12px/1 inherit;letter-spacing:.12em;cursor:pointer}
+#pass:hover{border-color:var(--gold)}
+#pass:disabled{opacity:.3;cursor:default}
+
+#over{position:fixed;inset:0;background:rgba(3,6,9,.92);display:none;
+  align-items:center;justify-content:center;z-index:99}
+#over .box{width:420px;background:var(--panel);border:1px solid #26313d;
+  border-radius:4px;padding:26px 30px;text-align:center}
+#over h2{font-size:24px;letter-spacing:.2em;margin-bottom:10px}
+#over p{font-size:12.5px;color:var(--ink2);line-height:1.9;margin-bottom:16px}
+#over button{width:100%;padding:10px;background:#16202a;border:1px solid #26313d;
+  color:#fff;font:13px/1 inherit;letter-spacing:.1em;cursor:pointer;border-radius:3px}
+#over button:hover{border-color:var(--gold)}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div class="turn">链 <b id="ch">1</b> / 3</div>
+    <div class="sc"><span class="a" id="sc-me">0</span> : <span class="b" id="sc-foe">0</span></div>
+    <div class="grow"></div>
+    <div class="ring">下一环 <b id="ring">生产者</b> · 乘 <b id="mult">1</b></div>
+  </div>
+
+  <div id="stage">
+    <div class="hd"><span class="now" id="now">从土里长出来</span>
+      <span id="tip">接一张「生产者」</span>
+      <span class="mx" id="mx">本条链 0 张</span></div>
+    <div id="chain"></div>
+    <div id="pops"></div>
+  </div>
+
+  <div id="bar">
+    <div id="msg"></div>
+    <button id="pass">接不上，过</button>
+  </div>
+  <div id="hand"></div>
+</div>
+
+<div id="over"><div class="box">
+  <h2 id="ov-t"></h2><p id="ov-p"></p>
+  <button onclick="location.reload()">再来一局</button>
+</div></div>
+
+<script>
+/* ============ 规则 ============
+   一条链，从"基质"开始，每次必须接"下一个营养级"。
+   接上第 n 张 → 得分 = 卡面分 × n。
+   接不上就过；两人都过 → 这条链结束，起新链。
+   一局 3 条链。
+   环位：1 生产者 → 2 虫 → 3 鱼 → 4 鸟 → 5 兽 → 6 分解者 → 回到 1
+================================ */
+
+const EL={'金':'#c8a94b','木':'#5e8f47','水':'#3f8fab','火':'#b4432e',
+          '土':'#8a6a45','光':'#e0d6b8','暗':'#6a5a8a','风':'#7fa3a8'};
+const RING={1:'生产者',2:'虫',3:'鱼',4:'鸟',5:'兽',6:'分解者'};
+const RINGCOL={1:'#5e8f47',2:'#8a6a45',3:'#3f8fab',4:'#7fa3a8',5:'#b4432e',6:'#6a5a8a'};
+
+const DB=[
+  /* 1 生产者 */
+  {n:'苔',    r:1,s:1,el:'木'},{n:'芦苇',  r:1,s:1,el:'水'},
+  {n:'花楸',  r:1,s:2,el:'木'},{n:'铁杉',  r:1,s:2,el:'木'},
+  {n:'浮萍',  r:1,s:1,el:'水'},
+  /* 2 虫 */
+  {n:'蚜虫',  r:2,s:1,el:'木'},{n:'蜜蜂',  r:2,s:2,el:'光'},
+  {n:'甲虫',  r:2,s:1,el:'土'},{n:'蚁群',  r:2,s:2,el:'土'},
+  /* 3 鱼 */
+  {n:'溪鱼',  r:3,s:1,el:'水'},{n:'河虾',  r:3,s:1,el:'水'},
+  {n:'鲫',    r:3,s:2,el:'水'},{n:'鳟',    r:3,s:2,el:'水'},
+  /* 4 鸟 */
+  {n:'晨鸟',  r:4,s:2,el:'光'},{n:'夜枭',  r:4,s:3,el:'暗'},
+  {n:'夜沼鸟',r:4,s:3,el:'水'},{n:'水鸟',  r:4,s:2,el:'水'},
+  /* 5 兽 */
+  {n:'穴兔',  r:5,s:2,el:'土'},{n:'岩羊',  r:5,s:3,el:'土'},
+  {n:'狐',    r:5,s:4,el:'火'},{n:'鹿',    r:5,s:3,el:'木'},
+  /* 6 分解者 */
+  {n:'菌',    r:6,s:1,el:'暗'},{n:'苔藓',  r:6,s:1,el:'水'},
+  {n:'朽木虫',r:6,s:2,el:'木'},{n:'地衣',  r:6,s:1,el:'土'}
+];
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function buildDeck(){
+  const d=[];
+  DB.forEach((c,k)=>{ d.push(k); d.push(k); });
+  return shuffle(d);
+}
+
+let G,sel=null,busy=false;
+
+function newGame(){
+  const deckMe=buildDeck(), deckFoe=buildDeck();
+  G={
+    chain:1, cur:1, mult:1, nodes:[],
+    score:{me:0,foe:0},
+    hand:{me:[],foe:[]},
+    deck:{me:deckMe,foe:deckFoe},
+    passed:{me:false,foe:false},
+    turn:'me', over:false, msg:''
+  };
+  for(let k=0;k<6;k++){G.hand.me.push(G.deck.me.pop());G.hand.foe.push(G.deck.foe.pop());}
+}
+
+function nextRing(r){ return r>=6?1:r+1; }
+
+function canPlay(id,side){
+  return DB[id].r===G.cur;
+}
+
+function play(side,id){
+  const c=DB[id];
+  const gain=c.s*G.mult;
+  G.score[side]+=gain;
+  G.nodes.push({id,side,mult:G.mult,gain});
+  G.mult++;
+  G.cur=nextRing(c.r);
+  G.passed={me:false,foe:false};
+  popUp(gain,side);
+  G.msg=`${side==='me'?'你':'对手'}接了「${c.n}」+${gain}`;
+}
+
+function pass(side){
+  G.passed[side]=true;
+  G.msg=`${side==='me'?'你':'对手'}接不上`;
+}
+
+function bothPassed(){ return G.passed.me&&G.passed.foe; }
+
+function endChain(){
+  G.over='wait';
+  G.msg='这条链断了，下一处重新长';
+  render();
+  setTimeout(()=>{
+    G.over=false;
+    if(G.chain>=3){ finish(); return; }
+    G.chain++; G.cur=1; G.mult=1; G.nodes=[];
+    G.passed={me:false,foe:false};
+    G.turn='me';
+    G.msg=`第 ${G.chain} 条链：从基质开始`;
+    render();
+  },1000);
+}
+
+function finish(){
+  G.over=true;
+  const a=G.score.me,b=G.score.foe;
+  document.getElementById('ov-t').textContent=a>b?'你 赢':(b>a?'对手 赢':'平');
+  document.getElementById('ov-p').textContent=
+    `${a} : ${b}　${a>b?'链条站在你这边。':(b>a?'你的链太短。':'一样长。')}`;
+  document.getElementById('over').style.display='flex';
+}
+
+/* ---------- 渲染 ---------- */
+function render(){
+  document.getElementById('ch').textContent=G.chain;
+  document.getElementById('sc-me').textContent=G.score.me;
+  document.getElementById('sc-foe').textContent=G.score.foe;
+  document.getElementById('ring').textContent=RING[G.cur];
+  document.getElementById('mult').textContent=G.mult;
+  document.getElementById('mx').textContent=`本条链 ${G.nodes.length} 张`;
+  document.getElementById('now').textContent=G.nodes.length?`链上有 ${G.nodes.length} 节`:'从土里长出来';
+  document.getElementById('tip').textContent=`接一张「${RING[G.cur]}」，得分 ×${G.mult}`;
+
+  const ch=document.getElementById('chain');
+  ch.innerHTML=G.nodes.map((n,k)=>{
+    const c=DB[n.id];
+    return `<div class="node ${n.side}">
+      <span class="dot" style="background:${n.side==='me'?'var(--me)':'var(--foe)'}"></span>
+      <div class="nb" style="background:${RINGCOL[c.r]}"></div>
+      <div class="nbody">
+        <div class="nn">${c.n}</div>
+        <div class="nr">${RING[c.r]}</div>
+        <div class="ns">${c.s}</div>
+      </div>
+      <div class="nf">×${n.mult} = ${n.gain}</div>
+    </div>`+(k<G.nodes.length-1?'<span class="link"></span>':'');
+  }).join('')+`<div id="ghost"><span>? ${RING[G.cur]}</span><span>×${G.mult}</span></div>`;
+  ch.scrollLeft=ch.scrollWidth;
+
+  const hand=document.getElementById('hand');
+  hand.innerHTML=G.hand.me.map((id,k)=>{
+    const c=DB[id], ok=canPlay(id,'me')&&G.turn==='me'&&!G.over;
+    return `<div class="card ${ok?'ok':'dead'}" onclick="onCard(${k})">
+      <div class="cb" style="background:${RINGCOL[c.r]}"></div>
+      <div class="cbody"><div class="cn">${c.n}</div>
+        <div class="cr">${RING[c.r]}</div><div class="cs">${c.s}</div></div>
+      <div class="cf">×${G.mult} = ${c.s*G.mult}</div>
+    </div>`;
+  }).join('');
+
+  const has=G.hand.me.some((id)=>canPlay(id,'me'));
+  document.getElementById('msg').innerHTML=G.msg||`轮到你了：手上有 <b>${G.hand.me.filter(id=>canPlay(id,'me')).length}</b> 张能接`;
+  document.getElementById('pass').disabled=busy||G.turn!=='me'||G.over;
+
+  if(G.turn==='me'&&!has&&!G.over){
+    G.msg='你接不上——自动过';
+    setTimeout(()=>{ doPass('me'); },520);
+  }
+}
+
+function popUp(v,side){
+  const p=document.getElementById('pops');
+  const e=document.createElement('div');
+  e.className='pop'+(side==='foe'?' foe':'');
+  e.textContent='+'+v;
+  e.style.left=(window.innerWidth*0.5-20+Math.random()*120-60)+'px';
+  e.style.top='40%';
+  p.appendChild(e);
+  setTimeout(()=>e.remove(),1000);
+}
+
+/* ---------- 交互 ---------- */
+function onCard(k){
+  if(busy||G.over||G.turn!=='me') return;
+  const id=G.hand.me[k];
+  if(!canPlay(id,'me')) return;
+  busy=true;
+  G.hand.me.splice(k,1);
+  draw('me');
+  play('me',id);
+  render();
+  busy=false;
+  if(bothPassed()){ endChain(); return; }
+  G.turn='foe';
+  setTimeout(aiMove,520);
+}
+
+function draw(side){
+  if(!G.deck[side].length) return;
+  if(G.hand[side].length<8) G.hand[side].push(G.deck[side].pop());
+}
+
+function doPass(side){
+  if(G.over||G.over==='wait') return;
+  pass(side);
+  render();
+  if(bothPassed()){ endChain(); return; }
+  if(side==='me'){ G.turn='foe'; setTimeout(aiMove,480); }
+  else { G.turn='me'; render(); }
+}
+
+function aiMove(){
+  if(G.over) return;
+  const usable=G.hand.foe.map((id,k)=>({id,k})).filter(x=>canPlay(x.id,'foe'));
+  if(!usable.length){ doPass('foe'); return; }
+  usable.sort((a,b)=>DB[b.id].s-DB[a.id].s);
+  const pick=usable[0];
+  G.hand.foe.splice(pick.k,1);
+  draw('foe');
+  play('foe',pick.id);
+  render();
+  if(bothPassed()){ endChain(); return; }
+  G.turn='me';
+  setTimeout(()=>{ render(); },80);
+}
+
+document.getElementById('pass').onclick=()=>{
+  if(busy||G.turn!=='me'||G.over) return;
+  doPass('me');
+};
+
+newGame();
+G.msg='链条从基质开始：先接一张「生产者」';
+render();
+</script>
+</body>
+</html>

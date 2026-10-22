@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>至日 · 一山谷</title>
+<style>
+:root{
+  --bg:#060a0e;--panel:#0b1218;--line:#1a232c;
+  --ink:#e4ecf3;--ink2:#9fb0bd;--ink3:#5d6b7a;
+  --gold:#c8a94b;--good:#6fae72;--bad:#c0645a;
+  --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:radial-gradient(1000px 560px at 50% -14%,#14232c,transparent 72%),var(--bg);
+  color:var(--ink);font:14px/1.5 "PingFang SC","Microsoft YaHei",system-ui,sans-serif;overflow:hidden}
+
+#wrap{height:100vh;display:grid;grid-template-columns:1fr 252px;
+  grid-template-rows:auto 1fr auto;gap:8px;padding:8px}
+
+#top{grid-area:1/1/2/3;display:flex;align-items:center;gap:22px;padding:8px 14px;
+  background:var(--panel);border:1px solid var(--line);border-radius:3px}
+.rsc{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--ink3)}
+.rsc b{font-size:17px;font-weight:400}
+.rsc .f{color:var(--good)} .rsc .w{color:#a8845a} .rsc .p{color:var(--ink)}
+#top .sep{width:1px;height:20px;background:#1e2833}
+#top .grow{flex:1}
+#top .when{font-family:var(--mono);font-size:11px;color:var(--ink3);text-align:right;line-height:1.6}
+#top .when b{color:var(--gold);font-size:14px}
+
+#board{grid-area:2/1/3/2;background:var(--panel);border:1px solid var(--line);
+  border-radius:3px;padding:9px;display:grid;grid-template-columns:repeat(4,1fr);
+  grid-template-rows:repeat(3,1fr);gap:6px;min-height:0}
+.cell{position:relative;border:1px solid #1f2933;border-radius:3px;overflow:hidden;
+  display:flex;flex-direction:column;transition:border-color .13s,transform .13s,box-shadow .13s}
+.cell .g{position:absolute;inset:0}
+.cell.水 .g{background:linear-gradient(180deg,#123342,#0a1f2b 74%,#07151d)}
+.cell.草 .g{background:linear-gradient(180deg,#22301f,#16211a 74%,#0e150f)}
+.cell.林 .g{background:linear-gradient(180deg,#172c1a,#0f1f12 74%,#08130a)}
+.cell.岩 .g{background:linear-gradient(180deg,#2c2a26,#1d1c18 74%,#121110)}
+.cell.田 .g{background:linear-gradient(180deg,#3a3221,#282216 74%,#181409)}
+.cell.屋 .g{background:linear-gradient(180deg,#2f2a24,#211d18 74%,#141210)}
+.cell.荒 .g{background:linear-gradient(180deg,#2a2621,#1c1915 74%,#100e0c)}
+.cell .g:after{content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(45deg,rgba(0,0,0,.18) 0 1px,transparent 1px 10px);opacity:.5}
+
+.cell .art{position:relative;z-index:2;flex:1;display:flex;align-items:center;justify-content:center}
+.cell .art svg{width:78%;height:78%;opacity:.92}
+.cell .lab{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;
+  padding:3px 6px;font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.5)}
+.cell .fert{display:flex;gap:2px}
+.cell .fert i{width:5px;height:5px;border-radius:1px;background:rgba(255,255,255,.13)}
+.cell .fert i.on{background:#8ec27f}
+.cell.pick{border-color:var(--gold);cursor:pointer;
+  box-shadow:0 0 0 1px var(--gold) inset,0 0 18px rgba(200,169,75,.26);transform:translateY(-2px)}
+.cell .idx{position:absolute;right:4px;top:3px;z-index:3;font-family:var(--mono);
+  font-size:8px;color:rgba(255,255,255,.2)}
+.cell .warn{position:absolute;left:4px;top:3px;z-index:3;font-family:var(--mono);
+  font-size:8px;color:#d08a5e}
+
+#hand{grid-area:3/1/4/2;display:flex;gap:8px;align-items:flex-end;height:150px;padding:0 2px}
+.card{width:104px;height:138px;flex:0 0 104px;border:1px solid #2a3542;border-radius:3px;
+  background:#0c131a;display:flex;flex-direction:column;overflow:hidden;cursor:pointer;
+  transition:transform .13s,box-shadow .13s,border-color .13s,opacity .13s}
+.card:hover{transform:translateY(-9px);border-color:#7b8b9d;box-shadow:0 14px 26px rgba(0,0,0,.6)}
+.card.sel{border-color:var(--gold);transform:translateY(-13px);
+  box-shadow:0 0 0 1px var(--gold) inset,0 16px 30px rgba(0,0,0,.6)}
+.card.dead{opacity:.3;filter:grayscale(.7);cursor:default}
+.card .ct{height:17px;flex:0 0 17px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 6px;background:linear-gradient(180deg,#141d26,#0d151c);border-bottom:1px solid #1c2530;
+  font-family:var(--mono);font-size:9px;color:var(--ink3)}
+.card .cb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;padding:6px;text-align:center}
+.card .cn{font-size:13px;letter-spacing:.05em}
+.card .cd{font-size:9px;line-height:1.5;color:#9fb0bd}
+.card .cf{height:15px;flex:0 0 15px;background:#070c11;font-family:var(--mono);font-size:8px;
+  color:var(--ink3);display:flex;align-items:center;justify-content:center}
+
+#side{grid-area:2/2/4/3;display:flex;flex-direction:column;gap:8px;min-height:0}
+#goal{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:10px 12px}
+#goal h4{font-size:11px;font-family:var(--mono);color:var(--gold);letter-spacing:.12em;
+  font-weight:400;margin-bottom:6px}
+#goal p{font-size:11.5px;color:var(--ink2);line-height:1.75}
+#goal p b{color:var(--ink);font-weight:400}
+#log{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:3px;
+  padding:8px 10px;overflow-y:auto;font-family:var(--mono);font-size:10px;line-height:1.75;min-height:0}
+#log div{color:var(--ink3)}
+#log .hd{color:var(--gold);margin-top:5px}
+#log .good{color:#7fbf88} #log .bad{color:#c96a5e}
+#end{grid-area:3/2/4/3;align-self:end;padding:11px;background:#16202a;
+  border:1px solid #26313d;border-radius:3px;color:var(--ink);font:13px/1 inherit;
+  letter-spacing:.16em;cursor:pointer}
+#end:hover:not(:disabled){border-color:var(--gold);color:#fff}
+#end:disabled{opacity:.32;cursor:default}
+
+#over{position:fixed;inset:0;background:rgba(3,6,9,.92);display:none;
+  align-items:center;justify-content:center;z-index:99}
+#over .box{width:430px;background:var(--panel);border:1px solid #26313d;
+  border-radius:4px;padding:26px 30px;text-align:center}
+#over h2{font-size:22px;letter-spacing:.18em;margin-bottom:10px}
+#over p{font-size:12.5px;color:var(--ink2);line-height:1.9;margin-bottom:14px}
+#over table{width:100%;font-family:var(--mono);font-size:11px;color:var(--ink2);margin-bottom:14px}
+#over td{padding:3px 0;text-align:left}#over td:last-child{text-align:right;color:var(--ink)}
+#over button{width:100%;padding:10px;background:#16202a;border:1px solid #26313d;
+  color:#fff;font:13px/1 inherit;letter-spacing:.1em;cursor:pointer;border-radius:3px}
+#over button:hover{border-color:var(--gold)}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div class="rsc"><span>人口</span><b class="p" id="v-pop">3</b><span id="v-cap">/ 4</span></div>
+    <div class="sep"></div>
+    <div class="rsc"><span>食物</span><b class="f" id="v-food">8</b></div>
+    <div class="rsc"><span>木材</span><b class="w" id="v-wood">3</b></div>
+    <div class="grow"></div>
+    <div class="when" id="when">春 · 第 <b>1</b> 月<div style="font-size:9px">12 个月为一年</div></div>
+  </div>
+
+  <div id="board"></div>
+  <div id="hand"></div>
+
+  <div id="side">
+    <div id="goal">
+      <h4>目标</h4>
+      <p>活过 12 个月，人口 ≥ <b>6</b>。<br>
+        田会耗地力（<b>4 次</b>就荒），<br>林少于 3 块，水就退。</p>
+    </div>
+    <div id="log"></div>
+  </div>
+  <button id="end">结算本月</button>
+</div>
+
+<div id="over"><div class="box">
+  <h2 id="ov-t"></h2><p id="ov-p"></p><table id="ov-tb"></table>
+  <button onclick="location.reload()">再开一局</button>
+</div></div>
+
+<script>
+/* ========== 规则 ==========
+ 12 格。5 种卡 = 5 个动作。
+ 田：春 5 / 夏 4 / 秋 5 / 冬 0 食物，每次种植地力 -1，地力 0 变荒。
+ 林：少于 3 块 → 每回合水退，田减产。
+ 每月：产出 - 人口消耗；食物 < 0 饿死。
+ 12 个月后：人口 ≥ 6 且 荒地 ≤ 2 为胜。
+============================ */
+
+const ART={
+  水:`<svg viewBox="0 0 40 40"><g stroke="#5a9fc0" fill="none" stroke-width="1.6" opacity=".55">
+    <path d="M4 15 q5 -3 10 0 t10 0 t10 0"/><path d="M4 23 q5 -3 10 0 t10 0 t10 0"/>
+    <path d="M4 31 q5 -3 10 0 t10 0 t10 0"/></g></svg>`,
+  草:`<svg viewBox="0 0 40 40"><g stroke="#6f9a5c" fill="none" stroke-width="1.5" opacity=".5">
+    <path d="M8 32 q2 -8 4 -11"/><path d="M15 33 q1 -7 3 -10"/><path d="M22 32 q2 -7 4 -10"/>
+    <path d="M29 33 q1 -6 3 -9"/></g></svg>`,
+  林:`<svg viewBox="0 0 40 40"><g fill="#3f7a4a" opacity=".85">
+    <path d="M13 30 L18 13 L23 30 Z"/><path d="M23 32 L28 17 L33 32 Z"/></g>
+    <g fill="#2d5a38"><rect x="17" y="29" width="2" height="5"/><rect x="26.5" y="31" width="2" height="4"/></g></svg>`,
+  岩:`<svg viewBox="0 0 40 40"><path d="M8 31 L14 17 L22 20 L27 12 L34 31 Z" fill="#5d5951" opacity=".8"/>
+    <path d="M14 17 L22 20 L20 31 L8 31 Z" fill="#6d6960" opacity=".5"/></svg>`,
+  田:`<svg viewBox="0 0 40 40"><g stroke="#b39a52" stroke-width="2" opacity=".55">
+    <path d="M5 14 h30"/><path d="M5 20 h30"/><path d="M5 26 h30"/><path d="M5 32 h30"/></g>
+    <g fill="#c8b268" opacity=".8"><circle cx="11" cy="14" r="1.4"/><circle cx="22" cy="20" r="1.4"/>
+    <circle cx="30" cy="26" r="1.4"/><circle cx="16" cy="26" r="1.4"/></g></svg>`,
+  屋:`<svg viewBox="0 0 40 40"><path d="M7 20 L20 10 L33 20 Z" fill="#8a5f3c" opacity=".9"/>
+    <rect x="11" y="20" width="18" height="13" fill="#5c4530"/>
+    <rect x="17" y="25" width="6" height="8" fill="#2b2118"/>
+    <path d="M33 20 L34 33" stroke="#3d2e21" stroke-width="1"/></svg>`,
+  荒:`<svg viewBox="0 0 40 40"><g stroke="#6a6058" stroke-width="1.6" opacity=".45">
+    <path d="M12 14 L26 28 M26 14 L12 28"/></g>
+    <g stroke="#5a5148" stroke-width="1" opacity=".3"><path d="M6 33 h28"/></g></svg>`
+};
+
+const CARD={
+  open:{n:'开垦',d:'草 → 田',wood:1,tgt:['草']},
+  cut: {n:'伐木',d:'林 → 草，+4 木',wood:0,tgt:['林']},
+  farm:{n:'施肥',d:'田的地力 +2',wood:1,tgt:['田']},
+  fall:{n:'休耕',d:'田 → 草，地力回满',wood:0,tgt:['田']},
+  build:{n:'盖屋',d:'草 → 屋，人口上限 +2',wood:4,tgt:['草']}
+};
+
+const SEASON=['春','春','春','夏','夏','夏','秋','秋','秋','冬','冬','冬'];
+const YIELD={春:3,夏:2,秋:3,冬:0};
+
+let G=null, sel=null, busy=false;
+
+function newGame(){
+  const cells=[
+    {t:'水'},{t:'水'},{t:'草'},{t:'草'},
+    {t:'草'},{t:'草'},{t:'林'},{t:'林'},
+    {t:'林'},{t:'林'},{t:'岩'},{t:'林'}
+  ];
+  G={cells,fert:cells.map(()=>0),
+     pop:3,cap:4,food:6,wood:3,month:0,acted:0,
+     hand:[],deck:[],over:false,log:[]};
+  G.cells.forEach((c,i)=>{ if(c.t==='田') G.fert[i]=4; });
+  buildDeck();
+  for(let k=0;k<4;k++) draw();
+  lg('山谷醒了：三户人，八份口粮，四块林。','hd');
+  lg('12 个月后见分晓。','');
+}
+
+function buildDeck(){
+  const d=[];
+  ['open','open','open','farm','farm','farm','cut','cut','fall','fall','build','build']
+    .forEach(k=>d.push(k));
+  G.deck=shuffle(d);
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function draw(){
+  if(!G.deck.length) buildDeck();
+  if(G.hand.length<6) G.hand.push(G.deck.pop());
+}
+
+function lg(t,cls=''){G.log.push([t,cls]);}
+
+function season(){ return SEASON[G.month]; }
+function trees(){ return G.cells.filter(c=>c.t==='林').length; }
+function fields(){ return G.cells.filter(c=>c.t==='田').length; }
+function houses(){ return G.cells.filter(c=>c.t==='屋').length; }
+function wasteland(){ return G.cells.filter(c=>c.t==='荒').length; }
+
+/* 田的实际产出：基础 - 水土流失惩罚 */
+function yieldOf(i){
+  const s=season();
+  if(s==='冬') return 0;
+  let y=YIELD[s];
+  if(trees()<3) y-=2;
+  if(G.fert[i]<=0) return 0;
+  return Math.max(0,y);
+}
+
+function canAct(k,i){
+  const c=CARD[G.hand[k]];
+  if(!c) return false;
+  if(G.wood<c.wood) return false;
+  return c.tgt.includes(G.cells[i].t);
+}
+
+function act(k,i){
+  const id=G.hand[k], c=CARD[id], cell=G.cells[i];
+  if(!canAct(k,i)) return false;
+  G.wood-=c.wood;
+  const nm={open:'田',cut:'草',farm:'田',fall:'草',build:'屋'}[id];
+  const before=cell.t;
+  cell.t=nm;
+  if(id==='open'){ G.fert[i]=4; lg(`开垦第 ${i+1} 格：草 → 田（地力 4）`,''); }
+  if(id==='cut'){ G.fert[i]=0; lg(`伐第 ${i+1} 格的林：+4 木材（林地只剩 ${trees()} 块）`,''); }
+  if(id==='farm'){ G.fert[i]=Math.min(4,G.fert[i]+2); lg(`第 ${i+1} 格施肥，地力回到 ${G.fert[i]}`,'good'); }
+  if(id==='fall'){ G.fert[i]=4; lg(`第 ${i+1} 格休耕，地力回满`,'good'); }
+  if(id==='build'){ G.cap+=2; lg(`第 ${i+1} 格盖屋：上限 ${G.cap}`,'good'); }
+  G.hand.splice(k,1);
+  return true;
+}
+
+function settle(){
+  const s=season();
+  let prod=0;
+  G.cells.forEach((c,i)=>{ if(c.t==='田') prod+=yieldOf(i); });
+  const eat=G.pop;
+  G.food+=prod;
+  G.food-=eat;
+  lg(`—— ${s} · 产 ${prod} 食 · 吃 ${eat} ——`,'hd');
+
+  /* 地力衰减 */
+  G.cells.forEach((c,i)=>{
+    if(c.t==='田' && s!=='冬'){
+      G.fert[i]-=1;
+      if(G.fert[i]<=0){ G.fert[i]=0; c.t='荒'; lg(`第 ${i+1} 格地力耗尽，变成荒地`,'bad'); }
+    }
+  });
+
+  /* 饥饿 */
+  if(G.food<0){
+    const died=Math.min(G.pop,Math.max(1,Math.floor(-G.food/2)));
+    G.pop-=died; G.food=0;
+    lg(`粮食不够，走了 ${died} 个人`, 'bad');
+  }
+  /* 增长：存粮够三个月才添人 */
+  if(G.food>=G.pop*3 && G.pop<G.cap){
+    G.pop++; lg(`添了一口人（${G.pop}/${G.cap}）`,'good');
+  }
+  /* 入冬提示 */
+  G.month++;
+  if(G.month>=12){ finish(); return; }
+  G.acted=0;
+  if(G.month===9) lg('入冬了：田不再出粮，靠存粮过三个月。','bad');
+}
+
+function finish(){
+  G.over=true;
+  const win=G.pop>=6 && wasteland()<=2;
+  document.getElementById('ov-t').textContent=win?'活 下 来 了':'没 撑 住';
+  document.getElementById('ov-p').textContent=win
+    ? '山谷养住了六口人，还有地能种。'
+    : (G.pop<6?'人没养住。':'地开得太狠，荒了 '+wasteland()+' 格。');
+  document.getElementById('ov-tb').innerHTML=[
+    ['人口',`${G.pop} / ${G.cap}`],['食物',G.food],['木材',G.wood],
+    ['田 / 林',`${fields()} / ${trees()}`],['荒地',wasteland()]
+  ].map(([a,b])=>`<tr><td>${a}</td><td>${b}</td></tr>`).join('');
+  document.getElementById('over').style.display='flex';
+}
+
+/* ---------- 渲染 ---------- */
+function render(){
+  document.getElementById('v-pop').textContent=G.pop;
+  document.getElementById('v-cap').textContent='/ '+G.cap;
+  document.getElementById('v-food').textContent=G.food;
+  document.getElementById('v-wood').textContent=G.wood;
+  document.getElementById('when').innerHTML=
+    `${season()} · 第 <b>${G.month+1}</b> 月<div style="font-size:9px">本月可动 ${2-G.acted} 次</div>`;
+
+  const okTargets=sel!=null?G.cells.map((_,i)=>i).filter(i=>canAct(sel,i)):[];
+  document.getElementById('board').innerHTML=G.cells.map((c,i)=>{
+    const f=Math.max(0,G.fert[i]);
+    const pick=okTargets.includes(i);
+    const dry=c.t==='田'&&f<=1;
+    return `<div class="cell ${c.t} ${pick?'pick':''}" onclick="onCell(${i})">
+      <div class="g"></div>
+      ${dry?'<span class="warn">地力将尽</span>':''}
+      <div class="art">${ART[c.t]||''}</div>
+      <div class="lab"><span>${c.t==='田'?`田 ${f}`:(c.t==='屋'?'屋':c.t)}</span>
+        <span class="fert">${c.t==='田'?Array.from({length:4},(_,k)=>
+          `<i class="${k<f?'on':''}"></i>`).join(''):''}</span></div>
+      <span class="idx">${i+1}</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('hand').innerHTML=G.hand.map((id,k)=>{
+    const c=CARD[id];
+    const usable=G.cells.some((_,i)=>canAct(k,i));
+    return `<div class="card ${sel===k?'sel':''} ${usable?'':'dead'}" onclick="onCard(${k})">
+      <div class="ct"><span>${c.wood?'木 '+c.wood:'—'}</span><span>${c.tgt.join('/')}</span></div>
+      <div class="cb"><div class="cn">${c.n}</div><div class="cd">${c.d}</div></div>
+      <div class="cf">${usable?'可用':'无目标'}</div>
+    </div>`;
+  }).join('');
+
+  const l=document.getElementById('log');
+  l.innerHTML=G.log.slice(-70).map(([t,c])=>`<div class="${c}">${t}</div>`).join('');
+  l.scrollTop=l.scrollHeight;
+  document.getElementById('end').disabled=busy||G.over;
+}
+
+function onCard(k){
+  if(busy||G.over) return;
+  if(G.acted>=2){ lg('本月已经动过两次了',''); render(); return; }
+  const usable=G.cells.some((_,i)=>canAct(k,i));
+  if(!usable) return;
+  sel=(sel===k)?null:k;
+  render();
+}
+function onCell(i){
+  if(busy||G.over||sel==null) return;
+  if(G.acted>=2) return;
+  if(!canAct(sel,i)) return;
+  act(sel,i);
+  G.acted++;
+  sel=null;
+  render();
+}
+
+document.getElementById('end').onclick=()=>{
+  if(busy||G.over) return;
+  if(G.acted===0){ lg('这个月什么都没做，也过去了。','bad'); }
+  busy=true; render();
+  setTimeout(()=>{
+    settle();
+    G.hand.length=0;
+    for(let k=0;k<4;k++) draw();
+    sel=null; busy=false;
+    if(!G.over) render();
+  },260);
+};
+
+newGame();
+render();
+</script>
+</body>
+</html>

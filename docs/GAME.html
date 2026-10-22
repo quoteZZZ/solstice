@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>至日 · 能量之网（废案 · 仅作对照）</title>
+<!-- 2026-10-22：本文件是"能量之网"方案的实现，已被 GAME.md 的"三行·挂卡·换季"取代。
+     保留原因：它的规则核心（无 HP、掠食、收割）验证过 100 局数值（49:50），可作对照。 -->
+
+<style>
+:root{
+  --bg:#070b10; --panel:#0c1319; --line:#1b242e; --line2:#26313d;
+  --ink:#e2eaf1; --ink2:#9fb0bd; --ink3:#5d6b7a;
+  --me:#c25a2a; --foe:#3f7fab; --gold:#c8a94b; --green:#5e9b6a;
+  --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:radial-gradient(1100px 620px at 50% -12%,#122029,transparent 72%),var(--bg);
+  color:var(--ink);font:14px/1.5 "PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  overflow:hidden;
+}
+#wrap{height:100vh;display:grid;gap:8px;padding:8px;
+  grid-template-columns:1fr 268px;grid-template-rows:auto 1fr auto}
+
+/* 顶栏 */
+#top{grid-area:1/1/2/3;display:flex;align-items:center;gap:18px;
+  padding:7px 13px;background:var(--panel);border:1px solid var(--line);border-radius:3px}
+#top .t{font-family:var(--mono);font-size:12px;color:var(--ink3);letter-spacing:.06em}
+#top .t b{color:var(--ink);font-size:16px}
+#top .sc{display:flex;align-items:baseline;gap:7px;font-family:var(--mono)}
+#top .sc .me{color:var(--me);font-size:19px}
+#top .sc .foe{color:var(--foe);font-size:19px}
+#top .sc em{font-style:normal;font-size:10px;color:var(--ink3)}
+#top .grow{flex:1}
+#top .note{font-family:var(--mono);font-size:10px;color:var(--ink3);line-height:1.5;text-align:right}
+
+/* 棋盘 */
+#board{grid-area:2/1/3/2;position:relative;background:var(--panel);
+  border:1px solid var(--line);border-radius:3px;padding:9px;
+  display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,1fr);gap:7px;min-height:0}
+#fx{position:absolute;inset:0;pointer-events:none;z-index:6}
+
+.cell{position:relative;border:1px solid var(--line2);border-radius:3px;overflow:hidden;
+  background:#0a1117;display:flex;flex-direction:column;transition:border-color .13s,transform .13s}
+.cell .bg{position:absolute;inset:0}
+.cell.t-水 .bg{background:linear-gradient(180deg,#123142,#0a1d28 72%,#06121a)}
+.cell.t-湿 .bg{background:linear-gradient(180deg,#193327,#0d231b 72%,#08150f)}
+.cell.t-林 .bg{background:linear-gradient(180deg,#15301b,#0c1f12 72%,#071309)}
+.cell.t-陆 .bg{background:linear-gradient(180deg,#2b2b1f,#1b1b13 72%,#11110e)}
+.cell.t-山 .bg{background:linear-gradient(180deg,#2f2b25,#1d1a15 72%,#131110)}
+.cell .bg:after{content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(44deg,rgba(0,0,0,.2) 0 1px,transparent 1px 9px);opacity:.5}
+.cell .h{position:relative;z-index:2;display:flex;align-items:center;gap:5px;padding:4px 6px}
+.cell .terr{font-size:11px;color:#dfe8f0;letter-spacing:.06em}
+.cell .cap{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.42)}
+.cell .slot{position:relative;z-index:2;flex:1;padding:0 6px 5px;display:flex;flex-direction:column;gap:4px;justify-content:flex-end}
+.cell .empty{font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.16);letter-spacing:.1em}
+.sp{display:flex;align-items:center;gap:5px;padding:3px 5px;border-radius:2px;
+  background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.1)}
+.sp .ico{width:7px;height:7px;border-radius:50%;flex:0 0 7px}
+.sp.L1 .ico{border-radius:50%}
+.sp.L2 .ico{border-radius:1px;transform:rotate(45deg)}
+.sp .nm{font-size:10px;color:#dbe6ef}
+.sp .st{margin-left:auto;font-family:var(--mono);font-size:10px;color:#9fd8a8}
+.sp.mine{border-color:rgba(194,90,42,.55)}
+.sp.foe{border-color:rgba(63,127,171,.55)}
+.sp .bar{position:absolute;left:0;bottom:0;height:2px;background:currentColor;opacity:.6}
+.cell.pick{border-color:var(--gold);cursor:pointer;
+  box-shadow:0 0 0 1px var(--gold) inset,0 0 16px rgba(200,169,75,.28)}
+.cell.hot{animation:hot .5s ease-out}
+@keyframes hot{0%{box-shadow:inset 0 0 0 2px rgba(255,225,150,.9)}100%{box-shadow:none}}
+.cell .idx{position:absolute;right:5px;top:4px;z-index:3;font-family:var(--mono);
+  font-size:8px;color:rgba(255,255,255,.22)}
+
+/* 侧栏 */
+#side{grid-area:2/2/3/3;display:flex;flex-direction:column;gap:8px;min-height:0}
+#stat{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:9px 11px}
+.row{display:flex;align-items:center;justify-content:space-between;padding:3px 0;
+  font-family:var(--mono);font-size:11px;color:var(--ink3)}
+.row b{color:var(--ink);font-weight:400}
+.row .me{color:var(--me)} .row .foe{color:var(--foe)}
+#log{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:3px;
+  padding:8px 10px;overflow-y:auto;font-family:var(--mono);font-size:10px;line-height:1.75;min-height:0}
+#log div{color:var(--ink3)}
+#log .hd{color:var(--gold);margin-top:6px;letter-spacing:.08em}
+#log .me{color:#d98a5e}
+#log .foe{color:#6ea8cc}
+#log .bad{color:#c96a5e}
+#log .good{color:#7fbf88}
+
+/* 手牌 */
+#hand{grid-area:3/1/4/3;display:flex;gap:7px;align-items:flex-end;padding:0 2px;height:172px}
+.card{width:118px;height:164px;flex:0 0 118px;border:1px solid #2b3542;border-radius:3px;
+  background:#0d141a;display:flex;flex-direction:column;overflow:hidden;position:relative;
+  cursor:pointer;transition:transform .13s,box-shadow .13s,border-color .13s}
+.card:hover{transform:translateY(-9px);border-color:#7b8b9d;box-shadow:0 14px 26px rgba(0,0,0,.6)}
+.card.sel{transform:translateY(-14px);border-color:var(--gold);
+  box-shadow:0 0 0 1px var(--gold) inset,0 16px 30px rgba(0,0,0,.65)}
+.card.no{opacity:.34;filter:grayscale(.65)}
+.card .ch{height:18px;flex:0 0 18px;display:flex;align-items:center;gap:4px;padding:0 6px;
+  background:linear-gradient(180deg,#141e28,#0d151d);border-bottom:1px solid #1c2530}
+.card .ch .e{width:8px;height:8px;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.6)}
+.card .ch .e.m{width:10px;height:10px}
+.card .ch .c{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--gold)}
+.card .cb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;padding:6px 8px;text-align:center}
+.card .cn{font-size:13px;letter-spacing:.05em}
+.card .cl{font-size:9px;line-height:1.55;color:#9fb0bd}
+.card .cf{height:16px;flex:0 0 16px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 6px;font-family:var(--mono);font-size:8px;color:#5d6b7a;background:#070c12;border-top:1px solid #151d26}
+
+/* 控制 */
+#ctl{position:fixed;right:284px;bottom:186px;z-index:20;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+#ctl button{padding:9px 15px;background:#16202a;border:1px solid var(--line2);border-radius:3px;
+  color:var(--ink);font:12px/1 inherit;letter-spacing:.12em;cursor:pointer;transition:.15s}
+#ctl button:hover:not(:disabled){background:#1d2b37;border-color:var(--gold);color:#fff}
+#ctl button:disabled{opacity:.3;cursor:default}
+#ctl .hint{font-family:var(--mono);font-size:9px;color:var(--ink3);text-align:right;line-height:1.6;max-width:170px}
+#ctl .hint b{color:var(--gold);font-weight:400}
+
+#over{position:fixed;inset:0;background:rgba(3,6,9,.92);display:none;
+  align-items:center;justify-content:center;z-index:99;backdrop-filter:blur(4px)}
+#over .box{width:470px;background:var(--panel);border:1px solid var(--line2);border-radius:4px;padding:26px 30px}
+#over h2{font-size:23px;letter-spacing:.18em;margin-bottom:8px;text-align:center}
+#over p{font-size:12.5px;color:var(--ink2);line-height:1.9;margin-bottom:14px;text-align:center}
+#over table{width:100%;font-family:var(--mono);font-size:11px;color:var(--ink2);margin-bottom:16px}
+#over td{padding:3px 0}#over td:last-child{text-align:right;color:var(--ink)}
+#over button{width:100%;padding:10px;background:#16202a;border:1px solid var(--line2);
+  color:#fff;font:13px/1 inherit;letter-spacing:.1em;cursor:pointer;border-radius:3px}
+#over button:hover{border-color:var(--gold)}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="top">
+    <div class="t">回合 <b id="tn">1</b> / 24</div>
+    <div class="sc"><em>夏</em><span class="me" id="s-me">0</span>
+      <em>·</em><span class="foe" id="s-foe">0</span><em>冬</em></div>
+    <div class="grow"></div>
+    <div class="note" id="note"></div>
+  </div>
+
+  <div id="board"><svg id="fx"></svg></div>
+
+  <div id="side">
+    <div id="stat">
+      <div class="row"><span>愿力</span><b id="st-mana">3 / 3</b></div>
+      <div class="row"><span>本回合出牌</span><b id="st-plays">3</b></div>
+      <div class="row"><span>收割</span><b id="st-harv">1</b></div>
+      <div class="row"><span>场上存量</span><b id="st-store">0 W</b></div>
+      <div class="row"><span>落袋</span><b id="st-bank">0 W</b></div>
+    </div>
+    <div id="log"></div>
+  </div>
+
+  <div id="hand"></div>
+
+  <div id="ctl">
+    <button id="harv">收割模式</button>
+    <button id="end">结束回合</button>
+    <div class="hint" id="hint"></div>
+  </div>
+</div>
+
+<div id="over"><div class="box">
+  <h2 id="ov-t"></h2><p id="ov-p"></p>
+  <table id="ov-tb"></table>
+  <button onclick="location.reload()">再来一局</button>
+</div></div>
+
+<script>
+/*CORE-START*/
+/* ================= 规则核心（不碰 DOM，可单独仿真） ================= */
+const EL={'金':'#c8a94b','木':'#5e8f47','水':'#3f8fab','火':'#b4432e',
+          '土':'#8a6a45','光':'#e0d6b8','暗':'#6a5a8a','风':'#7fa3a8'};
+const PROD={'水':2.0,'湿':1.5,'林':1.2,'陆':0.8,'山':0.4};
+
+/* 物种卡：层位 1=生产者（吃本格产能）/ 2=消费者（吃邻居） */
+const SP={
+  moss:  {name:'苔',    el:'木',tier:1,layer:1,cap:6, gain:1.0,metab:1.0,need:['湿','林','陆','水']},
+  reed:  {name:'芦苇',  el:'水',tier:1,layer:1,cap:8, gain:1.0,metab:1.0,need:['水','湿']},
+  rowan: {name:'花楸',  el:'木',tier:2,layer:1,cap:10,gain:0.9,metab:1.0,need:['林','陆']},
+  hemlock:{name:'铁杉', el:'木',tier:3,layer:1,cap:14,gain:0.8,metab:1.0,need:['林','山','陆']},
+  fish:  {name:'溪鱼',  el:'水',tier:1,layer:2,cap:8, bite:1.2,metab:1.0,need:['水','湿'],food:['moss','reed']},
+  owl:   {name:'夜枭',  el:'暗',tier:2,layer:2,cap:9, bite:1.6,metab:1.2,need:['林','湿','山'],food:['fish','bird']},
+  sheep: {name:'岩羊',  el:'土',tier:2,layer:2,cap:10,bite:1.4,metab:1.0,need:['山','陆'],food:['moss','reed','rowan']},
+  bird:  {name:'夜沼鸟',el:'水',tier:1,layer:2,cap:12,bite:1.5,metab:1.1,need:['水','湿','林'],food:['fish']},
+  keeper:{name:'守火人',el:'火',tier:7,layer:2,cap:16,bite:2.0,metab:1.5,need:['陆','林'],food:null}
+};
+/* 干涉卡 */
+const ACT={
+  fire:  {name:'焚烧',el:'火',tier:3,kind:'术',line:'烧死一格全部物种，存量归零'},
+  drown: {name:'引水',el:'水',tier:2,kind:'术',line:'一格地形→水（产能 2.0）'},
+  dry:   {name:'旱',  el:'火',tier:4,kind:'术',line:'一格地形→山（产能 0.4）'},
+  fert:  {name:'施肥',el:'土',tier:2,kind:'术',line:'一格所有物种 +3 存量'},
+  summer:{name:'长夏',el:'光',tier:5,kind:'律',line:'水/湿格产能 +0.5'},
+  winter:{name:'长冬',el:'暗',tier:5,kind:'律',line:'所有掠食 bite +0.4'}
+};
+const COST=t=>t===0?0:(t<=3?1:(t<=6?2:3));
+
+const DECK_ME =['moss','moss','reed','reed','rowan','fish','fish','owl',
+                'sheep','fire','drown','fert','bird','hemlock','dry','summer'];
+const DECK_FOE=['moss','reed','reed','rowan','rowan','fish','fish','owl',
+                'bird','keeper','fire','drown','fert','dry','hemlock','winter'];
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function newGame(seed){
+  const shapes=[
+    ['水','水','水','湿','湿','林','林','陆','陆','陆','山','湿'],
+    ['陆','陆','陆','陆','林','林','林','湿','湿','山','山','水'],
+    ['山','山','陆','陆','林','林','湿','水','水','陆','林','湿']
+  ];
+  const pick=shapes[Math.floor(Math.random()*3)];
+  const g={
+    cells:pick.map((t,i)=>({i,terr:t,sp:[]})),
+    turn:1, mana:{me:3,foe:3}, plays:{me:3,foe:3}, harvest:{me:1,foe:1},
+    bank:{me:0,foe:0},
+    hand:{me:[],foe:[]},
+    deck:{me:shuffle(DECK_ME.slice()),foe:shuffle(DECK_FOE.slice())},
+    law:{me:null,foe:null},
+    over:false
+  };
+  for(let k=0;k<5;k++){draw(g,'me');draw(g,'foe');}
+  return g;
+}
+function draw(g,s){ if(g.deck[s].length) g.hand[s].push(g.deck[s].shift()); }
+
+function capOf(g,i){
+  const t=g.cells[i].terr;
+  let c=PROD[t];
+  if(g.law.me==='summer'||g.law.foe==='summer'){ if(t==='水'||t==='湿') c+=0.5; }
+  return c;
+}
+function legal(g,id){
+  const c=SP[id]||ACT[id];
+  if(!c) return [];
+  if(ACT[id]) return g.cells.map((_,i)=>i);
+  const out=[];
+  g.cells.forEach((cell,i)=>{
+    if(!c.need.includes(cell.terr)) return;
+    if(cell.sp.length>=2) return;
+    out.push(i);
+  });
+  return out;
+}
+function costOf(g,s,id){
+  const c=SP[id]||ACT[id];
+  let k=COST(c.tier);
+  if((id==='summer'||id==='drown'||id==='fert') && g.turn>12 && g.turn<=18) k=Math.max(0,k-1);
+  return k;
+}
+function canPlay(g,s,id){
+  return g.plays[s]>0 && g.mana[s]>=costOf(g,s,id) && legal(g,id).length>0;
+}
+
+/* 出牌：物种 / 术 / 律 */
+function play(g,s,id,i){
+  if(!canPlay(g,s,id)) return false;
+  const c=SP[id]||ACT[id];
+  g.mana[s]-=costOf(g,s,id); g.plays[s]--;
+  if(SP[id]){
+    g.cells[i].sp.push({id,store:2,own:s});
+    return true;
+  }
+  if(id==='fire'){
+    g.cells[i].sp=[];
+    return true;
+  }
+  if(id==='drown'){ g.cells[i].terr='水'; return true; }
+  if(id==='dry'){ g.cells[i].terr='山'; return true; }
+  if(id==='fert'){ g.cells[i].sp.forEach(x=>{x.store=Math.min(SP[x.id].cap,x.store+3);}); return true; }
+  if(id==='summer'){ g.law[s]='summer'; return true; }
+  if(id==='winter'){ g.law[s]='winter'; return true; }
+  return false;
+}
+/* 收割：移除自己的一个物种，存量落袋 */
+function harvest(g,s,i,k){
+  if(g.harvest[s]<=0) return 0;
+  const arr=g.cells[i].sp; const x=arr[k];
+  if(!x||x.own!==s) return 0;
+  const v=Math.floor(x.store);
+  g.bank[s]+=v; g.harvest[s]--;
+  arr.splice(k,1);
+  return v;
+}
+function storeOf(g,s){
+  let t=0;
+  g.cells.forEach(c=>c.sp.forEach(x=>{if(x.own===s)t+=x.store;}));
+  return Math.round(t*10)/10;
+}
+function total(g,s){ return g.bank[s]+storeOf(g,s); }
+
+/* 世界结算：捕获 → 掠食 → 代谢 → 死亡。返回事件，供 UI 画箭头 */
+function resolve(g){
+  const ev={grab:[],dead:[],harvested:[]};
+  /* 1 捕获 */
+  g.cells.forEach((cell,i)=>{
+    cell.sp.forEach(x=>{
+      if(x.own===undefined) return;
+      const c=SP[x.id];
+      if(c.layer!==1) return;
+      const gain=capOf(g,i)*c.gain;
+      x.store=Math.min(c.cap,x.store+gain);
+    });
+  });
+  /* 2 掠食：每个消费者吃相邻格存量最高的合法猎物 */
+  g.cells.forEach((cell,i)=>{
+    cell.sp.forEach(x=>{
+      const c=SP[x.id];
+      if(c.layer!==2) return;
+      let bite=c.bite+(g.law.me==='winter'||g.law.foe==='winter'?0.4:0);
+      const nb=[i-1,i+1,i-4,i+4].filter(k=>{
+        if(k<0||k>11)return false;
+        if(Math.abs((i%4)-(k%4))>1)return false;
+        return true;
+      });
+      let best=null;
+      nb.forEach(k=>{
+        g.cells[k].sp.forEach(y=>{
+          if(c.food && !c.food.includes(y.id)) return;
+          if(!best||y.store>best.y.store) best={k,y};
+        });
+      });
+      if(best && best.y.store>0){
+        const take=Math.min(best.y.store,bite);
+        best.y.store-=take; x.store=Math.min(c.cap,x.store+take);
+        ev.grab.push([i,best.k,take]);
+      }
+    });
+  });
+  /* 3 代谢 + 4 死亡 */
+  g.cells.forEach((cell,i)=>{
+    cell.sp=cell.sp.filter(x=>{
+      x.store-=SP[x.id].metab;
+      if(x.store<=0){ ev.dead.push([i,x.id,x.own]); return false; }
+      return true;
+    });
+  });
+  return ev;
+}
+/*CORE-END*/
+
+/* ================= 界面 ================= */
+let G=newGame(), sel=null, harvestMode=false, busy=false;
+
+function lg(t,cls=''){G.log.push([t,cls]);}
+
+function boot(){
+  G.log=[];
+  lg('界已生成 · 十二格采自本界 · 开局全空，能量会从空格漏掉','hd');
+  lg('目标：让能量留在你的物种身上，或收割落袋','');
+  render();
+}
+
+function render(){
+  document.getElementById('tn').textContent=Math.min(G.turn,24);
+  document.getElementById('s-me').textContent=total(G,'me').toFixed(0);
+  document.getElementById('s-foe').textContent=total(G,'foe').toFixed(0);
+  document.getElementById('st-mana').textContent=`${G.mana.me} / 3`;
+  document.getElementById('st-plays').textContent=G.plays.me;
+  document.getElementById('st-harv').textContent=G.harvest.me;
+  document.getElementById('st-store').textContent=storeOf(G,'me').toFixed(1)+' W';
+  document.getElementById('st-bank').textContent=G.bank.me.toFixed(0)+' W';
+
+  const ok=sel?legal(G,sel):[];
+  const bd=document.getElementById('board');
+  const fx=document.getElementById('fx');
+  bd.innerHTML='<svg id="fx"></svg>'+G.cells.map((cell,i)=>{
+    const isPick=ok.includes(i);
+    return `<div class="cell t-${cell.terr} ${isPick?'pick':''}" data-i="${i}" onclick="onCell(${i})">
+      <div class="bg"></div>
+      <div class="h"><span class="terr">${cell.terr}</span>
+        <span class="cap">${capOf(G,i).toFixed(1)} W</span></div>
+      <div class="slot">
+        ${cell.sp.length?cell.sp.map((x,k)=>{
+          const c=SP[x.id];
+          const pct=Math.min(100,x.store/c.cap*100);
+          return `<div class="sp L${c.layer} ${x.own==='me'?'mine':'foe'}">
+            <span class="ico" style="background:${EL[c.el]}"></span>
+            <span class="nm">${c.name}</span>
+            <span class="st">${x.store.toFixed(1)}</span>
+            <span class="bar" style="width:${pct}%;color:${x.own==='me'?'#c25a2a':'#3f7fab'}"></span>
+          </div>`;
+        }).join(''):'<div class="empty">— 空 · 产能漏掉 —</div>'}
+      </div>
+      <span class="idx">${i+1}</span>
+    </div>`;
+  }).join('');
+
+  /* 手牌 */
+  document.getElementById('hand').innerHTML=G.hand.me.map((id,k)=>{
+    const c=SP[id]||ACT[id];
+    const cost=costOf(G,'me',id);
+    const usable=canPlay(G,'me',id);
+    const tier=c.tier;
+    return `<div class="card ${sel===id?'sel':''} ${usable?'':'no'}" onclick="onCard('${id}',${k})">
+      <div class="ch"><span class="e m" style="background:${EL[c.el]}"></span>
+        <span class="c">${cost}</span></div>
+      <div class="cb"><div class="cn">${c.name}</div>
+        <div class="cl">${SP[id]?(SP[id].layer===1?'生产者 · 吃本格':'消费者 · 吃邻居'):
+          ACT[id].line}</div></div>
+      <div class="cf"><span>${tier} 环</span><span>${SP[id]?(SP[id].layer===1?'生产':'消费'):'术'}</span></div>
+    </div>`;
+  }).join('');
+
+  const l=document.getElementById('log');
+  l.innerHTML=G.log.slice(-80).map(([t,c])=>`<div class="${c}">${t}</div>`).join('');
+  l.scrollTop=l.scrollHeight;
+
+  const h=document.getElementById('hint');
+  if(harvestMode) h.innerHTML='点你自己物种上的 <b>收割</b> 结算<br>存量全进落袋，物种消失';
+  else if(sel){
+    const c=SP[sel]||ACT[sel];
+    h.innerHTML=`已选 <b>${c.name}</b>（${costOf(G,'me',sel)} 愿力）<br>
+      ${SP[sel]?`可放：<b>${SP[sel].need.join('/')}</b>`:'点任意格'}`;
+  } else h.innerHTML='点手牌 → 点格子<br>空格会漏能量，先铺生产者';
+
+  document.getElementById('end').disabled=busy||G.over;
+  document.getElementById('harv').disabled=busy||G.over||G.harvest.me<=0;
+  document.getElementById('harv').textContent=harvestMode?'退出收割':'收割模式';
+
+  document.getElementById('note').innerHTML=
+    `水 2.0 · 湿 1.5 · 林 1.2 · 陆 0.8 · 山 0.4<br>空格漏能 · 掠食不分敌我`;
+}
+
+function onCard(id,k){
+  if(busy||G.over) return;
+  if(!canPlay(G,'me',id)) return;
+  harvestMode=false;
+  if(ACT[id] && (id==='summer'||id==='winter')){
+    G.hand.me.splice(k,1);
+    play(G,'me',id,0);
+    lg(`你立律「${ACT[id].name}」`,'me');
+    sel=null; render(); return;
+  }
+  sel=(sel===id)?null:id;
+  render();
+}
+function onCell(i){
+  if(busy||G.over) return;
+  if(harvestMode){
+    const arr=G.cells[i].sp;
+    for(let k=0;k<arr.length;k++){
+      if(arr[k].own==='me'){
+        const nm=SP[arr[k].id].name;
+        const v=harvest(G,'me',i,k);
+        lg(`收割第 ${i+1} 格的${nm} → 落袋 ${v} W`,'good');
+        harvestMode=false; render(); return;
+      }
+    }
+    return;
+  }
+  if(!sel) return;
+  const id=sel, k=G.hand.me.indexOf(id);
+  if(k<0) return;
+  if(!legal(G,id).includes(i)) return;
+  if(play(G,'me',id,i)){
+    G.hand.me.splice(k,1);
+    lg(`你出「${SP[id]?SP[id].name:ACT[id].name}」→ 第 ${i+1} 格`,'me');
+  }
+  sel=null; render();
+}
+
+/* AI：厚网 / 寄生 / 焦土 三种权重合一（看局面选） */
+function aiTurn(){
+  let guard=0;
+  while(guard++<6){
+    const opts=[];
+    G.hand.foe.forEach(id=>{
+      if(!canPlay(G,'foe',id)) return;
+      legal(G,id).forEach(i=>{
+        let sc=0;
+        if(SP[id]){
+          const c=SP[id];
+          if(c.layer===1){
+            sc=capOf(G,i)*1.1+1;
+            const mine=G.cells[i].sp.filter(x=>x.own==='foe').length;
+            sc-=mine*0.8;
+          }else{
+            /* 消费者：算邻居能吃到多少 */
+            const nb=[i-1,i+1,i-4,i+4].filter(k=>k>=0&&k<=11&&Math.abs((i%4)-(k%4))<=1);
+            let best=0, enemy=0;
+            nb.forEach(k=>G.cells[k].sp.forEach(y=>{
+              if(c.food && !c.food.includes(y.id)) return;
+              if(y.store>best) best=y.store;
+              if(y.own==='me') enemy=1;
+            }));
+            sc=best*0.9 + (enemy?1.2:0) - 0.6;
+          }
+        }else{
+          if(id==='fire'){
+            const v=G.cells[i].sp.reduce((a,x)=>a+(x.own==='me'?x.store*1.1:0),0);
+            sc=v-1;
+          }else if(id==='drown'){ sc=(G.cells[i].terr!=='水')?1.6:0; }
+          else if(id==='dry'){ sc=G.cells[i].sp.some(x=>x.own==='me')?1.8:0; }
+          else if(id==='fert'){ sc=G.cells[i].sp.some(x=>x.own==='foe')?2.2:0; }
+          else sc=2.0;
+        }
+        sc-=costOf(G,'foe',id)*0.4;
+        opts.push({id,i,sc});
+      });
+    });
+    /* 收割：存量高于上限 65% 的自家物种 */
+    let hv=null;
+    if(G.harvest.foe>0) G.cells.forEach((cell,i)=>cell.sp.forEach((x,k)=>{
+      if(x.own==='foe' && x.store>=SP[x.id].cap*0.65){
+        if(!hv||x.store>hv.v) hv={i,k,v:x.store,id:x.id};
+      }
+    }));
+    const best=opts.sort((a,b)=>b.sc-a.sc)[0];
+    if(hv && hv.v>4 && (!best||best.sc<3.2)){
+      harvest(G,'foe',hv.i,hv.k);
+      lg(`冬神收割第 ${hv.i+1} 格的${SP[hv.id].name} → 落袋 ${Math.floor(hv.v)} W`,'foe');
+      continue;
+    }
+    if(!best||best.sc<=0.4) break;
+    const k=G.hand.foe.indexOf(best.id);
+    if(k<0) break;
+    G.hand.foe.splice(k,1);
+    play(G,'foe',best.id,best.i);
+    lg(`冬神出「${SP[best.id]?SP[best.id].name:ACT[best.id].name}」→ 第 ${best.i+1} 格`,'foe');
+  }
+}
+
+function checkEnd(){
+  if(G.turn>=24){
+    const a=total(G,'me'), b=total(G,'foe');
+    win(a>b?'me':(b>a?'foe':'draw'), a, b);
+    return true;
+  }
+  if(G.turn>=16){
+    const a=total(G,'me'), b=total(G,'foe');
+    const alive=(s)=>G.cells.some(c=>c.sp.some(x=>x.own===s));
+    if(!alive('me') && a===0){ win('foe',a,b); return true; }
+    if(!alive('foe') && b===0){ win('me',a,b); return true; }
+  }
+  return false;
+}
+function win(w,a,b){
+  G.over=true;
+  document.getElementById('ov-t').textContent =
+    w==='draw'?'平 局':(w==='me'?'夏 神 胜':'冬 神 胜');
+  document.getElementById('ov-p').textContent =
+    w==='draw'?'两张网都断了。':(Math.abs(a-b)<=2?'一线之差。':'能量留在了'+ (w==='me'?'你这边':'对面') +'。');
+  document.getElementById('ov-tb').innerHTML=[
+    ['落袋 + 在场存量', `${a.toFixed(1)} : ${b.toFixed(1)}`],
+    ['落袋', `${G.bank.me} : ${G.bank.foe}`],
+    ['在场存量', `${storeOf(G,'me').toFixed(1)} : ${storeOf(G,'foe').toFixed(1)}`],
+    ['回合', G.turn]
+  ].map(([x,y])=>`<tr><td>${x}</td><td>${y}</td></tr>`).join('');
+  document.getElementById('over').style.display='flex';
+}
+
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+document.getElementById('harv').onclick=()=>{
+  if(busy||G.over) return;
+  harvestMode=!harvestMode; sel=null; render();
+};
+
+document.getElementById('end').onclick=async()=>{
+  if(busy||G.over) return;
+  busy=true; sel=null; harvestMode=false; render();
+  await sleep(220);
+  lg('— 冬神 —','hd'); aiTurn(); render();
+  await sleep(360);
+  lg('— 世界结算 —','hd');
+  const ev=resolve(G);
+  /* 画掠食箭头 */
+  const bd=document.getElementById('board');
+  const rect=bd.getBoundingClientRect();
+  const svg=document.getElementById('fx');
+  svg.setAttribute('viewBox',`0 0 ${rect.width} ${rect.height}`);
+  svg.innerHTML=ev.grab.slice(0,14).map(([a,b,t])=>{
+    const A=cellCenter(a), B=cellCenter(b);
+    return `<line x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}"
+      stroke="#8fd08a" stroke-width="${1+Math.min(2.5,t)}" opacity=".65"
+      stroke-dasharray="5 4"><animate attributeName="stroke-dashoffset"
+      from="18" to="0" dur=".55s" repeatCount="1"/></line>`;
+  }).join('');
+  ev.dead.forEach(([i,id,own])=>{ lg(`第 ${i+1} 格的${SP[id].name}饿死了`,'bad'); });
+  if(ev.grab.length) lg(`掠食 ${ev.grab.length} 次（不分敌我）`,'');
+  render();
+  await sleep(620);
+  svg.innerHTML='';
+  if(checkEnd()){ busy=false; return; }
+  G.turn++;
+  G.mana.me=3; G.mana.foe=3; G.plays.me=3; G.plays.foe=3;
+  G.harvest.me=1; G.harvest.foe=1;
+  draw(G,'me'); draw(G,'foe');
+  if(G.hand.me.length>5) G.hand.me.shift();
+  if(G.hand.foe.length>5) G.hand.foe.shift();
+  lg(`第 ${G.turn} 回合`,'hd');
+  busy=false; render();
+};
+
+function cellCenter(i){
+  const bd=document.getElementById('board');
+  const el=bd.querySelector(`[data-i="${i}"]`);
+  const r=el.getBoundingClientRect(), p=bd.getBoundingClientRect();
+  return {x:r.left-p.left+r.width/2, y:r.top-p.top+r.height/2};
+}
+
+boot();
+</script>
+</body>
+</html>
