@@ -1,0 +1,10 @@
+# 本地自测产物，不入库
+node_modules/
+package.json
+package-lock.json
+
+# 误建的截图目录
+demo/
+
+# 自测截图
+*.png

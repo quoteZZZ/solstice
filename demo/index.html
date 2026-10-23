@@ -1,92 +1,184 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <title>至日 · demo</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body {
-    height: 100%; overflow: hidden;
-    background: #0a0a0c; color: #d8d4cc;
-    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-    user-select: none;
-  }
-  #app { display: flex; flex-direction: column; height: 100%; }
+:root{
+  --bg:#070b0f; --panel:#0b1117; --line:#1b242e; --line2:#2b3742;
+  --ink:#dfe8ef; --ink2:#9fb0bd; --ink3:#5d6b7a; --ink4:#3f4d5a;
+  --gold:#d2ae66; --gold-hi:#f4dc9f; --gold-dim:#8a7244;
+  --water:#3f8fab; --dark:#6a5a8a; --wind:#7fa3a8;
+  --paper:#0b1218;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+  font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  user-select:none;-webkit-font-smoothing:antialiased}
+#app{display:flex;flex-direction:column;height:100%}
 
-  header {
-    display: flex; align-items: center; gap: 18px;
-    padding: 10px 16px; border-bottom: 1px solid #1e1e24;
-    background: #0e0e12; font-size: 13px; flex-shrink: 0;
-  }
-  .stat { display: flex; align-items: baseline; gap: 6px; }
-  .stat b { font-size: 17px; font-weight: 600; color: #e8e4da; font-variant-numeric: tabular-nums; }
-  .stat span { font-size: 11px; color: #6b6b78; }
-  .spacer { flex: 1; }
-  .btn {
-    padding: 5px 12px; border: 1px solid #2a2a34; border-radius: 4px;
-    background: #14141a; color: #b8b4ac; cursor: pointer; font-size: 12px;
-    transition: .12s;
-  }
-  .btn:hover { background: #1e1e26; border-color: #3a3a48; color: #e8e4da; }
-  .btn.on { background: #2a3a2a; border-color: #4a6a4a; color: #a8d8a8; }
-  .btn:disabled { opacity: .35; cursor: not-allowed; }
+/* ═══════════ 顶栏 ═══════════ */
+header{display:flex;align-items:center;gap:30px;padding:0 24px;height:56px;
+  border-bottom:1px solid #16202a;
+  background:linear-gradient(180deg,#0b131a,#070b0f);
+  box-shadow:0 1px 0 rgba(210,174,102,.08);
+  flex-shrink:0;z-index:30;position:relative}
+.brand{display:flex;align-items:baseline;gap:9px;flex-shrink:0}
+.brand b{font-size:12.5px;font-weight:500;letter-spacing:.36em;color:var(--gold);
+  text-shadow:0 0 14px rgba(210,174,102,.35)}
+.brand span{font-size:9.5px;color:var(--ink4);letter-spacing:.24em}
+.stats{display:flex;align-items:baseline;gap:24px}
+.ctrls{display:flex;gap:7px}
+.stat{display:flex;align-items:baseline;gap:6px}
+.stat b{font-size:15px;font-weight:400;color:#e8f0f6;
+  font-variant-numeric:tabular-nums;font-family:ui-monospace,Consolas,monospace;letter-spacing:.02em}
+.stat span{font-size:9.5px;color:var(--ink4);letter-spacing:.2em}
+.sp{flex:1}
+.tg{height:25px;padding:0 11px;border:1px solid var(--line2);background:#0e151c;
+  color:var(--ink2);font-size:10.5px;cursor:pointer;border-radius:2px;
+  letter-spacing:.06em;transition:.14s;font-family:inherit}
+.tg:hover{border-color:#4a5b6b;color:var(--ink)}
+.tg.on{border-color:var(--gold);color:var(--gold);background:#161208}
+.tg:disabled{opacity:.26;cursor:not-allowed}
+#essbar{width:58px;height:2px;background:#131c24;overflow:hidden}
+#essbar i{display:block;height:100%;background:linear-gradient(90deg,var(--water),#8fd2e8);width:0;transition:width .2s}
 
-  #essbar { width: 90px; height: 4px; background: #1a1a22; border-radius: 2px; overflow: hidden; }
-  #essbar i { display: block; height: 100%; background: #6a8aaa; width: 0; transition: width .2s; }
+main{flex:1;position:relative;overflow:hidden}
+canvas{display:block;width:100%;height:100%;cursor:crosshair}
 
-  main { flex: 1; position: relative; overflow: hidden; }
-  canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+#hint{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);
+  text-align:center;color:#2a3742;font-size:11.5px;line-height:2.6;pointer-events:none;
+  transition:opacity .6s;letter-spacing:.18em}
+#hint b{color:#566d7c;font-weight:400}
+#log{position:absolute;right:18px;top:16px;width:190px;font-size:10px;line-height:1.95;
+  color:#4a5e6e;pointer-events:none;text-align:right;letter-spacing:.05em}
+#log div{opacity:0;animation:fi .3s forwards}
+@keyframes fi{to{opacity:1}}
 
-  #hint {
-    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-    text-align: center; color: #4a4a58; font-size: 13px; line-height: 2;
-    pointer-events: none; transition: opacity .4s;
-  }
-  #hint b { color: #7a7a8a; }
+/* ═══════════ 手牌 ═══════════ */
+footer{border-top:1px solid var(--line);
+  background:linear-gradient(180deg,#060a0e,#0a1016);
+  padding:6px 22px 8px;flex-shrink:0;z-index:30;position:relative}
+#hand{display:flex;gap:12px;overflow-x:auto;overflow-y:visible;
+  padding:8px 4px 6px;min-height:398px;align-items:flex-end}
+#hand::-webkit-scrollbar{height:2px}
+#hand::-webkit-scrollbar-thumb{background:#24303c}
 
-  footer {
-    border-top: 1px solid #1e1e24; background: #0e0e12;
-    padding: 10px 16px; flex-shrink: 0; min-height: 92px;
-  }
-  #hand { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
-  #hand::-webkit-scrollbar { height: 4px; }
-  #hand::-webkit-scrollbar-thumb { background: #2a2a34; border-radius: 2px; }
+/* 卡面按 302×440 定义，手牌档整体缩到 260×380（字号同步缩，不改版式） */
+.slot{flex:0 0 260px;width:260px;height:380px;position:relative;cursor:pointer;
+  transition:transform .17s cubic-bezier(.2,.7,.3,1)}
+.slot > .card{position:absolute;left:0;bottom:0;pointer-events:none;
+  transform:scale(.86);transform-origin:0 100%}
+.slot:hover{transform:translateY(-24px)}
+.slot:hover > .card{box-shadow:0 26px 54px rgba(0,0,0,.9),0 0 0 1px rgba(210,174,102,.5)}
+.slot.sel > .card{box-shadow:0 0 0 1.5px rgba(224,163,62,.9),
+  0 18px 40px rgba(0,0,0,.85),0 0 34px rgba(224,163,62,.22)}
 
-  .card {
-    flex-shrink: 0; width: 76px; height: 64px; border-radius: 5px;
-    border: 1px solid #2a2a34; background: #16161c;
-    display: flex; flex-direction: column; justify-content: space-between;
-    padding: 6px; cursor: pointer; transition: .12s; position: relative;
-  }
-  .card:hover { border-color: #4a4a5a; background: #1e1e26; transform: translateY(-2px); }
-  .card.sel { border-color: #8a7a4a; background: #24201a; box-shadow: 0 0 0 1px #8a7a4a; }
-  .card .nm { font-size: 13px; color: #ddd8cc; }
-  .card .meta { font-size: 10px; color: #6a6a78; display: flex; justify-content: space-between; }
-  .card .ring { position: absolute; top: 5px; right: 6px; font-size: 9px; color: #5a5a68; }
+/* ═══════════ 卡面 · A 版式（520×760 → 302×440）═══════════ */
+.card{width:302px;height:440px;position:relative;overflow:hidden;
+  border:1px solid rgba(198,164,104,.55);border-radius:6px;
+  background:#0c1218;
+  box-shadow:0 14px 30px rgba(0,0,0,.7),0 3px 8px rgba(0,0,0,.5);
+  display:flex;flex-direction:column}
+/* 内描边：全卡唯一一道，距边 4px */
+.card:after{content:"";position:absolute;inset:4px;border-radius:4px;
+  border:1px solid rgba(255,255,255,.06);pointer-events:none;z-index:8}
 
-  #log {
-    position: absolute; right: 12px; top: 12px; width: 240px;
-    font-size: 11px; line-height: 1.7; color: #7a7a88;
-    pointer-events: none; text-align: right;
-  }
-  #log div { opacity: 0; animation: fadein .3s forwards; }
-  @keyframes fadein { to { opacity: 1; } }
+/* ── 类别：8px 通栏色条 + 骑缝徽（类别唯一信号，不写字）── */
+.card:before{content:"";position:absolute;left:0;right:0;top:0;height:8px;z-index:9;
+  background:linear-gradient(90deg,rgba(var(--cls,107,116,128),1) 0%,
+    rgba(var(--cls,107,116,128),.62) 50%,rgba(var(--cls,107,116,128),1) 100%);
+  border-bottom:1px solid rgba(0,0,0,.55)}
+.card .clseal{position:absolute;left:10px;top:-1px;width:26px;height:26px;border-radius:50%;
+  z-index:10;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 34% 26%,rgba(255,255,255,.34),
+    rgba(var(--cls,107,116,128),.95) 56%,#0b1218 100%);
+  box-shadow:0 0 0 1px #05080b,0 0 0 2px rgba(255,255,255,.13)}
+.card .clseal svg{width:14px;height:14px;color:#fff}
+
+/* ── 元素：只给 RGB 与亮度系数 ── */
+.elmetal{--el:214,182,92;--elK:.92}
+.elwood {--el:94,143,71;--elK:1.08}
+.elwater{--el:63,143,171;--elK:1}
+.elfire {--el:180,67,46;--elK:.96}
+.elearth{--el:122,94,68;--elK:.96}
+.ellight{--el:224,214,184;--elK:.4}
+.eldark {--el:96,82,132;--elK:1.12}
+.matter{--cls:107,116,128}
+.rite  {--cls:122,90,168}
+.law   {--cls:200,169,75}
+
+/* ── 名带 50px：卡名居中，元素圆在右端（圆内放符号，不放汉字）── */
+.card .band{position:relative;z-index:5;flex:0 0 50px;height:50px;margin-top:8px;
+  display:flex;align-items:center;justify-content:center;
+  background-image:linear-gradient(180deg,rgba(var(--el),.13),rgba(9,13,18,.94) 72%);
+  border-bottom:1px solid rgba(var(--el),.28)}
+.card .band h3{font-size:19px;font-weight:600;letter-spacing:.08em;color:#eef5fa;
+  line-height:1;max-width:186px;text-align:center;
+  text-shadow:0 1px 0 #000,0 0 14px rgba(var(--el),.4)}
+.card .elem{position:absolute;right:11px;top:50%;transform:translateY(-50%);
+  width:26px;height:26px;border-radius:50%;z-index:7;
+  display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 34% 26%,rgba(255,255,255,.3),
+    rgba(var(--el),.95) 56%,#0b1218 100%);
+  box-shadow:0 0 0 1px #05080b,0 0 0 2px rgba(255,255,255,.14)}
+.card .elem svg{width:16px;height:16px;color:#fff;
+  filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.75))}
+.card .elem.sub{width:17px;height:17px;right:40px;
+  box-shadow:0 0 0 1px #05080b,0 0 0 1.5px rgba(255,255,255,.1)}
+.card .elem.sub svg{width:10px;height:10px}
+
+/* ── 环条 16px：12 格可数刻度（稀有度唯一信号，不写数字）── */
+.card .ringbar{flex:0 0 16px;height:16px;z-index:5;
+  display:flex;align-items:center;justify-content:center;gap:3px;
+  background:#0a0f14;border-bottom:1px solid rgba(255,255,255,.05)}
+.card .ringbar i{width:18px;height:5px;border-radius:1px;display:block;
+  background:rgba(255,255,255,.06)}
+.card .ringbar i.on{background:var(--ringc,#d6ad5c);
+  box-shadow:0 0 6px var(--ringc,#d6ad5c)}
+
+/* ── 画芯 ── */
+.card .win{position:relative;z-index:4;flex:1;margin:0 10px;min-height:0;
+  border:1px solid rgba(var(--el),.34);border-radius:3px;overflow:hidden;
+  box-shadow:inset 0 0 30px rgba(0,0,0,.6)}
+.card .win .pic,.card .win .pic svg{display:block;width:100%;height:100%}
+.card .win:before{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;
+  background:radial-gradient(125% 80% at 50% 0%,rgba(var(--el),.18),transparent 60%);
+  mix-blend-mode:screen}
+
+/* ── 正文框 106px ── */
+.card .box{position:relative;z-index:5;flex:0 0 106px;height:106px;
+  margin:8px 10px 0;padding:0 14px;
+  border:1px solid rgba(var(--el),.16);border-radius:3px;
+  background:rgba(10,14,19,.72);
+  display:flex;flex-direction:column;justify-content:center;gap:5px;overflow:hidden}
+.card .box .rule1{font-size:12px;line-height:1.65;color:#d5e0e8}
+.card .box .rule1 b{color:#fff;font-weight:600}
+.card .box .rule1 u{text-decoration:none;color:var(--wind);
+  border-bottom:1px solid rgba(127,163,168,.4)}
+.card .box .note1{font-size:10px;line-height:1.5;color:#8b9aa8}
+.card .box .note1 em{font-style:normal;color:rgba(var(--el),.95)}
 </style>
 </head>
 <body>
 <div id="app">
   <header>
-    <div class="stat"><b id="sYear">0</b><span>年</span></div>
-    <div class="stat"><b id="sCells">0</b><span>格</span></div>
-    <div class="stat"><b id="sEss">0</b><span>时素</span></div>
-    <div id="essbar"><i></i></div>
-    <div class="spacer"></div>
-    <button class="btn" id="bPause">暂停</button>
-    <button class="btn" id="b1">1×</button>
-    <button class="btn" id="b2">2×</button>
-    <button class="btn" id="b4">4×</button>
-    <button class="btn" id="bPack">抽卡包 12</button>
-    <button class="btn" id="bRecycle">回收 +1</button>
+    <div class="brand"><b>SOLSTICE</b><span>至日</span></div>
+    <div class="stats">
+      <div class="stat"><b id="sYear">0</b><span>年</span></div>
+      <div class="stat"><b id="sCells">0</b><span>格</span></div>
+      <div class="stat"><b id="sEss">0</b><span>时素</span></div>
+      <div id="essbar"><i></i></div>
+    </div>
+    <div class="sp"></div>
+    <div class="ctrls">
+      <button class="tg" id="bPause">暂停</button>
+      <button class="tg on" id="b1">1×</button>
+      <button class="tg" id="b2">2×</button>
+      <button class="tg" id="b4">4×</button>
+      <button class="tg" id="bPack">抽包 12</button>
+      <button class="tg" id="bRecycle">回收 +1</button>
+    </div>
   </header>
 
   <main>
@@ -95,563 +187,1096 @@
     <div id="log"></div>
   </main>
 
-  <footer>
-    <div id="hand"></div>
-  </footer>
+  <footer><div id="hand"></div></footer>
 </div>
 
-<script>
-// ═══════════════════════════════════════════
-//  卡定义
-// ═══════════════════════════════════════════
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+// ═══════════════════════════════════════════════════════════
+//  卡
+// ═══════════════════════════════════════════════════════════
+const EL = {
+  金:{c:'#c8a94b',rgb:'200,169,75',glyph:'金'},
+  木:{c:'#5e8f47',rgb:'94,143,71',glyph:'木'},
+  水:{c:'#3f8fab',rgb:'63,143,171',glyph:'水'},
+  火:{c:'#b4432e',rgb:'180,67,46',glyph:'火'},
+  土:{c:'#8a6a45',rgb:'138,106,69',glyph:'土'},
+  光:{c:'#e0d6b8',rgb:'224,214,184',glyph:'光'},
+  暗:{c:'#6a5a8a',rgb:'106,90,138',glyph:'暗'},
+};
+const ELCLS = {金:'elmetal',木:'elwood',水:'elwater',火:'elfire',土:'elearth',光:'ellight',暗:'eldark'};
+const CLSN  = {matter:'物', rite:'术', law:'律'};
+const CLSICON = {
+  matter:'<rect x="5" y="5" width="14" height="14" fill="currentColor"/>',
+  rite:'<path d="M4 19A8 8 0 0 1 20 19" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 19A4 4 0 0 1 16 19" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+  law:'<path d="M12 3l8 4.6v8.8L12 21l-8-4.6V7.6z" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+};
+
+// 元素符号：用形状区分，圆内不写汉字
+const ELSYM = {
+  金:'<path d="M12 3l7 9-7 9-7-9z" fill="currentColor"/>',
+  木:'<g stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"><path d="M12 21V8"/><path d="M12 14L6 9"/><path d="M12 16l6-6"/></g>',
+  水:'<g stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"><path d="M4 9c3-3 5 3 8 0s5 3 8 0"/><path d="M4 14c3-3 5 3 8 0s5 3 8 0"/><path d="M4 19c3-3 5 3 8 0s5 3 8 0"/></g>',
+  火:'<path d="M12 3c3.4 5 6 7.2 6 11.2A6 6 0 0 1 6 14.2C6 10.2 8.6 8 12 3z" fill="currentColor"/>',
+  土:'<path d="M12 6l7.5 13H4.5z" fill="currentColor"/><path d="M4 21h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  光:'<circle cx="12" cy="12" r="4" fill="currentColor"/><g stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.2 5.2l1.8 1.8M17 17l1.8 1.8M18.8 5.2L17 7M7 17l-1.8 1.8"/></g>',
+  暗:'<path d="M15.5 3a9 9 0 1 0 0 18 7 7 0 0 1 0-18z" fill="currentColor"/>',
+};
+
+// 环级材质：素陶 → 银 → 金 → 亮金 → 超环紫 → 禁物红
+const RINGC = ['#b8b0a0','#b8b0a0','#9caab8','#9caab8','#9caab8',
+               '#d6ad5c','#d6ad5c','#d6ad5c','#d6ad5c','#e0a33e','#9a7ae0','#c0392b'];
+
 const CARDS = {
-  土地:   { ring:0, kind:'物', comps:['Container'],           color:'#5a4a38', shape:'tile', desc:'生成 3×3 陆地' },
-  太阳:   { ring:0, kind:'物', comps:['EmitLight','Heating'], color:'#c8a848', shape:'orb',  desc:'光照 + 升温' },
-  水:     { ring:0, kind:'物', comps:['WaterSource'],         color:'#3a6a8a', shape:'tile', desc:'产出水' },
-  岩石:   { ring:0, kind:'物', comps:['Container','Barrier'], color:'#5a5a62', shape:'tile', desc:'不可种，挡路' },
+  土地:{ el:['土'], ring:0, cls:'matter', intro:'一片可承载的陆地。',
+    rule:'在<b>虚空</b>处展开 <b>9 格</b>陆地，可作为一切事物的落点。',
+    note:'※ 世界的大小由此卡决定，没有上限。',
+    art:`<path d="M0,330 L112,252 L214,308 L332,228 L452,308 L564,248 L640,304 L640,601 L0,601 Z" fill="#46525e"/>
+          <path d="M0,388 L142,318 L270,372 L402,304 L542,368 L640,322 L640,601 L0,601 Z" fill="#333e48"/>
+          <path d="M0,446 L150,392 L286,440 L420,384 L556,436 L640,398 L640,601 L0,601 Z" fill="#252d35"/>` },
 
-  草:     { ring:1, kind:'物', comps:['Grower','Living','Edible','Propagator'], color:'#5a8a4a', shape:'plant', desc:'需水与光，会蔓延' },
-  苔:     { ring:0, kind:'物', comps:['Grower','Living','Edible','Propagator'], color:'#6a9a5a', shape:'plant', desc:'长得快，寿命短' },
-  灌木:   { ring:1, kind:'物', comps:['Grower','Living','Edible','Shade'],      color:'#4a7a3a', shape:'plant', desc:'可食，略遮荫' },
-  树:     { ring:2, kind:'物', comps:['Grower','Living','Shade','WaterKeep'],   color:'#3a6a32', shape:'tree',  desc:'遮荫，保水，不可食' },
-  芦苇:   { ring:1, kind:'物', comps:['Grower','Living','Edible','WaterKeep'],  color:'#6a8a4a', shape:'plant', desc:'临水，保水' },
+  太阳:{ el:['光'], ring:0, cls:'matter', intro:'世界的第一道光。',
+    rule:'升起<b>光源</b>：全图光照 <b>+1</b>，温度 <b>+0.5</b>。',
+    note:'※ 没有太阳，植物无法生长，世界一片漆黑。',
+    art:`<circle cx="320" cy="250" r="150" fill="#e0a33e" opacity=".12"/>
+          <circle cx="320" cy="250" r="78" fill="#f0d79a"/>
+          <circle cx="320" cy="250" r="54" fill="#fff8e4"/>
+          <g stroke="#e0a33e" stroke-width="3" opacity=".5" stroke-linecap="round">
+            <path d="M320 96v44M320 360v44M166 250h44M430 250h44"/>
+            <path d="M211 141l31 31M398 328l31 31M429 141l-31 31M242 328l-31 31"/></g>` },
 
-  兔:     { ring:1, kind:'物', comps:['Living','Predator','Mobile'], color:'#a89878', shape:'animal', desc:'吃草，会跑' },
-  猴:     { ring:1, kind:'物', comps:['Living','Predator','Mobile'], color:'#a87848', shape:'animal', desc:'吃草' },
-  鹿:     { ring:2, kind:'物', comps:['Living','Predator','Mobile'], color:'#9a7a52', shape:'animal', desc:'吃草，体型中' },
-  狼:     { ring:2, kind:'物', comps:['Living','Predator','Mobile'], color:'#7a7a82', shape:'animal', desc:'吃肉' },
-  鹰:     { ring:2, kind:'物', comps:['Living','Predator','Mobile'], color:'#b0a070', shape:'animal', desc:'吃肉，速度快' },
+  水:{ el:['水'], ring:0, cls:'matter', intro:'水从地里涌出。',
+    rule:'产出<b>水源</b>：该格水量 <b>+1.0/月</b>，上限 <b>3.0</b>。',
+    note:'※ 无水的格子，植物旱死、动物离开。',
+    art:`<rect x="0" y="150" width="640" height="451" fill="url(#wtr)"/>
+          <g stroke="#a8d8ea" stroke-width="2.6" opacity=".55" fill="none">
+            <path d="M0,206 C120,196 240,214 360,204 C470,194 570,212 640,202"/>
+            <path d="M0,268 C120,258 240,276 360,266 C470,256 570,274 640,264"/>
+            <path d="M0,334 C120,324 240,342 360,332 C470,322 570,340 640,330"/>
+            <path d="M0,404 C120,394 240,412 360,402 C470,392 570,410 640,400"/>
+            <path d="M0,480 C120,470 240,488 360,478 C470,468 570,486 640,476"/>
+          </g>
+          <ellipse cx="320" cy="162" rx="190" ry="24" fill="#b8e0f0" opacity=".35"/>
+          <ellipse cx="300" cy="152" rx="110" ry="13" fill="#e2f4fa" opacity=".22"/>` },
 
-  太阳树: { ring:5, kind:'物', comps:['Grower','Living','Shade','WaterKeep','EmitLight'], color:'#d8b858', shape:'tree', desc:'强遮荫，保水，发光' },
+  岩石:{ el:['土','金'], ring:0, cls:'matter', intro:'岩体从地面隆起。',
+    rule:'堆起<b>岩体</b>：不可种植，<u>阻挡移动</u>。',
+    note:'※ 可作为屏障，也可作为石料来源。',
+    art:`<path d="M96,601 L196,372 L296,330 L396,428 L484,601 Z" fill="#3a4450"/>
+          <path d="M196,372 L296,330 L332,468 Z" fill="#4e5a68"/>
+          <path d="M396,428 L484,601 L332,468 Z" fill="#2b343d"/>` },
+
+  草:{ el:['木'], ring:1, cls:'matter', intro:'最普通的可食植物。',
+    rule:'需 <b>W≥1 且 L≥1</b> 才生长；成熟后<u>向邻格蔓延</u>。',
+    note:'※ 寿命 20 月，是食草动物唯一的基础食源。',
+    art:`<g stroke="#5e8f47" stroke-width="6" fill="none" stroke-linecap="round">
+            <path d="M190,601 C200,492 178,432 206,368"/>
+            <path d="M282,601 C290,502 306,442 280,392"/>
+            <path d="M372,601 C362,512 384,452 358,398"/>
+            <path d="M456,601 C464,497 446,437 472,384"/></g>
+          <g stroke="#7dae62" stroke-width="4.5" fill="none" stroke-linecap="round">
+            <path d="M236,601 C228,524 248,474 224,430"/>
+            <path d="M326,601 C334,512 316,462 340,420"/>
+            <path d="M412,601 C404,524 424,478 400,436"/></g>` },
+
+  苔:{ el:['木'], ring:0, cls:'matter', intro:'贴着地面铺开的绿。',
+    rule:'极速生长（<b>×1.5</b>），但寿命只有 <b>12 月</b>。',
+    note:'※ 先锋物种：能长在别的东西长不出的地方。',
+    art:`<g fill="#5d9a55">
+            <ellipse cx="196" cy="540" rx="58" ry="34"/>
+            <ellipse cx="322" cy="566" rx="72" ry="38"/>
+            <ellipse cx="446" cy="534" rx="52" ry="30"/>
+            <ellipse cx="264" cy="498" rx="40" ry="24"/>
+            <ellipse cx="382" cy="492" rx="34" ry="20"/></g>` },
+
+  灌木:{ el:['木'], ring:1, cls:'matter', intro:'低矮而多枝的丛。',
+    rule:'可食植物，同时提供 <b>遮荫 0.6</b>，压低本格与邻格光照。',
+    note:'※ 寿命 60 月；遮荫会压死脚下更高需求的作物。',
+    art:`<path d="M320,601 L320,470" stroke="#3a2a1a" stroke-width="10"/>
+          <circle cx="320" cy="402" r="118" fill="#3f7a36"/>
+          <circle cx="242" cy="446" r="74" fill="#356a2e"/>
+          <circle cx="400" cy="440" r="70" fill="#4d8a42"/>` },
+
+  树:{ el:['木'], ring:2, cls:'matter', intro:'成材需要很久。',
+    rule:'遮荫 <b>0.6</b>，保水 <b>×0.55</b>，寿命 <b>400 月</b>。',
+    note:'※ 树冠遮的是树下的草，不是树自己。',
+    art:`<path d="M310,601 L316,398 L326,398 L332,601 Z" fill="#241c12"/>
+          <path d="M320,110 L462,332 L320,286 L178,332 Z" fill="#1f4420"/>
+          <path d="M320,110 L462,332 L320,286 Z" fill="#2d5c2a"/>
+          <path d="M320,208 L436,398 L320,360 L204,398 Z" fill="#265026"/>` },
+
+  芦苇:{ el:['水','木'], ring:1, cls:'matter', intro:'水边成片的细杆。',
+    rule:'需水，同时<b>保水 ×0.55</b>；可食。',
+    note:'※ 临水的格子才长得住。',
+    art:`<g stroke="#5d8a52" stroke-width="7" fill="none" stroke-linecap="round">
+            <path d="M174,601 C186,486 166,424 192,362"/>
+            <path d="M300,601 C310,470 292,398 318,338"/>
+            <path d="M424,601 C412,490 434,418 408,356"/></g>
+          <ellipse cx="318" cy="318" rx="18" ry="32" fill="#7a9a5e"/>
+          <ellipse cx="192" cy="340" rx="14" ry="26" fill="#6a8a52"/>` },
+
+  兔:{ el:['土'], ring:1, cls:'matter', intro:'跑得最快的食草者。',
+    rule:'食草，体型<b>小</b>，速度 <b>2</b>；遇险会逃。',
+    note:'※ 比它快的捕食者才吃得到。',
+    art:`<ellipse cx="322" cy="472" rx="102" ry="70" fill="#a89878"/>
+          <circle cx="248" cy="388" r="46" fill="#a89878"/>
+          <ellipse cx="230" cy="308" rx="14" ry="50" fill="#a89878" transform="rotate(-12 230 308)"/>
+          <ellipse cx="272" cy="300" rx="14" ry="52" fill="#b8a888" transform="rotate(8 272 300)"/>
+          <circle cx="234" cy="382" r="6" fill="#0a1016"/>` },
+
+  猴:{ el:['木','暗'], ring:1, cls:'matter', intro:'成群，会攀爬。',
+    rule:'食草，体型<b>小</b>，速度 <b>2</b>；缺食时掉血。',
+    note:'※ 给予「语言」后，行为会彻底改变。',
+    art:`<circle cx="320" cy="398" r="96" fill="#8a6038"/>
+          <circle cx="226" cy="380" r="36" fill="#6e4a28"/>
+          <circle cx="414" cy="380" r="36" fill="#6e4a28"/>
+          <ellipse cx="320" cy="424" rx="58" ry="46" fill="#9a7048"/>
+          <circle cx="292" cy="382" r="12" fill="#0a1016"/>
+          <circle cx="348" cy="382" r="12" fill="#0a1016"/>
+          <path d="M300,438 Q320,458 340,438" stroke="#0a1016" stroke-width="6" fill="none"/>` },
+
+  鹿:{ el:['土','木'], ring:2, cls:'matter', intro:'中型，成群。',
+    rule:'食草，体型<b>中</b>，速度 <b>2</b>；比兔更难被追上。',
+    note:'※ 狼群可围猎同等体型，独行的狼不行。',
+    art:`<ellipse cx="332" cy="462" rx="116" ry="66" fill="#9a7a52"/>
+          <circle cx="218" cy="390" r="42" fill="#9a7a52"/>
+          <path d="M206,356 L180,284 M194,352 L158,296 M248,348 L272,280 M256,354 L290,296"
+            stroke="#c8b088" stroke-width="9" fill="none" stroke-linecap="round"/>
+          <circle cx="206" cy="384" r="6" fill="#0a1016"/>` },
+
+  狼:{ el:['暗'], ring:2, cls:'matter', intro:'围猎者。',
+    rule:'食肉，体型<b>中</b>，速度 <b>3</b>，<u>群居可围猎同等体型</u>。',
+    note:'※ 食物耗尽后，狼群会迅速崩溃。',
+    art:`<path d="M132,472 L182,338 L300,296 L434,338 L488,472 Z" fill="#5f6670"/>
+          <path d="M182,338 L212,268 L258,320 Z" fill="#5f6670"/>
+          <path d="M434,338 L404,268 L358,320 Z" fill="#5f6670"/>
+          <circle cx="286" cy="382" r="13" fill="#d8e2ea"/>
+          <circle cx="354" cy="382" r="13" fill="#d8e2ea"/>
+          <path d="M298,432 L320,452 L342,432" stroke="#d8e2ea" stroke-width="5" fill="none"/>` },
+
+  鹰:{ el:['光'], ring:2, cls:'matter', intro:'从高处落下。',
+    rule:'食肉，体型<b>中</b>，速度 <b>3</b>；飞行，可越过屏障。',
+    note:'※ 视野大，能在更远处发现猎物。',
+    art:`<path d="M320,338 L478,404 L396,418 L478,478 L320,442 L162,478 L244,418 L162,404 Z" fill="#8a7f5a"/>
+          <path d="M320,300 L356,362 L320,348 L284,362 Z" fill="#a89a70"/>
+          <circle cx="320" cy="384" r="7" fill="#0a1016"/>` },
+
+  太阳树:{ el:['光','木'], ring:5, cls:'matter', intro:'只在传说里出现的神木。',
+    rule:'遮荫 <b>0.6</b>、保水 <b>×0.55</b>，并<b>自发光</b>，寿命 <b>300 月</b>。',
+    note:'※ 它同时改变光照与水分，会重置整片地的生态。',
+    art:`<path d="M312,601 L318,420 L326,420 L332,601 Z" fill="#4a3a1e"/>
+          <circle cx="322" cy="300" r="160" fill="#e0a33e" opacity=".13"/>
+          <circle cx="322" cy="300" r="110" fill="#d8b858"/>
+          <circle cx="322" cy="300" r="66" fill="#f4dc9f"/>
+          <circle cx="322" cy="300" r="32" fill="#fffbe8"/>` },
+
+  /* ══════ 术：改已有的东西 ══════ */
+  雨:{ el:['水'], ring:2, cls:'rite', intro:'水从天上落下来。',
+    rule:'本格与<b>相邻四格</b>水量 <b>+1.2</b>，光照 <b>−0.2</b>。',
+    note:'※ 它是唯一不需要水源就能给水的东西。',
+    art:`<g stroke="#9fd2e4" stroke-width="2.4" opacity=".5" fill="none" stroke-linecap="round">
+            <path d="M148,110 L118,246"/><path d="M248,72 L218,208"/>
+            <path d="M358,124 L328,260"/><path d="M468,84 L438,220"/>
+            <path d="M562,134 L532,270"/><path d="M196,300 L172,404"/>
+            <path d="M396,290 L372,394"/></g>
+          <ellipse cx="320" cy="452" rx="238" ry="54" fill="#2a5a70" opacity=".55"/>
+          <ellipse cx="320" cy="442" rx="182" ry="34" fill="#4a8aa4" opacity=".34"/>` },
+
+  火:{ el:['火'], ring:1, cls:'rite', intro:'从一点烧开。',
+    rule:'本格<b>所有植物与动物</b>死亡，水量 <b>−0.6</b>。',
+    note:'※ 烧干净的地，才能重新长出别的。',
+    art:`<path d="M320,120 C396,232 468,286 468,378 C468,470 400,530 320,530
+            C240,530 172,470 172,378 C172,286 244,232 320,120 Z" fill="#b4432e" opacity=".55"/>
+          <path d="M320,238 C362,314 396,346 396,400 C396,448 360,478 320,478
+            C280,478 244,448 244,400 C244,346 278,314 320,238 Z" fill="#e0894a" opacity=".7"/>
+          <path d="M320,330 C340,378 352,398 352,424 C352,452 336,468 320,468
+            C304,468 288,452 288,424 C288,398 300,378 320,330 Z" fill="#f4d8a0"/>` },
+
+  肥土:{ el:['土','木'], ring:2, cls:'rite', intro:'把地翻活。',
+    rule:'本格立刻长出 <b>2 株草</b>。',
+    note:'※ 不改变水土，只把已有的养分翻上来。',
+    art:`<g stroke="#7a5e42" stroke-width="7" fill="none" stroke-linecap="round">
+            <path d="M120,470 C200,430 260,500 340,462 C420,424 480,494 540,458"/></g>
+          <g stroke="#5e8f47" stroke-width="6" fill="none" stroke-linecap="round">
+            <path d="M250,420 C258,360 240,320 264,272"/>
+            <path d="M330,410 C338,344 320,300 344,254"/>
+            <path d="M410,420 C402,362 420,318 396,276"/></g>` },
+
+  /* ══════ 律：改世界规则 ══════ */
+  常春:{ el:['木'], ring:4, cls:'law', intro:'季节不再往前走。',
+    rule:'全图植物寿命 <b>×2</b>。',
+    note:'※ 它不阻止死亡，只把死期推远一倍。',
+    art:`<circle cx="320" cy="300" r="168" fill="none" stroke="#5e8f47" stroke-width="5" opacity=".5"/>
+          <circle cx="320" cy="300" r="118" fill="none" stroke="#7dae62" stroke-width="4" opacity=".4"/>
+          <circle cx="320" cy="300" r="68" fill="none" stroke="#a8cc8a" stroke-width="3.5" opacity=".32"/>
+          <path d="M320,132 L320,468" stroke="#5e8f47" stroke-width="4" opacity=".35"/>
+          <path d="M152,300 L488,300" stroke="#5e8f47" stroke-width="4" opacity=".35"/>` },
+
+  丰饶:{ el:['木','土'], ring:4, cls:'law', intro:'繁殖不再犹豫。',
+    rule:'全图繁殖速度 <b>×2</b>。',
+    note:'※ 长得快，也死得快——承载力没变。',
+    art:`<g fill="none" stroke="#8a6a45" stroke-width="5" opacity=".55">
+            <path d="M320,520 L320,320"/>
+            <path d="M320,400 L230,330"/><path d="M320,400 L410,330"/>
+            <path d="M320,330 L252,262"/><path d="M320,330 L388,262"/></g>
+          <g fill="#5e8f47" opacity=".6">
+            <circle cx="230" cy="330" r="26"/><circle cx="410" cy="330" r="26"/>
+            <circle cx="252" cy="262" r="21"/><circle cx="388" cy="262" r="21"/>
+            <circle cx="320" cy="320" r="30"/></g>
+          <circle cx="320" cy="320" r="96" fill="none" stroke="#5e8f47" stroke-width="3" opacity=".3"/>` },
+
+  长夜:{ el:['暗'], ring:3, cls:'law', intro:'太阳升不起来。',
+    rule:'全图光照 <b>−1</b>，蒸发 <b>×0.6</b>。',
+    note:'※ 光照掉到 0，所有植物停止生长。',
+    art:`<circle cx="320" cy="350" r="176" fill="#0a1018"/>
+          <circle cx="320" cy="350" r="176" fill="none" stroke="#7a6a9a" stroke-width="4.5" opacity=".7"/>
+          <circle cx="320" cy="350" r="132" fill="none" stroke="#9a8ab8" stroke-width="3.5" opacity=".45"/>
+          <path d="M144,350 A176,176 0 0,1 496,350" fill="none" stroke="#c0b0e0"
+            stroke-width="3.5" opacity=".6" stroke-dasharray="11 15"/>` },
 };
 
-// 生物参数
+// 植物：diet 必须为 null（它们不摄食，只是"可被吃"）
+// 动物：diet 表示吃什么。speed 决定觅食半径。
 const SPECIES = {
-  草:    { lifespan:20,  grow:1,   edible:1,   propag:6,  size:1, diet:'草' },
-  苔:    { lifespan:12,  grow:1.5, edible:0.5, propag:4,  size:0, diet:'草' },
-  灌木:  { lifespan:60,  grow:0.5, edible:1.5, propag:12, size:2, diet:'草' },
-  树:    { lifespan:400, grow:0.2, edible:0,   propag:24, size:4, diet:'草' },
-  芦苇:  { lifespan:40,  grow:0.8, edible:1,   propag:8,  size:2, diet:'草' },
-  太阳树:{ lifespan:300, grow:0.2, edible:0,   propag:30, size:4, diet:'草' },
-
-  兔:    { lifespan:24, size:1, diet:'草', speed:2, hp:2 },
-  猴:    { lifespan:60, size:1, diet:'草', speed:2, hp:3 },
-  鹿:    { lifespan:80, size:2, diet:'草', speed:2, hp:3 },
-  狼:    { lifespan:60, size:2, diet:'肉', speed:3, hp:4 },
-  鹰:    { lifespan:50, size:2, diet:'肉', speed:3, hp:3 },
+  草:{lifespan:30,grow:1,edible:1,propag:2,size:1,diet:null},
+  苔:{lifespan:16,grow:1.5,edible:.5,propag:2,size:0,diet:null},
+  灌木:{lifespan:60,grow:.5,edible:1.5,propag:8,size:2,diet:null},
+  树:{lifespan:400,grow:.2,edible:0,propag:16,size:4,diet:null},
+  芦苇:{lifespan:40,grow:.8,edible:1,propag:5,size:2,diet:null},
+  太阳树:{lifespan:300,grow:.2,edible:0,propag:22,size:4,diet:null},
+  兔:{lifespan:24,size:1,diet:'草',speed:2,hp:4},
+  猴:{lifespan:60,size:1,diet:'草',speed:2,hp:5},
+  鹿:{lifespan:80,size:2,diet:'草',speed:2,hp:5},
+  狼:{lifespan:60,size:2,diet:'肉',speed:3,hp:6},
+  鹰:{lifespan:50,size:2,diet:'肉',speed:3,hp:5},
 };
 
-const COST = 12;
-const PACK_SIZE = 6;
+const COST=12, PACK=6;
 
-// ═══════════════════════════════════════════
-//  世界状态
-// ═══════════════════════════════════════════
-const W = {
-  cells: new Map(),      // "x,y" -> cell
-  month: 0,
-  essence: 0,
-  essAcc: 0,
-  speed: 1,
-  paused: false,
-  hand: [],
-  sel: -1,
-  acc: 0,
-};
+// ═══════════════════════════════════════════════════════════
+//  世界
+// ═══════════════════════════════════════════════════════════
+const W = { cells:new Map(), month:0, essence:0, essAcc:0, speed:1,
+            paused:false, hand:[], sel:-1, acc:0, sun:0,
+            law:{lifeX:1, propX:1, evapX:1, lightOff:0} };
+const K=(x,y)=>x+','+y, at=(x,y)=>W.cells.get(K(x,y));
+const nb=c=>[[c.x+1,c.y],[c.x-1,c.y],[c.x,c.y+1],[c.x,c.y-1]]
+  .map(([x,y])=>at(x,y)).filter(Boolean);
 
-function key(x, y) { return x + ',' + y; }
-function cellAt(x, y) { return W.cells.get(key(x, y)); }
+// ═══════════════════════════════════════════════════════════
+//  3D
+// ═══════════════════════════════════════════════════════════
+const cv=document.getElementById('cv');
+const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.15;
 
-function newCell(x, y) {
-  return { x, y, T: 20, W: 0, L: 0, ents: [] };
+const scene=new THREE.Scene();
+scene.background=new THREE.Color('#0a1822');
+scene.fog=new THREE.FogExp2('#0a1822',0.05);
+
+const camera=new THREE.PerspectiveCamera(36,1,0.1,220);
+const target=new THREE.Vector3(0,0,0);
+let dist=4.9, yaw=Math.PI*0.25, pitch=0.52;
+
+scene.add(new THREE.AmbientLight(0x334b66,1.85));
+scene.add(new THREE.HemisphereLight(0x587f9c,0x0d151a,1.05));
+const moon=new THREE.DirectionalLight(0xeaf4ff,1.5);
+moon.position.set(-9,15,7); moon.castShadow=true;
+moon.shadow.mapSize.set(1024,1024);
+const sc=moon.shadow.camera;
+sc.left=-16; sc.right=16; sc.top=16; sc.bottom=-16; sc.far=46;
+moon.shadow.bias=-0.0012;
+scene.add(moon);
+
+const sunOrb=new THREE.Mesh(
+  new THREE.SphereGeometry(0.85,26,18),
+  new THREE.MeshBasicMaterial({color:0xffe8b0,transparent:true,opacity:0})
+);
+sunOrb.position.set(-7.5,10,5.5);
+scene.add(sunOrb);
+const sunGlow=new THREE.PointLight(0xffd890,0,44);
+sunGlow.position.copy(sunOrb.position);
+scene.add(sunGlow);
+
+// 星野
+{
+  const g=new THREE.BufferGeometry(), p=[];
+  for(let i=0;i<700;i++){
+    const r=26+Math.random()*26, a=Math.random()*Math.PI*2, y=3+Math.random()*20;
+    p.push(Math.cos(a)*r,y,Math.sin(a)*r);
+  }
+  g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
+  scene.add(new THREE.Points(g,new THREE.PointsMaterial({
+    color:0x9fc4d8,size:0.15,transparent:true,opacity:.5 })));
 }
 
-function neighbors(c) {
-  return [[c.x+1,c.y],[c.x-1,c.y],[c.x,c.y+1],[c.x,c.y-1]]
-    .map(([x,y]) => cellAt(x,y)).filter(Boolean);
-}
-
-// ═══════════════════════════════════════════
-//  打牌
-// ═══════════════════════════════════════════
-function playCard(cardName, gx, gy) {
-  const def = CARDS[cardName];
-  if (!def) return false;
-
-  // 土地：生成 3×3
-  if (cardName === '土地') {
-    for (let dx = -1; dx <= 1; dx++)
-      for (let dy = -1; dy <= 1; dy++) {
-        const x = gx + dx, y = gy + dy;
-        if (!cellAt(x, y)) W.cells.set(key(x, y), newCell(x, y));
-      }
-    log('土地展开');
-    return true;
-  }
-
-  // 其他：必须放在已有格
-  const cell = cellAt(gx, gy);
-  if (!cell) return false;
-
-  // 地形类替换地表
-  if (['水','岩石'].includes(cardName)) {
-    const exists = cell.ents.find(e => e.name === cardName);
-    if (exists) return false;
-    cell.ents.unshift({ name: cardName, def, age: 0, hp: 999, ground: true });
-    log(cardName + '放下');
-    return true;
-  }
-
-  if (cell.ents.filter(e => !e.ground).length >= 3) return false;
-
-  const sp = SPECIES[cardName] || {};
-  cell.ents.push({
-    name: cardName, def, age: 0,
-    hp: sp.hp || 999,
-    lifespan: sp.lifespan || 999,
-    size: sp.size || 1,
-    diet: sp.diet || null,
-    speed: sp.speed || 1,
-    grow: sp.grow || 0,
-    edible: sp.edible || 0,
-    propag: sp.propag || 0,
+// 虚空水面
+{
+  const geo=new THREE.PlaneGeometry(110,110,1,1);
+  const mat=new THREE.MeshStandardMaterial({
+    color:0x1e4a60,roughness:0.22,metalness:0.4,transparent:true,opacity:0.9
   });
-  log(cardName + '出现');
+  const m=new THREE.Mesh(geo,mat);
+  m.rotation.x=-Math.PI/2; m.position.y=-0.62; m.receiveShadow=true;
+  scene.add(m);
+}
+
+const cellGroup=new THREE.Group(); scene.add(cellGroup);
+const standeeGroup=new THREE.Group(); scene.add(standeeGroup);
+const standees=new Map();
+
+// 悬停高亮框
+const hoverBox=new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.BoxGeometry(1.0,0.02,1.0)),
+  new THREE.LineBasicMaterial({color:0x8fd2e8,transparent:true,opacity:0})
+);
+hoverBox.visible=false;
+scene.add(hoverBox);
+
+const TERRAIN={
+  land:{h:0.30,col:0x4a4232},
+  water:{h:0.11,col:0x15394a},
+  rock:{h:0.62,col:0x434b55},
+  grass:{h:0.34,col:0x1b3120},
+  forest:{h:0.40,col:0x142718},
+};
+
+function classify(cell){
+  if(cell.ents.some(e=>e.name==='水')) return 'water';
+  if(cell.ents.some(e=>e.name==='岩石')) return 'rock';
+  if(cell.ents.some(e=>['树','太阳树','灌木'].includes(e.name))) return 'forest';
+  if(cell.ents.some(e=>['草','苔','芦苇'].includes(e.name))) return 'grass';
+  return 'land';
+}
+
+function rebuildCell(cell){
+  if(cell.mesh) cellGroup.remove(cell.mesh);
+  const kind=classify(cell), T=TERRAIN[kind];
+  cell.kind=kind; cell.h=T.h;
+
+  const geo=new THREE.BoxGeometry(0.95,T.h,0.95);
+  const mat=new THREE.MeshStandardMaterial({
+    color:T.col, roughness:kind==='water'?0.22:0.9,
+    metalness:kind==='water'?0.28:0.02,
+    transparent:kind==='water', opacity:kind==='water'?0.8:1
+  });
+  const m=new THREE.Mesh(geo,mat);
+  m.position.set(cell.x,T.h/2,cell.y);
+  m.castShadow=true; m.receiveShadow=true;
+  m.userData.cell=cell;
+
+  // 顶面：比侧面亮一档，让方块有"厚度"
+  const topMat=new THREE.MeshStandardMaterial({
+    color:new THREE.Color(T.col).multiplyScalar(kind==='water'?1.6:1.5),
+    roughness:kind==='water'?0.18:0.9,
+    metalness:kind==='water'?0.3:0.02,
+    transparent:kind==='water', opacity:kind==='water'?0.85:1
+  });
+  const top=new THREE.Mesh(new THREE.PlaneGeometry(0.95,0.95),topMat);
+  top.rotation.x=-Math.PI/2;
+  top.position.y=T.h/2+0.003;
+  top.receiveShadow=true;
+  m.add(top);
+
+  const edges=new THREE.LineSegments(
+    new THREE.EdgesGeometry(geo),
+    new THREE.LineBasicMaterial({color:0x8fc0d8,transparent:true,opacity:0.14})
+  );
+  m.add(edges);
+
+  cell.mesh=m;
+  cellGroup.add(m);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  立牌贴图（Canvas 同步绘制）
+// ═══════════════════════════════════════════════════════════
+const texCache=new Map();
+function standeeShape(n){
+  if(['树','太阳树'].includes(n)) return 'tree';
+  if(n==='灌木') return 'bush';
+  if(['草','苔','芦苇'].includes(n)) return 'grass';
+  if(['兔','猴','鹿','狼','鹰'].includes(n)) return 'animal';
+  return 'blob';
+}
+function shade(hex,amt){
+  const n=parseInt(hex.slice(1),16);
+  let r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+  r=Math.min(255,Math.max(0,Math.round(r+255*amt)));
+  g=Math.min(255,Math.max(0,Math.round(g+255*amt)));
+  b=Math.min(255,Math.max(0,Math.round(b+255*amt)));
+  return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+// 位置哈希：同一格的同种立牌给一点形态差异，避免 25 个一模一样的芽
+function hash3(a,b,c){
+  let h=(a*374761393 + b*668265263 + c*1274126177)|0;
+  h=(h^(h>>>13))*1274126177|0;
+  return ((h^(h>>>16))>>>0)/4294967296;
+}
+
+function standeeTex(name){
+  if(texCache.has(name)) return texCache.get(name);
+  const def=CARDS[name];
+  if(!def){texCache.set(name,null);return null;}
+
+  const S=200, c=document.createElement('canvas');
+  c.width=S; c.height=S;
+  const g=c.getContext('2d');
+  const col=shade((EL[def.el[0]]||EL['土']).c,-0.35);  // 立牌比卡面元素色暗两档，融进夜色
+  const dark=shade(col,-0.42), light=shade(col,0.3);
+  const cx=S/2, base=S*0.95;
+
+  g.clearRect(0,0,S,S);
+
+  g.fillStyle='rgba(0,0,0,.4)';
+  g.beginPath(); g.ellipse(cx,base-5,S*0.28,S*0.05,0,0,7); g.fill();
+
+  const k=standeeShape(name);
+
+  if(k==='tree'){
+    g.fillStyle=dark; g.fillRect(cx-7,base-76,14,76);
+    g.fillStyle=col;
+    g.beginPath(); g.moveTo(cx,12); g.lineTo(cx+62,96); g.lineTo(cx-62,96); g.closePath(); g.fill();
+    g.fillStyle=light;
+    g.beginPath(); g.moveTo(cx,12); g.lineTo(cx+62,96); g.lineTo(cx,96); g.closePath(); g.fill();
+    g.fillStyle=col;
+    g.beginPath(); g.moveTo(cx,58); g.lineTo(cx+48,124); g.lineTo(cx-48,124); g.closePath(); g.fill();
+  }
+  else if(k==='bush'){
+    g.fillStyle=col;
+    g.beginPath(); g.arc(cx,116,40,0,7); g.fill();
+    g.beginPath(); g.arc(cx-36,128,29,0,7); g.fill();
+    g.beginPath(); g.arc(cx+36,128,29,0,7); g.fill();
+    g.fillStyle=light;
+    g.beginPath(); g.arc(cx-10,104,21,0,7); g.fill();
+  }
+  else if(k==='grass'){
+    g.strokeStyle=col; g.lineWidth=9; g.lineCap='round';
+    for(const [dx,dh] of [[-32,-64],[0,-86],[30,-58],[12,-72],[-14,-76]]){
+      g.beginPath();
+      g.moveTo(cx+dx,base);
+      g.quadraticCurveTo(cx+dx*1.5,base+dh*0.55,cx+dx*2.1,base+dh);
+      g.stroke();
+    }
+    g.strokeStyle=light; g.lineWidth=6;
+    g.beginPath(); g.moveTo(cx+3,base);
+    g.quadraticCurveTo(cx+10,base-48,cx+18,base-78); g.stroke();
+  }
+  else if(k==='animal'){
+    g.fillStyle=col;
+    g.beginPath(); g.ellipse(cx,base-32,42,29,0,0,7); g.fill();
+    g.beginPath(); g.arc(cx,base-76,30,0,7); g.fill();
+    g.beginPath(); g.arc(cx-24,base-98,12,0,7); g.fill();
+    g.beginPath(); g.arc(cx+24,base-98,12,0,7); g.fill();
+    g.fillStyle=light;
+    g.beginPath(); g.arc(cx-10,base-82,5,0,7); g.fill();
+    g.beginPath(); g.arc(cx+10,base-82,5,0,7); g.fill();
+  }
+  else {
+    g.fillStyle=col;
+    g.beginPath(); g.ellipse(cx,base-30,46,26,0,0,7); g.fill();
+  }
+
+  const tex=new THREE.CanvasTexture(c);
+  tex.colorSpace=THREE.SRGBColorSpace;
+  tex.needsUpdate=true;
+  texCache.set(name,tex);
+  return tex;
+}
+
+function rebuildStandees(cell){
+  const k=K(cell.x,cell.y);
+  const old=standees.get(k);
+  if(old) old.forEach(m=>standeeGroup.remove(m));
+
+  const list=[];
+  const seen=new Set();
+  const ents=cell.ents.filter(e=>{
+    if(['水','岩石'].includes(e.name)) return false;
+    if(seen.has(e.name)) return false;      // 同种只立一个牌
+    seen.add(e.name);
+    return true;
+  });
+  let i=0;
+  for(const e of ents){
+    const tex=standeeTex(e.name);
+    if(!tex) continue;
+    const isTree=['树','太阳树'].includes(e.name);
+    const j1=hash3(cell.x,cell.y,e.name.length);
+    const j2=hash3(cell.y,cell.x,e.name.length*7);
+    const sc=0.84+j1*0.34;                        // 0.84 ~ 1.18
+    const w=(isTree?0.9:0.66)*sc, h=(isTree?1.2:0.74)*sc;
+
+    const off=(i-(ents.length-1)/2)*0.19+(j2-0.5)*0.11;
+    const px=cell.x+off, py=cell.h+h/2-0.02, pz=cell.y+0.08+(j1-0.5)*0.13;
+
+    // 背后的黑色剪影（比本体大 7%），做出立牌的描边/厚度
+    const back=new THREE.Mesh(
+      new THREE.PlaneGeometry(w*1.075,h*1.045),
+      new THREE.MeshBasicMaterial({map:tex, color:0x04080c, alphaTest:0.5,
+        side:THREE.DoubleSide, transparent:true, opacity:1})
+    );
+    back.position.set(px,py,pz-0.006);
+    back.userData={cell};
+    standeeGroup.add(back);
+    list.push(back);
+
+    const geo=new THREE.PlaneGeometry(w,h);
+    const mat=new THREE.MeshBasicMaterial({
+      map:tex,alphaTest:0.5,side:THREE.DoubleSide
+    });
+    const m=new THREE.Mesh(geo,mat);
+    m.position.set(px,py,pz);
+    m.userData={cell};
+    standeeGroup.add(m);
+    list.push(m); i++;
+  }
+  standees.set(k,list);
+}
+
+const dirty=new Set();
+
+// ═══════════════════════════════════════════════════════════
+//  打牌
+// ═══════════════════════════════════════════════════════════
+function playCard(name,gx,gy){
+  const def=CARDS[name];
+  if(!def) return false;
+
+  if(name==='土地'){
+    for(let dx=-2;dx<=2;dx++)for(let dy=-2;dy<=2;dy++){
+      const x=gx+dx,y=gy+dy;
+      if(!at(x,y)){
+        const c={x,y,T:20,W:0.5,L:0,kind:'land',h:0.3,ents:[],mesh:null};
+        W.cells.set(K(x,y),c);
+        rebuildCell(c);
+      }
+    }
+    recenter();
+    return true;
+  }
+
+  if(name==='太阳'){
+    W.sun++;
+    sunOrb.material.opacity=Math.min(1,W.sun*0.42);
+    sunGlow.intensity=Math.min(2.8,W.sun*1.0);
+    moon.intensity=Math.min(1.8,1.5+W.sun*0.1);
+    return true;
+  }
+
+  // ── 律：改世界规则，不需要选格子 ──
+  if(def.cls==='law'){
+    if(name==='常春') W.law.lifeX=2;
+    if(name==='丰饶') W.law.propX=2;
+    if(name==='长夜'){ W.law.lightOff=Math.min(2,W.law.lightOff+1); W.law.evapX*=0.6; }
+    for(const c of W.cells.values()) dirty.add(c);
+    log('律 · '+name);
+    return true;
+  }
+
+  const cell=at(gx,gy);
+  if(!cell) return false;
+
+  if(['水','岩石'].includes(name)){
+    if(cell.ents.some(e=>e.name===name)) return false;
+    cell.ents.unshift({name,def,age:0,ground:true});
+    rebuildCell(cell); rebuildStandees(cell);
+    return true;
+  }
+
+  // ── 术：改已有的格，不新增实体（除了肥土）──
+  if(def.cls==='rite'){
+    if(name==='雨'){
+      for(const c of [cell,...nb(cell)]){
+        c.W=Math.min(3,c.W+1.2);
+        c.L=Math.max(0,c.L-0.2);
+        dirty.add(c);
+      }
+    }
+    else if(name==='火'){
+      const n=cell.ents.filter(e=>!e.ground).length;
+      cell.ents=cell.ents.filter(e=>e.ground);
+      cell.W=Math.max(0,cell.W-0.6);
+      dirty.add(cell);
+      if(n) log('烧掉 '+n+' 个');
+    }
+    else if(name==='肥土'){
+      const sp=SPECIES['草'];
+      for(let i=0;i<2;i++) cell.ents.push({
+        name:'草',def:CARDS['草'],age:0,hp:999,lifespan:sp.lifespan,
+        size:1,diet:null,speed:1,grow:sp.grow,edible:sp.edible,propag:sp.propag,fed:0
+      });
+      dirty.add(cell);
+    }
+    rebuildCell(cell); rebuildStandees(cell);
+    return true;
+  }
+
+  if(cell.ents.filter(e=>!e.ground).length>=3) return false;
+
+  const spawnOne=(c)=>{
+    const sp=SPECIES[name]||{};
+    c.ents.push({
+      name,def,age:0,hp:sp.hp||999,lifespan:sp.lifespan||999,
+      size:sp.size||1,diet:sp.diet||null,speed:sp.speed||1,
+      grow:sp.grow||0,edible:sp.edible||0,propag:sp.propag||0,fed:0
+    });
+  };
+
+  spawnOne(cell);
+  rebuildCell(cell); rebuildStandees(cell);
+
+  const sp=SPECIES[name];
+  if(sp && sp.propag){
+    let n=0;
+    for(const t of nb(cell)){
+      if(n>=2) break;
+      if(t.ents.filter(e=>!e.ground).length>=2) continue;
+      spawnOne(t); rebuildCell(t); rebuildStandees(t);
+      n++;
+    }
+  }
   return true;
 }
 
-// ═══════════════════════════════════════════
-//  环境计算
-// ═══════════════════════════════════════════
-function computeEnv() {
-  for (const c of W.cells.values()) {
-    let T = 20, L = 0, waterIn = 0, shade = 0, heat = 0;
+// ═══════════════════════════════════════════════════════════
+//  仿真
+// ═══════════════════════════════════════════════════════════
+function computeEnv(){
+  // 先定位所有水源，再按距离衰减供水
+  const springs=[];
+  for(const c of W.cells.values())
+    if(c.ents.some(e=>COMP_OF(e).includes('WaterSource'))) springs.push(c);
 
-    for (const e of c.ents) {
-      const cp = e.def.comps;
-      if (cp.includes('EmitLight')) L += 1;
-      if (cp.includes('Heating')) heat += 0.5;
-      if (cp.includes('Shade')) shade += 0.6;
-      if (cp.includes('WaterSource')) waterIn += 1.0;
+  for(const c of W.cells.values()){
+    let L=Math.max(0,W.sun-W.law.lightOff), wi=0, shade=0, heat=0;   // 太阳卡 = 全图光照，会被「长夜」压
+    for(const e of c.ents){
+      const comps=COMP_OF(e);
+      if(comps.includes('EmitLight')) L+=1;
+      if(comps.includes('Heating')) heat+=0.5;
+      if(comps.includes('Shade')) shade+=0.6;
+    }
+    for(const n of nb(c)) for(const e of n.ents)
+      if(COMP_OF(e).includes('Shade')) shade+=0.4;
+
+    for(const s of springs){
+      const d=Math.abs(s.x-c.x)+Math.abs(s.y-c.y);
+      if(d===0) wi+=1.00;
+      else if(d===1) wi+=0.62;
+      else if(d===2) wi+=0.26;
     }
 
-    // 邻格遮阳（不减自己）
-    for (const n of neighbors(c)) {
-      for (const e of n.ents) {
-        if (e.def.comps.includes('Shade')) shade += 0.4;
-      }
-    }
+    const T=20+heat-shade*0.5;
+    const Lf=Math.max(0,L-shade*0.35);
+    let keep=1;
+    for(const e of c.ents) if(COMP_OF(e).includes('WaterKeep')) keep*=0.55;
 
-    T = 20 + heat - shade * 0.5;
-    L = Math.max(0, L - shade * 0.35);
-
-    // 保水
-    let keep = 1;
-    for (const e of c.ents) {
-      if (e.def.comps.includes('WaterKeep')) keep *= 0.55;
-    }
-
-    const evap = 0.5 * Math.max(0, T - 10) / 10 * keep;
-    c.W = Math.min(3, Math.max(0, c.W + waterIn - evap));
-    c.T = T;
-    c.L = L;
+    // 蒸发与含水量成正比：水越少，蒸得越慢；再加一点基础露水
+    const evap=0.34*(c.W/3)*Math.max(0,T-10)/10*keep*W.law.evapX;
+    c.W=Math.min(3,Math.max(0,c.W+wi+0.12-evap));
+    c.T=T; c.L=Lf;
   }
 }
 
-// ═══════════════════════════════════════════
-//  实体行为
-// ═══════════════════════════════════════════
-function entityTick() {
-  const deaths = [];
+const COMPS={
+  土地:['Container'], 太阳:['EmitLight','Heating'], 水:['WaterSource'],
+  岩石:['Container','Barrier'],
+  草:['Grower','Living','Edible','Propagator'], 苔:['Grower','Living','Edible','Propagator'],
+  灌木:['Grower','Living','Edible','Shade'], 树:['Grower','Living','Shade','WaterKeep'],
+  芦苇:['Grower','Living','Edible','WaterKeep'],
+  太阳树:['Grower','Living','Shade','WaterKeep','EmitLight'],
+  兔:['Living','Predator','Mobile'], 猴:['Living','Predator','Mobile'],
+  鹿:['Living','Predator','Mobile'], 狼:['Living','Predator','Mobile'],
+  鹰:['Living','Predator','Mobile'],
+};
+const COMP_OF=e=>COMPS[e.name]||[];
 
-  for (const c of W.cells.values()) {
-    const before = c.ents.length;
+function entityTick(){
+  const dead=[];
+  for(const c of W.cells.values()){
+    for(const e of [...c.ents]){
+      if(e.ground) continue;
+      if(e.grow){
+        if(c.W>=1&&c.L>=1) e.age+=e.grow;
+        if(c.W<=0) e.hp=(e.hp||1)-1;
+      } else e.age+=1;
 
-    for (const e of [...c.ents]) {
-      if (e.ground) continue;
+      if(e.age>e.lifespan*W.law.lifeX){dead.push([c,e,'老死']);continue;}
+      if(e.grow&&c.W<=0&&e.age>2){dead.push([c,e,'旱死']);continue;}
 
-      // 生长
-      if (e.grow) {
-        if (c.W >= 1 && c.L >= 1) e.age += e.grow;
-        // 旱死
-        if (c.W <= 0) { e.hp = (e.hp || 1) - 1; }
-      }
-
-      // 老化
-      e.age += (e.grow ? 0 : 1);
-      if (e.age > e.lifespan) { deaths.push([c, e, '老死']); continue; }
-
-      // 自养生物缺水
-      if (e.grow && c.W <= 0 && e.age > 2) { deaths.push([c, e, '旱死']); continue; }
-
-      // 动物：找吃的
-      if (e.diet) {
-        const target = findFood(c, e);
-        if (target) {
-          // 吃掉
-          const idx = target.cell.ents.indexOf(target.ent);
-          if (idx >= 0) {
-            target.cell.ents.splice(idx, 1);
-            e.hp = Math.min((SPECIES[e.name]?.hp || 3), e.hp + 1);
-            log(e.name + ' 吃了 ' + target.ent.name);
-          }
+      if(e.diet && !e.grow){
+        if(e.fed>0){
+          e.fed--;
         } else {
-          e.hp -= 1;
-          if (e.hp <= 0) { deaths.push([c, e, '饿死']); continue; }
-        }
-      }
-
-      // 繁殖
-      if (e.propag && c.W >= 1 && c.L >= 1) {
-        if (Math.random() < 1 / e.propag) {
-          const nb = neighbors(c).filter(n => n.ents.filter(x => !x.ground).length < 2);
-          if (nb.length) {
-            const t = nb[Math.floor(Math.random() * nb.length)];
-            const sp = SPECIES[e.name];
-            t.ents.push({
-              name: e.name, def: e.def, age: 0,
-              hp: sp.hp || 999, lifespan: sp.lifespan || 999,
-              size: sp.size || 1, diet: sp.diet || null,
-              speed: sp.speed || 1, grow: sp.grow || 0,
-              edible: sp.edible || 0, propag: sp.propag || 0,
-            });
+          const t=findFood(c,e);
+          if(t){
+            const i=t.cell.ents.indexOf(t.ent);
+            if(i>=0){
+              t.cell.ents.splice(i,1);
+              e.hp=Math.min((SPECIES[e.name]?.hp||5),e.hp+1);
+              e.fed=4;
+              dirty.add(t.cell);
+            }
+          } else {
+            e.hp-=1;
+            if(e.hp<=0){dead.push([c,e,'饿死']);continue;}
           }
         }
       }
-    }
-  }
 
-  for (const [c, e, why] of deaths) {
-    const i = c.ents.indexOf(e);
-    if (i >= 0) c.ents.splice(i, 1);
-    if (why !== '饿死') log(e.name + ' ' + why);
-  }
-}
-
-function findFood(cell, pred) {
-  const cells = [cell, ...neighbors(cell)];
-  const wantPlant = pred.diet === '草';
-
-  for (const c of cells) {
-    for (const e of c.ents) {
-      if (e === pred) continue;
-      if (e.ground) continue;
-      if (wantPlant) {
-        if (e.def.comps.includes('Edible') && e.def.comps.includes('Grower')) {
-          return { cell: c, ent: e };
-        }
-      } else {
-        if (e.diet === '草' && pred.size >= e.size) {
-          return { cell: c, ent: e };
+      if(e.propag&&c.W>=1&&c.L>=1&&Math.random()<(W.law.propX/e.propag)){
+        const free=nb(c).filter(n=>n.ents.filter(x=>!x.ground).length<2);
+        if(free.length){
+          const t=free[Math.floor(Math.random()*free.length)], sp=SPECIES[e.name];
+          t.ents.push({name:e.name,def:e.def,age:0,hp:sp.hp||999,lifespan:sp.lifespan||999,
+            size:sp.size||1,diet:sp.diet||null,speed:sp.speed||1,grow:sp.grow||0,
+            edible:sp.edible||0,propag:sp.propag||0,fed:0});
+          dirty.add(t);
         }
       }
     }
+  }
+  for(const [c,e,why] of dead){
+    const i=c.ents.indexOf(e);
+    if(i>=0) c.ents.splice(i,1);
+    dirty.add(c);
+    log(e.name+' '+why);
+  }
+  for(const c of dirty){
+    if(!W.cells.has(K(c.x,c.y))) continue;
+    rebuildCell(c); rebuildStandees(c);
+  }
+  dirty.clear();
+}
+
+function findFood(cell,pred){
+  const want=pred.diet==='草';
+  const R=pred.speed>=3?2:1;             // 速度快 = 搜得远
+  const ring=[cell];
+  let cur=[cell];
+  for(let r=1;r<=R;r++){
+    const next=[];
+    for(const c of cur) for(const n of nb(c))
+      if(!ring.includes(n)) next.push(n);
+    ring.push(...next); cur=next;
+  }
+  for(const c of ring) for(const e of c.ents){
+    if(e===pred||e.ground) continue;
+    if(want){
+      const cp=COMP_OF(e);
+      if(cp.includes('Edible')&&cp.includes('Grower')) return {cell:c,ent:e};
+    } else if(e.diet==='草'&&pred.size>=e.size) return {cell:c,ent:e};
   }
   return null;
 }
 
-// ═══════════════════════════════════════════
-//  Tick
-// ═══════════════════════════════════════════
-function tick() {
+function tick(){
   W.month++;
-  computeEnv();
-  entityTick();
-
-  W.essAcc += 0.1;
-  if (W.essAcc >= 1) { W.essAcc -= 1; W.essence++; }
-
-  render();
+  computeEnv(); entityTick();
+  W.essAcc+=0.1;
+  if(W.essAcc>=1){W.essAcc-=1;W.essence++;}
   updateHUD();
 }
 
-// ═══════════════════════════════════════════
-//  渲染
-// ═══════════════════════════════════════════
-const cv = document.getElementById('cv');
-const ctx = cv.getContext('2d');
-let camX = 0, camY = 0, TS = 46;
-
-function resize() {
-  const r = cv.parentElement.getBoundingClientRect();
-  cv.width = r.width * devicePixelRatio;
-  cv.height = r.height * devicePixelRatio;
-  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-  render();
+// ═══════════════════════════════════════════════════════════
+//  相机
+// ═══════════════════════════════════════════════════════════
+function placeCam(){
+  const y=Math.sin(pitch)*dist, r=Math.cos(pitch)*dist;
+  camera.position.set(
+    target.x+Math.cos(yaw)*r, target.y+y, target.z+Math.sin(yaw)*r);
+  camera.lookAt(target);
 }
 
-function render() {
-  const vw = cv.width / devicePixelRatio;
-  const vh = cv.height / devicePixelRatio;
+// 世界中心跟随：打完土地后把镜头拉回重心
+function recenter(){
+  if(!W.cells.size) return;
+  let sx=0, sy=0;
+  for(const c of W.cells.values()){ sx+=c.x; sy+=c.y; }
+  target.set(sx/W.cells.size, 0.22, sy/W.cells.size);
+  placeCam();
+}
+function onResize(){
+  const r=cv.parentElement.getBoundingClientRect();
+  renderer.setSize(r.width,r.height,false);
+  camera.aspect=r.width/r.height; camera.updateProjectionMatrix();
+}
+window.addEventListener('resize',onResize);
 
-  ctx.fillStyle = '#0a0a0c';
-  ctx.fillRect(0, 0, vw, vh);
+let drag=false,lx=0,ly=0,moved=0;
+cv.addEventListener('pointerdown',e=>{drag=true;lx=e.clientX;ly=e.clientY;moved=0;});
+cv.addEventListener('pointerup',()=>drag=false);
+cv.addEventListener('pointermove',e=>{
+  if(drag){
+    const dx=e.clientX-lx, dy=e.clientY-ly;
+    moved+=Math.abs(dx)+Math.abs(dy);
+    yaw+=dx*0.006;
+    pitch=Math.max(0.38,Math.min(1.30,pitch+dy*0.004));
+    lx=e.clientX; ly=e.clientY;
+    placeCam();
+  }
+  updateHover(e);
+});
+cv.addEventListener('wheel',e=>{
+  e.preventDefault();
+  dist=Math.max(4.5,Math.min(30,dist+e.deltaY*0.012));
+  placeCam();
+},{passive:false});
 
-  if (W.cells.size === 0) return;
+function faceCam(){
+  for(const list of standees.values()) for(const m of list)
+    m.rotation.y=Math.atan2(camera.position.x-m.position.x, camera.position.z-m.position.z);
+}
 
-  // 居中
-  const xs = [...W.cells.values()].map(c => c.x);
-  const ys = [...W.cells.values()].map(c => c.y);
-  const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
-  const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+// ═══════════════════════════════════════════════════════════
+//  拾取与悬停
+// ═══════════════════════════════════════════════════════════
+const ray=new THREE.Raycaster(), ptr=new THREE.Vector2();
 
-  const ox = vw / 2 - cx * TS - TS / 2;
-  const oy = vh / 2 - cy * TS - TS / 2;
+function setPtr(ev){
+  const r=cv.getBoundingClientRect();
+  ptr.x=((ev.clientX-r.left)/r.width)*2-1;
+  ptr.y=-((ev.clientY-r.top)/r.height)*2+1;
+  ray.setFromCamera(ptr,camera);
+}
 
-  for (const c of W.cells.values()) {
-    const x = ox + c.x * TS;
-    const y = oy + c.y * TS;
+function pick(ev){
+  setPtr(ev);
+  for(const h of ray.intersectObjects(cellGroup.children,true)){
+    let o=h.object; while(o&&!o.userData.cell) o=o.parent;
+    if(o&&o.userData.cell) return o.userData.cell;
+  }
+  return null;
+}
 
-    // 地形底（温度偏红，水偏蓝，光调亮度）
-    const warm = Math.min(1, Math.max(0, (c.T - 15) / 30));
-    const wet = Math.min(1, c.W / 3);
-    const lit = Math.min(1, c.L / 1.5);
+let hoverCell=null;
+function updateHover(ev){
+  if(drag){ hoverBox.visible=false; return; }
+  const c=pick(ev);
+  hoverCell=c;
+  if(!c){ hoverBox.visible=false; return; }
+  hoverBox.position.set(c.x,c.h+0.012,c.y);
+  hoverBox.material.opacity= W.sel>=0 ? 0.85 : 0.25;
+  hoverBox.material.color.set(W.sel>=0 ? 0x8fd2e8 : 0x4a6274);
+  hoverBox.visible=true;
+}
 
-    let r = 30 + warm * 45;
-    let g = 32 - wet * 4;
-    let b = 34 + wet * 40;
-    const bright = 0.45 + lit * 0.55;
+cv.addEventListener('click',ev=>{
+  if(moved>10) return;
+  if(W.sel<0){ log('先选一张卡'); return; }
+  const name=W.hand[W.sel];
+  const cell=pick(ev);
+  let gx,gy;
 
-    ctx.fillStyle = `rgb(${r*bright|0},${g*bright|0},${b*bright|0})`;
-    ctx.fillRect(x + 1, y + 1, TS - 2, TS - 2);
-
-    // 有水的格画蓝条
-    if (c.W > 0.3) {
-      ctx.fillStyle = `rgba(70,130,180,${Math.min(.5, c.W/3*.5)})`;
-      ctx.fillRect(x + 1, y + TS - 5, TS - 2, 4);
+  if(name==='土地'){
+    if(cell){ gx=cell.x+2; gy=cell.y; }
+    else{
+      setPtr(ev);
+      const plane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+      const p=new THREE.Vector3();
+      ray.ray.intersectPlane(plane,p);
+      gx=Math.round(p.x); gy=Math.round(p.z);
     }
-
-    // 实体
-    let pi = 0, ai = 0;
-    for (const e of c.ents) {
-      const s = e.def.shape;
-      const ex = x + TS / 2;
-      const ey = y + TS / 2;
-
-      if (s === 'tile') {
-        ctx.fillStyle = e.def.color;
-        ctx.globalAlpha = 0.85;
-        ctx.fillRect(x + 4, y + 4, TS - 8, TS - 8);
-        ctx.globalAlpha = 1;
-        continue;
-      }
-
-      if (s === 'orb') {
-        ctx.beginPath();
-        ctx.arc(ex, ey, TS * 0.32, 0, 7);
-        ctx.fillStyle = e.def.color;
-        ctx.globalAlpha = 0.9;
-        ctx.fill();
-        ctx.globalAlpha = 1;
-        continue;
-      }
-
-      if (s === 'plant') {
-        const h = 8 + Math.min(18, e.age * 0.6);
-        const px = x + 8 + pi * 12;
-        ctx.fillStyle = e.def.color;
-        ctx.fillRect(px, y + TS - 8 - h, 5, h);
-        pi++;
-        continue;
-      }
-
-      if (s === 'tree') {
-        const h = 14 + Math.min(20, e.age * 0.3);
-        const px = x + TS / 2;
-        ctx.fillStyle = '#3a2a1a';
-        ctx.fillRect(px - 2, y + TS - 10 - h * 0.4, 4, h * 0.4);
-        ctx.fillStyle = e.def.color;
-        ctx.beginPath();
-        ctx.arc(px, y + TS - 10 - h * 0.4, h * 0.45, 0, 7);
-        ctx.fill();
-        continue;
-      }
-
-      if (s === 'animal') {
-        const ax = x + 10 + ai * 12;
-        const ay = y + TS * 0.55;
-        ctx.beginPath();
-        ctx.arc(ax, ay, 4.5, 0, 7);
-        ctx.fillStyle = e.def.color;
-        ctx.fill();
-        ai++;
-      }
-    }
+  } else if(CARDS[name].cls==='law'){
+    gx=0; gy=0;                       // 律作用于全图，不需要目标
+  } else {
+    if(!cell){ log('要放在已有地块上'); return; }
+    gx=cell.x; gy=cell.y;
   }
 
-  // 提示
-  document.getElementById('hint').style.opacity = W.cells.size ? 0 : 1;
+  if(playCard(name,gx,gy)){
+    log(name+' 落下');
+    W.hand.splice(W.sel,1); W.sel=-1;
+    renderHand(); updateHUD();
+    document.getElementById('hint').style.opacity=W.cells.size?'0':'1';
+  } else log('这里放不下');
+});
+
+// ═══════════════════════════════════════════════════════════
+//  卡面（A 版式）
+// ═══════════════════════════════════════════════════════════
+const ROMAN=['0','1','2','3','4','5','6','7','8','9'];
+
+function tierClass(r){ return r>=10 ? 'tx' : 't'+Math.min(9,Math.max(0,r)); }
+
+function fullCard(name,uid){
+  uid=uid??0;
+  const d=CARDS[name];
+  const prim=d.el[0];
+  const elCls=ELCLS[prim]||'elearth';
+  const subs=d.el.slice(1).filter(e=>EL[e]);
+  const filled=Math.min(12,d.ring+1);
+  const rc=RINGC[Math.min(11,Math.max(0,d.ring))];
+  const bars=Array.from({length:12},(_,i)=>`<i class="${i<filled?'on':''}"></i>`).join('');
+
+  return `
+  <div class="card ${d.cls} ${elCls}" style="--ringc:${rc}">
+    <div class="clseal"><svg viewBox="0 0 24 24">${CLSICON[d.cls]}</svg></div>
+
+    <div class="band">
+      <h3>${name}</h3>
+      ${subs.map(e=>`<span class="elem sub" style="--el:${EL[e].rgb}"><svg viewBox="0 0 24 24">${ELSYM[e]||''}</svg></span>`).join('')}
+      <span class="elem"><svg viewBox="0 0 24 24">${ELSYM[prim]||''}</svg></span>
+    </div>
+
+    <div class="ringbar">${bars}</div>
+
+    <div class="win">
+      <div class="pic"><svg viewBox="0 0 640 601" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <linearGradient id="wtr${uid}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#0d2531"/><stop offset="1" stop-color="#051016"/>
+          </linearGradient>
+          <linearGradient id="sky${uid}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#0c263a"/>
+            <stop offset=".52" stop-color="#081521"/>
+            <stop offset="1" stop-color="#040a10"/>
+          </linearGradient>
+        </defs>
+        <rect width="640" height="601" fill="url(#sky${uid})"/>
+        <g opacity=".4" fill="#a8ccdd">
+          <circle cx="92" cy="66" r="1.8"/><circle cx="210" cy="42" r="1.3"/>
+          <circle cx="336" cy="88" r="2"/><circle cx="468" cy="50" r="1.4"/>
+          <circle cx="564" cy="112" r="1.6"/><circle cx="142" cy="150" r="1.2"/>
+          <circle cx="400" cy="164" r="1.5"/><circle cx="524" cy="192" r="1.1"/>
+        </g>
+        <g transform="translate(320 300) scale(1.1) translate(-320 -300)">
+          ${d.art.replace(/url\(#wtr\)/g,`url(#wtr${uid})`)}
+        </g>
+      </svg></div>
+    </div>
+
+    <div class="box">
+      <div class="rule1">${d.rule}</div>
+      <div class="note1"><em>※</em> ${d.note.replace('※ ','')}</div>
+    </div>
+  </div>`;
 }
 
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 //  UI
-// ═══════════════════════════════════════════
-function updateHUD() {
-  document.getElementById('sYear').textContent = Math.floor(W.month / 12);
-  document.getElementById('sCells').textContent = W.cells.size;
-  document.getElementById('sEss').textContent = W.essence;
-  document.querySelector('#essbar i').style.width = (W.essAcc * 100) + '%';
-
-  document.getElementById('bPack').disabled = W.essence < COST;
-  document.getElementById('bRecycle').disabled = W.sel < 0;
-}
-
-function log(msg) {
-  const el = document.getElementById('log');
-  const d = document.createElement('div');
-  d.textContent = msg;
-  el.appendChild(d);
-  setTimeout(() => d.remove(), 4000);
-  while (el.children.length > 8) el.removeChild(el.firstChild);
-}
-
-function renderHand() {
-  const h = document.getElementById('hand');
-  h.innerHTML = '';
-  W.hand.forEach((name, i) => {
-    const def = CARDS[name];
-    const d = document.createElement('div');
-    d.className = 'card' + (i === W.sel ? ' sel' : '');
-    d.innerHTML = `
-      <div class="ring">${def.ring}环</div>
-      <div class="nm">${name}</div>
-      <div class="meta"><span>${def.kind}</span><span>${def.comps.length}件</span></div>
-    `;
-    d.onclick = () => {
-      W.sel = (W.sel === i) ? -1 : i;
-      renderHand();
-      updateHUD();
-    };
-    h.appendChild(d);
+// ═══════════════════════════════════════════════════════════
+function renderHand(){
+  const h=document.getElementById('hand'); h.innerHTML='';
+  W.hand.forEach((name,i)=>{
+    const el=document.createElement('div');
+    el.className='slot'+(i===W.sel?' sel':'');
+    el.innerHTML=fullCard(name,i);
+    el.onclick=()=>{ W.sel=(W.sel===i)?-1:i; renderHand(); updateHUD(); };
+    h.appendChild(el);
   });
 }
 
-function drawPack() {
-  if (W.essence < COST) return;
-  W.essence -= COST;
+function updateHUD(){
+  document.getElementById('sYear').textContent=Math.floor(W.month/12);
+  document.getElementById('sCells').textContent=W.cells.size;
+  document.getElementById('sEss').textContent=W.essence;
+  document.querySelector('#essbar i').style.width=(W.essAcc*100)+'%';
+  document.getElementById('bPack').disabled=W.essence<COST;
+  document.getElementById('bRecycle').disabled=W.sel<0;
+  document.getElementById('hint').style.opacity=W.cells.size?'0':'1';
+}
 
-  const pool = [];
-  for (const [n, d] of Object.entries(CARDS)) {
-    const weight = [30,22,16,11,8,5,3.5,2.5,1.5,0.5][d.ring] ?? 1;
-    for (let i = 0; i < weight; i++) pool.push(n);
+function log(m){
+  const el=document.getElementById('log');
+  const d=document.createElement('div'); d.textContent=m;
+  el.appendChild(d); setTimeout(()=>d.remove(),4200);
+  while(el.children.length>7) el.removeChild(el.firstChild);
+}
+
+function drawPack(){
+  if(W.essence<COST) return;
+  W.essence-=COST;
+  const pool=[];
+  for(const [n,d] of Object.entries(CARDS)){
+    const w=[30,22,16,11,8,5,3.5,2.5,1.5,.5][d.ring]??1;
+    for(let i=0;i<w;i++) pool.push(n);
   }
-
-  // 保证位
-  const got = ['土地', '太阳', '水'];
-  while (got.length < PACK_SIZE) {
-    got.push(pool[Math.floor(Math.random() * pool.length)]);
-  }
-
+  const got=['土地','太阳','水'];
+  while(got.length<PACK) got.push(pool[Math.floor(Math.random()*pool.length)]);
   W.hand.push(...got);
-  log('撕开卡包：' + got.join(' '));
-  renderHand();
-  updateHUD();
+  log('撕开一包');
+  renderHand(); updateHUD();
 }
 
-function recycle() {
-  if (W.sel < 0) return;
-  const n = W.hand.splice(W.sel, 1)[0];
-  W.sel = -1;
-  W.essence += 1;
-  log('回收 ' + n + ' → 1 时素');
-  renderHand();
-  updateHUD();
+function recycle(){
+  if(W.sel<0) return;
+  const n=W.hand.splice(W.sel,1)[0];
+  W.sel=-1; W.essence+=1;
+  log('回收 '+n);
+  renderHand(); updateHUD();
 }
 
-// ═══════════════════════════════════════════
-//  输入
-// ═══════════════════════════════════════════
-cv.addEventListener('click', (ev) => {
-  if (W.sel < 0) { log('先选一张卡'); return; }
-
-  const r = cv.getBoundingClientRect();
-  const mx = ev.clientX - r.left;
-  const my = ev.clientY - r.top;
-
-  const vw = cv.width / devicePixelRatio;
-  const vh = cv.height / devicePixelRatio;
-
-  let gx, gy;
-
-  if (W.cells.size === 0) {
-    gx = 0; gy = 0;
-  } else {
-    const xs = [...W.cells.values()].map(c => c.x);
-    const ys = [...W.cells.values()].map(c => c.y);
-    const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
-    const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
-    const ox = vw / 2 - cx * TS - TS / 2;
-    const oy = vh / 2 - cy * TS - TS / 2;
-    gx = Math.round((mx - ox - TS / 2) / TS);
-    gy = Math.round((my - oy - TS / 2) / TS);
-  }
-
-  const ok = playCard(W.hand[W.sel], gx, gy);
-  if (ok) {
-    W.hand.splice(W.sel, 1);
-    W.sel = -1;
-    renderHand();
-    updateHUD();
-    render();
-  } else {
-    log('这里放不下');
-  }
-});
-
-document.getElementById('bPause').onclick = () => {
-  W.paused = !W.paused;
-  document.getElementById('bPause').classList.toggle('on', W.paused);
-  document.getElementById('bPause').textContent = W.paused ? '继续' : '暂停';
+document.getElementById('bPack').onclick=drawPack;
+document.getElementById('bRecycle').onclick=recycle;
+document.getElementById('bPause').onclick=e=>{
+  W.paused=!W.paused;
+  e.target.classList.toggle('on',W.paused);
+  e.target.textContent=W.paused?'继续':'暂停';
 };
-
-for (const s of [1, 2, 4]) {
-  document.getElementById('b' + s).onclick = () => {
-    W.speed = s;
-    [1,2,4].forEach(v => document.getElementById('b' + v).classList.toggle('on', v === s));
+for(const s of [1,2,4])
+  document.getElementById('b'+s).onclick=()=>{
+    W.speed=s;
+    [1,2,4].forEach(v=>document.getElementById('b'+v).classList.toggle('on',v===s));
   };
-}
-
-document.getElementById('bPack').onclick = drawPack;
-document.getElementById('bRecycle').onclick = recycle;
-
-// ═══════════════════════════════════════════
-//  主循环
-// ═══════════════════════════════════════════
-let last = performance.now();
-
-function loop(now) {
-  const dt = now - last;
-  last = now;
-
-  if (!W.paused && W.cells.size > 0) {
-    W.acc += dt * W.speed / 1000;   // 1 秒 = 1 月
-    while (W.acc >= 1) {
-      W.acc -= 1;
-      tick();
-    }
-  }
-
-  requestAnimationFrame(loop);
-}
-
-// ═══════════════════════════════════════════
-//  初始化
-// ═══════════════════════════════════════════
-function init() {
-  W.hand = ['土地', '太阳', '水', '草', '猴', '狼'];
-  W.sel = 0;
-  renderHand();
-  updateHUD();
-  resize();
-  requestAnimationFrame(loop);
-}
-
-window.addEventListener('resize', resize);
-window.addEventListener('keydown', e => {
-  if (e.code === 'Space') { e.preventDefault(); document.getElementById('bPause').click(); }
-  if (e.code === 'KeyR') recycle();
+window.addEventListener('keydown',e=>{
+  if(e.code==='Space'){e.preventDefault();document.getElementById('bPause').click();}
+  if(e.code==='KeyR') recycle();
 });
 
+// ═══════════════════════════════════════════════════════════
+//  主循环
+// ═══════════════════════════════════════════════════════════
+let last=performance.now();
+function loop(now){
+  const dt=now-last; last=now;
+  if(!W.paused&&W.cells.size>0){
+    W.acc+=dt*W.speed/1000;
+    let g=0;
+    while(W.acc>=1&&g++<8){ W.acc-=1; tick(); }
+  }
+  if(W.sun>0) sunOrb.scale.setScalar(1+Math.sin(now*0.0012)*0.045);
+
+  // 立牌轻微摆动
+  const t=now*0.001;
+  let i=0;
+  for(const list of standees.values()) for(const m of list){
+    m.rotation.z=Math.sin(t*1.3+i*0.8)*0.022; i++;
+  }
+  if(hoverBox.visible) hoverBox.material.opacity*=0.98;
+
+  faceCam();
+  renderer.render(scene,camera);
+  requestAnimationFrame(loop);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  启动
+// ═══════════════════════════════════════════════════════════
+function init(){
+  W.hand=['土地','太阳','水','草','猴','雨','常春'];
+  W.sel=-1;
+  window.__render=renderHand;
+  window.__dbg={W,standees,CARDS,scene,standeeGroup,tick,playCard,computeEnv,
+    screenOf(x,y){
+      const v=new THREE.Vector3(x,0.3,y).project(camera);
+      const r=cv.getBoundingClientRect();
+      return {x:(v.x*0.5+0.5)*r.width+r.left, y:(-v.y*0.5+0.5)*r.height+r.top};
+    }
+  };
+  onResize(); placeCam();
+  renderHand(); updateHUD();
+  requestAnimationFrame(loop);
+}
 init();
 </script>
 </body>
