@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>至日 · demo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%; overflow: hidden;
+    background: #0a0a0c; color: #d8d4cc;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    user-select: none;
+  }
+  #app { display: flex; flex-direction: column; height: 100%; }
+
+  header {
+    display: flex; align-items: center; gap: 18px;
+    padding: 10px 16px; border-bottom: 1px solid #1e1e24;
+    background: #0e0e12; font-size: 13px; flex-shrink: 0;
+  }
+  .stat { display: flex; align-items: baseline; gap: 6px; }
+  .stat b { font-size: 17px; font-weight: 600; color: #e8e4da; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 11px; color: #6b6b78; }
+  .spacer { flex: 1; }
+  .btn {
+    padding: 5px 12px; border: 1px solid #2a2a34; border-radius: 4px;
+    background: #14141a; color: #b8b4ac; cursor: pointer; font-size: 12px;
+    transition: .12s;
+  }
+  .btn:hover { background: #1e1e26; border-color: #3a3a48; color: #e8e4da; }
+  .btn.on { background: #2a3a2a; border-color: #4a6a4a; color: #a8d8a8; }
+  .btn:disabled { opacity: .35; cursor: not-allowed; }
+
+  #essbar { width: 90px; height: 4px; background: #1a1a22; border-radius: 2px; overflow: hidden; }
+  #essbar i { display: block; height: 100%; background: #6a8aaa; width: 0; transition: width .2s; }
+
+  main { flex: 1; position: relative; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+
+  #hint {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    text-align: center; color: #4a4a58; font-size: 13px; line-height: 2;
+    pointer-events: none; transition: opacity .4s;
+  }
+  #hint b { color: #7a7a8a; }
+
+  footer {
+    border-top: 1px solid #1e1e24; background: #0e0e12;
+    padding: 10px 16px; flex-shrink: 0; min-height: 92px;
+  }
+  #hand { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+  #hand::-webkit-scrollbar { height: 4px; }
+  #hand::-webkit-scrollbar-thumb { background: #2a2a34; border-radius: 2px; }
+
+  .card {
+    flex-shrink: 0; width: 76px; height: 64px; border-radius: 5px;
+    border: 1px solid #2a2a34; background: #16161c;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 6px; cursor: pointer; transition: .12s; position: relative;
+  }
+  .card:hover { border-color: #4a4a5a; background: #1e1e26; transform: translateY(-2px); }
+  .card.sel { border-color: #8a7a4a; background: #24201a; box-shadow: 0 0 0 1px #8a7a4a; }
+  .card .nm { font-size: 13px; color: #ddd8cc; }
+  .card .meta { font-size: 10px; color: #6a6a78; display: flex; justify-content: space-between; }
+  .card .ring { position: absolute; top: 5px; right: 6px; font-size: 9px; color: #5a5a68; }
+
+  #log {
+    position: absolute; right: 12px; top: 12px; width: 240px;
+    font-size: 11px; line-height: 1.7; color: #7a7a88;
+    pointer-events: none; text-align: right;
+  }
+  #log div { opacity: 0; animation: fadein .3s forwards; }
+  @keyframes fadein { to { opacity: 1; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="stat"><b id="sYear">0</b><span>年</span></div>
+    <div class="stat"><b id="sCells">0</b><span>格</span></div>
+    <div class="stat"><b id="sEss">0</b><span>时素</span></div>
+    <div id="essbar"><i></i></div>
+    <div class="spacer"></div>
+    <button class="btn" id="bPause">暂停</button>
+    <button class="btn" id="b1">1×</button>
+    <button class="btn" id="b2">2×</button>
+    <button class="btn" id="b4">4×</button>
+    <button class="btn" id="bPack">抽卡包 12</button>
+    <button class="btn" id="bRecycle">回收 +1</button>
+  </header>
+
+  <main>
+    <canvas id="cv"></canvas>
+    <div id="hint">世界是空的<br><b>先打一张「土地」</b></div>
+    <div id="log"></div>
+  </main>
+
+  <footer>
+    <div id="hand"></div>
+  </footer>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  卡定义
+// ═══════════════════════════════════════════
+const CARDS = {
+  土地:   { ring:0, kind:'物', comps:['Container'],           color:'#5a4a38', shape:'tile', desc:'生成 3×3 陆地' },
+  太阳:   { ring:0, kind:'物', comps:['EmitLight','Heating'], color:'#c8a848', shape:'orb',  desc:'光照 + 升温' },
+  水:     { ring:0, kind:'物', comps:['WaterSource'],         color:'#3a6a8a', shape:'tile', desc:'产出水' },
+  岩石:   { ring:0, kind:'物', comps:['Container','Barrier'], color:'#5a5a62', shape:'tile', desc:'不可种，挡路' },
+
+  草:     { ring:1, kind:'物', comps:['Grower','Living','Edible','Propagator'], color:'#5a8a4a', shape:'plant', desc:'需水与光，会蔓延' },
+  苔:     { ring:0, kind:'物', comps:['Grower','Living','Edible','Propagator'], color:'#6a9a5a', shape:'plant', desc:'长得快，寿命短' },
+  灌木:   { ring:1, kind:'物', comps:['Grower','Living','Edible','Shade'],      color:'#4a7a3a', shape:'plant', desc:'可食，略遮荫' },
+  树:     { ring:2, kind:'物', comps:['Grower','Living','Shade','WaterKeep'],   color:'#3a6a32', shape:'tree',  desc:'遮荫，保水，不可食' },
+  芦苇:   { ring:1, kind:'物', comps:['Grower','Living','Edible','WaterKeep'],  color:'#6a8a4a', shape:'plant', desc:'临水，保水' },
+
+  兔:     { ring:1, kind:'物', comps:['Living','Predator','Mobile'], color:'#a89878', shape:'animal', desc:'吃草，会跑' },
+  猴:     { ring:1, kind:'物', comps:['Living','Predator','Mobile'], color:'#a87848', shape:'animal', desc:'吃草' },
+  鹿:     { ring:2, kind:'物', comps:['Living','Predator','Mobile'], color:'#9a7a52', shape:'animal', desc:'吃草，体型中' },
+  狼:     { ring:2, kind:'物', comps:['Living','Predator','Mobile'], color:'#7a7a82', shape:'animal', desc:'吃肉' },
+  鹰:     { ring:2, kind:'物', comps:['Living','Predator','Mobile'], color:'#b0a070', shape:'animal', desc:'吃肉，速度快' },
+
+  太阳树: { ring:5, kind:'物', comps:['Grower','Living','Shade','WaterKeep','EmitLight'], color:'#d8b858', shape:'tree', desc:'强遮荫，保水，发光' },
+};
+
+// 生物参数
+const SPECIES = {
+  草:    { lifespan:20,  grow:1,   edible:1,   propag:6,  size:1, diet:'草' },
+  苔:    { lifespan:12,  grow:1.5, edible:0.5, propag:4,  size:0, diet:'草' },
+  灌木:  { lifespan:60,  grow:0.5, edible:1.5, propag:12, size:2, diet:'草' },
+  树:    { lifespan:400, grow:0.2, edible:0,   propag:24, size:4, diet:'草' },
+  芦苇:  { lifespan:40,  grow:0.8, edible:1,   propag:8,  size:2, diet:'草' },
+  太阳树:{ lifespan:300, grow:0.2, edible:0,   propag:30, size:4, diet:'草' },
+
+  兔:    { lifespan:24, size:1, diet:'草', speed:2, hp:2 },
+  猴:    { lifespan:60, size:1, diet:'草', speed:2, hp:3 },
+  鹿:    { lifespan:80, size:2, diet:'草', speed:2, hp:3 },
+  狼:    { lifespan:60, size:2, diet:'肉', speed:3, hp:4 },
+  鹰:    { lifespan:50, size:2, diet:'肉', speed:3, hp:3 },
+};
+
+const COST = 12;
+const PACK_SIZE = 6;
+
+// ═══════════════════════════════════════════
+//  世界状态
+// ═══════════════════════════════════════════
+const W = {
+  cells: new Map(),      // "x,y" -> cell
+  month: 0,
+  essence: 0,
+  essAcc: 0,
+  speed: 1,
+  paused: false,
+  hand: [],
+  sel: -1,
+  acc: 0,
+};
+
+function key(x, y) { return x + ',' + y; }
+function cellAt(x, y) { return W.cells.get(key(x, y)); }
+
+function newCell(x, y) {
+  return { x, y, T: 20, W: 0, L: 0, ents: [] };
+}
+
+function neighbors(c) {
+  return [[c.x+1,c.y],[c.x-1,c.y],[c.x,c.y+1],[c.x,c.y-1]]
+    .map(([x,y]) => cellAt(x,y)).filter(Boolean);
+}
+
+// ═══════════════════════════════════════════
+//  打牌
+// ═══════════════════════════════════════════
+function playCard(cardName, gx, gy) {
+  const def = CARDS[cardName];
+  if (!def) return false;
+
+  // 土地：生成 3×3
+  if (cardName === '土地') {
+    for (let dx = -1; dx <= 1; dx++)
+      for (let dy = -1; dy <= 1; dy++) {
+        const x = gx + dx, y = gy + dy;
+        if (!cellAt(x, y)) W.cells.set(key(x, y), newCell(x, y));
+      }
+    log('土地展开');
+    return true;
+  }
+
+  // 其他：必须放在已有格
+  const cell = cellAt(gx, gy);
+  if (!cell) return false;
+
+  // 地形类替换地表
+  if (['水','岩石'].includes(cardName)) {
+    const exists = cell.ents.find(e => e.name === cardName);
+    if (exists) return false;
+    cell.ents.unshift({ name: cardName, def, age: 0, hp: 999, ground: true });
+    log(cardName + '放下');
+    return true;
+  }
+
+  if (cell.ents.filter(e => !e.ground).length >= 3) return false;
+
+  const sp = SPECIES[cardName] || {};
+  cell.ents.push({
+    name: cardName, def, age: 0,
+    hp: sp.hp || 999,
+    lifespan: sp.lifespan || 999,
+    size: sp.size || 1,
+    diet: sp.diet || null,
+    speed: sp.speed || 1,
+    grow: sp.grow || 0,
+    edible: sp.edible || 0,
+    propag: sp.propag || 0,
+  });
+  log(cardName + '出现');
+  return true;
+}
+
+// ═══════════════════════════════════════════
+//  环境计算
+// ═══════════════════════════════════════════
+function computeEnv() {
+  for (const c of W.cells.values()) {
+    let T = 20, L = 0, waterIn = 0, shade = 0, heat = 0;
+
+    for (const e of c.ents) {
+      const cp = e.def.comps;
+      if (cp.includes('EmitLight')) L += 1;
+      if (cp.includes('Heating')) heat += 0.5;
+      if (cp.includes('Shade')) shade += 0.6;
+      if (cp.includes('WaterSource')) waterIn += 1.0;
+    }
+
+    // 邻格遮阳（不减自己）
+    for (const n of neighbors(c)) {
+      for (const e of n.ents) {
+        if (e.def.comps.includes('Shade')) shade += 0.4;
+      }
+    }
+
+    T = 20 + heat - shade * 0.5;
+    L = Math.max(0, L - shade * 0.35);
+
+    // 保水
+    let keep = 1;
+    for (const e of c.ents) {
+      if (e.def.comps.includes('WaterKeep')) keep *= 0.55;
+    }
+
+    const evap = 0.5 * Math.max(0, T - 10) / 10 * keep;
+    c.W = Math.min(3, Math.max(0, c.W + waterIn - evap));
+    c.T = T;
+    c.L = L;
+  }
+}
+
+// ═══════════════════════════════════════════
+//  实体行为
+// ═══════════════════════════════════════════
+function entityTick() {
+  const deaths = [];
+
+  for (const c of W.cells.values()) {
+    const before = c.ents.length;
+
+    for (const e of [...c.ents]) {
+      if (e.ground) continue;
+
+      // 生长
+      if (e.grow) {
+        if (c.W >= 1 && c.L >= 1) e.age += e.grow;
+        // 旱死
+        if (c.W <= 0) { e.hp = (e.hp || 1) - 1; }
+      }
+
+      // 老化
+      e.age += (e.grow ? 0 : 1);
+      if (e.age > e.lifespan) { deaths.push([c, e, '老死']); continue; }
+
+      // 自养生物缺水
+      if (e.grow && c.W <= 0 && e.age > 2) { deaths.push([c, e, '旱死']); continue; }
+
+      // 动物：找吃的
+      if (e.diet) {
+        const target = findFood(c, e);
+        if (target) {
+          // 吃掉
+          const idx = target.cell.ents.indexOf(target.ent);
+          if (idx >= 0) {
+            target.cell.ents.splice(idx, 1);
+            e.hp = Math.min((SPECIES[e.name]?.hp || 3), e.hp + 1);
+            log(e.name + ' 吃了 ' + target.ent.name);
+          }
+        } else {
+          e.hp -= 1;
+          if (e.hp <= 0) { deaths.push([c, e, '饿死']); continue; }
+        }
+      }
+
+      // 繁殖
+      if (e.propag && c.W >= 1 && c.L >= 1) {
+        if (Math.random() < 1 / e.propag) {
+          const nb = neighbors(c).filter(n => n.ents.filter(x => !x.ground).length < 2);
+          if (nb.length) {
+            const t = nb[Math.floor(Math.random() * nb.length)];
+            const sp = SPECIES[e.name];
+            t.ents.push({
+              name: e.name, def: e.def, age: 0,
+              hp: sp.hp || 999, lifespan: sp.lifespan || 999,
+              size: sp.size || 1, diet: sp.diet || null,
+              speed: sp.speed || 1, grow: sp.grow || 0,
+              edible: sp.edible || 0, propag: sp.propag || 0,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  for (const [c, e, why] of deaths) {
+    const i = c.ents.indexOf(e);
+    if (i >= 0) c.ents.splice(i, 1);
+    if (why !== '饿死') log(e.name + ' ' + why);
+  }
+}
+
+function findFood(cell, pred) {
+  const cells = [cell, ...neighbors(cell)];
+  const wantPlant = pred.diet === '草';
+
+  for (const c of cells) {
+    for (const e of c.ents) {
+      if (e === pred) continue;
+      if (e.ground) continue;
+      if (wantPlant) {
+        if (e.def.comps.includes('Edible') && e.def.comps.includes('Grower')) {
+          return { cell: c, ent: e };
+        }
+      } else {
+        if (e.diet === '草' && pred.size >= e.size) {
+          return { cell: c, ent: e };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════
+//  Tick
+// ═══════════════════════════════════════════
+function tick() {
+  W.month++;
+  computeEnv();
+  entityTick();
+
+  W.essAcc += 0.1;
+  if (W.essAcc >= 1) { W.essAcc -= 1; W.essence++; }
+
+  render();
+  updateHUD();
+}
+
+// ═══════════════════════════════════════════
+//  渲染
+// ═══════════════════════════════════════════
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let camX = 0, camY = 0, TS = 46;
+
+function resize() {
+  const r = cv.parentElement.getBoundingClientRect();
+  cv.width = r.width * devicePixelRatio;
+  cv.height = r.height * devicePixelRatio;
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  render();
+}
+
+function render() {
+  const vw = cv.width / devicePixelRatio;
+  const vh = cv.height / devicePixelRatio;
+
+  ctx.fillStyle = '#0a0a0c';
+  ctx.fillRect(0, 0, vw, vh);
+
+  if (W.cells.size === 0) return;
+
+  // 居中
+  const xs = [...W.cells.values()].map(c => c.x);
+  const ys = [...W.cells.values()].map(c => c.y);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+
+  const ox = vw / 2 - cx * TS - TS / 2;
+  const oy = vh / 2 - cy * TS - TS / 2;
+
+  for (const c of W.cells.values()) {
+    const x = ox + c.x * TS;
+    const y = oy + c.y * TS;
+
+    // 地形底（温度偏红，水偏蓝，光调亮度）
+    const warm = Math.min(1, Math.max(0, (c.T - 15) / 30));
+    const wet = Math.min(1, c.W / 3);
+    const lit = Math.min(1, c.L / 1.5);
+
+    let r = 30 + warm * 45;
+    let g = 32 - wet * 4;
+    let b = 34 + wet * 40;
+    const bright = 0.45 + lit * 0.55;
+
+    ctx.fillStyle = `rgb(${r*bright|0},${g*bright|0},${b*bright|0})`;
+    ctx.fillRect(x + 1, y + 1, TS - 2, TS - 2);
+
+    // 有水的格画蓝条
+    if (c.W > 0.3) {
+      ctx.fillStyle = `rgba(70,130,180,${Math.min(.5, c.W/3*.5)})`;
+      ctx.fillRect(x + 1, y + TS - 5, TS - 2, 4);
+    }
+
+    // 实体
+    let pi = 0, ai = 0;
+    for (const e of c.ents) {
+      const s = e.def.shape;
+      const ex = x + TS / 2;
+      const ey = y + TS / 2;
+
+      if (s === 'tile') {
+        ctx.fillStyle = e.def.color;
+        ctx.globalAlpha = 0.85;
+        ctx.fillRect(x + 4, y + 4, TS - 8, TS - 8);
+        ctx.globalAlpha = 1;
+        continue;
+      }
+
+      if (s === 'orb') {
+        ctx.beginPath();
+        ctx.arc(ex, ey, TS * 0.32, 0, 7);
+        ctx.fillStyle = e.def.color;
+        ctx.globalAlpha = 0.9;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        continue;
+      }
+
+      if (s === 'plant') {
+        const h = 8 + Math.min(18, e.age * 0.6);
+        const px = x + 8 + pi * 12;
+        ctx.fillStyle = e.def.color;
+        ctx.fillRect(px, y + TS - 8 - h, 5, h);
+        pi++;
+        continue;
+      }
+
+      if (s === 'tree') {
+        const h = 14 + Math.min(20, e.age * 0.3);
+        const px = x + TS / 2;
+        ctx.fillStyle = '#3a2a1a';
+        ctx.fillRect(px - 2, y + TS - 10 - h * 0.4, 4, h * 0.4);
+        ctx.fillStyle = e.def.color;
+        ctx.beginPath();
+        ctx.arc(px, y + TS - 10 - h * 0.4, h * 0.45, 0, 7);
+        ctx.fill();
+        continue;
+      }
+
+      if (s === 'animal') {
+        const ax = x + 10 + ai * 12;
+        const ay = y + TS * 0.55;
+        ctx.beginPath();
+        ctx.arc(ax, ay, 4.5, 0, 7);
+        ctx.fillStyle = e.def.color;
+        ctx.fill();
+        ai++;
+      }
+    }
+  }
+
+  // 提示
+  document.getElementById('hint').style.opacity = W.cells.size ? 0 : 1;
+}
+
+// ═══════════════════════════════════════════
+//  UI
+// ═══════════════════════════════════════════
+function updateHUD() {
+  document.getElementById('sYear').textContent = Math.floor(W.month / 12);
+  document.getElementById('sCells').textContent = W.cells.size;
+  document.getElementById('sEss').textContent = W.essence;
+  document.querySelector('#essbar i').style.width = (W.essAcc * 100) + '%';
+
+  document.getElementById('bPack').disabled = W.essence < COST;
+  document.getElementById('bRecycle').disabled = W.sel < 0;
+}
+
+function log(msg) {
+  const el = document.getElementById('log');
+  const d = document.createElement('div');
+  d.textContent = msg;
+  el.appendChild(d);
+  setTimeout(() => d.remove(), 4000);
+  while (el.children.length > 8) el.removeChild(el.firstChild);
+}
+
+function renderHand() {
+  const h = document.getElementById('hand');
+  h.innerHTML = '';
+  W.hand.forEach((name, i) => {
+    const def = CARDS[name];
+    const d = document.createElement('div');
+    d.className = 'card' + (i === W.sel ? ' sel' : '');
+    d.innerHTML = `
+      <div class="ring">${def.ring}环</div>
+      <div class="nm">${name}</div>
+      <div class="meta"><span>${def.kind}</span><span>${def.comps.length}件</span></div>
+    `;
+    d.onclick = () => {
+      W.sel = (W.sel === i) ? -1 : i;
+      renderHand();
+      updateHUD();
+    };
+    h.appendChild(d);
+  });
+}
+
+function drawPack() {
+  if (W.essence < COST) return;
+  W.essence -= COST;
+
+  const pool = [];
+  for (const [n, d] of Object.entries(CARDS)) {
+    const weight = [30,22,16,11,8,5,3.5,2.5,1.5,0.5][d.ring] ?? 1;
+    for (let i = 0; i < weight; i++) pool.push(n);
+  }
+
+  // 保证位
+  const got = ['土地', '太阳', '水'];
+  while (got.length < PACK_SIZE) {
+    got.push(pool[Math.floor(Math.random() * pool.length)]);
+  }
+
+  W.hand.push(...got);
+  log('撕开卡包：' + got.join(' '));
+  renderHand();
+  updateHUD();
+}
+
+function recycle() {
+  if (W.sel < 0) return;
+  const n = W.hand.splice(W.sel, 1)[0];
+  W.sel = -1;
+  W.essence += 1;
+  log('回收 ' + n + ' → 1 时素');
+  renderHand();
+  updateHUD();
+}
+
+// ═══════════════════════════════════════════
+//  输入
+// ═══════════════════════════════════════════
+cv.addEventListener('click', (ev) => {
+  if (W.sel < 0) { log('先选一张卡'); return; }
+
+  const r = cv.getBoundingClientRect();
+  const mx = ev.clientX - r.left;
+  const my = ev.clientY - r.top;
+
+  const vw = cv.width / devicePixelRatio;
+  const vh = cv.height / devicePixelRatio;
+
+  let gx, gy;
+
+  if (W.cells.size === 0) {
+    gx = 0; gy = 0;
+  } else {
+    const xs = [...W.cells.values()].map(c => c.x);
+    const ys = [...W.cells.values()].map(c => c.y);
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+    const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+    const ox = vw / 2 - cx * TS - TS / 2;
+    const oy = vh / 2 - cy * TS - TS / 2;
+    gx = Math.round((mx - ox - TS / 2) / TS);
+    gy = Math.round((my - oy - TS / 2) / TS);
+  }
+
+  const ok = playCard(W.hand[W.sel], gx, gy);
+  if (ok) {
+    W.hand.splice(W.sel, 1);
+    W.sel = -1;
+    renderHand();
+    updateHUD();
+    render();
+  } else {
+    log('这里放不下');
+  }
+});
+
+document.getElementById('bPause').onclick = () => {
+  W.paused = !W.paused;
+  document.getElementById('bPause').classList.toggle('on', W.paused);
+  document.getElementById('bPause').textContent = W.paused ? '继续' : '暂停';
+};
+
+for (const s of [1, 2, 4]) {
+  document.getElementById('b' + s).onclick = () => {
+    W.speed = s;
+    [1,2,4].forEach(v => document.getElementById('b' + v).classList.toggle('on', v === s));
+  };
+}
+
+document.getElementById('bPack').onclick = drawPack;
+document.getElementById('bRecycle').onclick = recycle;
+
+// ═══════════════════════════════════════════
+//  主循环
+// ═══════════════════════════════════════════
+let last = performance.now();
+
+function loop(now) {
+  const dt = now - last;
+  last = now;
+
+  if (!W.paused && W.cells.size > 0) {
+    W.acc += dt * W.speed / 1000;   // 1 秒 = 1 月
+    while (W.acc >= 1) {
+      W.acc -= 1;
+      tick();
+    }
+  }
+
+  requestAnimationFrame(loop);
+}
+
+// ═══════════════════════════════════════════
+//  初始化
+// ═══════════════════════════════════════════
+function init() {
+  W.hand = ['土地', '太阳', '水', '草', '猴', '狼'];
+  W.sel = 0;
+  renderHand();
+  updateHUD();
+  resize();
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener('resize', resize);
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); document.getElementById('bPause').click(); }
+  if (e.code === 'KeyR') recycle();
+});
+
+init();
+</script>
+</body>
+</html>
