@@ -470,6 +470,7 @@ status: active
 | G-25 | **手牌卡比例不是卡**：`150×142` ≈ 1.06:1，读作"图标/按钮"；游戏王实卡是 1:1.457 | `SolsticeHUDView.cpp` 手牌尺寸；旧 `ART.md` §8.1 的 3:4 卡面 |
 | G-26 | **默认机位没有"侧看"构图**：24° 俯角但按俯视图设计（山是压扁的圈），地平线常年在画外 | `ASolsticeObserver` pitch；旧 `ART.md` §7 |
 | G-27 | **常驻侧板占 620 px 宽**，世界区只剩 1300；读数与说明文字全堆在界面上 | `SolsticeHUDView.cpp` 左右板布局 |
+| G-28 | **CHARTER §1 品类 / §2-5 / §3 仍写着 2026-10-22 那版"对抗卡牌 · 24 回合有胜负"，与现行「卡牌驱动的创世沙盒、无终局」自相矛盾**；同期 4 条链接指向已归档的 `archive/GAME.md`（链接已修，口径未改，待裁决） | `CHARTER.md:19,36,49`；`SETTING.md` §0；`archive/README.md` 的 `GAME.md → SETTING.md` 一行 |
 
 ---
 

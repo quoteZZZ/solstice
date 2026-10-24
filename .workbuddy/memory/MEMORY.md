@@ -7,8 +7,11 @@
   `C:/Users/.../Worktrees/solstice/main-2296c354` 的第二工作树（分支 `workbuddy/main-2296c354`，领先 14 个提交）
   已于 2026-10-19 快进合并进 `main` 并删除，分支名仅留作标记。不要再按「提交了 ≠ main 上有」的前提做事；
   推送用 `git push origin HEAD:main`。
-- **文档只有 9 份**（`docs/README` + CHARTER/WORLD/CARDS/ART/TECH/PLAN/OPS/LATER）。改内容只改正文 +
-  `docs/CHANGELOG.md` 一行；**新增/作废文档**才改 `docs/README.md` §2 的表。**不建索引页、不抄规格副本**。
+- **文档结构以 `docs/README.md` §2 的表为准，不要凭记忆数份数**。2026-10-24 同步后（`95b027c`）核心域文档为
+  README + CHARTER / WORLD / CARDS / SPECIES / SETTING / TIME / ART / TECH / PLAN / OPS / LATER，另有卡专题
+  `CARD-SCHEMA` / `CARD-INDEX` / `CARD-TREE` / `CARD-COMPONENT`，辅助件 `WIREFRAMES.html` / `PROTOTYPE.html`（非真源）。
+  改内容只改正文 + `docs/CHANGELOG.md` 一行；**新增/作废文档**才改 §2 的表。**不建索引页、不抄规格副本**。
+  红线现已 **7 条**（新增「界缘必须有交代」，第 4 条含 **Z0–Z4 五级缩放**）。
 - **改画面必须量，不许看图**：`& tools/run/shot.ps1 -Preset 0 -Delay 5` 无人值守抓一帧（写出
   `tmp/review/shot.png`），日志里的 `[shot] box=` 是世界圆盘的屏幕包围盒，脚本自动喂给
   `tools/checks/measure-frame.py` 判 PASS/FAIL。基线：修曝光前 0.095/0.910/0.597 三项全 FAIL，
@@ -18,6 +21,8 @@
   - `python tools/checks/validate-contracts.py` → 期望 `errors : 0`
 - 改表现层后必跑 `& tools/run/bench.ps1 -Days 2` → 期望 `digest A == digest B`。
 - `docs/archive/**` 无约束力；不要把已作废形态（动态壁纸 / 场景引擎 / 卡牌收集 / 自走棋 / 2.5D / Tauri / WebGL）带回方案或文档。
+  **注意**：2026-10-24 同步进来的设计已改成「卡驱动的造物沙盒」（抽卡是唯一获取途径、卡落到地面），
+  与上面作废的「卡牌收集」是否同一回事**未经用户裁决**——碰到卡的事先读 `docs/CARDS.md`，别拿旧记忆当否决依据。
 
 ## 本机构建（三条必踩坑，详见 `tools/docs/ENVIRONMENT.md` §2.4.1）
 1. **必须关 UBA** → `tools/build/build.ps1` 已默认追加 `-NoUBA`（`-UseUBA` 可换回）。
