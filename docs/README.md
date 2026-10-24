@@ -26,7 +26,11 @@ status: active
 
 ---
 
-## 2 七份文档，各管一件事
+## 2 文档地图
+
+> ⚠️ **两条文档线并存，尚未裁决**（口径冲突记在 [PLAN.md](PLAN.md) **G-28**）。仓库里唯一有代码的是 **A 线**（`game/Source`，UE5 模拟沙盒）；**B 线**是 2026-10-23/24 落地的卡驱动造物沙盒，目前只有文档 + `demo/` 浏览器原型。两条线对**卡数、玩法、胜负**的说法互相冲突——**引用任何数字前，先确认自己在哪条线上**。
+
+### 2.1 A 线：UE5 模拟沙盒（8 份，有代码）
 
 | 文档 | 管什么 | 什么时候读 |
 |---|---|---|
@@ -39,16 +43,35 @@ status: active
 | **[PLAN.md](PLAN.md)** | 里程碑、验收、当前批次、已知缺陷、待裁决 | 每次开工前 |
 | **[OPS.md](OPS.md)** | 构建、运行、抓帧、跑分、试玩、排错 | 动手时 |
 
-M1 及以后的内容全部收在 [LATER.md](LATER.md)（一页指针），**M0 期间不读**。
+### 2.2 B 线：卡驱动造物沙盒（7 份，只有文档与 `demo/`）
 
-**辅助件（两个，都不是真源）**：
-
-| 文件 | 是什么 | 怎么用 |
+| 文档 | 管什么 | front-matter |
 |---|---|---|
-| **[WIREFRAMES.html](WIREFRAMES.html)** | 19 块**静态线框板**（v2） | 逐板评审版式：抽屉 / 卡比例 / 设置 / 键位 / 视角 / 缩放 / 形制 |
-| **[PROTOTYPE.html](PROTOTYPE.html)** | **可点击原型 v3**：**纯随机创世**（只能重掷，不能选形制/气候/特征；剖面 + 15 行生成日志 + 分段坐标）→ 进场动画 → 世界（左 56 功能栏 + 右 320 信息栏）→ **拖卡到地面指定落点** / 空格随机释放 / 下拖回收 → `R` 从已有牌重抽 → 抽卡（唯一获取途径，只出未拥有）→ 卡库 / 年表 / 设置 / 键位重绑 → 视角与缩放 → 摆件 | 真点、真拖、真走流程；左侧流程栏可直跳，键盘也能玩（空格 / X / R / B / L / C / Z / F1–F4） |
+| **[SETTING.md](SETTING.md)** | 设定集：纯随机创世、卡的六层、判据与组件（自称"单一真源"） | `active` |
+| **[TIME.md](TIME.md)** | 时间只由 UI 控制（暂停 / 加速），**卡不涉及时间** | `active` |
+| **[CARD-TREE.md](CARD-TREE.md)** | 合成树：环级 = 合成深度，图鉴兼工作台 | `draft` |
+| **[CARD-INDEX.md](CARD-INDEX.md)** | 卡总目录（按类分 19 组，合计 **540** 张） | `draft` |
+| **[CARD-COMPONENT.md](CARD-COMPONENT.md)** | 卡 → 组件映射（18 扩到 25 个组件） | `draft` |
+| **[CARD-SCHEMA.md](CARD-SCHEMA.md)** | 卡片字段表：卡面 / 悬浮 / 图鉴的字段来源 | 无（自称真源） |
+| **[GAME-SCAN.md](GAME-SCAN.md)** | 32 部卡牌游戏的机制借鉴清单（抄什么 / 不抄什么） | `active` |
 
-两者都是**规格的可读投影**：界面尺寸以 [ART.md](ART.md) §7 与 [TECH.md](TECH.md) §6.1 为准，键位以 [OPS.md](OPS.md) §5 为准。
+### 2.3 辅助件（HTML，都是**规格的可读投影，不是真源**）
+
+| 文件 | 是什么 |
+|---|---|
+| **[WIREFRAMES.html](WIREFRAMES.html)** | 静态线框板（v2）：逐板评审版式——抽屉 / 卡比例 / 设置 / 键位 / 视角 / 缩放 / 形制 |
+| **[PROTOTYPE.html](PROTOTYPE.html)** | 可点击原型（v2）：纯随机创世 → 进场 → 世界（左 56 功能栏 + 右 320 信息栏）→ 拖卡落点 / 空格释放 / 下拖回收 → 抽卡 → 卡库 / 年表 / 设置 / 键位重绑 → 视角缩放；键盘可玩（空格 / X / R / B / L / C / Z / F1–F4） |
+| **[CARD-LAYOUTS.html](CARD-LAYOUTS.html)** | 卡面版式四套方案 + 三档尺寸实测（[ART.md](ART.md) §8 的可读投影） |
+| **[CARD-NIGHTBIRD.html](CARD-NIGHTBIRD.html)** | 「夜沼鸟」单张卡的完整设计稿（[CARD-SCHEMA.md](CARD-SCHEMA.md) 的实例） |
+| **[CARD-SYSTEM.html](CARD-SYSTEM.html)** | 卡牌系统：正面 / 背面 / 三轴编码（早期一版） |
+| **[CARD-SYSTEM-V2.html](CARD-SYSTEM-V2.html)** | 卡牌重制 V2（同上，后一版） |
+| **[VALLEY.html](VALLEY.html)** | 「一山谷」场景设定图 |
+| **[CHAIN.html](CHAIN.html)** | 至日 · 食物链 |
+| **[GAME.html](GAME.html)** | 能量之网 —— **自标"废案 · 仅作对照"**，不作依据 |
+
+界面尺寸以 [ART.md](ART.md) §7 与 [TECH.md](TECH.md) §6.1 为准，键位以 [OPS.md](OPS.md) §5 为准。
+
+M1 及以后的内容全部收在 [LATER.md](LATER.md)（一页指针），**M0 期间不读**。
 
 ---
 

@@ -6,7 +6,7 @@
 
 - **形态**：UE5.8 + C++，全 3D 程序化几何，动画赛璐璐着色
 - **平台**：Steam 单机买断（Windows），无服务端 / 无账号 / 无内购
-- **内容**：卡种 ≥252（7 元素 × 12 档 × 3 类）；M0 做 36
+- **内容**：**231 格**（7 元素 × 11 环 × 3 类）+ 21 禁物 = **252 格**；每格可不断加卡、**卡总数不封顶**；M0 目标 **21 张**（7 元素 × 3 类各一张；当前 `game/Config/Solstice/Data/cards.*.json` 里是 36 张）。算式只在 [`docs/CARDS.md`](docs/CARDS.md) §1 写一次
 
 ---
 
@@ -45,13 +45,16 @@ python tools\checks\validate-contracts.py          # JSON 契约 / 双语
 
 ## 文档
 
-**入口：[`docs/README.md`](docs/README.md)**（现状 / 文档地图 / 六条红线 / 开工顺序）
+**入口：[`docs/README.md`](docs/README.md)**（现状 / 文档地图 / 七条红线 / 开工顺序）
+
+> ⚠️ 文档目前有**两条线并存且未裁决**（A：UE5 模拟沙盒，有代码；B：卡驱动造物沙盒，只有文档与 `demo/`），冲突记在 [`docs/PLAN.md`](docs/PLAN.md) **G-28**。别把两边的数字混用。
 
 | 文档 | 管什么 |
 |---|---|
 | [docs/CHARTER.md](docs/CHARTER.md) | 为什么做、不做什么、否决过什么 |
 | [docs/WORLD.md](docs/WORLD.md) | 世界形态、尺度、生成、生态、天气 |
 | [docs/CARDS.md](docs/CARDS.md) | 卡、手牌、余响、开包、回收 |
+| [docs/SPECIES.md](docs/SPECIES.md) | 物种档案：一张卡一个物种 |
 | [docs/ART.md](docs/ART.md) | 画风、色板、着色配方、机位、资产 |
 | [docs/TECH.md](docs/TECH.md) | 架构、依赖、预算、目录、命名、契约 |
 | [docs/PLAN.md](docs/PLAN.md) | 里程碑、验收、当前批次、已知缺陷 |
@@ -70,7 +73,8 @@ solstice/
 ├─ studio/      生图线（ComfyUI 工作流 / jobs / 预设 / 驱动脚本）；产物 out/ 不入 git
 ├─ shared/      JSON 契约（card / species / world / save）+ 色板
 ├─ tools/       开发脚本，按用途分 7 层（lib / env / build / run / checks / hooks / ai-config）
-├─ docs/        9 份现行文档 + archive/（历史，无约束力）
+├─ docs/        文档地图见 docs/README.md §2（A / B 两条线 + 辅助 HTML）+ archive/（历史，无约束力）
+├─ demo/        浏览器可玩原型（B 线的验证物，纯 HTML/JS，不进 UE 构建）
 ├─ .github/     CI：文档链接 + 契约自检（不需要引擎）
 ├─ .vscode/     构建任务 / 调试 / cpptools
 ├─ .codebuddy/  agents/ 与 rules/（项目数据，勿删）
@@ -95,5 +99,5 @@ solstice/
 
 ## 沿革
 
-动态壁纸 → 场景引擎 → 卡牌收集 → 自走棋 → 纸雕微缩 → **动画赛璐璐微缩生态界（当前）**。
+动态壁纸 → 场景引擎 → 卡牌收集 → 自走棋 → 纸雕微缩 → **动画赛璐璐微缩生态界（A 线，当前有代码）**；2026-10-23/24 另起 **卡驱动造物沙盒（B 线，未裁决）**。
 作废形态与旧稿在 [`docs/archive/`](docs/archive/README.md)，**无约束力**。

@@ -1,6 +1,6 @@
-﻿---
+---
 id: CARD-INDEX
-title: 卡总目录 · 460 张
+title: 卡总目录 · 540 张
 status: draft
 truth: none
 ---
