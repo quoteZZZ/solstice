@@ -1,0 +1,15 @@
+# 自测依赖与产物
+node_modules/
+*.log
+
+# 系统杂项
+Thumbs.db
+ehthumbs.db
+.DS_Store
+.idea/
+
+# 项目数据目录（必须入库，勿忽略）
+!.codebuddy/
+!.codebuddy/**
+!.workbuddy/
+!.workbuddy/**

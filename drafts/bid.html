@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>竞价 · Bid</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(ellipse at 50% 30%, #161c22 0%, #0b0f13 55%, #05070a 100%);
+    color: #d8e0e8;
+    font-family: "Georgia", "Songti SC", "STSong", serif;
+    display: flex; align-items: center; justify-content: center;
+    padding: 14px; overflow: hidden; user-select: none;
+  }
+  #app { width: 100%; max-width: 720px; position: relative; }
+
+  /* 顶栏 */
+  .top { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 22px; }
+  .stat .k { font-size: 10px; letter-spacing: 4px; color: #55636f; margin-bottom: 3px; }
+  .stat .v { font-size: 26px; color: #8fd6c8; letter-spacing: 1px; }
+  .stat .v.warn { color: #d47a5a; }
+  .stat.right { text-align: right; }
+  .stat.right .v { color: #c8b58a; }
+
+  /* 藏品卡 */
+  .lot { display: flex; justify-content: center; margin-bottom: 8px; }
+  .lotcard {
+    width: 190px; padding: 20px 14px 16px;
+    background: linear-gradient(168deg, #1b232b 0%, #0f151b 100%);
+    border: 1px solid #2c3a46; border-radius: 8px;
+    text-align: center; position: relative;
+    box-shadow: 0 0 0 1px #0a0d10 inset;
+  }
+  .lotcard::before {
+    content: ''; position: absolute; inset: 5px;
+    border: 1px solid #1e2832; border-radius: 5px; pointer-events: none;
+  }
+  .lotcard .cat { font-size: 10px; letter-spacing: 5px; color: #4f5f6b; margin-bottom: 10px; }
+  .lotcard .nm { font-size: 27px; letter-spacing: 4px; color: #e2ecf2; margin-bottom: 14px; }
+  .lotcard .start { font-size: 11px; letter-spacing: 3px; color: #5c6b77; }
+  .lotcard .start b { font-size: 17px; color: #8fd6c8; display: block; margin-top: 3px; letter-spacing: 1px; }
+  .clue {
+    text-align: center; font-size: 12px; color: #7d8b96; letter-spacing: 1px;
+    margin: 12px 0 20px; min-height: 18px; font-style: italic;
+  }
+
+  /* 竞价区 */
+  .arena { display: flex; align-items: center; justify-content: center; gap: 22px; margin-bottom: 20px; }
+  .side { text-align: center; width: 92px; }
+  .side .who { font-size: 10px; letter-spacing: 3px; color: #55636f; margin-bottom: 5px; }
+  .side .state { font-size: 13px; color: #6b7c88; height: 18px; }
+  .side.active .state { color: #8fd6c8; }
+  .side.out .state { color: #4a5560; text-decoration: line-through; }
+  .price { text-align: center; }
+  .price .n { font-size: 46px; line-height: 1; color: #e8c87a; text-shadow: 0 0 24px #c8a04044; transition: transform .15s; }
+  .price .n.pop { transform: scale(1.2); }
+  .price .l { font-size: 10px; letter-spacing: 5px; color: #55636f; margin-top: 4px; }
+
+  /* 按钮 */
+  .actions { display: flex; gap: 12px; justify-content: center; margin-bottom: 18px; }
+  button {
+    background: #131a21; color: #a8bccc; border: 1px solid #2c3a46;
+    padding: 12px 30px; font-family: inherit; font-size: 14px; letter-spacing: 3px;
+    cursor: pointer; border-radius: 4px; transition: all .14s;
+  }
+  button:hover:not(:disabled) { background: #1c262f; border-color: #4f9c8c; color: #8fd6c8; }
+  button:disabled { opacity: .25; cursor: default; }
+  button.bid { border-color: #4f9c8c; color: #8fd6c8; }
+  button.bid:hover:not(:disabled) { background: #12312c; box-shadow: 0 0 22px #4f9c8c33; }
+  button.pass { border-color: #6b4a3a; color: #c08464; }
+  button.pass:hover:not(:disabled) { background: #2a1a13; }
+
+  /* 日志 */
+  #log {
+    height: 92px; overflow: hidden; font-size: 12px; line-height: 1.75;
+    color: #5c6b77; text-align: center; letter-spacing: 1px;
+  }
+  #log .r { color: #a08060; }
+  #log .g { color: #6fbf73; }
+  #log .b { color: #d47a5a; }
+
+  /* 揭晓 */
+  .reveal { text-align: center; font-size: 14px; letter-spacing: 2px; min-height: 24px; margin-bottom: 8px; }
+  .reveal .g { color: #6fbf73; }
+  .reveal .b { color: #d47a5a; }
+
+  /* 图鉴 */
+  .dex { display: flex; gap: 5px; justify-content: flex-end; margin-top: 4px; }
+  .dex i { width: 9px; height: 9px; border-radius: 50%; background: #1a222a; border: 1px solid #2c3a46; }
+  .dex i.on { background: #c8b58a; border-color: #c8b58a; box-shadow: 0 0 6px #c8b58a88; }
+
+  /* 遮罩 */
+  #over { position: fixed; inset: 0; background: #05070aee; display: none;
+    flex-direction: column; align-items: center; justify-content: center; gap: 18px; z-index: 50; }
+  #over.show { display: flex; }
+  #over h1 { font-size: 36px; letter-spacing: 12px; font-weight: normal; }
+  #over p { color: #5c6b77; font-size: 13px; letter-spacing: 2px; }
+  .win h1 { color: #8fd6c8; text-shadow: 0 0 40px #4f9c8c; }
+  .lose h1 { color: #8a4a3a; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <div class="stat">
+      <div class="k">本 钱</div>
+      <div class="v" id="cash">30</div>
+    </div>
+    <div class="stat right">
+      <div class="k">图 鉴</div>
+      <div class="v" id="dexCount">0 / 8</div>
+      <div class="dex" id="dexDots"></div>
+    </div>
+  </div>
+
+  <div class="lot">
+    <div class="lotcard">
+      <div class="cat" id="cat">青 瓷</div>
+      <div class="nm" id="lotName">影 青 盏</div>
+      <div class="start">起 拍 <b id="startPrice">8</b></div>
+    </div>
+  </div>
+
+  <div class="clue" id="clue">—</div>
+
+  <div class="arena">
+    <div class="side" id="sideMe">
+      <div class="who">你</div>
+      <div class="state" id="stateMe">—</div>
+    </div>
+    <div class="price">
+      <div class="n" id="price">0</div>
+      <div class="l">当 前 价</div>
+    </div>
+    <div class="side" id="sideOp">
+      <div class="who">对 手</div>
+      <div class="state" id="stateOp">—</div>
+    </div>
+  </div>
+
+  <div class="reveal" id="reveal"></div>
+
+  <div class="actions">
+    <button class="bid" id="btnBid">跟 +2</button>
+    <button class="pass" id="btnPass">停手</button>
+    <button id="btnNext" style="display:none">下一件</button>
+  </div>
+
+  <div id="log"></div>
+</div>
+
+<div id="over">
+  <h1 id="overTitle">破 产</h1>
+  <p id="overSub"></p>
+  <button onclick="init()">再来一局</button>
+</div>
+
+<script>
+/* ═══════ 数据 ═══════ */
+const CATS = [
+  {cat:'青 瓷', names:['影青盏','月白瓶','龙泉盘','汝窑洗','定窑碗']},
+  {cat:'书 画', names:['寒江独钓','枯木竹石','溪山行旅','墨兰图','雪竹图']},
+  {cat:'玉 器', names:['谷纹璧','螭龙佩','玉琮','玉圭','玉蝉']},
+  {cat:'铜 器', names:['饕餮鼎','四羊尊','错金壶','博山炉','铜镜']}
+];
+
+const CLUES_GOOD = ['釉色温润，似有款识','纸墨沉静，题跋完整','包浆浑厚，刀工利落','有旧藏印，流传有序','手感沉实，非近仿'];
+const CLUES_BAD  = ['有一道细裂，未曾修补','款识潦草，恐为后加','色泽浮艳，不太对','边缘磕碰明显','来路不明，卖家含糊'];
+const CLUES_MID  = ['品相尚可，说不准','卖家自己也讲不清','看着像真的，也像假的','说是老物件，无凭据'];
+
+const DEX_TARGET = 8;
+const START_CASH = 30;
+
+let S = {};
+let busy = false;
+
+/* ═══════ 初始化 ═══════ */
+function init(){
+  S = {
+    cash: START_CASH,
+    dex: 0,
+    price: 0,
+    startPrice: 0,
+    trueValue: 0,
+    turn: 'me',
+    phase: 'bid',      // bid | done
+    meOut: false,
+    opOut: false,
+    opLimit: 0,        // 对手的心理上限
+    opBluff: false,
+    over: false,
+    log: []
+  };
+  document.getElementById('over').className = '';
+  newLot();
+}
+
+/* ═══════ 刷出藏品 ═══════ */
+function newLot(){
+  busy = false;
+  const c = CATS[Math.floor(Math.random()*CATS.length)];
+  const nm = c.names[Math.floor(Math.random()*c.names.length)];
+
+  const start = 4 + Math.floor(Math.random()*7);          // 4-10
+  const factor = 0.5 + Math.random()*1.5;                 // 0.5-2.0
+  const trueValue = Math.max(2, Math.round(start * factor));
+
+  // 线索：根据真实价值高低给提示
+  let clue;
+  const ratio = trueValue / start;
+  if(ratio > 1.25) clue = pick(CLUES_GOOD);
+  else if(ratio < 0.8) clue = pick(CLUES_BAD);
+  else clue = pick(CLUES_MID);
+
+  // 对手的心理上限：它不知道真实价值，但起拍价是信号
+  S.opLimit = Math.round(start * (0.75 + Math.random()*0.85));
+  S.opBluff = Math.random() < 0.22;
+
+  S.cat = c.cat;
+  S.lotName = nm;
+  S.startPrice = start;
+  S.trueValue = trueValue;
+  S.price = start;
+  S.clue = clue;
+  S.turn = 'me';
+  S.phase = 'bid';
+  S.meOut = false;
+  S.opOut = false;
+  S.log = [];
+
+  document.getElementById('cat').textContent = c.cat;
+  document.getElementById('lotName').textContent = nm;
+  document.getElementById('startPrice').textContent = start;
+  document.getElementById('clue').textContent = '"' + clue + '"';
+  document.getElementById('reveal').innerHTML = '';
+
+  logPush(`第 ${S.dex+1} 件 · 「${nm}」起拍 ${start}`);
+  render();
+  setBtns('bid');
+}
+
+function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+
+/* ═══════ 玩家跟价 ═══════ */
+function playerBid(){
+  if(busy || S.phase !== 'bid') return;
+  S.price += 2;
+  popPrice();
+  logPush(`你跟到 ${S.price}`);
+  render();
+  opTurn();
+}
+
+function playerPass(){
+  if(busy || S.phase !== 'bid') return;
+  if(S.price === S.startPrice){
+    // 流拍：没人要
+    logPush(`<span class="r">流拍。无人出价。</span>`);
+    settle(null);
+    return;
+  }
+  logPush(`你停手了。`);
+  settle('op');
+}
+
+/* ═══════ 对手回合 ═══════ */
+function opTurn(){
+  busy = true;
+  setBtns('none');
+  const stateOp = document.getElementById('stateOp');
+  stateOp.textContent = '思考…';
+
+  setTimeout(()=>{
+    if(S.phase !== 'bid') return;
+
+    // 对手的决策上限（诈唬时临时提高）
+    let limit = S.opLimit;
+    if(S.opBluff && S.price < S.startPrice * 2) limit += 4;
+
+    if(S.price + 2 <= limit){
+      S.price += 2;
+      popPrice();
+      stateOp.textContent = '跟到 ' + S.price;
+      logPush(`对手跟到 ${S.price}`);
+      render();
+      busy = false;
+      setBtns('bid');
+      S.turn = 'me';
+    }else{
+      S.opOut = true;
+      stateOp.textContent = '退出';
+      logPush(`<span class="g">对手退出。</span>`);
+      settle('me');
+    }
+  }, 420 + Math.random()*380);
+}
+
+/* ═══════ 结算 ═══════ */
+function settle(winner){
+  S.phase = 'done';
+  busy = false;
+  setBtns('next');
+
+  const rv = document.getElementById('reveal');
+
+  if(winner === null){
+    rv.innerHTML = `<span style="color:#5c6b77">无人接手，这件留在店里。</span>`;
+    return;
+  }
+
+  // 显示真实价值
+  const tv = S.trueValue;
+  const price = S.price;
+
+  if(winner === 'me'){
+    const delta = tv - price;
+    S.cash += delta;
+    document.getElementById('stateMe').textContent = '得手';
+    document.getElementById('stateOp').textContent = '退出';
+
+    const cls = delta >= 0 ? 'g' : 'b';
+    const word = delta >= 0 ? '赚' : '亏';
+    rv.innerHTML = `你以 <b>${price}</b> 拿下。<br>
+      <span style="color:#5c6b77">真实价值 ${tv}，</span>
+      <span class="${cls}">${word} ${Math.abs(delta)}</span>`;
+
+    if(delta >= 0){
+      logPush(`<span class="g">得手「${S.lotName}」· 值 ${tv} · 赚 ${delta}</span>`);
+      S.dex++;
+    }else{
+      logPush(`<span class="b">得手「${S.lotName}」· 值 ${tv} · 亏 ${Math.abs(delta)}</span>`);
+      S.dex++;
+    }
+
+    if(S.cash <= 0){ render(); return endGame(false); }
+    if(S.dex >= DEX_TARGET){ render(); return endGame(true); }
+
+  }else{
+    // 对手赢
+    document.getElementById('stateMe').textContent = '退出';
+    document.getElementById('stateOp').textContent = '得手';
+
+    const opDelta = tv - price;
+    rv.innerHTML = `对手以 <b>${price}</b> 拿下。<br>
+      <span style="color:#5c6b77">真实价值 ${tv}，</span>
+      <span class="${opDelta>=0?'b':'g'}">对手${opDelta>=0?'赚':'亏'} ${Math.abs(opDelta)}</span>`;
+
+    if(opDelta < 0){
+      logPush(`<span class="g">你躲过一劫 · 它花 ${price} 买了值 ${tv} 的东西</span>`);
+    }else{
+      logPush(`<span class="b">它捡了漏 · ${price} 拿到值 ${tv} 的货</span>`);
+    }
+  }
+
+  render();
+}
+
+/* ═══════ 下一件 ═══════ */
+function nextLot(){
+  if(S.over) return;
+  newLot();
+}
+
+/* ═══════ 结束 ═══════ */
+function endGame(win){
+  S.over = true;
+  setBtns('none');
+  const ov = document.getElementById('over');
+  const t = document.getElementById('overTitle');
+  const sub = document.getElementById('overSub');
+  if(win){
+    ov.className = 'show win';
+    t.textContent = '收 齐';
+    sub.textContent = `本钱剩 ${S.cash} · 图鉴 ${S.dex} 件`;
+  }else{
+    ov.className = 'show lose';
+    t.textContent = '破 产';
+    sub.textContent = `图鉴 ${S.dex} 件 · 本钱见底`;
+  }
+}
+
+/* ═══════ 渲染 ═══════ */
+function render(){
+  const cashEl = document.getElementById('cash');
+  cashEl.textContent = Math.max(0, S.cash);
+  cashEl.className = 'v' + (S.cash <= 10 ? ' warn' : '');
+
+  document.getElementById('dexCount').textContent = `${S.dex} / ${DEX_TARGET}`;
+  const dots = document.getElementById('dexDots');
+  dots.innerHTML = '';
+  for(let i=0;i<DEX_TARGET;i++){
+    const d = document.createElement('i');
+    if(i < S.dex) d.className = 'on';
+    dots.appendChild(d);
+  }
+
+  document.getElementById('price').textContent = S.price;
+
+  // 状态
+  const sm = document.getElementById('stateMe');
+  const so = document.getElementById('stateOp');
+  document.getElementById('sideMe').className = 'side' + (S.meOut ? ' out' : (S.phase==='bid' ? ' active' : ''));
+  document.getElementById('sideOp').className = 'side' + (S.opOut ? ' out' : '');
+
+  const log = document.getElementById('log');
+  log.innerHTML = S.log.slice(-4).map(t=>`<div>${t}</div>`).join('');
+}
+
+function logPush(t){
+  S.log.push(t);
+}
+
+function popPrice(){
+  const p = document.getElementById('price');
+  p.classList.add('pop');
+  setTimeout(()=>p.classList.remove('pop'), 160);
+}
+
+function setBtns(mode){
+  const b = document.getElementById('btnBid');
+  const p = document.getElementById('btnPass');
+  const n = document.getElementById('btnNext');
+  if(mode === 'bid'){
+    b.style.display = ''; p.style.display = ''; n.style.display = 'none';
+    b.disabled = false; p.disabled = false;
+  }else if(mode === 'next'){
+    b.style.display = 'none'; p.style.display = 'none'; n.style.display = '';
+    n.disabled = false;
+  }else{
+    b.style.display = ''; p.style.display = ''; n.style.display = 'none';
+    b.disabled = true; p.disabled = true;
+  }
+}
+
+/* ═══════ 绑定 ═══════ */
+document.getElementById('btnBid').onclick = playerBid;
+document.getElementById('btnPass').onclick = playerPass;
+document.getElementById('btnNext').onclick = nextLot;
+
+init();
+</script>
+</body>
+</html>

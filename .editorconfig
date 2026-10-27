@@ -1,0 +1,51 @@
+# Solstice EditorConfig
+# 由 VSCode 的 editorconfig.editorconfig 扩展读取（工作区推荐扩展之一）。
+# 作用：跨编辑器统一编码 / 换行 / 缩进。
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# ---- C++（虚幻引擎工程）----
+[*.{h,hpp,c,cpp,inl}]
+indent_style = space
+indent_size = 4
+max_line_length = 120
+
+[*.{cs,Build.cs,Target.cs}]
+indent_size = 4
+
+# ---- 数据与配置 ----
+[*.{json,jsonc,yml,yaml,ini}]
+indent_size = 2
+insert_final_newline = true
+
+[*.{uproject,uplugin}]
+indent_size = 2
+
+# ---- 文档 ----
+[*.md]
+indent_size = 2
+trim_trailing_whitespace = false
+max_line_length = off
+
+# ---- PowerShell：必须 UTF-8 with BOM，否则 PowerShell 5.1 会把中文当 ANSI 解析而报语法错 ----
+[*.ps1]
+charset = utf-8-bom
+end_of_line = crlf
+indent_style = space
+indent_size = 4
+
+# ---- 生成物与第三方代码：不受本文件约束 ----
+[**/game/Binaries/**]
+[**/game/Intermediate/**]
+[**/game/Saved/**]
+[**/game/DerivedDataCache/**]
+[**/studio/out/**]
+[**/studio/work/**]

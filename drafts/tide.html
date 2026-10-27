@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>潮痕 · 核心循环验证</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    background:radial-gradient(ellipse at 50% 0%, #10222e 0%, #0a1319 55%, #050a0d 100%);
+    color:#cfe0ea;
+    font-family:"Georgia","Songti SC",serif;
+    display:flex;align-items:center;justify-content:center;
+    padding:14px;overflow:hidden;user-select:none;
+  }
+  #app{width:100%;max-width:620px;}
+
+  /* 顶栏 */
+  .bar{display:flex;justify-content:space-between;align-items:center;
+       padding-bottom:12px;border-bottom:1px solid #1b2c36;margin-bottom:16px;}
+  .day{font-size:15px;letter-spacing:3px;color:#7ea8be;}
+  .day b{color:#e8c87a;font-size:19px;letter-spacing:1px;}
+  .stats{display:flex;gap:16px;font-size:12px;letter-spacing:1px;}
+  .stat{color:#5d7d8e;}
+  .stat b{color:#a8c8d8;font-weight:normal;}
+  .stat.warn b{color:#d46a4a;}
+
+  /* 行动点 */
+  .ap{display:flex;gap:6px;margin-top:10px;justify-content:center;}
+  .ap i{width:26px;height:4px;border-radius:2px;background:#1b2c36;transition:all .2s;}
+  .ap i.on{background:#4fa8c8;box-shadow:0 0 10px #4fa8c866;}
+
+  /* 当前岛 */
+  .island{text-align:center;padding:26px 0 20px;}
+  .island .nm{font-size:30px;letter-spacing:8px;color:#dceaf2;}
+  .island .desc{font-size:11px;color:#5d7d8e;letter-spacing:2px;margin-top:8px;}
+  .island .warn{font-size:11px;color:#d46a4a;letter-spacing:1px;margin-top:6px;height:14px;}
+
+  /* 资源 */
+  .res{display:flex;justify-content:center;gap:18px;padding:14px 0;
+       border-top:1px solid #1b2c36;border-bottom:1px solid #1b2c36;margin-bottom:18px;}
+  .r{text-align:center;font-size:11px;color:#5d7d8e;letter-spacing:1px;}
+  .r b{display:block;font-size:19px;color:#a8c8d8;margin-top:3px;font-weight:normal;}
+  .r b.zero{color:#3a505c;}
+
+  /* 按钮 */
+  .acts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+  button{
+    background:#0f1d26;color:#8fb4c6;border:1px solid #1f3441;
+    padding:13px;font-family:inherit;font-size:13px;letter-spacing:2px;
+    cursor:pointer;border-radius:3px;transition:all .13s;
+  }
+  button:hover:not(:disabled){background:#16303d;border-color:#3d7a92;color:#cfe8f2;}
+  button:disabled{opacity:.25;cursor:default;}
+  button.ship{border-color:#7a5a30;color:#e8c87a;grid-column:1/-1;}
+  button.ship:hover:not(:disabled){background:#2a1f10;box-shadow:0 0 24px #e8c87a33;}
+
+  /* 日志 */
+  #log{height:78px;overflow:hidden;font-size:12px;line-height:1.7;
+       color:#5d7d8e;text-align:center;letter-spacing:.5px;}
+  #log .g{color:#6fbf8a;}
+  #log .b{color:#d46a4a;}
+  #log .y{color:#e8c87a;}
+
+  /* 弹窗 */
+  #modal{position:fixed;inset:0;background:#050a0df2;display:none;
+    flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:50;padding:24px;}
+  #modal.show{display:flex;}
+  #modal h2{font-size:26px;letter-spacing:6px;font-weight:normal;color:#e8c87a;}
+  #modal p{font-size:13px;color:#7ea8be;letter-spacing:1px;text-align:center;line-height:1.9;}
+  #modal .opts{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px;}
+  #modal .opts button{padding:12px 22px;}
+  #modal button.again{margin-top:10px;border-color:#3d7a92;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="bar">
+    <div class="day">第 <b id="day">1</b> 天 / 12</div>
+    <div class="stats">
+      <div class="stat" id="stStamina">体力 <b>100</b></div>
+      <div class="stat" id="stFood">食物 <b>5</b></div>
+    </div>
+  </div>
+
+  <div class="ap" id="ap"></div>
+
+  <div class="island">
+    <div class="nm" id="isName">起始岛</div>
+    <div class="desc" id="isDesc">漂流物堆成的岸，木石都够</div>
+    <div class="warn" id="isWarn"></div>
+  </div>
+
+  <div class="res">
+    <div class="r">木 <b id="rWood">0</b></div>
+    <div class="r">石 <b id="rStone">0</b></div>
+    <div class="r">藤 <b id="rVine">0</b></div>
+    <div class="r">帆布 <b id="rCloth">0</b></div>
+    <div class="r">鱼 <b id="rFish">0</b></div>
+  </div>
+
+  <div class="acts">
+    <button id="bGather">采 集</button>
+    <button id="bRest">休 息</button>
+    <button id="bTool">制 作 工 具</button>
+    <button id="bMove">前 往…</button>
+    <button id="bShip" class="ship">造 船（20 木 / 8 藤 / 4 帆布）</button>
+  </div>
+
+  <div id="log"></div>
+</div>
+
+<div id="modal">
+  <h2 id="mTitle">—</h2>
+  <p id="mText">—</p>
+  <div class="opts" id="mOpts"></div>
+  <button class="again" id="mAgain" style="display:none">再 来 一 局</button>
+</div>
+
+<script>
+/* ══════════ 数据 ══════════ */
+const ISLANDS = [
+  { name:'起始岛', desc:'漂流物堆成的岸，石头多，木头少', yield:['wood','stone','stone','vine'], tide:false },
+  { name:'丛林岛', desc:'树很密，藤很多，但看不见里面', yield:['wood','wood','wood','vine','vine'], tide:false },
+  { name:'珊瑚岛', desc:'退潮后能捡到帆布和鱼', yield:['cloth','cloth','fish','fish'], tide:true }
+];
+
+const COST = { ship:{wood:20, vine:8, cloth:4}, axe:{stone:3}, net:{vine:3} };
+const TOTAL_DAY = 12;
+const AP_MAX = 4;
+
+let S = {};
+
+/* ══════════ 初始化 ══════════ */
+function init(){
+  S = {
+    day:1, ap:AP_MAX, stamina:100, food:5,
+    island:0,
+    res:{wood:0,stone:0,vine:0,cloth:0,fish:0},
+    axe:false, net:false,
+    over:false, log:[], dayGain:{}
+  };
+  document.getElementById('modal').className = '';
+  log('你在一堆漂流物里醒过来。船没了。', '');
+  log('12 天内造出船，或者留在这里。', 'y');
+  render();
+}
+
+/* ══════════ 日志 ══════════ */
+function log(t, cls){
+  S.log.push({t, cls});
+  if(S.log.length > 4) S.log.shift();
+}
+
+/* ══════════ 消耗行动 ══════════ */
+function spend(n){
+  S.ap -= n;
+  S.stamina = Math.max(0, S.stamina - 10*n);
+  if(S.stamina <= 0){
+    S.ap = 0;
+  }
+  render();
+}
+
+/* ══════════ 采集 ══════════ */
+function gather(){
+  if(blocked()) return;
+  if(S.ap < 1) return;
+  if(S.stamina < 10){
+    log('你抬不起手了。得休息。', 'b');
+    return;
+  }
+  const isl = ISLANDS[S.island];
+  let pool = [...isl.yield];
+
+  // 工具加成
+  let n = 2;
+  if(S.axe && pool.includes('wood')) n = 3;
+  if(S.net && pool.includes('fish')) n = 3;
+
+  const got = {};
+  for(let i=0;i<n;i++){
+    const pick = pool[Math.floor(Math.random()*pool.length)];
+    got[pick] = (got[pick]||0)+1;
+    S.res[pick]++;
+  }
+  spend(1);
+
+  const txt = Object.entries(got).map(([k,v])=>name(k)+' +'+v).join('  ');
+  log('采集：' + txt, 'g');
+  render();
+}
+
+/* ══════════ 休息 ══════════ */
+function rest(){
+  if(blocked()) return;
+  if(S.ap < 1) return;
+  spend(1);
+  S.stamina = Math.min(100, S.stamina + 40);
+  log('你在树荫下歇了一会儿。体力 +40', '');
+  render();
+}
+
+/* ══════════ 移动 ══════════ */
+function move(){
+  if(blocked()) return;
+  if(S.ap < 1) return;
+  if(S.food < 1){
+    log('没吃的了，走不动。', 'b');
+    return;
+  }
+  // 弹岛选择
+  const opts = [];
+  ISLANDS.forEach((isl, i)=>{
+    if(i === S.island) return;
+    const b = document.createElement('button');
+    b.textContent = isl.name;
+    b.onclick = ()=>{
+      closeModal();
+      S.food--;
+      S.island = i;
+      spend(1);
+      log('你划到' + isl.name + '。食物 −1', '');
+      render();
+    };
+    opts.push(b);
+  });
+  openModal('去哪里', '划过去要 1 个行动和 1 份食物。', opts);
+}
+
+/* ══════════ 制作工具 ══════════ */
+function tool(){
+  if(blocked()) return;
+  if(S.ap < 1) return;
+  const opts = [];
+
+  if(!S.axe){
+    const b = document.createElement('button');
+    b.textContent = '石斧（3 石）';
+    b.onclick = ()=>{
+      if(S.res.stone < 3){ log('石头不够。', 'b'); closeModal(); return; }
+      S.res.stone -= 3; S.axe = true; closeModal(); spend(1);
+      log('你削了一把石斧。砍树快一倍。', 'y'); render();
+    };
+    opts.push(b);
+  }
+  if(!S.net){
+    const b = document.createElement('button');
+    b.textContent = '渔网（3 藤）';
+    b.onclick = ()=>{
+      if(S.res.vine < 3){ log('藤不够。', 'b'); closeModal(); return; }
+      S.res.vine -= 3; S.net = true; closeModal(); spend(1);
+      log('你编了一张网。捕鱼快一倍。', 'y'); render();
+    };
+    opts.push(b);
+  }
+  if(opts.length === 0){
+    log('没什么可造的了。', '');
+    return;
+  }
+  openModal('制作工具', '花 1 个行动。', opts);
+}
+
+/* ══════════ 造船 ══════════ */
+function ship(){
+  if(blocked()) return;
+  if(S.ap < 1) return;
+  const c = COST.ship;
+  if(S.res.wood < c.wood || S.res.vine < c.vine || S.res.cloth < c.cloth){
+    log(`还差：木 ${Math.max(0,c.wood-S.res.wood)} / 藤 ${Math.max(0,c.vine-S.res.vine)} / 帆布 ${Math.max(0,c.cloth-S.res.cloth)}`, 'b');
+    return;
+  }
+  endGame(true);
+}
+
+/* ══════════ 结束一天 ══════════ */
+function endDay(){
+  if(blocked()) return;
+
+  // 珊瑚岛过夜：潮水吃掉一半收获
+  if(ISLANDS[S.island].tide){
+    const lost = [];
+    ['cloth','fish'].forEach(k=>{
+      if(S.res[k] > 0){
+        const l = Math.ceil(S.res[k]/2);
+        S.res[k] -= l;
+        lost.push(name(k)+' −'+l);
+      }
+    });
+    if(lost.length) log('潮水漫上来，' + lost.join('、'), 'b');
+  }
+
+  // 吃饭
+  if(S.food > 0){
+    S.food--;
+  }else{
+    S.stamina = Math.max(0, S.stamina - 20);
+    log('饿了一天。体力 −20', 'b');
+  }
+
+  // 随机事件
+  if(Math.random() < 0.35) randomEvent();
+
+  S.day++;
+  S.ap = AP_MAX;
+
+  if(S.day > TOTAL_DAY){
+    endGame(false);
+    return;
+  }
+
+  render();
+}
+
+/* ══════════ 随机事件 ══════════ */
+function randomEvent(){
+  const r = Math.random();
+  if(r < 0.3){
+    const l = Math.min(3, S.res.wood);
+    S.res.wood -= l;
+    log('夜里起了风暴，吹走 ' + l + ' 根木头。', 'b');
+  }else if(r < 0.55){
+    S.food += 3;
+    log('鱼群靠岸，你捞到 3 条鱼。', 'g');
+  }else if(r < 0.8){
+    S.res.cloth += 2;
+    log('海面漂来一块帆布。', 'g');
+  }else{
+    S.res.vine += 3;
+    log('退潮后露出一丛藤。', 'g');
+  }
+}
+
+/* ══════════ 弹窗 ══════════ */
+function openModal(title, text, opts){
+  document.getElementById('mTitle').textContent = title;
+  document.getElementById('mText').textContent = text;
+  const box = document.getElementById('mOpts');
+  box.innerHTML = '';
+  opts.forEach(b=>box.appendChild(b));
+  const cancel = document.createElement('button');
+  cancel.textContent = '算了';
+  cancel.onclick = closeModal;
+  box.appendChild(cancel);
+  document.getElementById('mAgain').style.display = 'none';
+  document.getElementById('modal').className = 'show';
+}
+function closeModal(){
+  document.getElementById('modal').className = '';
+}
+
+/* ══════════ 结束 ══════════ */
+function endGame(win){
+  S.over = true;
+  const m = document.getElementById('modal');
+  document.getElementById('mTitle').textContent = win ? '离 岸' : '第 12 天';
+  document.getElementById('mText').textContent = win
+    ? '你把船推下沙滩。回头看了一眼这座岛。'
+    : '你没能造出船。岛留下了你。';
+  document.getElementById('mOpts').innerHTML = '';
+  document.getElementById('mAgain').style.display = '';
+  m.className = 'show';
+}
+
+/* ══════════ 渲染 ══════════ */
+function render(){
+  document.getElementById('day').textContent = S.day;
+  document.getElementById('stStamina').innerHTML = '体力 <b>' + S.stamina + '</b>';
+  document.getElementById('stStamina').className = 'stat' + (S.stamina < 30 ? ' warn':'');
+  document.getElementById('stFood').innerHTML = '食物 <b>' + S.food + '</b>';
+  document.getElementById('stFood').className = 'stat' + (S.food < 2 ? ' warn':'');
+
+  // 行动点
+  const ap = document.getElementById('ap');
+  ap.innerHTML = '';
+  for(let i=0;i<AP_MAX;i++){
+    const d = document.createElement('i');
+    if(i < S.ap) d.className = 'on';
+    ap.appendChild(d);
+  }
+
+  const isl = ISLANDS[S.island];
+  document.getElementById('isName').textContent = isl.name;
+  document.getElementById('isDesc').textContent = isl.desc;
+  document.getElementById('isWarn').textContent = isl.tide ? '潮水会在入夜时上涨' : '';
+
+  document.getElementById('rWood').textContent = S.res.wood;
+  document.getElementById('rStone').textContent = S.res.stone;
+  document.getElementById('rVine').textContent = S.res.vine;
+  document.getElementById('rCloth').textContent = S.res.cloth;
+  document.getElementById('rFish').textContent = S.res.fish;
+
+  ['rWood','rStone','rVine','rCloth','rFish'].forEach(id=>{
+    const el = document.getElementById(id);
+    el.className = el.textContent === '0' ? 'zero' : '';
+  });
+
+  document.getElementById('bGather').disabled = S.ap < 1 || S.over;
+  document.getElementById('bRest').disabled = S.ap < 1 || S.over;
+  document.getElementById('bTool').disabled = S.ap < 1 || S.over;
+  document.getElementById('bMove').disabled = S.ap < 1 || S.over;
+  document.getElementById('bShip').disabled = S.ap < 1 || S.over;
+
+  const lg = document.getElementById('log');
+  lg.innerHTML = S.log.map(o=>`<div class="${o.cls}">${o.t}</div>`).join('');
+}
+
+function blocked(){ return S.over; }
+function name(k){
+  return {wood:'木',stone:'石',vine:'藤',cloth:'帆布',fish:'鱼'}[k] || k;
+}
+
+/* ══════════ 绑定 ══════════ */
+document.getElementById('bGather').onclick = gather;
+document.getElementById('bRest').onclick = rest;
+document.getElementById('bTool').onclick = tool;
+document.getElementById('bMove').onclick = move;
+document.getElementById('bShip').onclick = ship;
+document.getElementById('mAgain').onclick = init;
+
+// 行动点用完自动过一天
+const _spend = spend;
+spend = function(n){
+  _spend(n);
+  if(S.ap <= 0 && !S.over){
+    setTimeout(endDay, 420);
+  }
+};
+
+init();
+</script>
+</body>
+</html>

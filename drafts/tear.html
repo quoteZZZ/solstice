@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>撕 · Tear</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    background:radial-gradient(ellipse at 50% 35%, #1a1410 0%, #0d0a07 60%, #050403 100%);
+    color:#d9cbb4;
+    font-family:"Georgia","Songti SC",serif;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    overflow:hidden;user-select:none;
+  }
+
+  /* 顶部计数 */
+  .score{text-align:center;margin-bottom:26px;}
+  .score .n{font-size:72px;line-height:1;color:#e8c87a;transition:all .2s;}
+  .score .n.hot{color:#ff6a00;text-shadow:0 0 30px #ff6a00;}
+  .score .n.dead{color:#6a2a1a;}
+  .score .l{font-size:10px;letter-spacing:7px;color:#5c4a38;margin-top:6px;}
+  .score .tip{font-size:12px;color:#7a6450;margin-top:10px;height:16px;letter-spacing:1px;}
+
+  /* 牌桌 */
+  .deck{display:flex;gap:12px;justify-content:center;height:120px;align-items:center;}
+  .card{
+    width:64px;height:90px;position:relative;cursor:pointer;
+    transition:transform .12s;
+  }
+  .card:hover{transform:translateY(-8px);}
+  .card .face{
+    position:absolute;inset:0;
+    background:linear-gradient(160deg,#e6dbc6 0%,#cdbfa6 100%);
+    border-radius:3px;
+    box-shadow:0 4px 14px #00000088, inset 0 0 0 1px #f3ead8;
+  }
+  .card .face::after{
+    content:'';position:absolute;inset:6px;border:1px solid #b8a98e;
+    border-radius:1px;opacity:.6;
+  }
+  .card .mark{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:26px;color:#a8937222;
+  }
+  .card.gone{pointer-events:none;opacity:.12;}
+  .card.gone .face{filter:grayscale(1);}
+
+  /* 撕开的碎片 */
+  .shard{
+    position:fixed;pointer-events:none;z-index:99;
+    background:linear-gradient(160deg,#e6dbc6 0%,#cdbfa6 100%);
+    box-shadow:0 2px 10px #000000aa;
+  }
+  .shard.top{animation:flyUp .75s cubic-bezier(.3,.9,.4,1) forwards;}
+  .shard.bot{animation:flyDown .75s cubic-bezier(.3,.9,.4,1) forwards;}
+  @keyframes flyUp{
+    0%{transform:translate(0,0) rotate(0);opacity:1;}
+    100%{transform:translate(var(--dx),-160px) rotate(var(--rot));opacity:0;}
+  }
+  @keyframes flyDown{
+    0%{transform:translate(0,0) rotate(0);opacity:1;}
+    100%{transform:translate(var(--dx),160px) rotate(var(--rot));opacity:0;}
+  }
+
+  /* 数值弹出 */
+  .val{
+    position:fixed;font-size:44px;font-weight:bold;color:#ff8a2a;
+    text-shadow:0 0 22px #ff5a00;pointer-events:none;z-index:100;
+    animation:valPop .9s ease-out forwards;
+  }
+  @keyframes valPop{
+    0%{opacity:0;transform:translate(-50%,-50%) scale(.4);}
+    20%{opacity:1;transform:translate(-50%,-50%) scale(1.25);}
+    70%{opacity:1;transform:translate(-50%,-60%) scale(1);}
+    100%{opacity:0;transform:translate(-50%,-110%) scale(1);}
+  }
+
+  /* 按钮 */
+  .btns{margin-top:34px;display:flex;gap:14px;}
+  button{
+    background:#171310;color:#b8a488;border:1px solid #3a2e22;
+    padding:11px 30px;font-family:inherit;font-size:13px;letter-spacing:4px;
+    cursor:pointer;border-radius:3px;transition:all .14s;
+  }
+  button:hover:not(:disabled){background:#241c15;border-color:#7a5a30;color:#e8c87a;}
+  button:disabled{opacity:.25;cursor:default;}
+  button.stop{border-color:#7a5a30;color:#e8c87a;}
+
+  /* 结算 */
+  #over{position:fixed;inset:0;background:#050403f2;display:none;
+    flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:200;}
+  #over.show{display:flex;}
+  #over h1{font-size:44px;letter-spacing:14px;font-weight:normal;}
+  #over p{color:#6b5a46;font-size:13px;letter-spacing:3px;}
+  .good h1{color:#e8c87a;text-shadow:0 0 40px #c89030;}
+  .perfect h1{color:#ffd87a;text-shadow:0 0 50px #ff9a00,0 0 90px #ff5a00;}
+  .bad h1{color:#8a3a24;}
+</style>
+</head>
+<body>
+
+<div class="score">
+  <div class="n" id="total">0</div>
+  <div class="l">点 数</div>
+  <div class="tip" id="tip">撕开一张牌，凑到 21</div>
+</div>
+
+<div class="deck" id="deck"></div>
+
+<div class="btns">
+  <button class="stop" id="btnStop">收 手</button>
+  <button id="btnRestart" style="display:none">重 来</button>
+</div>
+
+<div id="over">
+  <h1 id="ovTitle">收 手</h1>
+  <p id="ovSub"></p>
+  <button onclick="init()">再 来</button>
+</div>
+
+<script>
+const TARGET = 21;
+const CARD_N = 8;
+
+let S = {};
+
+function init(){
+  S = {
+    values: Array.from({length:CARD_N}, ()=> 1 + Math.floor(Math.random()*9)),
+    total: 0,
+    torn: 0,
+    over: false,
+    tornIndex: []
+  };
+  document.getElementById('over').className = '';
+  document.getElementById('btnRestart').style.display = 'none';
+  document.getElementById('btnStop').disabled = false;
+  document.getElementById('tip').textContent = '撕开一张牌，凑到 21';
+  buildDeck();
+  render();
+}
+
+function buildDeck(){
+  const deck = document.getElementById('deck');
+  deck.innerHTML = '';
+  for(let i=0;i<CARD_N;i++){
+    const c = document.createElement('div');
+    c.className = 'card';
+    c.dataset.i = i;
+    c.innerHTML = `<div class="face"></div><div class="mark">?</div>`;
+    c.onclick = () => tear(i, c);
+    deck.appendChild(c);
+  }
+}
+
+function tear(i, el){
+  if(S.over || S.tornIndex.includes(i)) return;
+
+  const val = S.values[i];
+  S.tornIndex.push(i);
+  S.total += val;
+  S.torn++;
+
+  // 取位置
+  const r = el.getBoundingClientRect();
+  const half = r.height / 2;
+
+  // 上半
+  const top = document.createElement('div');
+  top.className = 'shard top';
+  top.style.left = r.left + 'px';
+  top.style.top  = r.top + 'px';
+  top.style.width = r.width + 'px';
+  top.style.height = half + 'px';
+  top.style.setProperty('--dx', (Math.random()*120-60).toFixed(0)+'px');
+  top.style.setProperty('--rot', (Math.random()*60-30).toFixed(0)+'deg');
+
+  // 下半
+  const bot = document.createElement('div');
+  bot.className = 'shard bot';
+  bot.style.left = r.left + 'px';
+  bot.style.top  = (r.top + half) + 'px';
+  bot.style.width = r.width + 'px';
+  bot.style.height = half + 'px';
+  bot.style.setProperty('--dx', (Math.random()*120-60).toFixed(0)+'px');
+  bot.style.setProperty('--rot', (Math.random()*60-30).toFixed(0)+'deg');
+
+  document.body.appendChild(top);
+  document.body.appendChild(bot);
+  setTimeout(()=>{top.remove();bot.remove();}, 800);
+
+  // 数值弹出
+  const v = document.createElement('div');
+  v.className = 'val';
+  v.textContent = '+' + val;
+  v.style.left = (r.left + r.width/2) + 'px';
+  v.style.top  = (r.top + r.height/2) + 'px';
+  document.body.appendChild(v);
+  setTimeout(()=>v.remove(), 950);
+
+  // 牌标记为废
+  el.classList.add('gone');
+
+  render();
+  check();
+}
+
+function check(){
+  if(S.total > TARGET){
+    S.over = true;
+    setTimeout(()=>end('bad'), 420);
+    return;
+  }
+  if(S.total === TARGET){
+    S.over = true;
+    setTimeout(()=>end('perfect'), 420);
+    return;
+  }
+  if(S.torn >= CARD_N){
+    S.over = true;
+    setTimeout(()=>end(S.total >= 17 ? 'good' : 'ok'), 420);
+    return;
+  }
+  if(S.total >= 17){
+    document.getElementById('tip').textContent = '再撕可能就爆了';
+  }else if(S.total >= 12){
+    document.getElementById('tip').textContent = '还差一点';
+  }else{
+    document.getElementById('tip').textContent = '继续';
+  }
+}
+
+function stop(){
+  if(S.over) return;
+  S.over = true;
+  if(S.total > TARGET) return end('bad');
+  if(S.total === TARGET) return end('perfect');
+  if(S.total >= 20) return end('perfect');
+  if(S.total >= 17) return end('good');
+  end('ok');
+}
+
+function end(kind){
+  const ov = document.getElementById('over');
+  const t = document.getElementById('ovTitle');
+  const sub = document.getElementById('ovSub');
+  document.getElementById('btnStop').disabled = true;
+  document.getElementById('btnRestart').style.display = '';
+
+  if(kind === 'perfect'){
+    ov.className = 'show perfect';
+    t.textContent = '刚 好';
+    sub.textContent = `21 点 · 撕了 ${S.torn} 张`;
+  }else if(kind === 'good'){
+    ov.className = 'show good';
+    t.textContent = '留 手';
+    sub.textContent = `${S.total} 点 · 撕了 ${S.torn} 张 · 再撕一张就危险了`;
+  }else if(kind === 'ok'){
+    ov.className = 'show good';
+    t.textContent = '太 早';
+    sub.textContent = `${S.total} 点 · 你还能撕`;
+  }else{
+    ov.className = 'show bad';
+    t.textContent = '爆 了';
+    sub.textContent = `${S.total} 点 · 多撕了一张`;
+  }
+}
+
+function render(){
+  const n = document.getElementById('total');
+  n.textContent = S.total;
+  n.className = 'n' + (S.total > TARGET ? ' dead' : (S.total >= 17 ? ' hot' : ''));
+}
+
+document.getElementById('btnStop').onclick = stop;
+document.getElementById('btnRestart').onclick = init;
+
+init();
+</script>
+</body>
+</html>

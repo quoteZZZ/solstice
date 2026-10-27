@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>潮痕</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;overflow:hidden;background:#070d12;}
+  canvas{display:block;cursor:crosshair;}
+  #ui{
+    position:fixed;inset:0;pointer-events:none;
+    font-family:"Georgia","Songti SC",serif;color:#cfdde6;
+    text-shadow:0 2px 8px #000;
+  }
+  /* 左上：时间与潮汐 */
+  .topleft{position:absolute;left:18px;top:14px;}
+  .line{display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:12px;letter-spacing:2px;}
+  .k{color:#5f7d8c;font-size:10px;letter-spacing:3px;}
+  .v{color:#cfe3f0;}
+  .v.tide{color:#5fb8d8;}
+  .v.warn{color:#e07a52;}
+  /* 三条 */
+  .bars{position:absolute;left:18px;bottom:20px;width:190px;}
+  .br{margin-bottom:9px;}
+  .br .lb{display:flex;justify-content:space-between;font-size:10px;letter-spacing:2px;color:#5f7d8c;margin-bottom:3px;}
+  .br .lb b{color:#9fc0d0;font-weight:normal;}
+  .track{height:4px;background:#12222c;border-radius:2px;overflow:hidden;}
+  .track i{display:block;height:100%;transition:width .25s;}
+  .hp i{background:linear-gradient(90deg,#2f6b4a,#5fc07d);}
+  .fd i{background:linear-gradient(90deg,#7a5a20,#d8b04a);}
+  .md i{background:linear-gradient(90deg,#4a3a7a,#8f7ad8);}
+  /* 右上：背包 */
+  .topright{position:absolute;right:18px;top:14px;text-align:right;}
+  .bagline{font-size:12px;letter-spacing:1px;margin-bottom:5px;color:#9fb8c6;}
+  .bagline b{color:#d8c08a;font-weight:normal;}
+  #goal{
+    margin-top:12px;padding-top:10px;border-top:1px solid #1b2c36;
+    font-size:11px;color:#7ea8be;letter-spacing:1px;line-height:1.9;
+  }
+  #goal .done{color:#5fc07d;}
+  /* 提示 */
+  #hint{
+    position:absolute;left:50%;bottom:52px;transform:translateX(-50%);
+    font-size:14px;letter-spacing:2px;color:#d8c08a;opacity:0;transition:opacity .15s;
+  }
+  #hint.on{opacity:1;}
+  #msg{
+    position:absolute;left:50%;bottom:86px;transform:translateX(-50%);
+    font-size:12px;letter-spacing:1px;color:#8fd6b0;opacity:0;transition:opacity .3s;
+  }
+  #msg.on{opacity:1;}
+  #msg.bad{color:#e07a52;}
+  /* 面板 */
+  #dim{
+    position:fixed;inset:0;background:rgba(3,7,10,0.58);
+    display:none;z-index:14;
+  }
+  #dim.show{display:block;}
+  #panel{
+    position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
+    background:#0a141bfa;border:1px solid #24404f;border-radius:6px;
+    padding:24px 30px;display:none;z-index:15;pointer-events:auto;
+    font-family:"Georgia","Songti SC",serif;color:#cfe3f0;
+    width:420px;max-height:78vh;overflow-y:auto;box-shadow:0 20px 60px #000;
+  }
+  #panel.show{display:block;}
+  #panel::-webkit-scrollbar{width:6px;}
+  #panel::-webkit-scrollbar-thumb{background:#24404f;border-radius:3px;}
+  .tabs{display:flex;gap:4px;margin-bottom:16px;}
+  .tabs .tab{
+    flex:1;background:none;border:none;border-bottom:1px solid #16262f;
+    color:#4a6270;font-family:inherit;font-size:12px;letter-spacing:4px;
+    padding:8px 0;cursor:pointer;transition:all .13s;
+  }
+  .tabs .tab.on{color:#5fb8d8;border-bottom-color:#5fb8d8;}
+  .recipe{
+    display:flex;justify-content:space-between;align-items:center;gap:12px;
+    padding:7px 0;border-bottom:1px solid #16262f;
+  }
+  .recipe .info .nm{font-size:13px;letter-spacing:1px;color:#cfe3f0;}
+  .recipe .info .ds{font-size:11px;color:#5f7d8c;letter-spacing:.5px;margin-top:2px;}
+  .recipe .info .cs{color:#8a7a52;}
+  .recipe button{
+    background:#12202a;color:#8fb4c6;border:1px solid #24404f;
+    padding:7px 15px;font-family:inherit;font-size:12px;cursor:pointer;border-radius:3px;
+    white-space:nowrap;transition:all .13s;
+  }
+  .recipe button:hover:not(:disabled){background:#1a303d;color:#cfe8f2;}
+  .recipe button:disabled{opacity:.28;cursor:default;}
+  .recipe button.owned{color:#5fb8d8;border-color:#2a5a70;}
+  .tip{font-size:11px;color:#4a6270;text-align:center;margin-top:16px;letter-spacing:2px;}
+  #dexList .item{padding:6px 0;border-bottom:1px solid #0f1d24;}
+  #dexList .item .n{font-size:12px;color:#d8c08a;letter-spacing:2px;}
+  #dexList .item .d{font-size:11px;color:#6a8798;margin-top:2px;line-height:1.6;}
+  #dexList .item.unk .n{color:#3d5a68;letter-spacing:4px;}
+  #dexList .sum{font-size:11px;color:#5f7d8c;letter-spacing:2px;margin-top:14px;text-align:center;}
+  /* 遗物弹出 */
+  .relic{
+    position:fixed;left:50%;top:30%;transform:translate(-50%,-50%);
+    background:#0a141bf2;border:1px solid #3a5a6a;border-radius:5px;
+    padding:22px 38px;text-align:center;z-index:18;pointer-events:none;
+    font-family:"Georgia","Songti SC",serif;opacity:1;transition:opacity .9s;
+    box-shadow:0 14px 50px #000;
+  }
+  .relic.out{opacity:0;}
+  .relic .n{font-size:18px;letter-spacing:7px;color:#d8c08a;margin-bottom:10px;}
+  .relic .d{font-size:12px;color:#7ea8be;letter-spacing:1px;line-height:1.9;}
+  /* 开场 / 结束 */
+  #screen{
+    position:fixed;inset:0;background:#070d12ee;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:14px;z-index:30;
+    font-family:"Georgia","Songti SC",serif;color:#cfe3f0;pointer-events:auto;
+  }
+  #screen h1{font-size:36px;letter-spacing:16px;font-weight:normal;color:#5fb8d8;}
+  #screen p{font-size:13px;color:#5f7d8c;letter-spacing:2px;line-height:2.1;text-align:center;}
+  #screen button{
+    margin-top:12px;background:#0f1e28;color:#8fb4c6;border:1px solid #24404f;
+    padding:12px 36px;font-family:inherit;font-size:14px;letter-spacing:5px;
+    cursor:pointer;border-radius:3px;transition:all .15s;
+  }
+  #screen button:hover{background:#17303d;color:#cfe8f2;}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="ui">
+  <div class="topleft">
+    <div class="line"><span class="k">第</span><span class="v" id="dayN">1</span><span class="k">天</span><span class="v" id="phase">清晨</span></div>
+    <div class="line"><span class="k">潮</span><span class="v tide" id="tideState">退潮</span><span class="v" id="tideTime">—</span></div>
+  </div>
+
+  <div class="topright">
+    <div class="bagline">木 <b id="bWood">0</b>　藤 <b id="bVine">0</b></div>
+    <div class="bagline">石 <b id="bStone">0</b>　草 <b id="bGrass">0</b></div>
+    <div class="bagline">椰 <b id="bCoco">0</b>　鱼 <b id="bFish">0</b></div>
+    <div class="bagline">贝 <b id="bShell">0</b>　帆布 <b id="bCloth">0</b></div>
+    <div id="goal">造筏　—</div>
+  </div>
+
+  <div class="bars">
+    <div class="br hp"><div class="lb"><span>体力</span><b id="nHp">100</b></div><div class="track"><i id="bHp" style="width:100%"></i></div></div>
+    <div class="br fd"><div class="lb"><span>饱食</span><b id="nFd">100</b></div><div class="track"><i id="bFd" style="width:100%"></i></div></div>
+    <div class="br md"><div class="lb"><span>精神</span><b id="nMd">100</b></div><div class="track"><i id="bMd" style="width:100%"></i></div></div>
+  </div>
+
+  <div id="hint"></div>
+  <div id="msg"></div>
+</div>
+
+<div id="dim"></div>
+<div id="panel">
+  <div class="tabs">
+    <button class="tab on" data-tab="make">制 作</button>
+    <button class="tab" data-tab="dex">图 鉴</button>
+  </div>
+  <div id="makeList"></div>
+  <div id="dexList" style="display:none"></div>
+  <p class="tip">按 Tab 关闭</p>
+</div>
+
+<div id="screen">
+  <h1>潮 痕</h1>
+  <p>
+    你的船在风暴里散了。<br>
+    你抱着一块船板漂到这里。<br><br>
+    <span style="color:#5fb8d8">鼠标点击走动　点资源就过去采</span><br>
+    WASD 也能走　Tab 打开制作<br>
+    <span style="color:#c05a48">潮水会涨。水里有东西。</span>
+  </p>
+  <button id="btnStart">登 岛</button>
+</div>
+
+<script>
+/* ═══════════════════ 基础 ═══════════════════ */
+const cv = document.getElementById('game');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, Z = 1;
+function resize(){ W = cv.width = window.innerWidth; H = cv.height = window.innerHeight; }
+window.addEventListener('resize', resize);
+resize();
+
+const WORLD = { w: 2600, h: 2100 };
+const ISLAND_CX = 1300, ISLAND_CY = 1050;
+const TIDE_MS = 72000;        // 一次涨落
+const DAY_MS = 190000;        // 一天
+const HAND_MAX = 0;
+
+let BLOBS = [];
+let S = {}, keys = {}, cam = {x:0, y:0}, tide = 0, running = false, last = 0;
+
+/* ═══════════════════ 岛形生成 ═══════════════════ */
+function genIsland(){
+  BLOBS = [];
+  const mainR = 330 + Math.random() * 70;
+  BLOBS.push({ cx: ISLAND_CX, cy: ISLAND_CY, r: mainR });
+  const n = 3 + Math.floor(Math.random() * 3);
+  for(let i = 1; i < n; i++){
+    const a = (i / (n - 1)) * Math.PI * 2 + (Math.random() - 0.5) * 0.9;
+    const dist = mainR * (0.40 + Math.random() * 0.24);
+    const r = mainR * (0.40 + Math.random() * 0.28);
+    BLOBS.push({ cx: ISLAND_CX + Math.cos(a) * dist, cy: ISLAND_CY + Math.sin(a) * dist, r });
+  }
+}
+function islandT(x, y){
+  let best = 99;
+  for(const b of BLOBS){
+    const d = Math.hypot(x - b.cx, y - b.cy) / b.r;
+    if(d < best) best = d;
+  }
+  return best;
+}
+function walkR(){ return 0.90 - tide * 0.20; }
+
+function randIn(minR, maxR){
+  for(let i = 0; i < 130; i++){
+    const x = ISLAND_CX + (Math.random() - 0.5) * 1900;
+    const y = ISLAND_CY + (Math.random() - 0.5) * 1900;
+    const t = islandT(x, y);
+    if(t >= minR && t <= maxR) return { x, y };
+  }
+  return null;
+}
+function randSea(minT, maxT){
+  for(let i = 0; i < 140; i++){
+    const x = ISLAND_CX + (Math.random() - 0.5) * 2400;
+    const y = ISLAND_CY + (Math.random() - 0.5) * 2000;
+    const t = islandT(x, y);
+    if(t >= minT && t <= maxT) return { x, y };
+  }
+  return { x: ISLAND_CX + 950, y: ISLAND_CY };
+}
+function pushAshore(){
+  const a = Math.atan2(S.py - ISLAND_CY, S.px - ISLAND_CX);
+  const dist = Math.hypot(S.px - ISLAND_CX, S.py - ISLAND_CY) || 1;
+  for(let k = 1; k > 0.08; k -= 0.05){
+    const nx = ISLAND_CX + Math.cos(a) * dist * k;
+    const ny = ISLAND_CY + Math.sin(a) * dist * k;
+    if(islandT(nx, ny) < walkR() * 0.94){ S.px = nx; S.py = ny; return; }
+  }
+  S.px = ISLAND_CX; S.py = ISLAND_CY;
+}
+
+/* ═══════════════════ 遗物 ═══════════════════ */
+const RELICS = [
+  {id:'compass', name:'铜 罗 盘', desc:'指针一直指着岛的中心，不管你怎么转。'},
+  {id:'map',     name:'半张海图', desc:'只剩东半边，边缘被烧过。'},
+  {id:'letter',  name:'瓶 中 信', desc:'写到一半。最后一行是「水又涨了」。'},
+  {id:'coin',    name:'双 面 币', desc:'两面都是正面。'},
+  {id:'key',     name:'锈 钥 匙', desc:'不知道开什么。齿口磨得很平。'},
+  {id:'horse',   name:'木 马',   desc:'掉了漆。有人刻过一个名字，被磨平了。'},
+  {id:'plate',   name:'金 属 片', desc:'比铁轻，比木头重。加热会变蓝。'},
+  {id:'bell',    name:'船 钟 绳', desc:'绳子断了。钟不在了。'},
+  {id:'ink',     name:'干 墨 水', desc:'瓶子封着。晃一晃，里面还有声音。'},
+  {id:'glasses', name:'黑 镜 片', desc:'戴上什么也看不见。摘下来，反而更清楚。'}
+];
+
+/* ═══════════════════ 制作 ═══════════════════ */
+const NAME = {wood:'木', vine:'藤', stone:'石', grass:'草', shell:'贝', coco:'椰', fish:'鱼', cloth:'帆布'};
+
+const RECIPES = [
+  { id:'axe',     name:'石 斧',   cost:{wood:3, stone:2}, desc:'砍树一次多拿一份' },
+  { id:'spear',   name:'石 矛',   cost:{wood:3, vine:2},  desc:'鲨鱼冲过来时按 E 刺它' },
+  { id:'net',     name:'渔 网',   cost:{vine:4},          desc:'浅水里每隔一阵自动捞到鱼' },
+  { id:'bandage', name:'草绷带',  cost:{grass:2},         desc:'立刻止血' },
+  { id:'campfire',name:'火 堆',   cost:{wood:6, stone:3}, desc:'精神不再下降，体力慢慢回' }
+];
+
+const RAFT_PARTS = [
+  { id:'keel', name:'龙 骨', cost:{wood:8},        desc:'筏子的脊' },
+  { id:'hull', name:'船 身', cost:{wood:6, vine:4}, desc:'能坐人' },
+  { id:'sail', name:'帆',    cost:{vine:3, cloth:4}, desc:'让风带你走' }
+];
+
+/* ═══════════════════ 状态 ═══════════════════ */
+function newState(){
+  genIsland();
+  const sp = randSea(1.20, 1.50);
+
+  let px = ISLAND_CX, py = ISLAND_CY + 60;
+  if(location.search.indexOf('sea') >= 0){ px = sp.x + 100; py = sp.y + 50; }
+
+  S = {
+    px, py,
+    hp: 100, food: 100, mind: 100,
+    bleed: 0,
+    day: 1,
+    dayT: DAY_MS * 0.15,
+    tideT: TIDE_MS * 0.25,
+    bag: {wood:0, vine:0, stone:0, grass:0, shell:0, coco:0, fish:0, cloth:0},
+    tools: {axe:false, spear:false, net:false},
+    campfire: false,
+    raft: {keel:false, hull:false, sail:false},
+    relics: [],
+    res: [],
+    deco: [],
+    crabs: [],
+    wreck: null,
+    shark: { x: sp.x, y: sp.y, cd:0, warn:0, mode:'patrol', timer:0, ang:0 },
+    target: null,
+    want: null,
+    cd: 0,
+    wet: 0,
+    netT: 0,
+    dead: false,
+    won: false,
+    paused: false,
+    log: []
+  };
+
+  genResources();
+  saveBest();
+}
+
+function genResources(){
+  S.res = [];
+  for(let i=0;i<28;i++){ const p = randIn(0.10,0.60); if(p) S.res.push({type:'tree', x:p.x, y:p.y}); }
+  for(let i=0;i<13;i++){ const p = randIn(0.30,0.68); if(p) S.res.push({type:'vine', x:p.x, y:p.y}); }
+  for(let i=0;i<17;i++){ const p = randIn(0.16,0.66); if(p) S.res.push({type:'grass', x:p.x, y:p.y}); }
+  for(let i=0;i<11;i++){ const p = randIn(0.12,0.62); if(p) S.res.push({type:'stone', x:p.x, y:p.y}); }
+  for(let i=0;i<10;i++){ const p = randIn(0.40,0.72); if(p) S.res.push({type:'coco', x:p.x, y:p.y}); }
+  for(let i=0;i<26;i++){
+    const p = randIn(0.76,0.93);
+    if(p) S.res.push({type: Math.random()<0.62?'shell':'wreck', x:p.x, y:p.y, band:true});
+  }
+
+  S.crabs = [];
+  for(let i=0;i<7;i++){
+    const p = randIn(0.78, 0.94);
+    if(p) S.crabs.push({ x:p.x, y:p.y, t: Math.random()*6 });
+  }
+
+  const rp = randIn(0.80, 0.90);
+  S.raftPos = rp || { x: ISLAND_CX + 300, y: ISLAND_CY };
+
+  S.deco = [];
+  for(let i=0;i<260;i++){
+    const p = randIn(0.04, 0.74);
+    if(p) S.deco.push({ x:p.x, y:p.y, k: Math.random() });
+  }
+}
+
+/* ═══════════════════ 输入 ═══════════════════ */
+window.addEventListener('keydown', e=>{
+  const k = e.key.toLowerCase();
+  keys[k] = true;
+  if(k === 'e') tryInteract();
+  if(k === 'tab'){ e.preventDefault(); togglePanel(); }
+  if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) e.preventDefault();
+});
+window.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()] = false; });
+
+cv.addEventListener('mousedown', e=>{
+  if(!running || S.dead || S.won || S.paused) return;
+  const rect = cv.getBoundingClientRect();
+  const wx = (e.clientX - rect.left) / Z + cam.x;
+  const wy = (e.clientY - rect.top) / Z + cam.y;
+
+  let best = null, bd = 1e9;
+  S.res.forEach(r=>{
+    const d = Math.hypot(r.x - wx, r.y - wy);
+    if(d < 54 && d < bd){ bd = d; best = r; }
+  });
+  let crab = null, cd2 = 1e9;
+  S.crabs.forEach(c=>{
+    const d = Math.hypot(c.x - wx, c.y - wy);
+    if(d < 48 && d < cd2){ cd2 = d; crab = c; }
+  });
+
+  if(best && bd <= cd2){
+    S.target = {x:best.x, y:best.y};
+    S.want = {kind:'res', obj:best};
+  }else if(crab){
+    S.target = {x:crab.x, y:crab.y};
+    S.want = {kind:'crab', obj:crab};
+  }else if(islandT(wx, wy) < 1.5){
+    S.target = {x:wx, y:wy};
+    S.want = null;
+  }
+});
+
+/* ═══════════════════ 交互 ═══════════════════ */
+function tryInteract(){
+  if(!running || S.dead || S.won || S.paused || S.cd > 0) return;
+
+  // 矛：鲨鱼冲刺
+  if(S.tools.spear && S.shark.mode === 'charge'){
+    if(Math.hypot(S.shark.x - S.px, S.shark.y - S.py) < 100){
+      S.shark.mode = 'retreat';
+      S.shark.timer = 5200;
+      S.shark.warn = 0;
+      S.cd = 380;
+      msg('刺中了，它退了');
+      return;
+    }
+  }
+
+  // 最近的资源
+  let best = null, bd = 86;
+  S.res.forEach(r=>{
+    const d = Math.hypot(r.x - S.px, r.y - S.py);
+    if(d < bd){ bd = d; best = r; }
+  });
+  if(best){
+    if(best.band && islandT(best.x, best.y) > walkR()){
+      msg('它被水淹了', true);
+      return;
+    }
+    harvest(best);
+    return;
+  }
+
+  // 螃蟹
+  let crab = null, cd2 = 78;
+  S.crabs.forEach(c=>{
+    const d = Math.hypot(c.x - S.px, c.y - S.py);
+    if(d < cd2){ cd2 = d; crab = c; }
+  });
+  if(crab){ grabCrab(crab); return; }
+
+  // 沉船
+  if(S.wreck && !S.wreck.looted){
+    if(Math.hypot(S.wreck.x - S.px, S.wreck.y - S.py) < 62){ lootWreck(); return; }
+  }
+
+  // 筏
+  if(Math.hypot(S.raftPos.x - S.px, S.raftPos.y - S.py) < 78){ tryRaft(); return; }
+}
+
+function harvest(r){
+  S.cd = 300;
+  S.hp = Math.max(0, S.hp - 5);
+  S.res = S.res.filter(o => o !== r);
+
+  if(r.type === 'tree'){
+    const n = S.tools.axe ? 2 : 1;
+    S.bag.wood += n; msg('+' + n + ' 木');
+  }
+  if(r.type === 'vine'){ S.bag.vine++; msg('+1 藤'); }
+  if(r.type === 'grass'){ S.bag.grass++; msg('+1 草'); }
+  if(r.type === 'stone'){ S.bag.stone++; msg('+1 石'); }
+  if(r.type === 'shell'){ S.bag.shell++; msg('+1 贝'); }
+  if(r.type === 'coco'){ S.bag.coco++; msg('+1 椰'); }
+  if(r.type === 'wreck'){
+    const n = S.tools.axe ? 3 : 2;
+    S.bag.wood += n;
+    if(Math.random() < 0.35){ S.bag.cloth++; msg('+' + n + ' 木，还扯下一块帆布'); }
+    else msg('+' + n + ' 木');
+  }
+  updateHUD();
+}
+
+function grabCrab(c){
+  S.cd = 340;
+  S.crabs = S.crabs.filter(o => o !== c);
+  S.bag.fish++;
+  S.mind = Math.min(100, S.mind + 2);
+  msg('抓到一只蟹');
+  updateHUD();
+}
+
+function lootWreck(){
+  S.cd = 460;
+  S.hp = Math.max(0, S.hp - 8);
+  S.wreck.looted = true;
+
+  const r = Math.random();
+  if(r < 0.30){ S.bag.wood += 2; msg('拆下 2 根木头'); }
+  else if(r < 0.52){ S.bag.cloth += 2; msg('捞到 2 块帆布'); }
+  else if(r < 0.70){ S.bag.vine += 2; msg('捞到 2 卷缆绳'); }
+  else{
+    const pool = RELICS.filter(x => S.relics.indexOf(x.id) < 0);
+    if(pool.length){
+      const got = pool[Math.floor(Math.random()*pool.length)];
+      S.relics.push(got.id);
+      S.mind = Math.min(100, S.mind + 12);
+      showRelic(got);
+      msg('捞到一样东西');
+    }else{
+      S.bag.cloth += 2; msg('又是帆布');
+    }
+  }
+  updateHUD();
+}
+
+function tryRaft(){
+  const done = S.raft.keel && S.raft.hull && S.raft.sail;
+  if(done){
+    S.won = true; running = false;
+    showEnd('走 了', '筏子推下水。风把它带离了这座岛。');
+  }else{
+    const miss = [];
+    if(!S.raft.keel) miss.push('龙骨');
+    if(!S.raft.hull) miss.push('船身');
+    if(!S.raft.sail) miss.push('帆');
+    msg('还差：' + miss.join('、'), true);
+  }
+}
+
+/* ═══════════════════ 消息 ═══════════════════ */
+let msgTimer = 0;
+function msg(t, bad){
+  const el = document.getElementById('msg');
+  el.textContent = t;
+  el.className = 'on' + (bad ? ' bad' : '');
+  clearTimeout(msgTimer);
+  msgTimer = setTimeout(()=>{ el.className = ''; }, 1000);
+}
+
+function showRelic(r){
+  const d = document.createElement('div');
+  d.className = 'relic';
+  d.innerHTML = `<div class="n">${r.name}</div><div class="d">${r.desc}</div>`;
+  document.body.appendChild(d);
+  setTimeout(()=>d.classList.add('out'), 2700);
+  setTimeout(()=>d.remove(), 3700);
+}
+
+/* ═══════════════════ 面板 ═══════════════════ */
+function togglePanel(){
+  if(!running || S.dead || S.won) return;
+  const el = document.getElementById('panel');
+  const dim = document.getElementById('dim');
+  if(el.classList.contains('show')){
+    el.classList.remove('show');
+    dim.classList.remove('show');
+    S.paused = false;
+  }else{
+    el.classList.add('show');
+    dim.classList.add('show');
+    S.paused = true;
+    buildMake();
+    buildDex();
+    setTab('make');
+  }
+}
+function setTab(n){
+  document.querySelectorAll('.tabs .tab').forEach(b=>b.classList.toggle('on', b.dataset.tab === n));
+  document.getElementById('makeList').style.display = n === 'make' ? '' : 'none';
+  document.getElementById('dexList').style.display = n === 'dex' ? '' : 'none';
+}
+
+function costText(c){
+  return Object.keys(c).map(k => (NAME[k]||k) + ' ' + c[k]).join(' · ');
+}
+function canAfford(c){
+  return Object.keys(c).every(k => (S.bag[k]||0) >= c[k]);
+}
+
+function buildMake(){
+  const box = document.getElementById('makeList');
+  box.innerHTML = '';
+
+  const all = RECIPES.concat(RAFT_PARTS.map(p => ({...p, isRaft:true})));
+
+  all.forEach(r=>{
+    const owned = (!r.isRaft && ((r.id==='axe' && S.tools.axe) || (r.id==='spear' && S.tools.spear)
+                  || (r.id==='net' && S.tools.net) || (r.id==='campfire' && S.campfire)))
+                || (r.isRaft && S.raft[r.id]);
+    const ok = canAfford(r.cost);
+
+    const row = document.createElement('div');
+    row.className = 'recipe';
+    row.innerHTML = `<div class="info">
+        <div class="nm">${r.isRaft ? '筏 · ' : ''}${r.name}</div>
+        <div class="ds">${r.desc}<span class="cs">　${costText(r.cost)}</span></div>
+      </div>`;
+
+    const b = document.createElement('button');
+    if(owned){ b.textContent = '已有'; b.disabled = true; b.className = 'owned'; }
+    else { b.textContent = '制作'; b.disabled = !ok; b.onclick = ()=> build(r); }
+    row.appendChild(b);
+    box.appendChild(row);
+  });
+}
+
+function build(r){
+  if(!canAfford(r.cost)) return;
+  Object.keys(r.cost).forEach(k => { S.bag[k] -= r.cost[k]; });
+
+  if(r.isRaft){
+    S.raft[r.id] = true;
+    S.mind = Math.min(100, S.mind + 8);
+    msg('筏：' + r.name + ' 做好了');
+  }else{
+    if(r.id === 'axe'){ S.tools.axe = true; msg('石斧做好了'); }
+    if(r.id === 'spear'){ S.tools.spear = true; msg('石矛做好了'); }
+    if(r.id === 'net'){ S.tools.net = true; msg('渔网布下去了'); }
+    if(r.id === 'bandage'){ S.bleed = 0; msg('血止住了'); }
+    if(r.id === 'campfire'){ S.campfire = true; S.hp = Math.min(100, S.hp + 30); msg('火升起来了'); }
+  }
+  updateHUD();
+  buildMake();
+}
+
+function buildDex(){
+  const box = document.getElementById('dexList');
+  box.innerHTML = '';
+  RELICS.forEach(r=>{
+    const got = S.relics.indexOf(r.id) >= 0;
+    const d = document.createElement('div');
+    d.className = 'item' + (got ? '' : ' unk');
+    d.innerHTML = got
+      ? `<div class="n">${r.name}</div><div class="d">${r.desc}</div>`
+      : `<div class="n">－ － －</div>`;
+    box.appendChild(d);
+  });
+  const sum = document.createElement('div');
+  sum.className = 'sum';
+  sum.textContent = `已收 ${S.relics.length} / ${RELICS.length}`;
+  box.appendChild(sum);
+}
+
+/* ═══════════════════ 存档 ═══════════════════ */
+function saveBest(){
+  try{
+    const best = Number(localStorage.getItem('tide_best') || 0);
+    if(S.day > best) localStorage.setItem('tide_best', String(S.day));
+  }catch(e){}
+}
+
+/* ═══════════════════ 主循环 ═══════════════════ */
+function loop(now){
+  const dt = Math.min(50, now - last);
+  last = now;
+  if(running) update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function update(dt){
+  if(S.dead || S.won || S.paused) return;
+
+  /* 潮汐 */
+  S.tideT += dt;
+  const prevTide = tide;
+  tide = (Math.sin(S.tideT / TIDE_MS * Math.PI * 2 - Math.PI/2) + 1) / 2;
+
+  if(prevTide > 0.88 && tide <= 0.88 && !S.wreck){
+    if(S.relics.length >= 5 || Math.random() < 0.7) spawnWreck();
+  }
+  if(tide > 0.965) S.wreck = null;
+
+  /* 时间 */
+  S.dayT += dt;
+  if(S.dayT >= DAY_MS){
+    S.dayT = 0;
+    S.day++;
+    saveBest();
+    regen();
+    msg('第 ' + S.day + ' 天');
+  }
+  const dp = S.dayT / DAY_MS;
+  const night = dp > 0.70;
+
+  /* 移动 */
+  let dx = 0, dy = 0;
+  if(keys['a'] || keys['arrowleft']) dx -= 1;
+  if(keys['d'] || keys['arrowright']) dx += 1;
+  if(keys['w'] || keys['arrowup']) dy -= 1;
+  if(keys['s'] || keys['arrowdown']) dy += 1;
+
+  if(dx || dy){ S.target = null; S.want = null; }
+  else if(S.target){
+    const tdx = S.target.x - S.px, tdy = S.target.y - S.py;
+    const td = Math.hypot(tdx, tdy);
+    if(td < 6){
+      S.target = null;
+      const w = S.want;
+      S.want = null;
+      if(w && w.kind === 'res' && S.res.indexOf(w.obj) >= 0){
+        if(Math.hypot(w.obj.x - S.px, w.obj.y - S.py) < 88) tryInteract();
+      }else if(w && w.kind === 'crab' && S.crabs.indexOf(w.obj) >= 0){
+        if(Math.hypot(w.obj.x - S.px, w.obj.y - S.py) < 80) tryInteract();
+      }
+    }else{ dx = tdx / td; dy = tdy / td; }
+  }
+
+  const inWater = islandT(S.px, S.py) > walkR();
+
+  if(dx || dy){
+    const len = Math.hypot(dx, dy) || 1;
+    dx /= len; dy /= len;
+    let spd = (S.hp > 20 ? 3.5 : 1.9) * (dt / 16.67) * 0.92;
+    if(inWater) spd *= 0.62;
+    if(night) spd *= 0.88;
+
+    const nx = S.px + dx * spd;
+    const ny = S.py + dy * spd;
+    const lim = 1.62;
+    if(islandT(nx, ny) < lim){ S.px = nx; S.py = ny; }
+    else {
+      if(islandT(nx, S.py) < lim) S.px = nx;
+      else if(islandT(S.px, ny) < lim) S.py = ny;
+    }
+
+    S.hp = Math.max(0, S.hp - dt * 0.0032);
+    if(islandT(S.px, S.py) > 1.02) S.hp = Math.max(0, S.hp - dt * 0.012);
+  }
+
+  /* 泡水与浪 */
+  if(inWater){
+    S.wet += dt;
+    S.hp = Math.max(0, S.hp - dt * 0.008);
+    if(S.wet > 6800){ S.wet = 0; pushAshore(); msg('浪把你推回了岸上', true); }
+  }else{
+    S.wet = Math.max(0, S.wet - dt);
+  }
+
+  /* 状态衰减 */
+  S.food = Math.max(0, S.food - dt * 0.00052);
+  const mindRate = S.campfire ? 0 : (night ? 0.00034 : 0.00011);
+  S.mind = Math.max(0, S.mind - dt * mindRate);
+
+  if(S.food <= 0) S.hp = Math.max(0, S.hp - dt * 0.014);
+  if(S.mind <= 0) S.hp = Math.max(0, S.hp - dt * 0.008);
+  if(S.bleed > 0){
+    S.bleed -= dt;
+    S.hp = Math.max(0, S.hp - dt * 0.0042);
+    if(S.bleed <= 0) msg('血自己止住了');
+  }
+
+  /* 渔网 */
+  if(S.tools.net){
+    S.netT += dt;
+    if(S.netT > 26000){
+      S.netT = 0;
+      S.bag.fish++;
+      msg('渔网里有一条鱼');
+      updateHUD();
+    }
+  }
+
+  if(S.cd > 0) S.cd -= dt;
+
+  updateShark(dt);
+
+  if(S.hp <= 0){
+    S.dead = true; running = false;
+    showEnd('倒 下 了', '第 ' + S.day + ' 天。潮水会把你带走。');
+    return;
+  }
+
+  updateHint();
+  updateHUD();
+}
+
+function regen(){
+  for(let i=0;i<8;i++){
+    const p = randIn(0.20, 0.85);
+    if(p) S.res.push({type: Math.random()<0.6?'tree':'coco', x:p.x, y:p.y});
+  }
+  for(let i=0;i<2;i++){
+    const p = randIn(0.78, 0.94);
+    if(p) S.crabs.push({x:p.x, y:p.y, t: Math.random()*6});
+  }
+}
+
+/* ═══════════════════ 沉船 ═══════════════════ */
+function spawnWreck(){
+  const p = randSea(1.10, 1.42);
+  S.wreck = { x:p.x, y:p.y, looted:false };
+  msg('远处浮上来一艘沉船');
+}
+
+/* ═══════════════════ 鲨鱼 ═══════════════════ */
+function updateShark(dt){
+  const sh = S.shark;
+  if(sh.cd > 0) sh.cd -= dt;
+  if(sh.timer > 0) sh.timer -= dt;
+
+  const deep = islandT(S.px, S.py) > 1.02;
+  const d = Math.hypot(sh.x - S.px, sh.y - S.py);
+  const toP = Math.atan2(S.py - sh.y, S.px - sh.x);
+
+  if(sh.mode === 'retreat'){ if(sh.timer <= 0) sh.mode = 'patrol'; }
+  else if(!deep){ sh.mode = 'patrol'; }
+  else if(sh.mode === 'patrol' && d < 520){ sh.mode = 'stalk'; sh.timer = 1700 + Math.random()*1000; }
+  else if(sh.mode === 'stalk' && sh.timer <= 0 && d < 260){ sh.mode = 'charge'; }
+  else if(sh.mode === 'charge' && d > 340){ sh.mode = 'patrol'; }
+
+  if(sh.mode === 'patrol'){
+    sh.warn = Math.max(0, sh.warn - dt * 0.0025);
+    if(deep && d < 720){
+      const sp = 0.62 * (dt/16.67);
+      sh.x += Math.cos(toP) * sp; sh.y += Math.sin(toP) * sp;
+      sh.tx = S.px; sh.ty = S.py;
+    }else{
+      if(!sh.tx || Math.hypot(sh.tx - sh.x, sh.ty - sh.y) < 26){
+        const p = randSea(1.06, 1.46);
+        sh.tx = p.x; sh.ty = p.y;
+      }
+      const a = Math.atan2(sh.ty - sh.y, sh.tx - sh.x);
+      const sp = 0.34 * (dt/16.67);
+      sh.x += Math.cos(a) * sp; sh.y += Math.sin(a) * sp;
+    }
+  }else if(sh.mode === 'stalk'){
+    sh.warn = Math.min(1, sh.warn + dt * 0.0012);
+    sh.ang += dt * 0.0018;
+    const a = toP + Math.PI/2 + Math.sin(sh.ang) * 0.7;
+    const tx = S.px - Math.cos(a) * 108;
+    const ty = S.py - Math.sin(a) * 108;
+    const aa = Math.atan2(ty - sh.y, tx - sh.x);
+    const sp = 0.72 * (dt/16.67);
+    sh.x += Math.cos(aa) * sp; sh.y += Math.sin(aa) * sp;
+    sh.tx = S.px; sh.ty = S.py;
+  }else if(sh.mode === 'charge'){
+    sh.warn = Math.min(1, sh.warn + dt * 0.004);
+    const sp = 1.55 * (dt/16.67);
+    sh.x += Math.cos(toP) * sp; sh.y += Math.sin(toP) * sp;
+    sh.tx = S.px; sh.ty = S.py;
+    if(d < 36 && sh.cd <= 0){
+      S.hp = Math.max(0, S.hp - 26);
+      S.bleed = 9000;
+      sh.cd = 4200; sh.mode = 'retreat'; sh.timer = 2600; sh.warn = 0;
+      pushAshore();
+      msg('它咬了你一口，你在流血', true);
+    }
+  }else{
+    sh.warn = Math.max(0, sh.warn - dt * 0.004);
+    const a = toP + Math.PI;
+    const sp = 0.95 * (dt/16.67);
+    sh.x += Math.cos(a) * sp; sh.y += Math.sin(a) * sp;
+  }
+
+  /* 螃蟹：受惊会跑 */
+  S.crabs.forEach(c=>{
+    const dc = Math.hypot(c.x - S.px, c.y - S.py);
+    if(dc < 90){
+      const a = Math.atan2(c.y - S.py, c.x - S.px);
+      c.x += Math.cos(a) * 0.5 * (dt/16.67);
+      c.y += Math.sin(a) * 0.5 * (dt/16.67);
+    }
+  });
+}
+
+/* ═══════════════════ 提示 ═══════════════════ */
+function updateHint(){
+  const el = document.getElementById('hint');
+
+  if(S.tools.spear && S.shark.mode === 'charge'
+     && Math.hypot(S.shark.x - S.px, S.shark.y - S.py) < 100){
+    el.textContent = '[E] 刺它';
+    el.classList.add('on');
+    return;
+  }
+
+  let best = null, bd = 86;
+  S.res.forEach(r=>{
+    const d = Math.hypot(r.x - S.px, r.y - S.py);
+    if(d < bd){ bd = d; best = r; }
+  });
+  if(best){
+    const n = {tree:'砍树', vine:'割藤', shell:'捡贝壳', wreck:'拆残骸',
+               grass:'割草', stone:'敲石头', coco:'摘椰子'}[best.type];
+    el.textContent = '[E] ' + n;
+    el.classList.add('on');
+    return;
+  }
+
+  let crab = null, cd2 = 80;
+  S.crabs.forEach(c=>{
+    const d = Math.hypot(c.x - S.px, c.y - S.py);
+    if(d < cd2){ cd2 = d; crab = c; }
+  });
+  if(crab){ el.textContent = '[E] 抓蟹'; el.classList.add('on'); return; }
+
+  if(S.wreck && !S.wreck.looted
+     && Math.hypot(S.wreck.x - S.px, S.wreck.y - S.py) < 62){
+    el.textContent = '[E] 打捞沉船'; el.classList.add('on'); return;
+  }
+
+  if(Math.hypot(S.raftPos.x - S.px, S.raftPos.y - S.py) < 78){
+    const done = S.raft.keel && S.raft.hull && S.raft.sail;
+    el.textContent = done ? '[E] 推筏下水' : '[E] 看看筏';
+    el.classList.add('on'); return;
+  }
+
+  el.classList.remove('on');
+}
+
+/* ═══════════════════ HUD ═══════════════════ */
+function updateHUD(){
+  document.getElementById('dayN').textContent = S.day;
+
+  const dp = S.dayT / DAY_MS;
+  document.getElementById('phase').textContent =
+    dp < 0.28 ? '清晨' : dp < 0.55 ? '白天' : dp < 0.70 ? '黄昏' : '夜里';
+
+  const rising = Math.cos(S.tideT / TIDE_MS * Math.PI * 2 - Math.PI/2) > 0;
+  document.getElementById('tideState').textContent = rising ? '涨潮' : '退潮';
+
+  let secs;
+  const ac = Math.acos(Math.max(-1, Math.min(1, 1 - tide*2)));
+  if(rising) secs = ac / (Math.PI*2) * TIDE_MS / 1000;
+  else secs = (Math.PI - ac) / (Math.PI*2) * TIDE_MS / 1000;
+  document.getElementById('tideTime').textContent = Math.ceil(secs) + 's';
+
+  setBar('Hp', S.hp);
+  setBar('Fd', S.food);
+  setBar('Md', S.mind);
+
+  document.getElementById('bWood').textContent = S.bag.wood;
+  document.getElementById('bVine').textContent = S.bag.vine;
+  document.getElementById('bStone').textContent = S.bag.stone;
+  document.getElementById('bGrass').textContent = S.bag.grass;
+  document.getElementById('bCoco').textContent = S.bag.coco;
+  document.getElementById('bFish').textContent = S.bag.fish;
+  document.getElementById('bShell').textContent = S.bag.shell;
+  document.getElementById('bCloth').textContent = S.bag.cloth;
+
+  const g = document.getElementById('goal');
+  const parts = [];
+  parts.push((S.raft.keel ? '<span class="done">✔ 龙骨</span>' : '○ 龙骨 8木'));
+  parts.push((S.raft.hull ? '<span class="done">✔ 船身</span>' : '○ 船身 6木4藤'));
+  parts.push((S.raft.sail ? '<span class="done">✔ 帆</span>' : '○ 帆 3藤4帆布'));
+  g.innerHTML = '造筏<br>' + parts.join('<br>');
+}
+
+function setBar(k, v){
+  v = Math.max(0, Math.min(100, v));
+  document.getElementById('n' + k).textContent = Math.round(v);
+  document.getElementById('b' + k).style.width = v + '%';
+}
+
+/* ═══════════════════ 结束 ═══════════════════ */
+function showEnd(title, text){
+  const el = document.createElement('div');
+  el.id = 'screen';
+  el.innerHTML = `<h1>${title}</h1><p>${text}</p><button onclick="location.reload()">再 来</button>`;
+  document.body.appendChild(el);
+
+  // 吃椰子/鱼 自动？改为死亡时不需要
+}
+
+/* ═══════════════════ 绘制 ═══════════════════ */
+function blobFill(mult, color){
+  ctx.beginPath();
+  for(const b of BLOBS){
+    ctx.moveTo(b.cx + b.r * mult, b.cy);
+    ctx.arc(b.cx, b.cy, b.r * mult, 0, Math.PI*2);
+  }
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+function draw(){
+  if(!S.px) return;
+
+  Z = Math.max(0.55, W / 1500);
+  const vw = W / Z, vh = H / Z;
+  cam.x = S.px - vw/2;
+  cam.y = S.py - vh/2;
+  cam.x = Math.max(0, Math.min(Math.max(0, WORLD.w - vw), cam.x));
+  cam.y = Math.max(0, Math.min(Math.max(0, WORLD.h - vh), cam.y));
+
+  const dp = S.dayT / DAY_MS;
+  const night = dp > 0.70;
+  const dusk = dp > 0.55 && dp <= 0.70;
+
+  /* 海 */
+  ctx.fillStyle = night ? '#061018' : '#0a1e2a';
+  ctx.fillRect(0, 0, W, H);
+
+  const t = performance.now() * 0.0005;
+  ctx.strokeStyle = 'rgba(90,170,200,0.08)';
+  ctx.lineWidth = 1;
+  for(let i=0;i<16;i++){
+    const y = ((i*80 + t*240) % (H+140)) - 70;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    for(let x=0;x<=W;x+=40) ctx.lineTo(x, y + Math.sin(x*0.018 + t*5 + i)*5);
+    ctx.stroke();
+  }
+
+  ctx.save();
+  ctx.scale(Z, Z);
+  ctx.translate(-cam.x, -cam.y);
+
+  const wr = walkR();
+
+  blobFill(1.0, night ? '#0d2029' : '#112834');
+  blobFill(wr + 0.038, 'rgba(110,190,220,0.22)');
+  blobFill(wr + 0.012, night ? '#4a453c' : '#5f584c');
+  blobFill(wr - 0.035, night ? '#6e6355' : '#8e8069');
+  blobFill(wr * 0.80, night ? '#2f4032' : '#3f5a45');
+  blobFill(wr * 0.55, night ? '#22302a' : '#2e4435');
+
+  if(S.deco){
+    for(const d of S.deco){
+      if(d.k < 0.55){
+        ctx.strokeStyle = night ? 'rgba(70,100,76,0.35)' : 'rgba(96,136,100,0.45)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(d.x, d.y); ctx.lineTo(d.x-1.6, d.y-4);
+        ctx.moveTo(d.x, d.y); ctx.lineTo(d.x+1.6, d.y-3.6);
+        ctx.stroke();
+      }else{
+        ctx.fillStyle = 'rgba(126,126,110,0.28)';
+        ctx.beginPath(); ctx.arc(d.x, d.y, 1.6, 0, Math.PI*2); ctx.fill();
+      }
+    }
+  }
+
+  S.res.forEach(drawRes);
+  S.crabs.forEach(drawCrab);
+  drawWreck();
+  drawRaft();
+
+  if(S.campfire){
+    const fx = S.px, fy = S.py;
+    ctx.fillStyle = 'rgba(255,140,40,0.10)';
+    ctx.beginPath(); ctx.arc(fx, fy, 46, 0, Math.PI*2); ctx.fill();
+  }
+
+  if(S.target){
+    const p = (performance.now() % 820) / 820;
+    ctx.strokeStyle = `rgba(232,200,122,${(1-p)*0.75})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(S.target.x, S.target.y, 8 + p*18, 0, Math.PI*2); ctx.stroke();
+  }
+
+  drawPlayer();
+  drawShark();
+
+  ctx.restore();
+
+  /* 筏箭头 */
+  const rsx = (S.raftPos.x - cam.x) * Z;
+  const rsy = (S.raftPos.y - cam.y) * Z;
+  const m = 46;
+  if(rsx < m || rsx > W-m || rsy < m || rsy > H-m){
+    const a = Math.atan2(rsy - H/2, rsx - W/2);
+    const rr = Math.min(W, H) * 0.40;
+    ctx.save();
+    ctx.translate(W/2 + Math.cos(a)*rr, H/2 + Math.sin(a)*rr);
+    ctx.rotate(a);
+    ctx.fillStyle = 'rgba(232,200,122,0.5)';
+    ctx.beginPath(); ctx.moveTo(11,0); ctx.lineTo(-7,6.5); ctx.lineTo(-7,-6.5); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  /* 夜晚 / 流血 / 鲨鱼 */
+  const sx = (S.px - cam.x) * Z, sy = (S.py - cam.y) * Z;
+
+  let dark = 0;
+  if(dp > 0.55) dark = Math.min(0.80, (dp - 0.55) / 0.35 * 0.80);
+  if(dark > 0.01){
+    const rad = S.campfire ? 460*Z : 300*Z;
+    const g = ctx.createRadialGradient(sx, sy, 40, sx, sy, rad);
+    g.addColorStop(0, 'rgba(3,6,9,0)');
+    g.addColorStop(0.6, `rgba(3,6,9,${dark*0.6})`);
+    g.addColorStop(1, `rgba(3,6,9,${dark})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,W,H);
+  }
+
+  if(S.shark && S.shark.warn > 0.05){
+    const a = S.shark.warn * 0.34;
+    const g2 = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.26, W/2, H/2, Math.max(W,H)*0.62);
+    g2.addColorStop(0, 'rgba(140,24,20,0)');
+    g2.addColorStop(1, `rgba(140,24,20,${a})`);
+    ctx.fillStyle = g2; ctx.fillRect(0,0,W,H);
+  }
+
+  if(S.bleed > 0){
+    const a = 0.16 + Math.abs(Math.sin(performance.now()*0.0028)) * 0.14;
+    const g3 = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.32, W/2, H/2, Math.max(W,H)*0.62);
+    g3.addColorStop(0, 'rgba(160,18,18,0)');
+    g3.addColorStop(1, `rgba(160,18,18,${a})`);
+    ctx.fillStyle = g3; ctx.fillRect(0,0,W,H);
+  }
+
+  if(dusk){
+    ctx.fillStyle = 'rgba(90,50,20,0.10)';
+    ctx.fillRect(0,0,W,H);
+  }
+}
+
+function drawRes(r){
+  const x = r.x, y = r.y;
+  const drowned = islandT(x,y) > walkR();
+  ctx.globalAlpha = drowned ? 0.28 : 1;
+
+  if(r.type === 'tree'){
+    ctx.fillStyle = '#4a3626';
+    ctx.fillRect(x-2, y-2, 4, 13);
+    ctx.fillStyle = '#2b4230';
+    ctx.beginPath(); ctx.arc(x, y-9, 12, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#375338';
+    ctx.beginPath(); ctx.arc(x-4, y-14, 8, 0, Math.PI*2); ctx.fill();
+  }
+  if(r.type === 'vine'){
+    ctx.strokeStyle = '#4f7f52'; ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(x-6, y+7);
+    ctx.quadraticCurveTo(x, y-11, x+7, y+3);
+    ctx.stroke();
+    ctx.fillStyle = '#6aa06c';
+    ctx.beginPath(); ctx.arc(x+7, y+3, 3, 0, Math.PI*2); ctx.fill();
+  }
+  if(r.type === 'stone'){
+    ctx.fillStyle = '#59626b';
+    ctx.beginPath(); ctx.ellipse(x, y, 8, 6, 0.2, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#727c86';
+    ctx.beginPath(); ctx.ellipse(x-2, y-2, 4.5, 3.5, 0.3, 0, Math.PI*2); ctx.fill();
+  }
+  if(r.type === 'grass'){
+    ctx.strokeStyle = '#5d8f57'; ctx.lineWidth = 1.8;
+    for(let i=-1;i<=1;i++){
+      ctx.beginPath();
+      ctx.moveTo(x + i*3, y+6);
+      ctx.quadraticCurveTo(x + i*5, y-3, x + i*6.5, y-10);
+      ctx.stroke();
+    }
+  }
+  if(r.type === 'coco'){
+    ctx.fillStyle = '#4a3626';
+    ctx.fillRect(x-1.5, y-8, 3, 10);
+    ctx.fillStyle = '#4a6b3c';
+    ctx.beginPath(); ctx.arc(x-6, y-12, 5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x+6, y-12, 5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#6b4a2a';
+    ctx.beginPath(); ctx.arc(x, y-2, 4.5, 0, Math.PI*2); ctx.fill();
+  }
+  if(r.type === 'shell'){
+    ctx.fillStyle = '#d8c8b0';
+    ctx.beginPath(); ctx.ellipse(x, y, 8, 6, 0.3, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#b0a08a'; ctx.lineWidth = 1;
+    for(let i=-1;i<=1;i++){
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + i*6, y - 5); ctx.stroke();
+    }
+  }
+  if(r.type === 'wreck'){
+    ctx.fillStyle = '#5a4a38';
+    ctx.save(); ctx.translate(x, y); ctx.rotate(0.4);
+    ctx.fillRect(-9, -3, 18, 6);
+    ctx.restore();
+    ctx.fillStyle = '#3f3326';
+    ctx.fillRect(x-3, y+2, 3, 9);
+  }
+
+  ctx.globalAlpha = 1;
+}
+
+function drawCrab(c){
+  const bob = Math.sin(performance.now()*0.004 + c.t) * 1.2;
+  ctx.fillStyle = '#b8543a';
+  ctx.beginPath(); ctx.ellipse(c.x, c.y + bob, 7, 5, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#b8543a'; ctx.lineWidth = 1.4;
+  for(let i=-1;i<=1;i+=2){
+    ctx.beginPath();
+    ctx.moveTo(c.x + i*6, c.y + bob);
+    ctx.lineTo(c.x + i*11, c.y + bob - 4);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(c.x + i*5, c.y + bob + 2);
+    ctx.lineTo(c.x + i*9, c.y + bob + 6);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#1a1410';
+  ctx.beginPath(); ctx.arc(c.x-2, c.y+bob-2, 1, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(c.x+2, c.y+bob-2, 1, 0, Math.PI*2); ctx.fill();
+}
+
+function drawWreck(){
+  if(!S.wreck) return;
+  const x = S.wreck.x, y = S.wreck.y, looted = S.wreck.looted;
+  if(looted) ctx.globalAlpha = 0.2;
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(-0.2);
+  ctx.fillStyle = '#4a3828';
+  ctx.beginPath();
+  ctx.moveTo(-28,-7); ctx.lineTo(24,-9); ctx.lineTo(28,7); ctx.lineTo(-26,9);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#2e2318'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(-26,2); ctx.lineTo(26,0); ctx.stroke();
+  ctx.strokeStyle = '#33271c'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(-6,-7); ctx.lineTo(-11,-36); ctx.stroke();
+  if(!looted){
+    ctx.fillStyle = 'rgba(200,190,168,0.42)';
+    ctx.beginPath();
+    ctx.moveTo(-11,-34); ctx.lineTo(15,-22); ctx.lineTo(-8,-13);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+
+  if(!looted){
+    const a = 0.26 + Math.sin(performance.now()*0.003)*0.16;
+    ctx.strokeStyle = `rgba(216,192,138,${a})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(x, y, 44, 0, Math.PI*2); ctx.stroke();
+  }
+}
+
+function drawRaft(){
+  const x = S.raftPos.x, y = S.raftPos.y;
+  const done = S.raft.keel && S.raft.hull && S.raft.sail;
+  const near = Math.hypot(x - S.px, y - S.py) < 78;
+
+  ctx.strokeStyle = done ? 'rgba(120,220,150,0.8)'
+                         : near ? 'rgba(216,192,138,0.85)' : 'rgba(216,192,138,0.30)';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x, y, 34, 0, Math.PI*2); ctx.stroke();
+
+  // 三块部件
+  let n = 0;
+  if(S.raft.keel) n++;
+  if(S.raft.hull) n++;
+  if(S.raft.sail) n++;
+  ctx.fillStyle = done ? 'rgba(120,220,150,0.85)' : 'rgba(216,192,138,0.7)';
+  ctx.font = '11px Georgia';
+  ctx.textAlign = 'center';
+  ctx.fillText(done ? '筏' : n + '/3', x, y + 4);
+
+  if(n > 0){
+    ctx.strokeStyle = done ? '#78dc96' : '#d8c08a';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x, y, 41, -Math.PI/2, -Math.PI/2 + Math.PI*2*(n/3));
+    ctx.stroke();
+  }
+}
+
+function drawShark(){
+  const sh = S.shark;
+  const t = performance.now() * 0.002;
+
+  ctx.strokeStyle = 'rgba(150,210,230,0.16)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(sh.x, sh.y, 26 + Math.sin(t)*3, 0, Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(sh.x, sh.y, 16, 0, Math.PI*2); ctx.stroke();
+
+  const ang = sh.tx ? Math.atan2(sh.ty - sh.y, sh.tx - sh.x) : 0;
+  ctx.save();
+  ctx.translate(sh.x, sh.y);
+  ctx.rotate(ang + Math.PI/2);
+  ctx.fillStyle = sh.mode === 'charge' ? '#3d4a54' : '#2d3a44';
+  ctx.beginPath();
+  ctx.moveTo(0,-15); ctx.lineTo(-8,5); ctx.lineTo(8,5);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(200,235,245,0.28)';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(-4,7); ctx.lineTo(0,16); ctx.lineTo(4,7);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawPlayer(){
+  const x = S.px, y = S.py;
+  const inW = islandT(x,y) > walkR();
+  const bob = 0;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(x, y+16, 11, 5, 0, 0, Math.PI*2); ctx.fill();
+
+  ctx.fillStyle = inW ? '#7fa8bc' : '#c9b48e';
+  ctx.beginPath(); ctx.arc(x, y + bob, 11, 0, Math.PI*2); ctx.fill();
+
+  ctx.fillStyle = inW ? '#a8c8d8' : '#e0d0b0';
+  ctx.beginPath(); ctx.arc(x, y - 9 + bob, 8, 0, Math.PI*2); ctx.fill();
+
+  ctx.fillStyle = '#131a1e';
+  const dx = (keys['d']||keys['arrowright']) ? 2.5 : (keys['a']||keys['arrowleft']) ? -2.5 : 0;
+  ctx.beginPath(); ctx.arc(x-2.6+dx, y-9+bob, 1.8, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x+2.6+dx, y-9+bob, 1.8, 0, Math.PI*2); ctx.fill();
+}
+
+/* ═══════════════════ 启动 ═══════════════════ */
+document.querySelectorAll('.tabs .tab').forEach(b=>{
+  b.onclick = () => setTab(b.dataset.tab);
+});
+
+document.getElementById('btnStart').onclick = ()=>{
+  document.getElementById('screen').remove();
+  newState();
+  running = true;
+  last = performance.now();
+  updateHUD();
+  msg('先砍几棵树');
+  requestAnimationFrame(loop);
+};
+</script>
+</body>
+</html>
