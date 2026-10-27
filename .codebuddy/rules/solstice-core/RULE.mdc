@@ -6,38 +6,42 @@ alwaysApply: true
 
 # Solstice · 核心约束（改动前必读）
 
-**当前形态**：**纯前端卡牌造物沙盒原型 + 设计文档**。仓库里没有引擎工程、没有构建链、没有服务端、没有生图线。
+**当前形态**：**卡牌造物沙盒《至日》的前端原型 + 设计文档**。仓库分三层：`specs/`（唯一真源）、`prototypes/`（可玩候选）、`game/`（转正主干，现在不建）。无引擎工程、无构建链、无服务端。
 （历史形态：动态壁纸 → 场景引擎 → 卡牌收集 → 自走棋 → 纸雕微缩 → UE5 模拟沙盒，**2026-10-27 已全部清除**，不要再提。）
 
 ## 1. 唯一入口
 
 | 要什么 | 读哪 |
 |---|---|
-| **开工先读** | `docs/README.md`（文档地图 / 真源与投影分工 / 改文档规矩） |
-| 设定唯一真源 | `docs/SETTING.md` |
-| 字段唯一真源 | `docs/CARD-SCHEMA.md` |
-| 卡池 / 合成 / 时间 | `docs/CARD-INDEX.md`、`docs/CARD-TREE.md`、`docs/TIME.md` |
-| 机制借鉴清单 | `docs/GAME-SCAN.md` |
-| 可玩原型 | `demo/index.html`（主）、`drafts/*.html`（早期方向） |
-| 版式与交互投影 | `docs/WIREFRAMES.html`、`docs/PROTOTYPE.html`、`docs/CARD-LAYOUTS.html`、`docs/CARD-NIGHTBIRD.html` |
+| **开工先读** | `specs/README.md`（文档地图 / 真源与投影分工 / 改文档规矩） |
+| 实装现状 | `specs/STATUS.md`（跑到哪、数字口径、缺口、下一步） |
+| 立项与非目标 | `specs/CHARTER.md`（含五个试吃原型为什么不进主线） |
+| 设定 / 时间 | `specs/SETTING.md`、`specs/TIME.md` |
+| 卡 | `specs/CARD-SCHEMA.md`（字段）、`CARD-INDEX.md`（目录）、`CARD-TREE.md`（合成）、`CARD-COMPONENT.md`（组件） |
+| 技术约定 | `specs/TECH.md`（原型约定 + 转正后的分层） |
+| 可玩 | `prototypes/world-3d/index.html`、`prototypes/ui-flow/index.html` |
+| 原型清单 | `prototypes/README.md` |
 
 ## 2. 硬约束
 
-1. **markdown 是依据，HTML 是投影**：改规格先改 md，再同步投影；投影不作依据，原型不定义规格。
-2. **数字只在一处**：规格数字写进对应域文档，代码里引用时标注出处；不凭印象写数字，不在第二份文档里抄一遍。
-3. **主原型零依赖零构建**：`demo/index.html` 是单文件 HTML/CSS/JS，不引框架、不加打包、不起服务；`drafts/` 同理。
-4. **自测可重跑**：`demo/test.js` / `demo/layout-check.js` 只用相对路径，换机器 `npm install && node test.js` 即可。
-5. **提交**：英文简短祈使句；文档与原型同次提交。
+1. **markdown 是依据，HTML 是投影**：改规格先改 md，再同步 `specs/ui/*.html`；原型不定义规格。
+2. **数字只在一处、且必须带层级**：540（目标卡池）/ 710（组件映射口径）/ 75（已填合成链）/ 21（原型实装）——裸说一个数字就是错。
+3. **原型必须离线可开**：`prototypes/**` 用 `file://` 双击能跑；第三方库 vendored 进目录，**禁止 CDN**。
+4. **原型互不引用**：不共享代码与 CSS；共享结论只能写进 `specs/`。
+5. **`prototypes/alt/**` 冻结**：试吃结论只留档，要改就复制成新目录。
+6. **`sim/` 零渲染依赖**（转正后）：不 import three、不摸 DOM、不读 `window`，必须能 node 直接跑。
+7. **提交**：英文简短祈使句；文档与原型同次提交。
 
 ## 3. 禁止事项
 
-- **不要把已清理的形态带回**：UE5 / C++ / 蓝图 / Tauri / WebGL / Vite / TypeScript / 2.5D / 自走棋 / 卡牌收集 / 纸雕。
-- **不给主原型加构建链**：唯一允许的依赖是 `demo/` 里自测用的 Playwright。
-- **不在运行期调用 AI**，不做服务端 / 账号 / 云同步，不做多平台打包。
-- **不新建"真源"**：设定只有 `SETTING.md`，字段只有 `CARD-SCHEMA.md`；新文档先并入现有域，别另起一份。
+- **不把已清除的形态带回**：UE5 / C++ / 蓝图 / 纸雕 / 自走棋 / 卡牌收集 / Tauri / Vite / TypeScript。
+- **不给主线加失败判定**：胜负、倒计时、HP、数值成长一律不加（`CHARTER.md` §3.1）。
+- **不把时间做成卡**（`TIME.md` §3）。
+- **不在运行期调用 AI**，不做服务端 / 账号 / 云同步。
+- **不新建第二份"真源"**：设定只有 `SETTING.md`，字段只有 `CARD-SCHEMA.md`；新内容先并入现有域。
 
 ## 4. 协作
 
-- 分工：**AI ≈ 85%**（代码 / 文档 / 数据 / 生图调度）；用户 ≈ 15%（审美裁决、挑图、立项与规格拍板）。
+- 分工：**AI ≈ 85%**（代码 / 文档 / 数据）；用户 ≈ 15%（审美裁决、挑图、立项与规格拍板）。
 - **只在闸门停下来等裁决**：风格定标图 / 里程碑验收 / 立项与规格变更。
-- 分析结论写进 `docs/` 对应域文档，不要只在对话里说。
+- 分析结论写进 `specs/` 对应文档或 `STATUS.md`，不要只在对话里说。

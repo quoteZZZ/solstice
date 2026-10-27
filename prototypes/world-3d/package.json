@@ -1,13 +1,13 @@
 {
-  "name": "solstice-demo",
+  "name": "solstice-prototype-world-3d",
   "private": true,
   "type": "commonjs",
   "engines": {
     "node": ">=18"
   },
   "scripts": {
-    "test": "node test.js",
-    "check:layout": "node layout-check.js"
+    "test": "node tests/smoke.js",
+    "check:layout": "node tests/layout.js"
   },
   "dependencies": {
     "playwright": "^1.49.0"

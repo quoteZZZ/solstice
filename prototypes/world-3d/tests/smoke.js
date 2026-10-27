@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 const path = require('path');
 const { pathToFileURL } = require('url');
-const DEMO = pathToFileURL(path.join(__dirname, 'index.html')).href;
+const DEMO = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
 
 (async () => {
   const b = await chromium.launch();

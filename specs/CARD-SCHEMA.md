@@ -1,8 +1,8 @@
 # 卡片字段表（CARD SCHEMA）
 
 > **一句话**：**数据 + 卡图 = 一张卡**。卡面、悬浮、图鉴全部由这份表里的字段渲染，任何显示内容都必须能在这张表里找到来源。
-> 真源：本文。卡池与分类见 [CARD-INDEX.md](CARD-INDEX.md)，合成规则见 [CARD-TREE.md](CARD-TREE.md)，版式见 [CARD-LAYOUTS.html](CARD-LAYOUTS.html)。
-> 设计稿实例：[`CARD-NIGHTBIRD.html`](CARD-NIGHTBIRD.html)。
+> 真源：本文。卡池与分类见 [CARD-INDEX.md](CARD-INDEX.md)，合成规则见 [CARD-TREE.md](CARD-TREE.md)，版式见 [CARD-LAYOUTS.html](ui/CARD-LAYOUTS.html)。
+> 设计稿实例：[`CARD-NIGHTBIRD.html`](ui/CARD-NIGHTBIRD.html)。
 
 ---
 
