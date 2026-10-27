@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>余烬 · Ember</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(ellipse at 50% 40%, #241108 0%, #140a05 45%, #070402 100%);
+    color: #e9d6c3;
+    font-family: "Georgia", "Songti SC", "STSong", serif;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px; overflow: hidden; user-select: none;
+  }
+  #app { width: 100%; max-width: 880px; position: relative; }
+
+  /* ── 顶栏 ── */
+  .top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .boss { text-align: right; width: 260px; }
+  .boss .name { font-size: 13px; letter-spacing: 4px; color: #8a6b52; margin-bottom: 4px; }
+  .bar { height: 8px; background: #1e1109; border: 1px solid #3a2214; position: relative; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: linear-gradient(90deg, #8b1f0f, #d9491a); transition: width .35s; }
+  .boss .intent { font-size: 12px; color: #c2553a; margin-top: 5px; letter-spacing: 1px; }
+
+  /* ── 余烬 ── */
+  .ember-wrap { text-align: center; flex: 1; padding: 0 16px; }
+  .ember-num {
+    font-size: 54px; line-height: 1; color: #ffb347;
+    text-shadow: 0 0 22px #ff6a00aa, 0 0 48px #ff3c0066;
+    transition: transform .18s;
+  }
+  .ember-num.pop { transform: scale(1.22); }
+  .ember-label { font-size: 11px; letter-spacing: 6px; color: #7a5a42; margin-top: 2px; }
+  .mult { font-size: 15px; color: #ffcf7a; margin-top: 6px; letter-spacing: 1px; }
+  .tier-dots { display: flex; gap: 5px; justify-content: center; margin-top: 8px; }
+  .tier-dots span { width: 7px; height: 7px; border-radius: 50%; background: #2a1a10; border: 1px solid #4a2c1a; }
+  .tier-dots span.on { background: #ff7a1a; box-shadow: 0 0 8px #ff7a1a; border-color: #ff7a1a; }
+
+  /* ── 玩家血 ── */
+  .me { display: flex; align-items: center; gap: 10px; margin: 14px 0 6px; }
+  .me .label { font-size: 12px; letter-spacing: 3px; color: #8a6b52; width: 46px; }
+  .me .bar { flex: 1; }
+  .me .bar > i { background: linear-gradient(90deg, #2f6b3a, #6fbf73); }
+  .me .hp { font-size: 13px; color: #9fd6a3; width: 56px; text-align: right; }
+
+  /* ── 手牌 ── */
+  .hand { display: flex; gap: 10px; justify-content: center; min-height: 132px; align-items: flex-end; margin: 18px 0 10px; }
+  .card {
+    width: 84px; height: 118px; background: linear-gradient(170deg, #2a1a10 0%, #1a0f08 100%);
+    border: 1px solid #57331c; border-radius: 7px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; position: relative; transition: transform .13s, box-shadow .13s, border-color .13s;
+  }
+  .card:hover { transform: translateY(-9px); box-shadow: 0 8px 22px #ff6a0044; border-color: #b45c1e; }
+  .card .cname { font-size: 20px; color: #f0c99a; letter-spacing: 2px; }
+  .card .cbase { font-size: 26px; color: #ffb347; margin-top: 6px; font-weight: bold; }
+  .card .cdmg { font-size: 11px; color: #7a5a42; margin-top: 6px; letter-spacing: 1px; }
+  .card .cdmg.hot { color: #ff7a1a; }
+  .card.high { border-color: #8a4a1a; background: linear-gradient(170deg, #3a2210 0%, #1f1208 100%); }
+  .card.empty { opacity: .18; cursor: default; }
+  .card.empty:hover { transform: none; box-shadow: none; border-color: #57331c; }
+
+  /* ── 底栏 ── */
+  .bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; }
+  .pile { font-size: 12px; color: #7a5a42; letter-spacing: 2px; }
+  .pile b { color: #c98f52; font-weight: normal; }
+  .btns { display: flex; gap: 10px; }
+  button {
+    background: #1c0f07; color: #d8b48c; border: 1px solid #57331c;
+    padding: 9px 20px; font-family: inherit; font-size: 13px; letter-spacing: 2px;
+    cursor: pointer; border-radius: 4px; transition: all .14s;
+  }
+  button:hover:not(:disabled) { background: #2a1a0d; border-color: #a8551c; color: #ffcf7a; }
+  button:disabled { opacity: .3; cursor: default; }
+  button.primary { border-color: #a8551c; color: #ffcf7a; }
+  button.primary:hover:not(:disabled) { background: #6b2a0a; box-shadow: 0 0 20px #ff6a0033; }
+
+  /* ── 日志 ── */
+  #log { margin-top: 12px; height: 46px; overflow: hidden; font-size: 12px; color: #8a6b52; line-height: 1.6; text-align: center; letter-spacing: 1px; }
+  #log div { opacity: .55; }
+  #log div:last-child { opacity: 1; color: #c98f52; }
+
+  /* ── 飘字 ── */
+  .float {
+    position: absolute; font-size: 30px; font-weight: bold; color: #ff9a3c;
+    text-shadow: 0 0 16px #ff5a00; pointer-events: none;
+    animation: floatUp 1s ease-out forwards;
+  }
+  @keyframes floatUp {
+    0% { opacity: 1; transform: translateY(0) scale(.8); }
+    25% { transform: translateY(-14px) scale(1.15); }
+    100% { opacity: 0; transform: translateY(-64px) scale(1); }
+  }
+  .float.hurt { color: #ff4a3a; text-shadow: 0 0 16px #ff2a00; }
+  .float.mega { font-size: 52px; color: #ffe07a; text-shadow: 0 0 28px #ff8a00, 0 0 60px #ff3c00; }
+
+  /* ── 结束遮罩 ── */
+  #over {
+    position: fixed; inset: 0; background: #070402ee; display: none;
+    flex-direction: column; align-items: center; justify-content: center; gap: 20px; z-index: 50;
+  }
+  #over.show { display: flex; }
+  #over h1 { font-size: 40px; letter-spacing: 12px; font-weight: normal; }
+  #over p { color: #8a6b52; font-size: 13px; letter-spacing: 2px; }
+  .win h1 { color: #ffcf7a; text-shadow: 0 0 40px #ff8a00; }
+  .lose h1 { color: #8a3a2a; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="top">
+    <div class="me" style="margin:0; flex:0 0 auto; width:150px;">
+      <span class="label">你</span>
+    </div>
+    <div class="boss">
+      <div class="name">余 烬 之 主</div>
+      <div class="bar"><i id="bossBar" style="width:100%"></i></div>
+      <div class="intent" id="intent">下回合：攻击 5</div>
+    </div>
+  </div>
+
+  <div style="display:flex; align-items:center; gap:14px;">
+    <div style="flex:0 0 150px;">
+      <div class="me" style="margin:0;">
+        <span class="label">你</span>
+        <div class="bar"><i id="myBar" style="width:100%"></i></div>
+        <span class="hp" id="myHp">45</span>
+      </div>
+    </div>
+    <div class="ember-wrap">
+      <div class="ember-num" id="emberNum">0</div>
+      <div class="ember-label">余 烬</div>
+      <div class="mult" id="mult">伤害 ×1</div>
+      <div class="tier-dots" id="dots"></div>
+    </div>
+    <div style="flex:0 0 150px;"></div>
+  </div>
+
+  <div class="hand" id="hand"></div>
+
+  <div class="bottom">
+    <div class="pile">
+      牌库 <b id="deckLeft">15</b> &nbsp;·&nbsp; 已烧 <b id="burned">0</b>
+    </div>
+    <div class="btns">
+      <button id="preBurn">预燃</button>
+      <button id="endTurn" class="primary">结束回合</button>
+      <button id="restart" style="display:none">重来</button>
+    </div>
+  </div>
+
+  <div id="log"></div>
+</div>
+
+<div id="over">
+  <h1 id="overTitle">焚 尽</h1>
+  <p id="overSub"></p>
+  <button onclick="init()" class="primary">再来一局</button>
+</div>
+
+<script>
+/* ══════════ 数据 ══════════ */
+const POOL = [
+  {name:'火种', base:2}, {name:'火种', base:2}, {name:'火种', base:2},
+  {name:'残烛', base:3}, {name:'残烛', base:3}, {name:'残烛', base:3},
+  {name:'燃',  base:4}, {name:'燃',  base:4}, {name:'燃',  base:4},
+  {name:'燎',  base:5}, {name:'燎',  base:5},
+  {name:'焚',  base:7}, {name:'焚',  base:7},
+  {name:'爆',  base:9},
+  {name:'夜',  base:6}
+];
+
+const BOSS_MAX = 110;
+const MY_MAX   = 45;
+const BOSS_ATK = 5;
+const HAND_MAX = 5;
+
+let S = {};
+
+/* ══════════ 工具 ══════════ */
+function multOf(ember){ return Math.pow(2, Math.floor(ember/5)); }
+function tierOf(ember){ return Math.floor(ember/5); }
+
+function shuffle(a){
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+/* ══════════ 初始化 ══════════ */
+function init(){
+  S = {
+    myHp: MY_MAX,
+    bossHp: BOSS_MAX,
+    ember: 0,
+    deck: shuffle(POOL.map(c=>({...c}))),
+    hand: [],
+    burned: 0,
+    turn: 1,
+    over: false,
+    log: []
+  };
+  document.getElementById('over').className = '';
+  draw(2);
+  pushLog('火已经点起来了。');
+  render();
+}
+
+function draw(n){
+  for(let i=0;i<n;i++){
+    if(S.deck.length === 0) break;
+    if(S.hand.length >= HAND_MAX) break;
+    S.hand.push(S.deck.pop());
+  }
+}
+
+function pushLog(t){
+  S.log.push(t);
+  if(S.log.length > 2) S.log.shift();
+}
+
+/* ══════════ 出牌 ══════════ */
+function playCard(idx){
+  if(S.over) return;
+  const c = S.hand[idx];
+  if(!c) return;
+
+  const m = multOf(S.ember);
+  const dmg = c.base * m;
+
+  S.hand.splice(idx,1);
+  S.bossHp = Math.max(0, S.bossHp - dmg);
+  S.ember += 2;
+  S.burned++;
+
+  floatText(`-${dmg}`, 'boss', m >= 8 ? 'mega' : '');
+  pushLog(`烧「${c.name}」· ${c.base} × ${m} = ${dmg}`);
+  bumpEmber();
+
+  if(S.bossHp <= 0){ end(true); return; }
+  render();
+}
+
+/* ══════════ 预燃 ══════════ */
+function preBurn(){
+  if(S.over || S.hand.length === 0) return;
+  // 烧掉手牌里最弱的一张
+  let worst = 0;
+  for(let i=1;i<S.hand.length;i++){
+    if(S.hand[i].base < S.hand[worst].base) worst = i;
+  }
+  const c = S.hand.splice(worst,1)[0];
+  S.ember += 3;
+  S.burned++;
+  pushLog(`预燃「${c.name}」· 余烬 +3（没有伤害）`);
+  bumpEmber();
+  render();
+}
+
+/* ══════════ 回合结束 ══════════ */
+function endTurn(){
+  if(S.over) return;
+
+  // 余烬熄灭
+  if(S.ember > 0){
+    S.ember--;
+  }
+
+  // Boss 攻击
+  S.myHp -= BOSS_ATK;
+  floatText(`-${BOSS_ATK}`, 'me', 'hurt');
+
+  if(S.myHp <= 0){ S.myHp = 0; end(false); return; }
+
+  S.turn++;
+  draw(2);
+
+  // 牌用光了
+  if(S.deck.length === 0 && S.hand.length === 0){
+    render();
+    end(false, '牌烧完了，火也灭了。');
+    return;
+  }
+
+  pushLog(`第 ${S.turn} 回合 · 余烬熄灭 1`);
+  render();
+}
+
+/* ══════════ 结束 ══════════ */
+function end(win, customText){
+  S.over = true;
+  render();
+  const ov = document.getElementById('over');
+  const t  = document.getElementById('overTitle');
+  const sub= document.getElementById('overSub');
+  if(win){
+    ov.className = 'show win';
+    t.textContent = '焚 尽';
+    sub.textContent = `第 ${S.turn} 回合 · 烧掉 ${S.burned} 张 · 余烬 ${S.ember}`;
+  }else{
+    ov.className = 'show lose';
+    t.textContent = '熄 灭';
+    sub.textContent = customText || `第 ${S.turn} 回合 · 还有 ${S.deck.length + S.hand.length} 张没烧`;
+  }
+}
+
+/* ══════════ 飘字 ══════════ */
+function floatText(txt, where, cls){
+  const el = document.createElement('div');
+  el.className = 'float ' + (cls||'');
+  el.textContent = txt;
+  el.style.position = 'fixed';
+  if(where === 'boss'){
+    const b = document.getElementById('bossBar').getBoundingClientRect();
+    el.style.left = (b.left + b.width/2 - 30) + 'px';
+    el.style.top  = (b.bottom + 10) + 'px';
+  }else{
+    const b = document.getElementById('myBar').getBoundingClientRect();
+    el.style.left = (b.left + b.width/2 - 30) + 'px';
+    el.style.top  = (b.bottom + 10) + 'px';
+  }
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 1000);
+}
+
+function bumpEmber(){
+  const n = document.getElementById('emberNum');
+  n.classList.add('pop');
+  setTimeout(()=>n.classList.remove('pop'), 180);
+}
+
+/* ══════════ 渲染 ══════════ */
+function render(){
+  // 余烬
+  document.getElementById('emberNum').textContent = S.ember;
+  const m = multOf(S.ember);
+  document.getElementById('mult').textContent = `伤害 ×${m}`;
+
+  // 台阶点
+  const dots = document.getElementById('dots');
+  const cur = tierOf(S.ember);
+  dots.innerHTML = '';
+  for(let i=0;i<6;i++){
+    const s = document.createElement('span');
+    if(i < cur) s.className = 'on';
+    dots.appendChild(s);
+  }
+
+  // 血
+  document.getElementById('myHp').textContent = Math.max(0,S.myHp);
+  document.getElementById('myBar').style.width = (Math.max(0,S.myHp)/MY_MAX*100) + '%';
+  document.getElementById('bossBar').style.width = (Math.max(0,S.bossHp)/BOSS_MAX*100) + '%';
+  document.getElementById('intent').textContent = S.over ? '—' : `下回合：攻击 ${BOSS_ATK}`;
+
+  // 手牌
+  const hand = document.getElementById('hand');
+  hand.innerHTML = '';
+  for(let i=0;i<HAND_MAX;i++){
+    const c = S.hand[i];
+    const d = document.createElement('div');
+    if(!c){
+      d.className = 'card empty';
+    }else{
+      d.className = 'card' + (c.base >= 7 ? ' high' : '');
+      const real = c.base * m;
+      d.innerHTML = `<div class="cname">${c.name}</div>
+                     <div class="cbase">${c.base}</div>
+                     <div class="cdmg ${real > c.base ? 'hot':''}">实际 ${real}</div>`;
+      d.onclick = () => playCard(i);
+    }
+    hand.appendChild(d);
+  }
+
+  // 底栏
+  document.getElementById('deckLeft').textContent = S.deck.length;
+  document.getElementById('burned').textContent = S.burned;
+
+  // 按钮
+  document.getElementById('preBurn').disabled = S.over || S.hand.length === 0;
+  document.getElementById('endTurn').disabled = S.over;
+
+  // 日志
+  const log = document.getElementById('log');
+  log.innerHTML = S.log.map(t=>`<div>${t}</div>`).join('');
+}
+
+/* ══════════ 绑定 ══════════ */
+document.getElementById('endTurn').onclick = endTurn;
+document.getElementById('preBurn').onclick = preBurn;
+
+init();
+</script>
+</body>
+</html>
