@@ -1,1 +1,15 @@
-{"name":"solstice-demo","private":true,"type":"commonjs","dependencies":{"playwright":"^1.49.0"}}
+{
+  "name": "solstice-demo",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node test.js",
+    "check:layout": "node layout-check.js"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  }
+}

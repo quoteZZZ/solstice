@@ -26,13 +26,13 @@
 demo/index.html
 ```
 
-自测（Playwright，可选，需要 Node）：
+自测（Playwright，可选，需要 Node 18+）：
 
 ```powershell
 cd demo
 npm install
-node test.js           # 施卡链路 + 控制台报错
-node layout-check.js   # 版式比例实测
+npm test               # 施卡链路 + 控制台报错
+npm run check:layout   # 版式比例实测
 ```
 
 `demo/shot-*.png` 是这两个脚本产出的截图证据。
