@@ -7,7 +7,7 @@ status: active
 # Solstice · 文档入口
 
 > 卡片驱动的造物沙盒：从虚无起手，抽卡造世界，然后看它自己运转。
-> 主线是《至日》；`prototypes/alt/` 下五个机制试吃不进主线。
+> 主线是《Solstice》；`prototypes/alt/` 下五个机制试吃不进主线。
 
 ---
 

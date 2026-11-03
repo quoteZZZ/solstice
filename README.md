@@ -1,4 +1,4 @@
-# Solstice · 至日
+# Solstice
 
 > **从一片虚无开始，用抽到的卡创造世界，然后看它自己运转。**
 > 卡牌驱动的造物沙盒：无终局、无数值成长，唯一的交互是**施卡**与**观察**。
@@ -36,7 +36,7 @@ solstice/
 │  ├─ TECH.md                原型约定 + 转正后的代码分层
 │  └─ ui/                    线框 / 卡面版式 / 单卡稿（规格的可读投影）
 ├─ prototypes/               可玩原型（一个原型一个目录，入口统一 index.html）
-│  ├─ solstice/              至日 · 合并版（主线，唯一在改的）
+│  ├─ solstice/              Solstice · 合并版（主线，唯一在改的）
 │  ├─ alt/                   五个机制试吃（冻结，只作对照）
 │  └─ archive/               两个旧版：world-3d/ · ui-flow/（冻结，只作历史）
 ├─ tools/                    文档自检脚本（docs-check / card-reconcile）
