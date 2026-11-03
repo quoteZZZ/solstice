@@ -55,6 +55,9 @@
 
     S.onLog = UI.log;
     S.onChron = () => UI.renderRight();
+    /* 点亮那一刻只给一次 toast：图鉴入口在卡库里，不给入口提示玩家找不到 */
+    S.onCodex = list => list.forEach(a =>
+      UI.toast('图鉴点亮', a.grp + ' · ' + a.name + '　' + S.codexCount() + ' / ' + S.CODEX.length));
 
     UI.syncGears();
     UI.renderRight();
@@ -194,8 +197,8 @@
     };
   };
 
-  UI.CHRON_ICON = { 干涉: '✦', 气候: '☁', 生态: '✿', 灾变: '⚠', 文明: '⌂' };
-  UI.CHRON_COL = { 干涉: '#e0a33e', 气候: '#5f9fc0', 生态: '#6aa86a', 灾变: '#b4553f', 文明: '#c8a94b' };
+  UI.CHRON_ICON = { 干涉: '✦', 气候: '☁', 生态: '✿', 灾变: '⚠', 文明: '⌂', 图鉴: '❖' };
+  UI.CHRON_COL = { 干涉: '#e0a33e', 气候: '#5f9fc0', 生态: '#6aa86a', 灾变: '#b4553f', 文明: '#c8a94b', 图鉴: '#c8a94b' };
 
   /* 悬停地块读数：真的读 sim 的格，不再用坐标哈希编 */
   UI.hoverInfo = function (cell, ev) {

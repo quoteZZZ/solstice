@@ -4,7 +4,8 @@
   const W = S.W;
   const U = UI.state = {
     panel: null,
-    codexEl: '水', codexSel: null, codexOwn: false, codexMore: false,
+    codexTab: 'cards', codexEl: '水', codexSel: null, codexOwn: false, codexMore: false,
+    dexGrp: '全部',
     chronFilter: '全部',
     setGroup: 'video',
     keyTab: '全部'
@@ -36,7 +37,9 @@
   function panelHTML() {
     const title = {
       pack: '抽卡 · 主包（' + S.PACK_SIZE + ' 张 / ' + S.PACK_COST + ' 时素）',
-      codex: '卡库 · 已见 ' + W.seen.size + ' / ' + D.total,
+      codex: U.codexTab === 'ach'
+        ? '图鉴 · 已点亮 ' + S.codexCount() + ' / ' + S.CODEX.length
+        : '卡库 · 已见 ' + W.seen.size + ' / ' + D.total,
       chron: '年表 · ' + W.chron.length + ' 条',
       settings: '设置',
       keys: '设置 / 操作 · 键位',
@@ -61,7 +64,7 @@
 
   function bodyFor(p) {
     if (p === 'pack') return packBody();
-    if (p === 'codex') return codexBody();
+    if (p === 'codex') return codexPanel();
     if (p === 'chron') return chronBody();
     if (p === 'settings') return settingsBody();
     if (p === 'keys') return keysBody();
@@ -131,15 +134,63 @@
     UI.renderHand(); UI.updateHud(); UI.renderRight(); UI.renderOverlay();
   }
 
-  /* ── 卡库 ── */
+  /* ── 卡库 / 图鉴：两面收藏墙，一面收卡一面收世界状态 ── */
   UI.openCard = function (id) {
     const c = D.byId.get(id);
     if (!c) return;
     U.panel = 'codex';
+    U.codexTab = 'cards';
     U.codexEl = c.primary;
     U.codexSel = c.id;
     UI.renderOverlay();
   };
+
+  function codexPanel() {
+    const tabs = [
+      ['cards', '卡 ' + W.seen.size + '/' + D.total],
+      ['ach', '图鉴 ' + S.codexCount() + '/' + S.CODEX.length]
+    ];
+    return `<div style="display:flex;flex-direction:column;height:100%">
+      <div class="row gap6" style="margin-bottom:11px">
+        ${tabs.map(([k, t]) => `<button class="btn ${U.codexTab === k ? 'on' : 'ghost'}"
+          data-ctab="${k}" style="height:24px">${t}</button>`).join('')}
+      </div>
+      <div style="flex:1;min-height:0;overflow:hidden">
+        ${U.codexTab === 'ach' ? dexBody() : codexBody()}</div>
+    </div>`;
+  }
+
+  function dexBody() {
+    const grp = U.dexGrp;
+    const list = grp === '全部' ? S.CODEX : S.codexOf(grp);
+    const litIn = g => S.codexOf(g).filter(a => S.codex.on.has(a.id)).length;
+    const nav = [['全部', S.CODEX.length, S.codexCount()]]
+      .concat(S.CODEX_GROUPS.map(g => [g, S.codexOf(g).length, litIn(g)]));
+    return `<div style="display:flex;gap:14px;height:100%;overflow:hidden">
+      <div class="codexEl">
+        ${nav.map(([g, all, lit]) => `<button class="btn ${g === grp ? 'on' : 'ghost'}" data-dg="${g}"
+          style="height:42px;flex-direction:column;gap:0"><span>${g}</span>
+          <span style="font-size:8px;color:#4c5563">${lit} / ${all}</span></button>`).join('')}
+      </div>
+      <div style="flex:1;min-width:0;overflow:auto">
+        <div class="row gap8" style="margin-bottom:10px;align-items:center">
+          <span class="mono xs" style="color:#8b99a6">已点亮 ${S.codexCount()} / ${S.CODEX.length}</span>
+        </div>
+        <div class="axWall">${list.map(a => dexCell(a)).join('')}</div>
+      </div>
+    </div>`;
+  }
+
+  function dexCell(a) {
+    const lit = S.codex.on.has(a.id);
+    const at = S.codex.at[a.id];
+    return `<div class="axc ${lit ? 'on' : ''}">
+      <div class="axh"><span>${a.grp}</span>${a.need ? `<span>连续 ${a.need} 月</span>` : '<span>当月成立</span>'}</div>
+      <div class="axn">${a.name}</div>
+      <div class="axj">${a.hint}</div>
+      <div class="axf">${lit ? '第 ' + at.month + ' 月 · ' + at.world : '未点亮'}</div>
+    </div>`;
+  }
 
   function codexBody() {
     const els = D.elements.order;
@@ -220,7 +271,7 @@
 
   /* ── 年表 ── */
   function chronBody() {
-    const kinds = ['全部', '干涉', '气候', '生态', '灾变', '文明'];
+    const kinds = ['全部', '干涉', '气候', '生态', '灾变', '文明', '图鉴'];
     const kf = U.chronFilter;
     const list = W.chron.filter(c => kf === '全部' || c.kind === kf);
     const sel = U.chronSel != null ? W.chron[U.chronSel] : null;
@@ -432,6 +483,10 @@
       if (card) { UI.openCard(card.dataset.card); return; }
       const el = ev.target.closest('[data-el]');
       if (el) { U.codexEl = el.dataset.el; U.codexSel = null; return UI.renderOverlay(); }
+      const ct = ev.target.closest('[data-ctab]');
+      if (ct) { U.codexTab = ct.dataset.ctab; return UI.renderOverlay(); }
+      const dg = ev.target.closest('[data-dg]');
+      if (dg) { U.dexGrp = dg.dataset.dg; return UI.renderOverlay(); }
       const kf = ev.target.closest('[data-kf]');
       if (kf) { U.chronFilter = kf.dataset.kf; return UI.renderOverlay(); }
       const ci = ev.target.closest('[data-ci]');

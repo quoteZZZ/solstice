@@ -8,38 +8,61 @@
 
   UI.creator = CRE;
 
-  const pick = a => a[(Math.random() * a.length) | 0];
-  const rand = (a, b) => a + Math.random() * (b - a);
   const seg = () => Math.random().toString(32).slice(2, 6).toUpperCase();
 
-  UI.rollWorld = function () {
-    const form = pick(WD.forms);
+  /* 坐标 = 种子。形制由坐标第二段决定，其余全部由坐标派生——
+     所以「复制坐标 → 重进 = 同一个世界」在剖面图和结算层都成立（REVIEW-2026-11-03 2.1）。
+     只有"摇一个新坐标"这一步用 Math.random；一旦有了坐标，后续一律走 S.rand。 */
+  const parseCoord = s => {
+    const p = String(s || '').toUpperCase().split('-');
+    if (p.length !== 4 || p[0] !== 'SOL') return null;
+    const form = WD.forms.find(f => f.code === p[1]);
+    return form ? { form: form, coord: p } : null;
+  };
+
+  UI.rollWorld = function (coordStr) {
+    let hit = parseCoord(coordStr);
+    if (!hit) {
+      const f = WD.forms[(Math.random() * WD.forms.length) | 0];
+      hit = parseCoord(['SOL', f.code, seg(), seg()].join('-'));
+    }
+    const form = hit.form;
     CRE.form = form;
-    CRE.climate = pick(WD.climates);
-    CRE.name = pick(WD.syl1) + pick(WD.syl2) + form.suffix;
-    const n = 3 + ((Math.random() * 3) | 0);
-    const idx = WD.traits.map((_, i) => i).sort(() => Math.random() - 0.5).slice(0, n).sort((a, b) => a - b);
-    CRE.traits = idx;
-    CRE.seed = ['SOL', form.code, seg(), seg()];
+    CRE.seed = hit.coord;
+    CRE.coord = hit.coord.join('-');
     CRE.rolls++;
+
+    S.setSeed(CRE.coord);          // 从这一行起全部用 S.rand：同一坐标必然同一结果
+
+    CRE.climate = S.pick(WD.climates);
+    CRE.name = S.pick(WD.syl1) + S.pick(WD.syl2) + form.suffix;
+
+    /* Fisher–Yates：均匀且确定。旧写法 sort(() => rand()-0.5) 既偏斜又依赖引擎排序实现 */
+    const order = WD.traits.map((_, i) => i);
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = S.randInt(i + 1);
+      const t = order[i]; order[i] = order[j]; order[j] = t;
+    }
+    CRE.traits = order.slice(0, 3 + S.randInt(3)).sort((a, b) => a - b);
+
     CRE.params = {
-      water: Math.round((0.3 + Math.random() * 0.5) * 100) + ' %',
-      ranges: 1 + ((Math.random() * 4) | 0),
-      species: 5 + ((Math.random() * 5) | 0),
-      relief: rand(0.35, 1).toFixed(2)
+      water: Math.round((0.3 + S.rand() * 0.5) * 100) + ' %',
+      ranges: 1 + S.randInt(4),
+      species: 5 + S.randInt(5),
+      relief: (0.35 + S.rand() * 0.65).toFixed(2)
     };
     CRE.log = [
       ['陆块拓扑', form.blocks, '形制'],
       ['陆块形状', form.topo, '形制'],
-      ['界缘交代', pick(['外海', '雾墙', '云海', '深渊', '冰盖']), '形制'],
+      ['界缘交代', S.pick(['外海', '雾墙', '云海', '深渊', '冰盖']), '形制'],
       ['水覆盖', CRE.params.water, '水'],
-      ['陆海比', rand(0.2, 0.85).toFixed(2), '水'],
+      ['陆海比', (0.2 + S.rand() * 0.65).toFixed(2), '水'],
       ['起伏 relief', CRE.params.relief, '地貌'],
       ['山系数', CRE.params.ranges, '地貌'],
-      ['山系走向', pick(['NNE', 'ESE', 'SSW', 'WNW']) + ' ' + Math.round(rand(0, 180)) + '°', '地貌'],
+      ['山系走向', S.pick(['NNE', 'ESE', 'SSW', 'WNW']) + ' ' + Math.round(S.rand() * 180) + '°', '地貌'],
       ['气候带', CRE.climate, '气候'],
-      ['风向', pick(['NE', 'SE', 'SW', 'NW']) + ' ' + Math.round(rand(0, 360)) + '°', '气候'],
-      ['植被密度', rand(0.3, 1).toFixed(2), '生命'],
+      ['风向', S.pick(['NE', 'SE', 'SW', 'NW']) + ' ' + Math.round(S.rand() * 360) + '°', '气候'],
+      ['植被密度', (0.3 + S.rand() * 0.7).toFixed(2), '生命'],
       ['物种池', CRE.params.species + ' 种', '生命'],
       ['界名', CRE.name, '命名'],
       ['判据', WD.judge.length + ' / ' + WD.judge.length + ' PASS', '校验']
@@ -48,7 +71,12 @@
   };
 
   UI.openCreator = function () {
-    if (!CRE.form) UI.rollWorld();
+    if (!CRE.form) {
+      /* ?seed=SOL-XXX-XXXX-XXXX 直接复现一个界；没有就用新掷的坐标 */
+      const q = (typeof location !== 'undefined' && location.search)
+        ? new URLSearchParams(location.search).get('seed') : null;
+      UI.rollWorld(q || null);
+    }
     U.panel = null;
     UI.renderOverlay();
     const el = document.getElementById('creator');
@@ -230,7 +258,6 @@
     if (!el) return;
     const form = CRE.form;
     const traits = CRE.traits.map(i => WD.traits[i]);
-    const mapped = ['金属富集', '地热活跃', '古树群', '浮空岛', '双月', '永久雷暴', '深海崖岸', '强潮汐', '物种隔离'];
 
     el.innerHTML = `
       <div id="cTop">
@@ -285,9 +312,9 @@
             <span class="xs" style="color:#3f4b58">悬停：亮图上 / 出说明</span>
           </div>
           <div class="tgrid">
-            ${traits.map(t => `<div class="tchip on ${mapped.includes(t.name) ? 'mapped' : ''}"
-              title="${t.name}｜${t.note}（${t.cat}）" data-cv="${t.name}">
-              <span class="ti">${t.ico}</span><span class="tn">${t.name}</span></div>`).join('')}
+            ${traits.map(t => `<div class="tchip on ${t.wired ? 'live' : 'ghost'}"
+              title="${t.name}｜${t.note}（${t.cat}）${t.wired ? '' : ' · 仅剖面，本界不结算'}" data-cv="${t.name}">
+              <span class="ti">${t.ico}</span><span class="tn">${t.name}</span>${t.wired ? '<em class="tw">生效</em>' : ''}</div>`).join('')}
           </div>
 
           <div class="row" style="justify-content:space-between;align-items:baseline;margin:14px 0 6px">
@@ -304,8 +331,9 @@
             <div class="rowline"><span class="xs">物种池</span><span class="mono xs">${CRE.params.species} 种</span></div>
           </div>
           <div class="xs" style="margin-top:10px;line-height:1.7">
-            特征里有四项真的接线：地热（+0.5 °C）、贫瘠（生长 ×0.7）、
-            隔离（繁殖 ×0.8）、金属富集（钟声 +1）；双月 / 潮汐 / 崖岸 / 雷暴 / 浮空 / 古树只在剖面图里出现。
+            标「生效」的四项真进结算：地热（全界 +0.5 °C）、贫瘠（生长 ×0.7）、
+            隔离（繁殖 ×0.8）、金属富集（新铺的地 35 % 含矿）。
+            没标的那几条只在剖面图里出现——这一界里它不结算，只是地貌传闻。
           </div>
         </div>
       </div>

@@ -14,6 +14,7 @@ status: active
 | 入口 | 各原型目录的 `index.html`，`file://` 直接打开 |
 | 唯一第三方库 | Three.js **0.160.0**（UMD），已 vendored 到各原型的 `vendor/three.min.js` |
 | 自测 | Playwright / playwright-core（`prototypes/world-3d/tests/`、`prototypes/solstice/tests/`），需 Node 18+ |
+| 确定性回归 | `node tests/determinism.js`（`npm run det`）：只装 `sim/` + `data/`，不需要浏览器 |
 | 数据形态 | 卡表是 `data/cards.*.js`（按 `CARD-SCHEMA` 字段写），编号 / 回收 / ATK·DEF 由 `data/index.js` 派生（仅合并原型） |
 
 > **为什么不是 ES module**：`file://` 下浏览器按 CORS 拦 ES module 的外部 import，双击会白屏。
@@ -64,8 +65,18 @@ game/
 
 ---
 
-## §4 确定性（转正后必须补，原型阶段没有）
+## §4 确定性
 
 同一种子跑两次，`sim` 导出的状态摘要必须一致。摘要至少覆盖：格子地形、物种计数、时素、卡池剩余。
 
-原型阶段的 `tests/smoke.js` 只测"施卡链路不报错 + 卡确实生效"，**不是**确定性回归，别当回归用。
+| 项 | 现状（2026-11-03 起） |
+|---|---|
+| 种子来源 | 世界坐标 `world.seed`（`CRE.seed.join('-')`）——「同一坐标 = 同一个世界」在结算层成立 |
+| 随机源 | `S.setSeed / S.rand / S.randInt / S.pick`（mulberry32）；**`sim/` 里不许出现 `Math.random()`** |
+| 摘要 | `S.digest()`：格子（地形 / 水 / 温 / 光 / 实体）+ 随机状态 `rng` |
+| 回归 | `prototypes/solstice/tests/determinism.js`：同 seed 两跑一致、异 seed 不同 |
+| 已踩的坑 | 任何「跟真实时间累积」的量都会毁掉确定性：帧数、`Date.now()`、浮点 `hour` 累积器。昼夜必须由整数月派生（[TIME.md](TIME.md) §7.1） |
+| 派生状态 | 图鉴（`sim/codex.js`）不进摘要：它是世界状态的纯函数，判定只读 `W`，自己不开随机流。`npm run codex` 单独回归「每条判定能不能被真的玩出来」 |
+
+`tests/smoke.js` 测的是"施卡链路不报错 + 卡确实生效"，**不是**确定性回归；两者别混。
+三个脚本的分工：`smoke` 管装配与浏览器报错、`det` 管同种子重演、`codex` 管判定可达。

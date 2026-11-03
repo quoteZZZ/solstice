@@ -28,6 +28,32 @@ SOL.sim = SOL.sim || {};
   S.onLog = null;
   S.onChron = null;
 
+  /* ───────────────── 随机：sim 的唯一随机源 ─────────────────
+     TECH.md §4 确定性：sim 里不许直接调 Math.random()，一律走 S.rand()。
+     种子由世界坐标（world.seed）给，所以「同一坐标 = 同一个世界」在结算层成立。 */
+  let rngState = 0x9e3779b9;
+
+  S.setSeed = function (str) {
+    const t = String(str == null ? 'SOL' : str);
+    let h = 2166136261;
+    for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
+    rngState = (h >>> 0) || 1;          // 0 会让 mulberry32 卡死，兜底为 1
+    return rngState;
+  };
+
+  /* mulberry32：小、快、状态只有 32 位，能进 digest */
+  S.rand = function () {
+    rngState = (rngState + 0x6D2B79F5) >>> 0;
+    let t = rngState;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+
+  S.randInt = n => (S.rand() * n) | 0;
+  S.pick = a => a[S.randInt(a.length)];
+  S.rngState = () => rngState;
+
   S.log = function (msg, hot) {
     S.logLines.push({ msg: msg, hot: !!hot });
     if (S.logLines.length > 60) S.logLines.shift();
@@ -140,7 +166,8 @@ SOL.sim = SOL.sim || {};
     return { flora: flora.size, fauna: fauna.size, sapient: W.sapient, floraSet: flora, faunaSet: fauna };
   };
 
-  /* 世界摘要：确定性回归的种子（TECH.md §4） */
+  /* 世界摘要：确定性回归的种子（TECH.md §4）。
+     随机状态也混进 hash —— 随机流分叉就等于世界分叉，不该只在格子对上时才算一致。 */
   S.digest = function () {
     const cells = [...W.cells.values()].sort((a, b) => (a.y - b.y) || (a.x - b.x));
     const body = cells.map(c => [
@@ -150,8 +177,10 @@ SOL.sim = SOL.sim || {};
     ].join(':')).join('\n');
     let h = 2166136261;
     for (let i = 0; i < body.length; i++) { h ^= body.charCodeAt(i); h = Math.imul(h, 16777619); }
+    h ^= rngState; h = Math.imul(h, 16777619);
     return {
       hash: (h >>> 0).toString(16),
+      rng: rngState >>> 0,
       cells: W.cells.size,
       month: W.month,
       essence: W.essence,
@@ -162,7 +191,8 @@ SOL.sim = SOL.sim || {};
     };
   };
 
-  /* 重置：创世重掷时清空世界，但保留卡池与手牌逻辑 */
+  /* 重置：创世重掷时清空世界，但保留卡池与手牌逻辑。
+     重掷 = 重新播种，所以同一个 world.seed 必然重置出同一个世界。 */
   S.resetWorld = function (world) {
     W.cells.clear();
     W.month = 0; W.hour = 6; W.essence = 0; W.essAcc = 0; W.sun = 0;
@@ -170,6 +200,8 @@ SOL.sim = SOL.sim || {};
     W.traces = []; W.traceSeq = 0; W.chron = []; W.sapient = 0;
     W.castSeq = 0;
     W.world = world;
+    S.setSeed((world && world.seed && world.seed.join('-')) || 'SOL');
+    if (S.codexReset) S.codexReset();   // 图鉴跨世界共通，只清连续月计数
     W.cellsChanged = true;
     S.logLines = [];
   };

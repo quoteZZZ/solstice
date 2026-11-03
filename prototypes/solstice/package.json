@@ -6,7 +6,9 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node tests/smoke.js"
+    "test": "node tests/smoke.js",
+    "det": "node tests/determinism.js",
+    "codex": "node tests/codex.js"
   },
   "devDependencies": {
     "playwright-core": "^1.64.1"

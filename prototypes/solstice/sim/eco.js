@@ -85,11 +85,12 @@
         if (e.age > e.lifespan * W.law.lifeX) { dead.push([c, e, '老死']); continue; }
         if (e.grow && c.W <= 0 && e.age > 2) { dead.push([c, e, '旱死']); continue; }
 
-        /* 夜行物种在表现钟的夜里才捕食（sim 读 hour，不读 DOM） */
+        /* 夜行 / 昼行由整数月判定（S.night），不读表现钟——
+           表现钟带浮点进度，同一世界会因帧率跑出不同生态（REVIEW-2026-11-03 3.1）。 */
         const nightOnly = e.tags.includes('nocturnal');
         const dayOnly = e.tags.includes('diurnal');
-        const hour = W.hour;
-        const active = (!nightOnly || hour >= 18 || hour < 6) && (!dayOnly || (hour >= 6 && hour < 18));
+        const night = S.night();
+        const active = (!nightOnly || night) && (!dayOnly || !night);
 
         if (e.diet && !e.grow && active) {
           if (e.fed > 0) e.fed--;
@@ -111,10 +112,10 @@
 
         /* 繁殖：受丰饶（propX）影响；propag 越大越慢 */
         const propX = W.law.propX * ((W.effects && W.effects.propag) || 1);
-        if (e.propag && c.W >= 1 && c.L >= 1 && Math.random() < (propX / e.propag)) {
+        if (e.propag && c.W >= 1 && c.L >= 1 && S.rand() < (propX / e.propag)) {
           const free = S.nb(c).filter(n => n.ents.filter(x => !x.ground).length < 2);
           if (free.length) {
-            const t = free[(Math.random() * free.length) | 0];
+            const t = free[S.randInt(free.length)];
             S.spawn(e.card, t, { age: 0 });
           }
         }

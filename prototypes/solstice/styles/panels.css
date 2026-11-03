@@ -46,6 +46,22 @@
   font-family:var(--mono);font-size:8px;color:#cfd8e2;text-align:center;line-height:1.2}
 .cgCell.empty{border:1px dashed #232c36;color:#2b3540;font-family:var(--mono);font-size:8px}
 
+/* ── 图鉴：世界状态成就墙（点亮 = 有边有光） ── */
+.axWall{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.axc{border:1px dashed #232c36;border-radius:3px;
+  background:rgba(255,255,255,.012);padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.axc.on{border:1px solid var(--acc);background:#12181f;
+  box-shadow:inset 0 0 0 1px rgba(224,163,62,.12)}
+.axc .axh{display:flex;justify-content:space-between;font-family:var(--mono);font-size:8px;
+  letter-spacing:.1em;color:#4c5563}
+.axc.on .axh{color:#8b99a6}
+.axc .axn{font-size:15px;color:#525e6b;letter-spacing:.06em}
+.axc.on .axn{color:#fff}
+.axc .axj{font-size:10.5px;line-height:1.5;color:#66737f}
+.axc.on .axj{color:#a9b5c2}
+.axc .axf{margin-top:auto;font-family:var(--mono);font-size:8.5px;color:#3a4652}
+.axc.on .axf{color:var(--acc)}
+
 .dex .stat{display:flex;align-items:center;gap:6px;padding:2px 0}
 .dex .sk{width:30px;font-family:var(--mono);font-size:9px;color:var(--ink2);flex:0 0 30px}
 .dex .sbar{flex:1;height:4px;background:#1b232e;border:1px solid var(--line);position:relative}
@@ -102,6 +118,9 @@
 .tchip.mapped{border-color:#4a5b6b}
 .tchip .ti{color:var(--acc2);font-family:var(--mono);font-size:11px}
 .tchip .tn{font-size:10.5px;color:#cfd8e2}
+.tchip.live{border-color:#4a5b6b}
+.tchip.ghost{opacity:.4;border-style:dashed}
+.tchip .tw{margin-left:auto;font-style:normal;font-size:9px;letter-spacing:.08em;color:#6f9a7c}
 .chk{display:flex;gap:4px;flex-wrap:wrap}
 .chk i{width:15px;height:15px;border:1px solid var(--ok);border-radius:2px;position:relative;display:block}
 .chk i.on:after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;

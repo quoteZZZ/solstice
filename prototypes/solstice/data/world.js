@@ -30,28 +30,31 @@ SOL.data.world = {
 
   climates: ['热带雨林','热带季风','沙漠','地中海','温带海洋','温带大陆','寒温带针叶','极地苔原','高原'],
 
-  /* 特征：一条特征必须能被世界读到（tags / 初始量），否则不进列表 */
+  /* 特征：一条特征必须能被世界读到，否则不进列表。
+     `wired:true` = 有结算消费者（time.js 的 W.effects 或 cast.js 的 op）；
+     `wired:false` = 只在剖面图里出现，UI 必须明写「仅剖面」，不能假装生效。
+     没有 `init` 字段：开局是 0 格（SETTING §1.1），"初始地形"与虚无开局不能同时成立。 */
   traits: [
-    { ico:'矿', name:'金属富集', cat:'资源', note:'金属矿脉更多，金系卡更容易长出来',
-      init:{rock:3}, tags:['metal'] },
-    { ico:'热', name:'地热活跃', cat:'地貌', note:'间歇泉与热泉更多，雪线上移',
-      init:{spring:2}, tags:['heat'] },
+    { ico:'矿', name:'金属富集', cat:'资源', note:'新铺的土地有 35 % 概率含矿；含矿格敲钟多 2 时素',
+      tags:['metal'], wired:true },
+    { ico:'热', name:'地热活跃', cat:'地貌', note:'全界气温 +0.5 °C，蒸发更快',
+      tags:['heat'], wired:true },
     { ico:'潮', name:'强潮汐', cat:'气候', note:'潮差加倍，潮间带变宽',
-      init:{}, tags:['tide'] },
+      tags:['tide'], wired:false },
     { ico:'浮', name:'浮空岛', cat:'奇观', note:'一处奇观：悬空陆地投下移动阴影',
-      init:{}, tags:['wonder'] },
+      tags:['wonder'], wired:false },
     { ico:'雷', name:'永久雷暴', cat:'气候', note:'一片不散的雷云，落雷在岩面留下焦痕',
-      init:{}, tags:['storm'] },
-    { ico:'隔', name:'物种隔离', cat:'生态', note:'特有种 +2，外来物种迁入更慢',
-      init:{}, tags:['isolate'] },
+      tags:['storm'], wired:false },
+    { ico:'隔', name:'物种隔离', cat:'生态', note:'外来物种迁入更慢：繁殖速率 ×0.8',
+      tags:['isolate'], wired:true },
     { ico:'月', name:'双月', cat:'天象', note:'潮汐加倍，夜光更亮',
-      init:{}, tags:['moon'] },
+      tags:['moon'], wired:false },
     { ico:'树', name:'古树群', cat:'奇观', note:'一株通天巨树，冠层自成天气',
-      init:{tree:1}, tags:['ancient'] },
+      tags:['ancient'], wired:false },
     { ico:'崖', name:'深海崖岸', cat:'地貌', note:'海岸多断崖，浅滩变少',
-      init:{}, tags:['cliff'] },
+      tags:['cliff'], wired:false },
     { ico:'瘠', name:'贫瘠土壤', cat:'生态', note:'土壤肥力 −30 %，演替更慢',
-      init:{}, tags:['barren'] }
+      tags:['barren'], wired:true }
   ],
 
   judge: ['边缘有交代','有层次','有对比','有落点','有尺度物','无死面','三级成立'],

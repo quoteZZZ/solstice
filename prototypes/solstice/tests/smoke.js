@@ -89,6 +89,14 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     UI.openCard('fauna.water.1.matter.nightmarsh_bird');
     out.codexCard = !!document.querySelector('#panel .card');
     UI.closePanel();
+    /* 卡库第二面：图鉴墙（6 条判定） */
+    UI.openPanel('codex');
+    UI.state.codexTab = 'ach';
+    UI.renderOverlay();
+    out.dexCells = document.querySelectorAll('#panel .axc').length;
+    out.dexHead = document.getElementById('phead').textContent.indexOf('图鉴') >= 0;
+    UI.state.codexTab = 'cards';
+    UI.closePanel();
     UI.fireEvent('灾变');
     out.event = document.getElementById('eventwrap').classList.contains('on');
     UI.closeEvent();

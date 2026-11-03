@@ -16,7 +16,7 @@
     const pool = S.drawPool().filter(c => !exclude.has(c.id));
     if (!pool.length) return null;
     const w = pool.map(c => D.weight(c.tier));
-    let r = Math.random() * w.reduce((a, b) => a + b, 0);
+    let r = S.rand() * w.reduce((a, b) => a + b, 0);
     for (let i = 0; i < pool.length; i++) { r -= w[i]; if (r <= 0) { W.seen.add(pool[i].id); return pool[i]; } }
     const last = pool[pool.length - 1];
     W.seen.add(last.id);
@@ -157,6 +157,7 @@
     if (cell && !cell.flags.hidden && (W.cells.size !== before || cell))
       S.addChron('干涉', '「' + card.name.zh + '」落在 (' + x + ', ' + y + ')');
     W.cellsChanged = true;
+    S.checkCodex();      // 「三阳」这类当月成立的当刻就亮，不必等下一月
     return res;
   };
 
@@ -169,6 +170,8 @@
     let made = 0;
     for (let dx = -size; dx <= size; dx++) for (let dy = -size; dy <= size; dy++) {
       const c = S.addCell(x + dx, y + dy, { h: 0.30 });
+      /* 金属富集：新地里有矿（含矿格敲钟 +2，见 opBell）——特征真的能读到 */
+      if (W.effects && W.effects.metal > 0 && S.rand() < 0.35) c.flags.metal = true;
       if (rise) { c.h = Math.min(0.9, c.h + rise); c.mods.t -= cooling; if (dry) c.W = Math.max(0, c.W - dry); }
       if (card.sim.edgeFog && (Math.abs(dx) === size || Math.abs(dy) === size)) {
         c.mods.l -= 0.2; c.W = Math.min(3, c.W + 0.2);
