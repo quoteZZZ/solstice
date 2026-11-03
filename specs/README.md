@@ -85,5 +85,5 @@ status: active
    [CARD-SCHEMA.md](CARD-SCHEMA.md) §8「校验」里的硬错误会让 `data/index.js` 直接抛错、装配不下去——
    这是有意的：坏数据进内存比当场报错贵得多。
 9. **提交前自检**（CI 与本地同一条）：
-   `python tools/docs-check.py`（断链 / 章节号 / 引用片段）、
+   `python tools/docs-check.py`（断链 / 章节号 / 引用片段 / 有没有进本文档地图）、
    `cd prototypes/solstice && npm run cards && npm run det && npm run codex`。

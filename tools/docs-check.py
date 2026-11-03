@@ -5,7 +5,7 @@
     python tools/docs-check.py          检查并报告
     python tools/docs-check.py -v       连通过项也打出来
 
-三条规则：
+四条规则：
   1. 相对链接必须指得到文件。
   2. 章节号必须真的存在：
        - 写了「[X.md](X.md) §n」→ 查 X 里有没有 §n；
@@ -13,6 +13,8 @@
   3. **跨文档引用必须带小节标题片段**：`§3.1 三条硬约束`，不能光写 `§3.1`。
      理由见 REVIEW-AUDIT-2026-11-03.md §3：A7 曾把「特征改乘数」指向 SETTING §2.8，
      号是存在的、内容是「卡数的分配原则」——只查存在性永远抓不到这种错。
+  4. `specs/` 下每份文档都必须在 README.md 的文档地图里出现一次（README 自己除外）。
+     不做这条，新文档会悄悄游离在索引之外——「加了一份文档」和「它被找到了」是两件事。
 
 退出码 0 = 全过；1 = 有错误。
 """
@@ -107,6 +109,17 @@ def check():
                                   % (where, num, owner, num, head_text))
                 else:
                     passed += 1
+
+    # 规则 4：每份文档都要进 README 的文档地图
+    readme = docs.get('README.md')
+    if readme:
+        for name in docs:
+            if name == 'README.md':
+                continue
+            if '(%s)' % name not in readme['text']:
+                errors.append('README.md 的文档地图里没有 %s' % name)
+            else:
+                passed += 1
 
     return errors, warns, passed, bare_unowned
 

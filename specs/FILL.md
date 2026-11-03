@@ -30,7 +30,7 @@ status: active
 
 | 命令 | 管什么 | 期望 |
 |---|---|---|
-| `python tools/docs-check.py` | 断链 / 章节号 / 引用是否带标题片段 | `错误 0 条` |
+| `python tools/docs-check.py` | 断链 / 章节号 / 引用是否带标题片段 / 新文档有没有进文档地图 | `错误 0 条` |
 
 **改数据只跑 `cards` 就够；改 sim 必须再跑 `det`；改 UI 必须再跑 `npm test`。**
 CI（`.github/workflows/check.yml`）跑前三项 + `docs-check`，不跑浏览器那项。
