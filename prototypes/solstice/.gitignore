@@ -1,3 +1,4 @@
 node_modules/
 tests/report.json
 tests/shot-*.png
+tests/review/
