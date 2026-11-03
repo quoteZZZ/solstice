@@ -85,7 +85,7 @@
       S.addChron('图鉴', '「' + a.name + '」点亮（' + a.grp + '）');
       lit.push(a);
     }
-    if (lit.length && S.onCodex) S.onCodex(lit);
+    if (lit.length) S.emit('codex', lit);
     return lit.length ? lit : null;
   };
 

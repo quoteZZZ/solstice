@@ -11,13 +11,14 @@
 
 | 你要 | 去哪 |
 |---|---|
-| 直接玩 | `prototypes/world-3d/index.html`（3D 世界版）· `prototypes/ui-flow/index.html`（界面全流程版） |
+| 直接玩 | `prototypes/solstice/index.html`（合并版，双击即开） |
 | 看设计 | [`specs/README.md`](specs/README.md)（文档地图） |
 | 看实装到哪了 | [`specs/STATUS.md`](specs/STATUS.md) |
 | 看还有哪些原型 | [`prototypes/README.md`](prototypes/README.md) |
 | 准备动手开发 | [`specs/TECH.md`](specs/TECH.md)（原型约定 + 转正分层） |
 
-两个至日原型都是**单文件、离线可开**（Three.js 已 vendored 进 `prototypes/world-3d/vendor/`），双击 `index.html` 即可。
+原型**离线可开**：Three.js 已 vendored 进 `prototypes/solstice/vendor/`，双击 `index.html` 即可，不需要 `npm install`。
+`prototypes/archive/` 里两个旧版（3D 世界版 / 界面全流程版）只作历史对照，不再修改。
 
 ---
 
@@ -35,9 +36,10 @@ solstice/
 │  ├─ TECH.md                原型约定 + 转正后的代码分层
 │  └─ ui/                    线框 / 卡面版式 / 单卡稿（规格的可读投影）
 ├─ prototypes/               可玩原型（一个原型一个目录，入口统一 index.html）
-│  ├─ world-3d/              至日 · 3D 世界版（主线候选）
-│  ├─ ui-flow/               至日 · 界面全流程（主线候选）
-│  └─ alt/                   五个机制试吃（冻结，只作对照）
+│  ├─ solstice/              至日 · 合并版（主线，唯一在改的）
+│  ├─ alt/                   五个机制试吃（冻结，只作对照）
+│  └─ archive/               两个旧版：world-3d/ · ui-flow/（冻结，只作历史）
+├─ tools/                    文档自检脚本（docs-check / card-reconcile）
 ├─ .codebuddy/  .workbuddy/  项目数据，勿删
 ```
 
@@ -47,14 +49,21 @@ solstice/
 
 ## 自测（可选，需 Node 18+）
 
+原型本身不需要构建；下面四条只做回归，不产生产物：
+
 ```powershell
-cd prototypes/world-3d
-npm install
-npm test               # 施卡链路 + 控制台报错
-npm run check:layout   # 版式比例实测
+cd prototypes/solstice
+npm test               # 冒烟：施卡链路 + 控制台报错
+npm run det            # 确定性：同种子两次跑出同一个 digest
+npm run codex          # 图鉴：条目可点亮、不重复、不退
+npm run cards          # 卡表：schema 硬校验 + 跨卡引用
+
+cd ../..
+python tools/docs-check.py       # 文档：断链 / 缺章节 / 引用没带标题片段
+python tools/card-reconcile.py   # 报表：卡表与 CARD-INDEX 的口径差
 ```
 
-`prototypes/world-3d/shots/*.png` 是这两个脚本产出的截图证据。
+分工和"什么算通过"写在 [`specs/TECH.md`](specs/TECH.md) §4 与 [`specs/FILL.md`](specs/FILL.md) §1。
 
 ---
 

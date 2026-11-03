@@ -1,6 +1,8 @@
 /* 至日 · 卡表装配
    三类卡合成一张表；编号、稀有度、攻防、回收价全部在这里派生——
-   数据文件里不写这些（写了就会分叉）。校验失败只报警不拦，报警可在 SOL.data.warn 里看。 */
+   数据文件里不写这些（写了就会分叉）。
+   校验（CARD-SCHEMA §8）分两级：能自动判定的**硬错误直接抛**，装配不下去；
+   渐进填卡期的软问题（引用先指后填）只记进 SOL.data.warn，由 STATUS 记存量。 */
 (function () {
   const D = SOL.data;
   const E = D.elements;
@@ -11,7 +13,6 @@
     ['常见', 0], ['少见', 2], ['稀有', 4], ['罕见', 6], ['至日', 9]
   ];
 
-  const warn = [];
   const all = [].concat(D.matter || [], D.rite || [], D.law || []);
 
   /* ── 默认值与派生 ── */
@@ -56,25 +57,62 @@
   D.sigil = el => E.sigil[el] || E.sigil['土'];
   D.clsName = { matter: '物', rite: '术', law: '律' };
 
-  /* ── 校验（specs/CARD-SCHEMA.md §8） ── */
-  const chk = (c, field, text, max) => {
-    if (text.length > max) warn.push(c.name.zh + ' · ' + field + ' 超长 ' + text.length + '/' + max);
+  /* ── 校验（specs/CARD-SCHEMA.md §8）──
+     硬错误：坏数据进内存比当场报错贵得多，直接抛，装配完才继续。
+     软警告：卡池是渐进填的，允许「先指后填」，只记录不拦。 */
+  const BINDS = ['clock.hour', 'fog.opacity'];   // §8 规则 7：表现读数白名单，新增读数要同次登记
+  const hard = [], soft = [];
+  const bad = (c, msg) => hard.push(c.id + ' · ' + msg);
+  const len = (c, field, text, max) => {
+    if (text.length > max) bad(c, field + ' 超长 ' + text.length + '/' + max);
   };
+
+  const seenId = new Set();
   for (const c of all) {
-    chk(c, 'line.fx', c.line.fx, 40);
-    (c.line.cond || []).forEach(t => chk(c, 'line.cond', t, 24));
-    (c.lore || []).forEach(l => chk(c, 'lore', l.t, 100));
-    chk(c, 'usage', c.usage || '', 40);
-    if (c.flavor) chk(c, 'flavor', c.flavor.zh || '', 30);
-    if (!D.byId.has(c.id)) warn.push('重复 id: ' + c.id);
-    if (c.elements.includes('风') && c.elements[0] !== '风' && c.tier <= 1 && c.elements.length === 3)
-      warn.push(c.name.zh + ' · 三元素却只有 ' + c.tier + ' 环');
-    (c.rel || []).forEach(r => { if (!D.byId.has(r.to)) warn.push(c.name.zh + ' · 关系指向不存在的卡：' + r.to); });
-    if (c.evolve && c.evolve.to && !D.byId.has(c.evolve.to)) warn.push(c.name.zh + ' · 进化目标不存在：' + c.evolve.to);
-    if (c.evolve && c.evolve.from && !D.byId.has(c.evolve.from)) warn.push(c.name.zh + ' · 进化来源不存在：' + c.evolve.from);
+    /* 0 身份：id 唯一且非空（旧版这条写成了恒真的自反判断，等于没查） */
+    if (!c.id) bad(c, '缺少 id');
+    if (seenId.has(c.id)) bad(c, '重复 id');
+    seenId.add(c.id);
+
+    /* 1 文案长度：超一个字都不行，卡面会被裁 */
+    len(c, 'line.fx', c.line.fx, 40);
+    (c.line.cond || []).forEach(t => len(c, 'line.cond', t, 24));
+    (c.lore || []).forEach(l => len(c, 'lore.t', l.t, 100));
+    len(c, 'usage', c.usage || '', 40);
+    if (c.flavor) len(c, 'flavor', c.flavor.zh || '', 30);
+
+    /* 2 高亮指得到：hl 是 fx 的子串，指不到就渲染不出高亮（卡面会静默丢标记） */
+    (c.line.hl || []).forEach(h => {
+      if (c.line.fx.indexOf(h) < 0) bad(c, 'line.hl「' + h + '」不在 line.fx 里');
+    });
+
+    /* 3 卡面小数字：最多 4 条（版式只有 4 格），每条要有 k 与 v */
+    const nums = c.line.num || [];
+    if (nums.length > 4) bad(c, 'line.num ' + nums.length + ' 条（上限 4）');
+    nums.forEach(n => { if (!n.k || !n.v) bad(c, 'line.num 缺 k 或 v'); });
+
+    /* 7 bind 只能是已登记的表现读数，防止拼错后静默读到 undefined */
+    (c.stats || []).forEach(s => {
+      if (s.bind && BINDS.indexOf(s.bind) < 0) bad(c, 'stats.bind 未登记：' + s.bind);
+    });
+
+    /* 4 引用解析（软） */
+    (c.rel || []).forEach(r => { if (!D.byId.has(r.to)) soft.push(c.name.zh + ' · 关系指向不存在的卡：' + r.to); });
+    if (c.evolve && c.evolve.to && !D.byId.has(c.evolve.to)) soft.push(c.name.zh + ' · 进化目标不存在：' + c.evolve.to);
+    if (c.evolve && c.evolve.from && !D.byId.has(c.evolve.from)) soft.push(c.name.zh + ' · 进化来源不存在：' + c.evolve.from);
+
+    /* 5 复合卡该更稀有（软）——旧版这条带「含风元素」的特判，实际只对夜沼鸟生效，已去掉 */
+    if (c.elements.length >= 3 && c.tier <= 1) soft.push(c.name.zh + ' · ' + c.elements.length + ' 元素却只有 ' + c.tier + ' 环');
   }
-  D.warn = warn;
-  if (warn.length) console.warn('[卡表校验] ' + warn.length + ' 条：\n' + warn.join('\n'));
+
+  D.errors = hard;
+  D.warn = soft;
+  if (soft.length) console.warn('[卡表校验] ' + soft.length + ' 条警告：\n' + soft.join('\n'));
+  if (hard.length) {
+    const msg = '[卡表校验] ' + hard.length + ' 条硬错误，拒绝装配：\n' + hard.join('\n');
+    console.error(msg);
+    throw new Error(msg);
+  }
 
   /* ── 抽卡权重：只看环级（CARD-INDEX §9） ── */
   D.weight = tier => [1, 1, 0.9, 0.75, 0.62, 0.44, 0.31, 0.16, 0.11, 0.075, 0.03][Math.min(10, Math.max(0, tier))];

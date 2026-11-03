@@ -205,7 +205,7 @@
       changed = true;
     }
     R.changed = changed;
-    W.cellsChanged = false;
+    S.clearCellDirty();
     return changed;
   };
 

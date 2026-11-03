@@ -84,7 +84,6 @@ SOL.render = SOL.render || {};
 
     window.addEventListener('resize', R.resize);
     R.resize();
-    R.loopStart();
     return R;
   };
 
@@ -146,18 +145,10 @@ SOL.render = SOL.render || {};
     R.scene.fog.density = FOG_DENSITY[level] == null ? 0.05 : FOG_DENSITY[level];
   };
 
-  let last = 0;
-  R.loopStart = function () {
-    last = performance.now();
-    requestAnimationFrame(R.loop);
-  };
-
-  R.loop = function (now) {
-    const dt = Math.min(80, now - last);
-    last = now;
-
-    const ticks = S.advance(dt);
-
+  /* 主循环不在这里——时钟归装配层（ui/boot.js），render 只是被叫来画一帧。
+     旧版 R.loop 自己推进世界，等于「渲染器拥有时钟」：存档、回放、加速档
+     全被锁在表现层手里。现在 render 只读状态：要画就画，不画也不影响世界推进。 */
+  R.frame = function (now, ticks) {
     /* 太阳球与光照跟着 W.sun 走 */
     if (R.sunOrb) {
       R.sunOrb.material.opacity = Math.min(1, W.sun * 0.42);
@@ -171,7 +162,6 @@ SOL.render = SOL.render || {};
     SOL.render.cam.frame(now);
 
     R.renderer.render(R.scene, R.camera);
-    requestAnimationFrame(R.loop);
   };
 
 })(SOL.render, SOL.sim);

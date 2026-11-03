@@ -13,7 +13,8 @@ status: active
 | 运行形态 | 纯静态：HTML + CSS + 原生 JS，**经典 `<script>` 按序加载**，无构建、无打包 |
 | 入口 | 各原型目录的 `index.html`，`file://` 直接打开 |
 | 唯一第三方库 | Three.js **0.160.0**（UMD），已 vendored 到各原型的 `vendor/three.min.js` |
-| 自测 | Playwright / playwright-core（`prototypes/world-3d/tests/`、`prototypes/solstice/tests/`），需 Node 18+ |
+| 自测 | Playwright / playwright-core（`prototypes/solstice/tests/`；归档的 `prototypes/archive/world-3d/tests/` 只作历史），需 Node 18+ |
+| 卡表契约 | `npm run cards`：只装 `data/`，硬校验不过直接抛错（[CARD-SCHEMA.md](CARD-SCHEMA.md) §8「校验」） |
 | 确定性回归 | `node tests/determinism.js`（`npm run det`）：只装 `sim/` + `data/`，不需要浏览器 |
 | 数据形态 | 卡表是 `data/cards.*.js`（按 `CARD-SCHEMA` 字段写），编号 / 回收 / ATK·DEF 由 `data/index.js` 派生（仅合并原型） |
 
@@ -29,7 +30,7 @@ status: active
 2. **离线可开**：第三方库必须 vendored 进目录，禁止 CDN——断网也要能跑。
 3. **互不引用**：原型之间不共享代码与 CSS；共享结论只能写进 `specs/`。
 4. **自带 README 四段**：验证什么 / 已实现 / 未实现 / 已知坑。
-5. **冻结即不改**：`prototypes/alt/**` 是试吃证据，保持原样；要改就复制成新目录。
+5. **冻结即不改**：`prototypes/alt/**` 与 `prototypes/archive/**` 是历史证据，保持原样；要改就复制成新目录。
 6. **自测就地放**：`tests/` 与 `package.json` 只服务本原型，不往仓库根塞。
 7. **能分层就分层**：单个 HTML 超过约 600 行时，按 `data/` `sim/` `render/` `ui/` 分到子目录，入口只做装配；
    层级依赖单向（ui → render → sim → data），`sim/` 不碰 DOM 与 `window`。
@@ -42,20 +43,30 @@ status: active
 game/
 ├─ index.html          挂载壳，只做 mount
 ├─ src/
-│  ├─ sim/             纯逻辑：卡结算、生态 tick、世界状态
+│  ├─ sim/             纯逻辑：卡结算、生态 tick、事件后果、世界状态
+│  │  └─ cmd.js        **唯一的写入口**：ui 只调这里
 │  ├─ render/          表现层：three / canvas，只读 sim 状态
-│  ├─ ui/              手牌、面板、图鉴
+│  ├─ ui/              手牌、面板、图鉴、主循环（时钟在这里）
 │  └─ data/            卡 / 物种 / 世界配方 JSON
 ├─ assets/
 └─ tests/
 ```
 
-### 3.1 三条硬约束
+### 3.1 五条硬约束
 
 1. **`sim/` 零渲染依赖**：不 import three、不摸 DOM、不读 `window`，必须能直接在 node 里跑。
    理由：确定性回归只能在没有渲染的一侧做；这也是把 1283 行单文件切开时唯一可靠的接缝。
 2. **数据与表现分离**：卡的所有可显示内容来自 `data/*.json`，字段只认 [CARD-SCHEMA.md](CARD-SCHEMA.md)；渲染层不许自己拼文案。
-3. **一个状态一个真源**：`sim` 持有唯一状态树，`render` / `ui` 只读不写。
+3. **一个状态一个真源，ui 只读不写**：`sim` 持有唯一状态树；`render` / `ui` 读它，**改它只能走 `sim/cmd.js` 的 `S.cmd.*`**。
+   判定标准是可 grep 的：`ui/` 里不出现 `S.cast / S.setGear / S.spawn / S.tick / S.addChron…`，也不出现 `W.xxx =`。
+   2026-11-03 之前的版本有 18 处直接写调用 + 4 处直改世界，挨个收进了命令层。
+4. **主循环归装配层**：`requestAnimationFrame` 与 `dt` 都在 `ui/boot.js`，它调 `S.cmd.advance(dt)` 推时间、再调 `R.frame()` 画一帧。
+   `render/` 不持有时钟——否则存档、回放、加速档全被锁死在表现层。
+5. **钩子是多播**：`S.on('tick'|'log'|'chron'|'codex', fn)` 注册，`S.emit(...)` 广播；不许再用 `S.onXxx = fn` 直接赋值
+   （第二个订阅者会静默顶掉第一个，且 `onTick` 曾经连声明都没有）。
+
+> 第 3、4、5 条是 2026-11-03 补的：前两条一直成立，后三条在代码里从来没成立过，
+> 文档却写着「render / ui 只读不写」。这轮按文档补齐了代码，而不是把文档改软。
 
 ### 3.2 允许引什么
 
@@ -75,8 +86,9 @@ game/
 | 随机源 | `S.setSeed / S.rand / S.randInt / S.pick`（mulberry32）；**`sim/` 里不许出现 `Math.random()`** |
 | 摘要 | `S.digest()`：格子（地形 / 水 / 温 / 光 / 实体）+ 随机状态 `rng` |
 | 回归 | `prototypes/solstice/tests/determinism.js`：同 seed 两跑一致、异 seed 不同 |
-| 已踩的坑 | 任何「跟真实时间累积」的量都会毁掉确定性：帧数、`Date.now()`、浮点 `hour` 累积器。昼夜必须由整数月派生（[TIME.md](TIME.md) §7.1） |
+| 已踩的坑 | 任何「跟真实时间累积」的量都会毁掉确定性：帧数、`Date.now()`、浮点 `hour` 累积器。昼夜必须由整数月派生（[TIME.md](TIME.md) §7.1「昼夜是投影」） |
 | 派生状态 | 图鉴（`sim/codex.js`）不进摘要：它是世界状态的纯函数，判定只读 `W`，自己不开随机流。`npm run codex` 单独回归「每条判定能不能被真的玩出来」 |
 
 `tests/smoke.js` 测的是"施卡链路不报错 + 卡确实生效"，**不是**确定性回归；两者别混。
-三个脚本的分工：`smoke` 管装配与浏览器报错、`det` 管同种子重演、`codex` 管判定可达。
+四个脚本的分工：`smoke` 管装配与浏览器报错、`cards` 管数据契约、`det` 管同种子重演、`codex` 管判定可达。
+除 `smoke` 外三个都不需要浏览器，所以能进 CI（`.github/workflows/check.yml`）。

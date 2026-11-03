@@ -54,7 +54,8 @@ status: active
 
 | 文档 | 管什么 |
 |---|---|
-| **[TECH.md](TECH.md)** | 原型约定（离线、单文件、互不引用）+ 转正后 `game/` 的分层与硬约束 |
+| **[TECH.md](TECH.md)** | 原型约定（离线、单文件、互不引用）+ 转正后 `game/` 的分层与五条硬约束 |
+| **[FILL.md](FILL.md)** | **填充流程**：加一张卡 / 一条成就 / 一个事件 / 一个特征，改哪、跑哪、怎么验 |
 | **[GAME-SCAN.md](GAME-SCAN.md)** | 32 部卡牌游戏的机制扫描：抄什么 / 不抄什么 |
 
 ### 2.5 投影（`specs/ui/`）
@@ -77,3 +78,12 @@ status: active
 4. **评审不动规格**：过程进 `REVIEW-*.md`，裁决按域落到对应文档（设定落 SETTING、缺口落 STATUS），不在评审文里改规格。
 5. **提交**：英文简短祈使句；文档与代码同次提交。
 6. **新增 / 作废文档**：同次改本文 §2 的表。
+7. **引用别档章节，必须带标题片段**：写成 [TIME.md](TIME.md) §3「为什么时间不能做成卡」，不许只写 `§3`。
+   因为「号存在」和「指对了」是两件事——A7 曾把「特征改乘数」指向 SETTING §2.8，号在、内容是「卡数的分配原则」，
+   只查存在性永远抓不到。裸引用会进 `docs-check` 的警告清单，逐步改成带片段的写法。
+8. **卡表改动必须过闸**：改 `data/cards.*.js` 后跑 `npm run cards`。
+   [CARD-SCHEMA.md](CARD-SCHEMA.md) §8「校验」里的硬错误会让 `data/index.js` 直接抛错、装配不下去——
+   这是有意的：坏数据进内存比当场报错贵得多。
+9. **提交前自检**（CI 与本地同一条）：
+   `python tools/docs-check.py`（断链 / 章节号 / 引用片段）、
+   `cd prototypes/solstice && npm run cards && npm run det && npm run codex`。

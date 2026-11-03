@@ -1,0 +1,46 @@
+name: check
+
+# 四条不需要浏览器的回归：卡表契约 / 确定性 / 图鉴 / 文档。
+# smoke 要 Playwright 起 Chromium，本地跑就够了，不放这里。
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 卡表契约：硬校验不过直接抛错（specs/CARD-SCHEMA.md §8「校验」）
+      - name: cards
+        working-directory: prototypes/solstice
+        run: npm run cards
+
+      # 同种子两跑必须同一个 digest（specs/TECH.md §4「确定性」）
+      - name: determinism
+        working-directory: prototypes/solstice
+        run: npm run det
+
+      # 图鉴每条判定能不能被真的玩出来
+      - name: codex
+        working-directory: prototypes/solstice
+        run: npm run codex
+
+      # 断链 / 缺章节 / 引用没带标题片段（specs/README.md §3 第 9 条）
+      - name: docs
+        run: python tools/docs-check.py
+
+      # 报表，不拦提交：卡表与 CARD-INDEX 的口径差是要人看的数字
+      - name: card-reconcile
+        continue-on-error: true
+        run: python tools/card-reconcile.py

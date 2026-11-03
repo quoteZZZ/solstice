@@ -32,7 +32,7 @@
     CRE.coord = hit.coord.join('-');
     CRE.rolls++;
 
-    S.setSeed(CRE.coord);          // 从这一行起全部用 S.rand：同一坐标必然同一结果
+    S.cmd.seed(CRE.coord);          // 从这一行起全部用 S.rand：同一坐标必然同一结果
 
     CRE.climate = S.pick(WD.climates);
     CRE.name = S.pick(WD.syl1) + S.pick(WD.syl2) + form.suffix;
@@ -391,10 +391,8 @@
       name: CRE.name, form: form.name, climate: CRE.climate,
       seed: CRE.seed, traits: CRE.traits.map(i => WD.traits[i].name)
     };
-    S.startWorld(world);
-    S.resetClock();
+    S.cmd.newWorld(world);
     UI.closeCreator();
-    S.dealHand();
     UI.renderHand();
     UI.updateHud();
     UI.renderRight();
@@ -409,7 +407,7 @@
     SOL.render.cam.place();
 
     UI.toast('进入这一界', world.name + ' · 天是空的，先打一张「土地」');
-    S.setGear(2);          // 1×
+    S.cmd.gear(2);          // 1×
     UI.syncGears();
   };
 

@@ -25,8 +25,21 @@ SOL.sim = SOL.sim || {};
   };
 
   S.logLines = [];
-  S.onLog = null;
-  S.onChron = null;
+
+  /* ───────────────── 钩子：多播注册表 ─────────────────
+     旧版是 S.onLog / S.onChron 直接赋值——第二个订阅者会静默顶掉第一个，
+     而 S.onTick 干脆没声明过（在 time.js 里被调用、在 ui 里被赋值）。
+     改成注册表后，加一层订阅（成就、教程、录制）不用去改已有订阅者。 */
+  const hooks = { log: [], chron: [], tick: [], codex: [] };
+  S.on = function (name, fn) {
+    (hooks[name] || (hooks[name] = [])).push(fn);
+    return fn;
+  };
+  S.emit = function (name, a, b) {
+    const list = hooks[name];
+    if (!list) return;
+    for (const fn of list) fn(a, b);
+  };
 
   /* ───────────────── 随机：sim 的唯一随机源 ─────────────────
      TECH.md §4 确定性：sim 里不许直接调 Math.random()，一律走 S.rand()。
@@ -57,14 +70,14 @@ SOL.sim = SOL.sim || {};
   S.log = function (msg, hot) {
     S.logLines.push({ msg: msg, hot: !!hot });
     if (S.logLines.length > 60) S.logLines.shift();
-    if (S.onLog) S.onLog(msg, !!hot);
+    S.emit('log', msg, !!hot);
   };
 
   /* 年表：类型 → 图标/颜色在 ui 层；这里只存 {month, kind, text} */
   S.addChron = function (kind, text) {
     W.chron.unshift({ month: W.month, kind: kind, text: text });
     if (W.chron.length > 300) W.chron.pop();
-    if (S.onChron) S.onChron();
+    S.emit('chron');
   };
 
   /* ───────────────── 格网 ───────────────── */
@@ -153,6 +166,10 @@ SOL.sim = SOL.sim || {};
   };
 
   S.entsOf = (cell, tag) => cell.ents.filter(e => !tag || e.tags.includes(tag));
+
+  /* 脏标记由 sim 自己清：render 读完之后通知 sim，而不是伸手写 W。
+     （旧版 render/grid.js 里直接写 W.cellsChanged = false，属于读的一方改状态） */
+  S.clearCellDirty = function () { W.cellsChanged = false; };
 
   /* 生命三层：从实体现场统计，不用手工计数器（ui-flow 里计数器曾经和实体分叉） */
   S.lifeStats = function () {

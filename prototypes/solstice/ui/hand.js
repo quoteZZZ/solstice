@@ -36,7 +36,7 @@
   };
 
   UI.select = function (i) {
-    W.sel = i;
+    S.cmd.select(i);
     UI.renderHand();
   };
 
@@ -143,11 +143,9 @@
       x = cell.x; y = cell.y;
     }
 
-    const res = S.cast(card, x, y);
+    const res = S.cmd.playSlot(i, x, y);
     if (!res.ok) { UI.toast('放不下', res.msg || ''); return; }
 
-    S.consume(i);
-    W.sel = Math.min(W.sel, Math.max(0, W.hand.length - 1));
     UI.renderHand();
     UI.updateHud();
     UI.renderRight();
@@ -172,18 +170,17 @@
   };
 
   UI.recycle = function () {
-    const res = S.recycle(W.sel);
+    const res = S.cmd.recycle(W.sel);
     if (!res.ok) return UI.toast('不能回收', res.msg);
     UI.toast('回收', '+' + res.gain + ' 时素');
     UI.renderHand(); UI.updateHud(); UI.renderRight();
   };
 
   UI.reroll = function () {
-    if (W.essence < 5) return UI.toast('时素不够', '重抽要 5 时素');
-    W.essence -= 5;
-    S.dealHand();
+    const res = S.cmd.reroll();
+    if (!res.ok) return UI.toast('时素不够', '重抽要 5 时素');
     UI.renderHand(); UI.updateHud(); UI.renderRight();
-    UI.log('重抽一手 −5 时素', true);
+    UI.log('重抽一手 −' + res.cost + ' 时素', true);
   };
 
   /* 世界坐标上的飘字（土地 / 钟声的收益反馈） */
@@ -230,7 +227,7 @@
       if (a === 'random') UI.castRandom();
       else if (a === 'recycle') UI.recycle();
       else if (a === 'reroll') UI.reroll();
-      else if (a === 'gear') { S.nextGear(); UI.syncGears(); UI.renderHand(); }
+      else if (a === 'gear') { S.cmd.nextGear(); UI.syncGears(); UI.renderHand(); }
     });
   };
 

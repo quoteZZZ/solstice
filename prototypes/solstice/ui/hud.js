@@ -25,7 +25,7 @@
     gears.addEventListener('click', e => {
       const b = e.target.closest('[data-gear]');
       if (!b) return;
-      S.setGear(+b.dataset.gear);
+      S.cmd.gear(+b.dataset.gear);
       UI.syncGears();
     });
 
@@ -53,11 +53,11 @@
       else UI.openPanel(b.dataset.panel);
     });
 
-    S.onLog = UI.log;
-    S.onChron = () => UI.renderRight();
+    S.on('log', UI.log);
+    S.on('chron', () => UI.renderRight());
     /* 点亮那一刻只给一次 toast：图鉴入口在卡库里，不给入口提示玩家找不到 */
-    S.onCodex = list => list.forEach(a =>
-      UI.toast('图鉴点亮', a.grp + ' · ' + a.name + '　' + S.codexCount() + ' / ' + S.CODEX.length));
+    S.on('codex', list => list.forEach(a =>
+      UI.toast('图鉴点亮', a.grp + ' · ' + a.name + '　' + S.codexCount() + ' / ' + S.CODEX.length)));
 
     UI.syncGears();
     UI.renderRight();

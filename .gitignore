@@ -8,8 +8,5 @@ ehthumbs.db
 .DS_Store
 .idea/
 
-# 项目数据目录（必须入库，勿忽略）
-!.codebuddy/
-!.codebuddy/**
-!.workbuddy/
-!.workbuddy/**
+# 注意：.codebuddy/ 与 .workbuddy/ 是项目数据，**入库**。
+# 这里不写忽略规则——写了反而容易被人当成"该忽略"而误删。

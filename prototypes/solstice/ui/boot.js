@@ -62,7 +62,7 @@
     if (act === 'random') { ev.preventDefault(); return UI.castRandom(); }
     if (act === 'recycle') return UI.recycle();
     if (act === 'reroll') return UI.reroll();
-    if (act === 'gear') { S.nextGear(); UI.syncGears(); UI.renderHand(); return; }
+    if (act === 'gear') { S.cmd.nextGear(); UI.syncGears(); UI.renderHand(); return; }
     if (act === 'ambient') return UI.toggleAmbient();
     if (act === 'event') return UI.fireEvent();
     if (act === 'zoomIn') return R.cam.nudgeZoom(1);
@@ -93,18 +93,30 @@
       onHover: (cell, ev) => UI.hoverInfo(cell, ev)
     });
 
-    S.onTick = () => {
+    S.on('tick', () => {
       UI.updateHud();
       if (UI.state.panel === 'chron') UI.renderOverlay();
       UI.renderRight();
-    };
+    });
 
     document.addEventListener('keydown', onKey);
 
     /* 创世先来：世界第一次必须由一次掷骰开始 */
-    S.setGear(0);
+    S.cmd.gear(0);
     UI.openCreator();
     UI.updateHud();
+
+    /* 主循环归这一层：装配层拥有时钟（TECH.md §3.1）。render 不再自己 requestAnimationFrame，
+       只被叫来画一帧。换前端 / 做回放 / 加存档，都只需要替换这里的这一个循环。 */
+    let last = performance.now();
+    function frame(now) {
+      const dt = Math.min(80, now - last);
+      last = now;
+      const ticks = S.cmd.advance(dt);
+      R.frame(now, ticks);
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
 
     /* 调试口：给自动化测试用，不给玩家 */
     window.__dbg = {
@@ -112,11 +124,11 @@
       play(id, x, y) {
         const c = D.byId.get(id);
         if (!c) return { ok: false, msg: 'no card ' + id };
-        const res = S.cast(c, x, y);
+        const res = S.cmd.cast(c, x, y);
         if (res.ok) { UI.renderHand(); UI.updateHud(); UI.renderRight(); }
         return res;
       },
-      tick(n) { for (let i = 0; i < (n || 1); i++) S.tick(); UI.updateHud(); UI.renderRight(); },
+      tick(n) { S.cmd.tick(n); UI.updateHud(); UI.renderRight(); },
       digest: S.digest,
       seen: () => [...W.seen]
     };

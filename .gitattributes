@@ -1,0 +1,11 @@
+# 索引里一律 LF。.editorconfig 说 end_of_line = lf，但 Windows 上 core.autocrlf=true
+# 会把工作副本改回 CRLF，两边打架——由这条兜住。
+* text=auto eol=lf
+
+# 二进制：不走文本处理
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.bundle binary

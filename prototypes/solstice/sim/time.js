@@ -41,7 +41,7 @@
     S.checkCodex(true);
 
     S.monthChanged = true;
-    if (S.onTick) S.onTick();
+    S.emit('tick');
   };
 
   /* 每帧推进：dt 毫秒。1× = 1 秒 1 月（TIME.md §1）。

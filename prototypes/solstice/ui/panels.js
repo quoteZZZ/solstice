@@ -119,7 +119,7 @@
 
   function packNext() {
     if (UI.packStage === 0) {
-      const res = S.drawPack();
+      const res = S.cmd.drawPack();
       if (!res.ok) return UI.toast('时素不够', res.msg);
       UI.packCards = res.got;
       UI.packStage = 1;
