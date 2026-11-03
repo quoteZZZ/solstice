@@ -1,24 +1,33 @@
-/* 至日 · 手牌与拖放
+/* Solstice · 手牌与拖放
    一套轴三种结果：拖到地面 = 指定落点；向上拖 / 空格 = 随机落点；向下拖 / X = 回收。
    落点换算只走 render.cam（射线），UI 不碰投影。 */
 (function (UI, S, D) {
   const W = S.W;
   let drag = null;
 
+  /* 手牌宽度 136（.card.h 的设计尺寸，原生 1:1，不再整体缩放）。
+     步长按可用宽度收：cap 取卡宽本身 —— 只要屏幕放得下就整排不重叠，
+     邻卡盖住的那 20 多像素正好是文字被切掉的地方（REVIEW-DEMO T-3 / C-5）。 */
+  const CW = 136;
+
   UI.renderHand = function () {
     const box = document.getElementById('hand');
     if (!box) return;
     const n = W.hand.length, mid = (n - 1) / 2;
-    const sp = n > 6 ? 116 : 128;
+    const wrap = document.getElementById('handwrap');
+    const avail = ((wrap && wrap.clientWidth) || 900) - 24;
+    const sp = n > 1
+      ? Math.max(88, Math.min(CW, (avail - CW) / (n - 1)))
+      : 0;
     box.innerHTML = W.hand.map((card, i) => {
       const d = i - mid;
       const ang = (d * 2.4).toFixed(2);
       const lift = Math.round(Math.abs(d) * Math.abs(d) * 2.2);
       const z = (i === W.sel ? 200 : 100 - Math.round(Math.abs(d) * 3));
-      return `<div class="handslot ${i === W.sel ? 'sel' : ''}" data-i="${i}"
-        style="left:calc(50% + ${(d * sp).toFixed(1)}px - 78px);bottom:${6 + lift}px;z-index:${z}">
+      return `<div class="handslot ${i === W.sel ? 'sel' : ''}" data-i="${i}" tabindex="0" role="button"
+        style="left:calc(50% + ${(d * sp).toFixed(1)}px - ${CW / 2}px);bottom:${6 + lift}px;z-index:${z}">
         <div class="cardwrap" style="transform:rotate(${ang}deg)">
-          ${UI.cardFace(card, 'h' + i)}
+          ${UI.cardFace(card, 'h' + i, 'h')}
         </div>
       </div>`;
     }).join('');
@@ -29,10 +38,10 @@
 
     const act = document.getElementById('actbar');
     act.innerHTML = `
-      <div class="ab" data-act="random" title="随机落点释放（空格）">✦</div>
-      <div class="ab" data-act="recycle" title="回收选中的卡（X）">↩</div>
-      <div class="ab" data-act="reroll" title="重抽一手（5 时素 · R）">↻</div>
-      <div class="ab" data-act="gear" title="档位（J）" style="font-size:11px">${S.GEARS[S.gear].label}</div>`;
+      <div class="ab" data-act="random" tabindex="0" role="button" title="随机落点释放（空格）">✦</div>
+      <div class="ab" data-act="recycle" tabindex="0" role="button" title="回收选中的卡（X）">↩</div>
+      <div class="ab" data-act="reroll" tabindex="0" role="button" title="重抽一手（5 时素 · R）">↻</div>
+      <div class="ab" data-act="gear" tabindex="0" role="button" title="档位（J）" style="font-size:11px">${S.GEARS[S.gear].label}</div>`;
   };
 
   UI.select = function (i) {
@@ -51,12 +60,18 @@
     const wrap = document.getElementById('ghostwrap');
     const g = document.createElement('div');
     g.id = 'ghost';
-    g.innerHTML = UI.cardFace(card, 'g') + '<div class="tip">拖到地面指定落点 · 向上随机 · 向下回收</div>';
+    g.innerHTML = UI.cardFace(card, 'g', 'h') + '<div class="tip">拖到地面指定落点 · 向上随机 · 向下回收</div>';
     wrap.appendChild(g);
     moveGhost(ev.clientX, ev.clientY);
 
     document.addEventListener('pointermove', onDrag);
     document.addEventListener('pointerup', endDrag, { once: true });
+    /* 指针在窗口外松开 / 触控被系统取消时 pointerup 不会来。
+       没有兜底，ghost 会留在屏幕上、document 上的 pointermove 永久驻留（REVIEW-DEMO X-11）。 */
+    const cancel = () => endDrag(null);
+    drag.cancel = cancel;
+    document.addEventListener('pointercancel', cancel, { once: true });
+    window.addEventListener('blur', cancel, { once: true });
   }
 
   function moveGhost(x, y) {
@@ -86,11 +101,13 @@
       g && g.classList.add('rec');
       if (tip) tip.textContent = card.reclaim ? '松手回收 +' + card.reclaim + ' 时素' : '松手回收（0 环不返还）';
       SOL.render.cam.setHover(null);
+      SOL.render.marks.clear();
     } else if (dy < -40 && drag.moved) {
       drag.mode = 'random';
       g && g.classList.remove('rec');
       if (tip) tip.textContent = '松手释放（随机落点）';
       SOL.render.cam.setHover(null);
+      SOL.render.marks.clear();
     } else if (overCanvas && drag.moved) {
       drag.mode = 'cast';
       g && g.classList.remove('rec');
@@ -98,6 +115,7 @@
       const pt = cell ? { x: cell.x, y: cell.y } : SOL.render.cam.planeAt(ev.clientX, ev.clientY);
       drag.cell = cell; drag.pt = pt;
       SOL.render.cam.setHover(cell);
+      SOL.render.marks.set(SOL.sim.castRange(card, cell));
       if (tip) {
         const op = card.sim.op;
         tip.textContent = op === 'land' ? '松手在这片虚空造陆'
@@ -109,15 +127,22 @@
       g && g.classList.remove('rec');
       if (tip) tip.textContent = '拖到地面指定落点 · 向上随机 · 向下回收';
       SOL.render.cam.setHover(null);
+      SOL.render.marks.clear();
     }
   }
 
   function endDrag(ev) {
+    const d = drag; drag = null;
     document.removeEventListener('pointermove', onDrag);
+    document.removeEventListener('pointerup', endDrag);
+    if (d && d.cancel) {
+      document.removeEventListener('pointercancel', d.cancel);
+      window.removeEventListener('blur', d.cancel);
+    }
     const g = document.getElementById('ghost');
     if (g) g.remove();
     SOL.render.cam.setHover(null);
-    const d = drag; drag = null;
+    SOL.render.marks.clear();
     if (!d) return;
     if (d.mode === 'recycle') return UI.recycle();
     if (d.mode === 'cast') return UI.cast(d.i, d.cell, d.pt);
@@ -132,12 +157,13 @@
     const op = card.sim.op;
     if (op === 'law') { x = 0; y = 0; }
     else if (op === 'land') {
-      const size = card.sim.size == null ? 2 : card.sim.size;
-      if (cell) { x = cell.x + size + 1; y = cell.y; }
+      /* 落在已有地块上就绕它长：原来是 cell.x + size + 1，地在右边三格外，
+         与 ghost 上写的「松手在这片虚空造陆」不符（REVIEW-DEMO X-13）。 */
+      if (cell) { x = cell.x; y = cell.y; }
       else if (pt) { x = pt.x; y = pt.y; }
       else return UI.toast('要指一个落点', '土地落在虚空上');
     } else if (op === 'sun') {
-      if (!W.cells.size) { x = 0; y = 0; } else { x = 0; y = 0; }
+      x = 0; y = 0;
     } else {
       if (!cell) return UI.toast('要放在地块上', '虚空承不住这张卡');
       x = cell.x; y = cell.y;
@@ -149,7 +175,9 @@
     UI.renderHand();
     UI.updateHud();
     UI.renderRight();
-    if (pt) UI.flyTo(x, y, '+' + (res.gain || 0) || '');
+    SOL.render.marks.clear();
+    /* 原式 '+'(gain||0) || '' 前半永远是真值串，于是每张无收益的卡都飘一个「+0」 */
+    if (pt && res.gain) UI.flyTo(x, y, '+' + res.gain);
     if (op === 'land') setTimeout(() => SOL.render.cam.recenter(), 30);
   };
 

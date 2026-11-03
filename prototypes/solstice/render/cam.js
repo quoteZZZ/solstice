@@ -1,4 +1,4 @@
-/* 至日 · 相机与拾取
+/* Solstice · 相机与拾取
    连续 yaw / pitch / dist，另有四档俯仰与五档缩放（F1–F4 / Z）。
    世界坐标 → 屏幕坐标只在这里算，UI 不要自己碰投影。 */
 (function (R, S) {
@@ -133,26 +133,38 @@
       if (drag) {
         const dx = e.clientX - lx, dy = e.clientY - ly;
         moved += Math.abs(dx) + Math.abs(dy);
-        C.yaw += dx * 0.006;
-        C.pitch = Math.max(0.16, Math.min(1.52, C.pitch + dy * 0.004));
+        C.yaw += dx * 0.006 * C.sens;
+        C.pitch = Math.max(0.16, Math.min(1.52, C.pitch + dy * 0.004 * C.sens));
         lx = e.clientX; ly = e.clientY;
         C.place();
       }
       if (!drag && hooks && hooks.onHover) {
         const cell = C.pickAt(e.clientX, e.clientY);
         C.setHover(cell);
-        hooks.onHover(cell, e);
+        /* 悬停也要给「平面点」：土地这类卡落在虚空上时没有格子可拾取，
+           预览要画的就是虚空里将要长出来的那块地（REVIEW-DEMO #11）。 */
+        hooks.onHover(cell, e, cell ? null : C.planeAt(e.clientX, e.clientY));
       }
     });
     cv.addEventListener('pointerleave', () => { C.setHover(null); if (hooks && hooks.onHover) hooks.onHover(null); });
     cv.addEventListener('wheel', e => {
       e.preventDefault();
-      C.dist = Math.max(3, Math.min(34, C.dist + e.deltaY * 0.012));
+      C.dist = Math.max(3, Math.min(34, C.dist + e.deltaY * 0.012 * C.sens));
       C.zoomIdx = null;
       C.place();
     }, { passive: false });
   };
 
   C.pitchDeg = () => Math.round(C.pitch * 180 / Math.PI);
+
+  /* 拖动灵敏度：设置面板里那一项原来是个空实现（set: () => {}），
+     点了没反应还写在「只有真正接线的项」的列表里。现在真接到 yaw / pitch / wheel。 */
+  C.SENS = { 慢: 0.6, 中: 1, 快: 1.6 };
+  C.sens = 1;
+  C.sensLabel = '中';
+  C.setSens = function (label) {
+    C.sensLabel = C.SENS[label] == null ? '中' : label;
+    C.sens = C.SENS[C.sensLabel];
+  };
 
 })(SOL.render, SOL.sim);

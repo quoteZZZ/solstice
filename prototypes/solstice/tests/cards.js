@@ -1,4 +1,4 @@
-/* 至日 · 卡表契约回归（CARD-SCHEMA §8 校验 / §9 完整数据）
+/* Solstice · 卡表契约回归（CARD-SCHEMA §8 校验 / §9 完整数据）
    node tests/cards.js        （npm run cards）
    只装 data/ + 校验器，不碰渲染、不需要浏览器——所以能进 CI。
    硬错误必须 0 条（data/index.js 会直接抛）；软警告打印出来供 STATUS 记存量。 */

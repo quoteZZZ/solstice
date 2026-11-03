@@ -1,4 +1,4 @@
-/* 至日 · 3D 场景壳：渲染器、光、星野、虚空、蓝图、主循环
+/* Solstice · 3D 场景壳：渲染器、光、星野、虚空、蓝图、主循环
    render 只读 sim 的状态，不往 sim 里写世界（相机与悬停属于表现，放 render/cam.js）。 */
 window.SOL = window.SOL || {};
 SOL.render = SOL.render || {};
@@ -96,10 +96,23 @@ SOL.render = SOL.render || {};
     R.camera.updateProjectionMatrix();
   };
 
+  /* 释放一棵对象树的 geometry / material。
+     贴图不在这里动——立牌贴图是 texCache 里共享的，释放了会让别的格子变白。
+     没有这一层时，60 格的界跑 72 个月会把 geometry 从 2 涨到 1008（REVIEW-DEMO X-3）。 */
+  R.dispose = function (obj) {
+    if (!obj) return;
+    obj.traverse(o => {
+      if (o.geometry) o.geometry.dispose();
+      const m = o.material;
+      if (!m) return;
+      (Array.isArray(m) ? m : [m]).forEach(mat => mat.dispose());
+    });
+  };
+
   /* 形制蓝图：虚空上的一圈虚线，告诉你这一界想长成什么形状（不参与结算） */
   R.setBlueprint = function (form) {
     const g = R.blueprint;
-    while (g.children.length) g.remove(g.children[0]);
+    while (g.children.length) { const c = g.children[0]; g.remove(c); R.dispose(c); }
     const isles = (form && form.isles) || [];
     for (const [cx, cy, rx, ry] of isles) {
       const curve = new THREE.EllipseCurve(cx, cy, rx, ry, 0, Math.PI * 2);
@@ -117,7 +130,7 @@ SOL.render = SOL.render || {};
   R.clear = function () {
     for (const grp of [R.cellGroup, R.standeeGroup, R.traceGroup]) {
       if (!grp) continue;
-      while (grp.children.length) grp.remove(grp.children[0]);
+      while (grp.children.length) { const c = grp.children[0]; grp.remove(c); R.dispose(c); }
     }
     R.grid = null;
     R.traceCache = [];
@@ -158,7 +171,8 @@ SOL.render = SOL.render || {};
     }
 
     R.sync();
-    SOL.render.trace.sync(ticks > 0);
+    SOL.render.trace.sync();
+    SOL.render.trace.fade();
     SOL.render.cam.frame(now);
 
     R.renderer.render(R.scene, R.camera);

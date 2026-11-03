@@ -1,4 +1,4 @@
-/* 至日 · 覆盖层面板：抽卡 / 卡库 / 年表 / 设置 / 键位 / 帮助
+/* Solstice · 覆盖层面板：抽卡 / 卡库 / 年表 / 设置 / 键位 / 帮助
    所有读数都来自 sim 与卡表；面板里不写死任何「总数 252」之类的数字。 */
 (function (UI, S, D) {
   const W = S.W;
@@ -13,7 +13,10 @@
 
   UI.openPanel = function (p) {
     if (p === 'creator') { UI.openCreator(); return; }
-    if (!['pack', 'codex', 'chron', 'settings', 'keys', 'help'].includes(p)) return;
+    /* 键位与操作速查不再是独立面板，并进「设置 → 操作」：
+       左栏因此只留 年表 / 卡库 / 换界 / 设置 / 摆件 五项（REVIEW-DEMO #12）。 */
+    if (p === 'keys' || p === 'help') { p = 'settings'; U.setGroup = 'input'; }
+    if (!['pack', 'codex', 'chron', 'settings'].includes(p)) return;
     U.panel = p;
     if (p === 'pack') UI.packStage = 0;
     UI.renderOverlay();
@@ -41,9 +44,7 @@
         ? '图鉴 · 已点亮 ' + S.codexCount() + ' / ' + S.CODEX.length
         : '卡库 · 已见 ' + W.seen.size + ' / ' + D.total,
       chron: '年表 · ' + W.chron.length + ' 条',
-      settings: '设置',
-      keys: '设置 / 操作 · 键位',
-      help: '帮助（只讲操作）'
+      settings: '设置'
     }[U.panel];
     return `<div id="ovbg" data-close="1"></div>
       <div id="panel">
@@ -67,8 +68,7 @@
     if (p === 'codex') return codexPanel();
     if (p === 'chron') return chronBody();
     if (p === 'settings') return settingsBody();
-    if (p === 'keys') return keysBody();
-    return helpBody();
+    return '';
   }
 
   /* ── 抽卡 ── */
@@ -103,7 +103,7 @@
         <div class="packframe" style="flex:1">
           ${UI.packStage === 0 ? `<div style="width:151px;height:220px;border:1px dashed var(--acc);
               background:#1a1509;display:flex;align-items:center;justify-content:center;color:var(--acc);
-              font-family:var(--mono);font-size:10.5px;text-align:center;padding:10px">
+              font-family:var(--mono);font-size:12px;text-align:center;padding:10px">
               ${W.essence < S.PACK_COST ? '时素不够 · 还要 ' + (S.PACK_COST - W.essence) : '星尘崩解（不是撕纸）'}</div>` : ''}
           ${UI.packStage === 1 ? `<div style="display:flex">${[0, 1, 2, 3, 4].slice(0, got.length).map(i =>
             `<div style="width:120px;height:176px;border:1px solid var(--line2);background:#161c25;margin-left:-38px;
@@ -170,7 +170,7 @@
       <div class="codexEl">
         ${nav.map(([g, all, lit]) => `<button class="btn ${g === grp ? 'on' : 'ghost'}" data-dg="${g}"
           style="height:42px;flex-direction:column;gap:0"><span>${g}</span>
-          <span style="font-size:8px;color:#4c5563">${lit} / ${all}</span></button>`).join('')}
+          <span style="font-size:11px;color:var(--ink4)">${lit} / ${all}</span></button>`).join('')}
       </div>
       <div style="flex:1;min-width:0;overflow:auto">
         <div class="row gap8" style="margin-bottom:10px;align-items:center">
@@ -217,7 +217,7 @@
       <div class="codexEl">
         ${els.map(e => `<button class="btn ${e === el ? 'on' : 'ghost'}" data-el="${e}"
           style="height:42px;flex-direction:column;gap:0"><span>${e}</span>
-          <span style="font-size:8px;color:#4c5563">${seenIn(e)} / ${totalIn(e)}</span></button>`).join('')}
+          <span style="font-size:11px;color:var(--ink4)">${seenIn(e)} / ${totalIn(e)}</span></button>`).join('')}
       </div>
       <div style="flex:1;min-width:0;overflow:auto">
         <div class="row gap8" style="margin-bottom:9px;align-items:center">
@@ -243,8 +243,8 @@
            ['↩', '回收', c.reclaim ? '+' + c.reclaim : '—']]
           .map(([i, k, v]) => `<div style="text-align:center;flex:1">
             <div style="font-size:14px;color:var(--acc)">${i}</div>
-            <div class="mono" style="font-size:11.5px;color:#e8eef4">${v}</div>
-            <div class="xs" style="color:#4c5563">${k}</div></div>`).join('')}
+            <div class="mono" style="font-size:12px;color:#e8eef4">${v}</div>
+            <div class="xs" style="color:var(--ink4)">${k}</div></div>`).join('')}
       </div>
       <div class="dex" style="margin-top:10px">
         <div class="mono xs" style="color:#5a6674;letter-spacing:.1em">
@@ -274,7 +274,9 @@
     const kinds = ['全部', '干涉', '气候', '生态', '灾变', '文明', '图鉴'];
     const kf = U.chronFilter;
     const list = W.chron.filter(c => kf === '全部' || c.kind === kf);
-    const sel = U.chronSel != null ? W.chron[U.chronSel] : null;
+    /* 选中项存对象而不是下标：年表会 unshift+pop 截断（上限 300），
+       存下标的话截断一次就会「点 A 显示 B」（REVIEW-DEMO X-15）。 */
+    const sel = U.chronSel && W.chron.indexOf(U.chronSel) >= 0 ? U.chronSel : null;
     return `<div class="chronRow">
       <div style="flex:1;border-right:1px solid var(--line);padding-right:14px;overflow:auto">
         <div class="row gap6" style="margin-bottom:12px">
@@ -285,8 +287,8 @@
           ${list.map((c, i) => `<div class="it" style="--dot:${UI.CHRON_COL[c.kind] || '#3f7fa8'}" data-ci="${W.chron.indexOf(c)}">
             <div class="xs"><span style="color:${UI.CHRON_COL[c.kind] || '#3f7fa8'};margin-right:4px">${UI.CHRON_ICON[c.kind] || '·'}</span>
               第 ${c.month} 月</div>
-            <div class="t" style="font-size:12.5px;color:${U.chronSel === W.chron.indexOf(c) ? 'var(--acc)' : '#fff'}">${c.text}</div>
-            <div class="xs" style="color:#4c5563">${c.kind}</div></div>`).join('') || '<div class="xs">这一类还没有记录</div>'}
+            <div class="t" style="font-size:13px;color:${sel === c ? 'var(--acc)' : '#fff'}">${c.text}</div>
+            <div class="xs" style="color:var(--ink4)">${c.kind}</div></div>`).join('') || '<div class="xs">这一类还没有记录</div>'}
         </div>
       </div>
       <div style="width:380px;padding-left:16px;overflow:auto">
@@ -312,7 +314,7 @@
       { k: '缩放档', v: ['Z0', 'Z1', 'Z2', 'Z3', 'Z4'], cur: () => 'Z' + (SOL.render.cam.zoomIdx == null ? 2 : SOL.render.cam.zoomIdx), set: v => SOL.render.cam.setZoom(+v.slice(1)) }
     ],
     input: [
-      { k: '拖动灵敏度', v: ['慢', '中', '快'], cur: () => '中', set: () => { } }
+      { k: '拖动灵敏度', v: ['慢', '中', '快'], cur: () => SOL.render.cam.sensLabel || '中', set: v => SOL.render.cam.setSens(v) }
     ],
     ui: [
       { k: '常驻栏', v: ['全部', '仅右栏', '全隐'], cur: () => UI.uiMode || '全部', set: v => UI.setUiMode(v) }
@@ -323,12 +325,12 @@
     const nav = [['video', '画面'], ['world', '世界'], ['input', '操作'], ['ui', '界面']];
     const g = U.setGroup;
     const rows = SETTINGS[g] || [];
-    return `<div style="display:flex;height:100%">
-      <div style="width:170px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:4px;padding-right:12px">
+    return `<div style="display:flex;height:100%;min-height:0">
+      <div style="width:170px;flex:0 0 170px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:4px;padding-right:12px">
         ${nav.map(([k, t]) => `<button class="btn ${g === k ? 'on' : 'ghost'}" data-sg="${k}"
           style="justify-content:flex-start">${t}</button>`).join('')}
       </div>
-      <div style="flex:1;padding-left:20px;display:flex;flex-direction:column;min-width:0">
+      <div style="flex:1;min-width:0;padding-left:20px;overflow:auto">
         ${rows.map(r => `<div class="setRow">
           <span class="sm">${r.k}</span>
           <div style="display:flex;gap:6px">
@@ -336,11 +338,9 @@
               data-val="${v}" style="height:26px">${v}</button>`).join('')}
           </div>
         </div>`).join('')}
-        <div class="xs" style="margin-top:14px;line-height:1.7">
-          这里只有真正接线的项：像素比改渲染器、雾浓度改 scene.fog、俯仰与缩放直接改相机。
-          音量 / 语言 / 辅助三组没有实装，所以不列出来。
-        </div>
-        ${g === 'input' ? `<button class="btn on" style="margin-top:14px;align-self:flex-start" data-act="toKeys">键位重绑 ▸</button>` : ''}
+        ${g === 'input' ? `<div style="margin-top:18px;display:flex;flex-direction:column;gap:16px">
+          ${helpBlock()}${keysBody()}
+        </div>` : ''}
       </div>
     </div>`;
   }
@@ -364,8 +364,7 @@
     { act: 'keys', name: '键位', group: '面板', key: 'K', ed: true },
     { act: 'help', name: '帮助', group: '面板', key: 'H', ed: true },
     { act: 'select', name: '选卡 1–8', group: '手牌', key: '1 … 8', ed: false },
-    { act: 'esc', name: '关闭 / 退出', group: '界面', key: 'Esc', ed: false },
-    { act: 'tab', name: '显隐 UI', group: '界面', key: 'Tab', ed: false }
+    { act: 'esc', name: '关闭 / 退出', group: '界面', key: 'Esc', ed: false }
   ];
 
   UI.keyOf = act => (UI.KEYS.find(k => k.act === act) || {}).key;
@@ -380,8 +379,11 @@
     return dup;
   }
 
-  let waitingFor = -1;
+  /* null = 没在等；早先这里是 -1，而 -1 是真值，于是页面一加载就处于"等待绑键"状态：
+     任何按键都走进重绑分支，Esc 永不生效并抛 undefined.key。见 REVIEW-DEMO-2026-11-03 X-1。 */
+  let waitingFor = null;
 
+  /* 键位表：现在是「设置 → 操作」里的一段，不是独立面板了 */
   function keysBody() {
     const tabs = ['全部', '手牌', '视角', '时间', '界面', '面板'];
     const tab = U.keyTab;
@@ -390,7 +392,7 @@
     return `<div class="row gap6" style="margin-bottom:8px">
       ${tabs.map(t => `<button class="btn ${tab === t ? 'on' : 'ghost'}" data-kt="${t}" style="height:24px">${t}</button>`).join('')}
       <span class="xs" style="align-self:center;margin-left:auto">${
-        dup.size ? '⚠ ' + dup.size + ' 组键位冲突（红框）' : '点「可改」的键位 → 按下新键；★ 号键位锁死'}</span>
+        dup.size ? '⚠ ' + dup.size + ' 组键位冲突' : '可改 · 锁死'}</span>
     </div>
     ${rows.map(k => {
       const bad = dup.has(k.key);
@@ -412,7 +414,14 @@
   };
 
   UI.captureKey = function (ev) {
-    if (!waitingFor) return false;
+    if (waitingFor === null) return false;
+    /* 等待中按 Esc = 取消，不能把 Esc 绑上去 */
+    if (ev.key === 'Escape') {
+      waitingFor = null;
+      UI.renderOverlay();
+      UI.log('已取消改键', true);
+      return true;
+    }
     const k = ev.key.length === 1 ? ev.key.toUpperCase() : ev.key;
     const cur = UI.KEYS.find(x => x.act === waitingFor);
     const clash = UI.KEYS.find(x => x !== cur && x.key === k);
@@ -429,9 +438,9 @@
     return true;
   };
 
-  /* ── 帮助 ── */
-  function helpBody() {
-    return `<div style="display:flex;gap:16px;height:100%">
+  /* ── 操作速查：现在是「设置 → 操作」里的一段 ── */
+  function helpBlock() {
+    return `<div style="display:flex;gap:16px;align-items:flex-start">
       <div style="flex:1.4;border:1px solid var(--line2);padding:14px">
         <div class="sm" style="color:#fff;margin-bottom:6px">手势：一套轴，三种结果</div>
         <svg viewBox="0 0 620 340" style="width:100%;height:auto">
@@ -442,26 +451,25 @@
           <path d="M310,112 L310,42" stroke="#e0a33e" stroke-width="2"/>
           <path d="M310,36 L302,52 L318,52 Z" fill="#e0a33e"/>
           <text x="326" y="56" font-family="ui-monospace,Consolas" font-size="11" fill="#e0a33e">向上拖 = 随机落点释放</text>
-          <text x="326" y="74" font-family="ui-monospace,Consolas" font-size="10" fill="#5d6b7a">或按 空格</text>
+          <text x="326" y="74" font-family="ui-monospace,Consolas" font-size="10" fill="#7e8a9a">或按 空格</text>
           <path d="M240,190 C160,190 120,168 98,140" stroke="#5f9fc0" stroke-width="2" fill="none"/>
           <path d="M90,132 L94,150 L110,142 Z" fill="#5f9fc0"/>
           <text x="14" y="118" font-family="ui-monospace,Consolas" font-size="11" fill="#5f9fc0">拖到地面 = 指定落点</text>
           <path d="M310,282 L310,318" stroke="#b4553f" stroke-width="2"/>
           <path d="M310,282 L302,298 L318,298 Z" fill="#b4553f"/>
           <text x="326" y="292" font-family="ui-monospace,Consolas" font-size="11" fill="#b4553f">向下拖 = 回收</text>
-          <text x="326" y="310" font-family="ui-monospace,Consolas" font-size="10" fill="#5d6b7a">或按 X</text>
+          <text x="326" y="310" font-family="ui-monospace,Consolas" font-size="10" fill="#7e8a9a">或按 X</text>
         </svg>
       </div>
-      <div style="width:340px;display:flex;flex-direction:column;gap:8px">
+      <div style="width:300px;display:flex;flex-direction:column;gap:8px">
         ${[['⌖', '视角', '拖拽旋转 · 滚轮缩放 · F1–F4 俯仰 · Z 缩放档'],
-           ['▤', '界面', '左栏点开面板 · 右栏常驻 · Tab 显隐 · P 摆件'],
+           ['▤', '界面', '左栏点开面板 · 右栏常驻 · P 摆件 · Esc 退'],
            ['◇', '世界', '悬停看该格的水/光/温与活物；律卡不需要落点'],
            ['⚑', '事件', 'E 演练 · Esc 关 · 承受 / 改写（改写在面板里说明代价）']]
           .map(([i, t, d]) => `<div class="w" style="padding:11px;display:flex;gap:10px;align-items:flex-start">
             <span style="font-size:15px;color:var(--acc);line-height:1">${i}</span>
             <div><div class="sm" style="color:#fff">${t}</div>
               <div class="xs" style="margin-top:4px;line-height:1.6">${d}</div></div></div>`).join('')}
-        <button class="btn ghost" style="margin-top:auto" data-act="toKeys">全部键位 ▸</button>
       </div>
     </div>`;
   }
@@ -477,7 +485,7 @@
         const a = act.dataset.act;
         if (a === 'packNext') return packNext();
         if (a === 'codexOwn') { U.codexOwn = !U.codexOwn; return UI.renderOverlay(); }
-        if (a === 'toKeys') { U.panel = 'keys'; return UI.renderOverlay(); }
+        if (a === 'toKeys') { U.panel = 'settings'; U.setGroup = 'input'; return UI.renderOverlay(); }
       }
       const card = ev.target.closest('[data-card]');
       if (card) { UI.openCard(card.dataset.card); return; }
@@ -490,7 +498,7 @@
       const kf = ev.target.closest('[data-kf]');
       if (kf) { U.chronFilter = kf.dataset.kf; return UI.renderOverlay(); }
       const ci = ev.target.closest('[data-ci]');
-      if (ci) { U.chronSel = +ci.dataset.ci; return UI.renderOverlay(); }
+      if (ci) { U.chronSel = W.chron[+ci.dataset.ci] || null; return UI.renderOverlay(); }
       const sg = ev.target.closest('[data-sg]');
       if (sg) { U.setGroup = sg.dataset.sg; return UI.renderOverlay(); }
       const st = ev.target.closest('[data-set]');

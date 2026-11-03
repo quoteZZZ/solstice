@@ -1,4 +1,4 @@
-/* 至日 · 世界掷骰数据
+/* Solstice · 世界掷骰数据
    形制 / 气候 / 特征 / 判据 / 命名词表。真源见 specs/SETTING.md，本文件只是可跑的一份投影。 */
 window.SOL = window.SOL || {};
 SOL.data = SOL.data || {};

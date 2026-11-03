@@ -1,4 +1,4 @@
-/* 至日 · 生态结算：水土光温四场 + 逐实体 tick
+/* Solstice · 生态结算：水土光温四场 + 逐实体 tick
    所有数字都从实体 tags 与格的 mods/flags 推出来，不看卡名。 */
 (function (S) {
   const W = S.W;
@@ -45,6 +45,7 @@
       const evap = 0.34 * (c.W / 3) * Math.max(0, T - 10) / 10 * keep * W.law.evapX * c.mods.evap;
       c.W = Math.min(3, Math.max(0, c.W + wi + 0.12 - evap));
       c.T = T; c.L = L;
+      c.kind = S.classify(c);      // 地形归 sim 判：render 只读，digest 不依赖渲染帧（X-6）
     }
   };
 

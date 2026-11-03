@@ -6,7 +6,7 @@
 
 | 目录 | 中文名 | 验证什么 | 状态 |
 |---|---|---|---|
-| [`solstice/`](solstice/README.md) | 至日 · 合并版 | 真 3D 世界 + 全套面板 + 一张按 schema 写的卡表（55 张） | 可玩 / 在改 |
+| [`solstice/`](solstice/README.md) | Solstice · 合并版 | 真 3D 世界 + 全套面板 + 一张按 schema 写的卡表（55 张） | 可玩 / 在改 |
 
 `solstice/` 是 `archive/` 里两个旧版的合并结果：世界取自 3D 版（Three.js + 生态仿真），信息架构取自界面版（创世 / 卡库 / 年表 / 事件 / 设置 / 键位），
 卡表合成一份并按 [`../specs/CARD-SCHEMA.md`](../specs/CARD-SCHEMA.md) 补齐。差异见 [`../specs/STATUS.md`](../specs/STATUS.md) §1。
@@ -29,8 +29,8 @@
 
 | 目录 | 中文名 | 当年验证什么 |
 |---|---|---|
-| [`archive/world-3d/`](archive/world-3d/README.md) | 至日 · 3D 世界版 | 施卡造陆 + 生态自转，用 3D 微缩表现"世界自己活" |
-| [`archive/ui-flow/`](archive/ui-flow/index.html) | 至日 · 界面全流程 | 从创世到卡库 / 年表 / 事件，信息架构能不能一屏装下 |
+| [`archive/world-3d/`](archive/world-3d/README.md) | Solstice · 3D 世界版 | 施卡造陆 + 生态自转，用 3D 微缩表现"世界自己活" |
+| [`archive/ui-flow/`](archive/ui-flow/index.html) | Solstice · 界面全流程 | 从创世到卡库 / 年表 / 事件，信息架构能不能一屏装下 |
 
 ## 加新原型
 

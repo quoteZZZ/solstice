@@ -1,4 +1,4 @@
-/* 至日 · 常驻 HUD：顶栏 / 左栏 / 右栏 / 日志 / toast
+/* Solstice · 常驻 HUD：顶栏 / 左栏 / 右栏 / 日志 / toast
    右栏一屏三段（这一界 / 生态 / 刚刚发生），不切页签。 */
 (function (UI, S, D) {
   const W = S.W;
@@ -14,7 +14,7 @@
   };
   UI.glyph = p => `<svg viewBox="0 0 16 16" width="15" height="15" style="display:block">${UI.GLYPH[p] || ''}</svg>`;
 
-  const PANEL_LABEL = { pack: '抽卡', codex: '卡库', chron: '年表', settings: '设置', keys: '键位', help: '帮助' };
+  const PANEL_LABEL = { pack: '抽卡', codex: '卡库', chron: '年表', settings: '设置', keys: '键位', help: '帮助', creator: '换界' };
   UI.PANEL_LABEL = PANEL_LABEL;
 
   UI.initHud = function () {
@@ -31,20 +31,14 @@
 
     document.getElementById('bPack').onclick = () => UI.openPanel('pack');
 
-    const icons = document.getElementById('icons');
-    icons.innerHTML = ['chron', 'pack', 'codex', 'creator', 'settings', 'keys', 'help']
-      .map(p => `<div class="ic" data-panel="${p}" title="${PANEL_LABEL[p] || '创世'}">${UI.glyph(p)}<span>${PANEL_LABEL[p] || '创世'}</span></div>`)
-      .join('');
-    icons.addEventListener('click', e => {
-      const b = e.target.closest('[data-panel]');
-      if (b) UI.openPanel(b.dataset.panel);
-    });
-
+    /* 左栏是唯一的页面入口：顶栏原来还有一排一模一样的图标，两处都点得到同一批面板
+       （REVIEW-DEMO C-1 / #12）。现在只留左栏，抽包走顶栏按钮，
+       键位与操作速查并进「设置 → 操作」，左栏 8 项收敛到 5 项。 */
     const rail = document.getElementById('leftrail');
-    rail.innerHTML = ['pack', 'codex', 'chron', 'creator', 'settings', 'keys', 'help']
-      .map(p => `<div class="rail" data-panel="${p}" title="${PANEL_LABEL[p] || '创世'}">${UI.glyph(p)}<span>${PANEL_LABEL[p] || '创世'}</span></div>`)
+    rail.innerHTML = ['chron', 'codex', 'creator', 'settings']
+      .map(p => `<div class="rail" data-panel="${p}" tabindex="0" role="button" title="${PANEL_LABEL[p] || '创世'}">${UI.glyph(p)}<span>${PANEL_LABEL[p] || '创世'}</span></div>`)
       .join('') +
-      `<div class="rail" data-act="ambient" title="摆件模式（P）" style="margin-top:auto;margin-bottom:8px">
+      `<div class="rail" data-act="ambient" tabindex="0" role="button" title="摆件模式（P）" style="margin-top:auto;margin-bottom:8px">
         <svg viewBox="0 0 16 16" width="15" height="15"><rect x="2.5" y="4" width="11" height="8" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="8" r="1.6" fill="currentColor"/></svg><span>摆件</span></div>`;
     rail.addEventListener('click', e => {
       const b = e.target.closest('[data-panel],[data-act]');
@@ -66,6 +60,9 @@
   UI.syncGears = function () {
     document.querySelectorAll('[data-gear]').forEach(b =>
       b.classList.toggle('on', +b.dataset.gear === S.gear));
+    /* 底栏那颗档位按钮是 renderHand 拼的，不跟着改就会一直显示旧档（REVIEW-DEMO X-8） */
+    const ab = document.querySelector('#actbar [data-act="gear"]');
+    if (ab) ab.textContent = S.GEARS[S.gear].label;
   };
 
   /* ── 日志 ── */
@@ -113,11 +110,25 @@
   const KIND_LABEL = { land: '裸地', grass: '草原', forest: '林地', water: '水域', rock: '岩坡' };
   const KIND_COL = { land: '#5a5240', grass: '#5d8a4a', forest: '#2f5a3c', water: '#3f7fa8', rock: '#5b6b78' };
 
-  UI.renderRight = function () {
+  /* 右栏每秒被 tick 叫一次。原来无条件 innerHTML 重建：
+     玩家滚到「刚刚发生」想看条目，滚动位置每秒被清回顶部，点击也常被下一 tick 顶掉。
+     现在先用一个便宜签名比一次，没变就不动 DOM；变了也只换内容、把滚动位置还回去。 */
+  let rightSig = '';
+  UI.renderRight = function (force) {
     const box = document.getElementById('rightpanel');
     if (!box) return;
     const w = W.world || {};
     const life = S.lifeStats();
+
+    const sig = [W.month, W.cells.size, W.essence, W.sun, W.traces.length,
+      W.traces.length ? W.traces[W.traces.length - 1].id + ':' + W.traces[W.traces.length - 1].count : 0,
+      life.flora, life.fauna, life.sapient, life.floraSet.size, life.faunaSet.size,
+      w.name, UI.state.selCell ? UI.state.selCell.x + ',' + UI.state.selCell.y : ''].join('|');
+    if (!force && sig === rightSig) return;
+    rightSig = sig;
+
+    const grow = box.querySelector('.rp.grow');
+    const keepTop = grow ? grow.scrollTop : 0;
 
     /* 生态构成用真实格数，不用写死的百分比 */
     const kinds = { land: 0, grass: 0, forest: 0, water: 0, rock: 0 };
@@ -135,7 +146,7 @@
         <div class="h">这一界</div>
         <div class="big">${w.name || '—'}</div>
         <div class="xs" style="margin-top:2px">${w.form || '—'} · ${w.climate || '—'}</div>
-        <div class="mono xs" style="margin-top:2px;color:#5d6b7a">${(w.seed || []).join('-')}</div>
+        <div class="mono xs" style="margin-top:2px;color:var(--ink3)">${(w.seed || []).join('-')}</div>
         <div class="rowline" style="margin-top:5px"><span class="xs">时素</span>
           <span class="mono xs" style="color:var(--acc)">◈ ${W.essence}</span></div>
         <div class="rowline"><span class="xs">太阳 / 世界律</span>
@@ -156,9 +167,9 @@
         <div class="row" style="justify-content:space-between;margin-top:8px;padding-top:7px;border-top:1px solid #171e27">
           ${[['植物', life.flora, '#5e8f47'], ['动物', life.fauna, '#c8a94b'], ['智慧', life.sapient, '#e0d6b8']]
             .map(([k, v, c]) => `<div style="text-align:center;flex:1">
-              <div style="font-size:9px;color:${v ? c : '#333d48'}">●</div>
-              <div class="mono" style="font-size:11px;color:${v ? '#dfe7ee' : '#3a4652'}">${v}</div>
-              <div class="xs" style="font-size:8.5px">${k}</div></div>`).join('')}
+              <div style="font-size:11px;color:${v ? c : '#59646f'}">●</div>
+              <div class="mono" style="font-size:11px;color:${v ? '#dfe7ee' : 'var(--ink4)'}">${v}</div>
+              <div style="font-size:11px;color:var(--ink3)">${k}</div></div>`).join('')}
         </div>
         ${species.length ? `<div class="row" style="flex-wrap:wrap;gap:4px;margin-top:7px">
           ${species.slice(0, 10).map(n => `<span class="tag">${n}</span>`).join('')}</div>` : ''}
@@ -173,7 +184,7 @@
           ${traces.length ? traces.map(t => `<div class="rowline" style="cursor:pointer" data-trace="${t.idCard}">
             <span class="xs"><i style="display:inline-block;width:5px;height:5px;border-radius:50%;
               background:${D.elColor(t.el)};margin-right:5px"></i>${t.name}${t.count > 1 ? ' ×' + t.count : ''}</span>
-            <span class="mono xs" style="color:#4c5563">${t.life >= 999 ? '永久' : Math.max(0, t.life - (W.month - t.born)) + ' 月'}</span>
+            <span class="mono xs" style="color:var(--ink4)">${t.life >= 999 ? '永久' : Math.max(0, t.life - (W.month - t.born)) + ' 月'}</span>
           </div>`).join('') : '<div class="xs">还没有痕迹——世界还没被碰过</div>'}
         </div>
         <div class="tl">
@@ -182,8 +193,8 @@
             return `<div class="it" style="--dot:${col}" data-chron-item="${c.month}">
               <div class="xs"><span style="color:${col};margin-right:4px">${UI.CHRON_ICON[c.kind] || '·'}</span>
                 第 ${c.month} 月</div>
-              <div class="t" style="font-size:11.5px">${c.text}</div>
-              <div class="xs" style="color:#4c5563">${c.kind}</div></div>`;
+              <div class="t" style="font-size:13px">${c.text}</div>
+              <div class="xs" style="color:var(--ink4)">${c.kind}</div></div>`;
           }).join('') || '<div class="xs">年表还空着</div>'}
         </div>
       </div>`;
@@ -195,6 +206,10 @@
       const it = e.target.closest('[data-chron-item]');
       if (it) UI.openPanel('chron');
     };
+
+    /* 把滚动位置还回去，免得玩家正在读的条目被 tick 顶走 */
+    const grow2 = box.querySelector('.rp.grow');
+    if (grow2 && keepTop) grow2.scrollTop = keepTop;
   };
 
   UI.CHRON_ICON = { 干涉: '✦', 气候: '☁', 生态: '✿', 灾变: '⚠', 文明: '⌂', 图鉴: '❖' };
@@ -214,8 +229,10 @@
       水 ${cell.W.toFixed(2)} · 光 ${cell.L.toFixed(2)} · 温 ${cell.T.toFixed(1)}°C<br>
       ${ents.length ? '活物 ' + ents.slice(0, 4).join('/') : '空'}`;
     box.style.display = 'block';
+    /* #hoverinfo 是 position:fixed，直接用视口坐标；原来减了 54（顶栏高），
+       于是浮框整体飘在光标上方一格多（REVIEW-DEMO X-10）。 */
     box.style.left = Math.min(ev.clientX + 16, innerWidth - 210) + 'px';
-    box.style.top = Math.max(8, ev.clientY - 54) + 'px';
+    box.style.top = Math.min(ev.clientY + 16, innerHeight - 70) + 'px';
   };
 
 })(SOL.ui, SOL.sim, SOL.data);

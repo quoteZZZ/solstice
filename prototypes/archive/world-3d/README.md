@@ -1,4 +1,4 @@
-# 至日 · 3D 世界版
+# Solstice · 3D 世界版
 
 > 入口：`index.html`（双击，离线可开）。Three.js 0.160.0 在 `vendor/`，不走 CDN。
 > **已并入 [`../solstice/`](../solstice/README.md)**：本目录保留为历史实现，不再修改。

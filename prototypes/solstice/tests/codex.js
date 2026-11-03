@@ -1,4 +1,4 @@
-/* 至日 · 图鉴回归（SETTING.md §5.1 / STATUS.md §2）
+/* Solstice · 图鉴回归（SETTING.md §5.1 / STATUS.md §2）
    验的不是「有没有渲染」，是「6 条判定能不能被真的玩出来」：
    每条都给一个可复现的剧本，能点亮 = PASS。
 

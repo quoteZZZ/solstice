@@ -1,4 +1,4 @@
-/* 至日 · 仿真内核：状态、格网、实体
+/* Solstice · 仿真内核：状态、格网、实体
    TECH.md §3.1：sim 不碰 DOM、不读 window、不 import three。
    这里只有数字和对象；表现层自己来读。 */
 window.SOL = window.SOL || {};
@@ -128,6 +128,14 @@ SOL.sim = SOL.sim || {};
     if (cell.ents.some(e => e.shape === 'bush' || e.shape === 'grass')) return 'grass';
     if (cell.flags.wetland) return 'water';
     return best;
+  };
+
+  /* 施卡后立刻重判这一格与邻格的地形。写回 sim 而不是等 render 顺手算，
+     否则 digest 会依赖"有没有渲染过一帧"（REVIEW-DEMO X-6）。 */
+  S.classifyAround = function (cell) {
+    if (!cell) return;
+    cell.kind = S.classify(cell);
+    for (const n of S.nb(cell)) n.kind = S.classify(n);
   };
 
   S.TERRAIN = {

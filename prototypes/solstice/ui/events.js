@@ -1,4 +1,4 @@
-/* 至日 · 世界事件
+/* Solstice · 世界事件
    事件不是失败判定，是「要不要接住它」：承受 = 让它发生；改写 = 花时素换一种后果。
    两种结果都真的改世界（改在格子的数值与实体上），不是只写一行年表。 */
 (function (UI, S, D) {
@@ -98,7 +98,7 @@
       wall: `<rect x="26" y="88" width="68" height="32" fill="#5b6673"/>
         <rect x="26" y="82" width="10" height="10" fill="#6d7987"/><rect x="44" y="82" width="10" height="10" fill="#6d7987"/>
         <rect x="62" y="82" width="10" height="10" fill="#6d7987"/><rect x="80" y="82" width="10" height="10" fill="#6d7987"/>`,
-      script: `<rect x="30" y="46" width="60" height="76" fill="#3a4652"/>
+      script: `<rect x="30" y="46" width="60" height="76" fill="#6b7887"/>
         <path d="M40,62 L80,62 M40,74 L74,74 M40,86 L80,86 M40,98 L64,98" stroke="#cfd8e2" stroke-width="2" opacity=".35"/>
         <path d="M52,72 L60,60 L68,72 L64,84 L56,84 Z" fill="none" stroke="#e0a33e" stroke-width="2"/>`
     };

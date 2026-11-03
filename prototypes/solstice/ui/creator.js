@@ -1,4 +1,4 @@
-/* 至日 · 创世（缺氧式：只能重掷，不能选）
+/* Solstice · 创世（缺氧式：只能重掷，不能选）
    形制 / 气候 / 特征全部由系统掷出；同一坐标 = 同一个世界。
    创世结果只做三件事：定蓝图（3D 虚线上的轮廓）、定相机、定特征接线（sim.W.effects）。 */
 (function (UI, S, D) {
@@ -77,6 +77,9 @@
         ? new URLSearchParams(location.search).get('seed') : null;
       UI.rollWorld(q || null);
     }
+    /* 已经有世界时，创世是「换界」而不是「开局」——必须留一条退路（X-2） */
+    CRE.fromWorld = !!(S.W && S.W.cells && S.W.cells.size);
+    CRE.armed = false;
     U.panel = null;
     UI.renderOverlay();
     const el = document.getElementById('creator');
@@ -119,7 +122,7 @@
       <rect x="0.5" y="0.5" width="259" height="199" fill="none" stroke="#1b2a35"/>
       <g fill="#33513c" stroke="#4a6b52" stroke-width="1.3">${isles}</g>
       <circle cx="130" cy="100" r="2" fill="#e0a33e" opacity=".8"/>
-      <path d="M244,12 L244,26 M238,18 L250,18" stroke="#5d6b7a"/>
+      <path d="M244,12 L244,26 M238,18 L250,18" stroke="#7e8a9a"/>
     </svg>`;
   }
 
@@ -262,7 +265,7 @@
     el.innerHTML = `
       <div id="cTop">
         <div class="col" style="line-height:1.25">
-          <span class="mono" style="font-size:10px;color:var(--ink3);letter-spacing:.18em">新的一界</span>
+          <span class="mono" style="font-size:12px;color:var(--ink3);letter-spacing:.18em">新的一界</span>
           <span class="mono" style="font-size:22px;color:#fff">${CRE.name}</span>
         </div>
         <div class="col gap4" style="margin-left:8px">
@@ -273,7 +276,7 @@
         <span class="xs" style="margin-left:auto">已重掷 ${CRE.rolls} 次</span>
         <div class="row gap6" style="border:1px solid var(--line2);padding:5px 9px;border-radius:3px">
           <span class="xs">坐标</span>
-          <span class="mono" style="font-size:12.5px;color:var(--acc)">${CRE.seed.join(' - ')}</span>
+          <span class="mono" style="font-size:13px;color:var(--acc)">${CRE.seed.join(' - ')}</span>
           <button class="btn ghost" data-c="copy" style="height:22px">复制</button>
         </div>
         <button class="btn ghost" data-c="reroll">重掷</button>
@@ -298,7 +301,7 @@
             <span class="mono" style="font-size:17px;color:#fff">${CRE.name}</span>
             <span class="tag a">${form.name}</span><span class="tag b">${CRE.climate}</span>
             <span class="tag ok">判据 ${WD.judge.length} / ${WD.judge.length}</span>
-            <span class="sm" style="margin-left:auto;color:#5d6b7a">世界仍然从虚无开始——形制只是蓝图</span>
+            <span class="sm" style="margin-left:auto;color:var(--ink3)">世界仍然从虚无开始——形制只是蓝图</span>
           </div>
           <div class="legend">
             ${[['#4a6b3f', '表层土'], ['#3b3226', '土壤'], ['#39424e', '岩层'], ['#232a33', '基岩'], ['#1d4a5c', '地下水'], ['#c79a54', '矿脉']]
@@ -340,15 +343,30 @@
 
       <div id="cFoot">
         <span class="xs">你只能重掷——形制、气候、特征都不由你挑；同一坐标 = 同一个世界</span>
-        <button class="btn ghost" data-c="reroll" style="margin-left:auto">重掷一颗骰子 ⟳</button>
-        <button class="btn on" data-c="enter" style="height:34px;padding:0 22px">进入这一界 ▸</button>
+        ${CRE.fromWorld ? '<button class="btn ghost" data-c="back" style="margin-left:auto">← 返回当前界</button>'
+          : '<span style="margin-left:auto"></span>'}
+        <button class="btn ghost" data-c="reroll">重掷一颗骰子 ⟳</button>
+        <button class="btn ${CRE.fromWorld && CRE.armed ? 'warn' : 'on'}" data-c="enter"
+          style="height:34px;padding:0 22px">${
+            !CRE.fromWorld ? '进入这一界 ▸'
+            : CRE.armed ? '再点一次，替换当前世界'
+            : '换成这一界 ▸'}</button>
       </div>`;
 
     el.onclick = ev => {
       const b = ev.target.closest('[data-c]');
       if (!b) return;
-      if (b.dataset.c === 'reroll') return UI.rerollCreator();
-      if (b.dataset.c === 'enter') return UI.enterWorld();
+      if (b.dataset.c === 'reroll') { CRE.armed = false; return UI.rerollCreator(); }
+      if (b.dataset.c === 'back') return UI.closeCreator();
+      if (b.dataset.c === 'enter') {
+        /* 已有世界时两段式：先武装，再确认。裸点一次就清空世界是 X-2。 */
+        if (CRE.fromWorld && !CRE.armed) {
+          CRE.armed = true;
+          UI.renderCreator();
+          return;
+        }
+        return UI.enterWorld();
+      }
       if (b.dataset.c === 'copy') {
         const t = CRE.seed.join('-');
         if (navigator.clipboard) navigator.clipboard.writeText(t);
@@ -393,6 +411,9 @@
     };
     S.cmd.newWorld(world);
     UI.closeCreator();
+    /* 先定档位再渲染手牌：底栏那格档位字符是 renderHand 拼的，顺序反了就恒显示「暂停」（X-9） */
+    S.cmd.gear(2);          // 1×
+    UI.syncGears();
     UI.renderHand();
     UI.updateHud();
     UI.renderRight();
@@ -407,8 +428,6 @@
     SOL.render.cam.place();
 
     UI.toast('进入这一界', world.name + ' · 天是空的，先打一张「土地」');
-    S.cmd.gear(2);          // 1×
-    UI.syncGears();
   };
 
 })(SOL.ui, SOL.sim, SOL.data);

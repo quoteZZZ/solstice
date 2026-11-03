@@ -1,4 +1,4 @@
-/* 至日 · 启动与键盘
+/* Solstice · 启动与键盘
    这里是唯一把 sim / render / ui 接在一起的地方（三层互不 import）。 */
 (function (UI, S, D, R) {
   const W = S.W;
@@ -32,10 +32,29 @@
   function onKey(ev) {
     if (UI.captureKey(ev)) { ev.preventDefault(); return; }
 
+    /* 焦点在输入框里：除了 Esc 交出焦点，其余一律放给输入框。
+       否则在种子输入框里打字会顺手触发施卡 / 开面板（REVIEW-DEMO X-7）。 */
+    const t = ev.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) {
+      if (ev.key === 'Escape') t.blur();
+      return;
+    }
+
+    /* div 做的按钮不会自己响应 Enter / 空格，这里补上——不然键盘用户 Tab 到了也按不动 */
+    const ae = document.activeElement;
+    if ((ev.key === 'Enter' || ev.key === ' ') && ae && ae.dataset &&
+        (ae.dataset.act || ae.dataset.panel)) {
+      ev.preventDefault(); ae.click(); return;
+    }
+
     if (ev.key === 'Escape') {
       if (UI.state.event) return UI.closeEvent();
       if (UI.state.panel) return UI.closePanel();
-      if (document.getElementById('creator').classList.contains('on')) return;
+      if (document.getElementById('creator').classList.contains('on')) {
+        /* 已开局才允许退——第一次掷骰不能退（X-2） */
+        if (UI.creator.fromWorld) UI.closeCreator();
+        return;
+      }
       if (UI.state.uiMode !== '全部') return UI.setUiMode('全部');
       return;
     }
@@ -46,7 +65,8 @@
       return;
     }
 
-    if (ev.key === 'Tab') { ev.preventDefault(); return UI.toggleAmbient(); }
+    /* Tab 归还浏览器：原先被钉死成「显隐 UI」，键盘用户从此再也到不了任何按钮（X-7）。
+       摆件模式本来就有 P，键位表里写的也是 P，这条劫持一直是暗绑。 */
     if (ev.key === 'F1') return R.cam.setPitch(0);
     if (ev.key === 'F2') return R.cam.setPitch(1);
     if (ev.key === 'F3') return R.cam.setPitch(2);
@@ -90,7 +110,19 @@
         if (document.getElementById('creator').classList.contains('on')) return;
         if (W.sel >= 0) UI.cast(W.sel, cell, pt);
       },
-      onHover: (cell, ev) => UI.hoverInfo(cell, ev)
+      onHover: (cell, ev, pt) => {
+        UI.hoverInfo(cell, ev);
+        /* 落点预览：选中一张卡后，鼠标经过世界就把「这张卡会动到哪些格」画出来。
+           这个游戏的主要施卡手势是「点世界」而不是「拖过去」（cam.onClick → UI.cast），
+           所以预览必须挂在 hover 上，挂在 drag 上等于只覆盖一半（REVIEW-DEMO R-1 / #11）。 */
+        const card = W.hand[W.sel];
+        if (card && cell) R.marks.set(S.castRange(card, cell));
+        else if (card && pt) {
+          /* 虚空落点：没有格子可拾取，就按平面点算范围（土地开局的 5×5 预览） */
+          const fake = { x: Math.round(pt.x), y: Math.round(pt.y), h: 0.30 };
+          R.marks.set(S.castRange(card, fake));
+        } else R.marks.clear();
+      }
     });
 
     S.on('tick', () => {

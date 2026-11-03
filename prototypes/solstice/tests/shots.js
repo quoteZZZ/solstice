@@ -1,4 +1,4 @@
-/* 至日 · 评审取图
+/* Solstice · 评审取图
    跑法（Node 18+）：node tests/shots.js
    把所有界面状态各截一张，写给评审用（tests/review/*.png，已 gitignore）。
    不是回归：只看图，不断言。回归在 smoke / cards / det / codex。 */

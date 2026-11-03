@@ -1,4 +1,4 @@
-/* 至日 · 卡面 A 版式（302×440）
+/* Solstice · 卡面 A 版式（302×440）
    版式与字符位置来自 specs/ui/CARD-LAYOUTS.html 的 A 案；字段全部来自 CARD-SCHEMA：
    顶条=elements/tier/class，名带=name.zh，环条=tier，画芯=art.sigil+palette，
    说明条=line.fx/cond/num，底栏=number + ATK/DEF。 */
@@ -70,31 +70,91 @@
 .card .box{position:relative;z-index:5;flex:0 0 96px;height:96px;margin:8px 10px 0;padding:7px 12px;
   border:1px solid rgba(var(--el),.16);border-radius:3px;background:rgba(10,14,19,.72);
   display:flex;flex-direction:column;justify-content:center;gap:4px;overflow:hidden}
-.card .box .fx{font-size:12px;line-height:1.5;color:#d5e0e8;
+.card .box .fx{font-size:13px;line-height:1.5;color:#d5e0e8;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .card .box .fx b{color:#fff;font-weight:600}
-.card .box .cond{font-size:9.5px;line-height:1.35;color:#7d8b99;
+.card .box .cond{font-size:11px;line-height:1.35;color:#7d8b99;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.card .box .num{display:flex;gap:9px;font-family:var(--mono);font-size:9px;color:#9fb0bd;
+.card .box .num{display:flex;gap:9px;font-family:var(--mono);font-size:11px;color:#9fb0bd;
   white-space:nowrap;overflow:hidden}
 .card .box .num b{color:rgba(var(--el),1);font-weight:500}
 
 /* 底栏 22px：图鉴号 + 攻防 */
 .card .foot{flex:0 0 22px;height:22px;display:flex;align-items:center;justify-content:space-between;
-  padding:0 12px;font-family:var(--mono);font-size:8.5px;color:#6b7885;z-index:5;
+  padding:0 12px;font-family:var(--mono);font-size:11px;color:#6b7885;z-index:5;
   border-top:1px solid rgba(255,255,255,.05);margin:6px 10px 0;background:rgba(6,10,14,.6)}
 .card .foot .atk{color:#9fb0bd}
 .card .foot .atk b{color:#e8eef4;font-weight:500}
+
+/* ── 手牌版式（152×216，原生 1:1）──
+   同一份 schema，另一种取舍：手牌只回答「这是什么 / 大概做什么 / 能不能打」，
+   完整效果留给悬浮与图鉴。字号就是设计字号，不再是 302 卡缩放后的 6px。 */
+.card.h{width:136px;height:216px;border-radius:5px;
+  box-shadow:0 10px 22px rgba(0,0,0,.72),0 2px 6px rgba(0,0,0,.5)}
+.card.h:before{height:5px}
+.card.h:after{inset:3px;border-radius:3px}
+
+.card.h .hband{position:relative;z-index:5;flex:0 0 30px;height:30px;margin-top:5px;
+  display:flex;align-items:center;justify-content:center;
+  background-image:linear-gradient(180deg,rgba(var(--el),.16),rgba(9,13,18,.94) 78%);
+  border-bottom:1px solid rgba(var(--el),.3)}
+/* 类别徽骑在左端（可被邻卡盖住，类别另由顶部 5px 通栏色条表达） */
+.card.h .hcls{position:absolute;left:5px;top:50%;transform:translateY(-50%);
+  width:15px;height:15px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:rgba(var(--cls,107,116,128),.9);
+  box-shadow:0 0 0 1px #05080b,0 0 0 1.5px rgba(255,255,255,.12)}
+.card.h .hcls svg{width:9px;height:9px;color:#fff}
+/* 卡名居中：扇面上任意一张卡被邻卡盖住的是单侧 36px，只有居中位置一定露出来 */
+.card.h .hband h3{max-width:100%;padding:0 22px;font-size:13px;font-weight:600;letter-spacing:.06em;
+  color:#eef5fa;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  text-shadow:0 1px 0 #000,0 0 10px rgba(var(--el),.4)}
+
+.card.h .hringbar{flex:0 0 11px;height:11px;z-index:5;display:flex;align-items:center;justify-content:center;
+  gap:2px;background:#0a0f14;border-bottom:1px solid rgba(255,255,255,.05)}
+.card.h .hringbar i{width:8px;height:4px;border-radius:1px;display:block;background:rgba(255,255,255,.11)}
+.card.h .hringbar i.on{background:var(--ringc,#d6ad5c);box-shadow:0 0 4px var(--ringc,#d6ad5c)}
+
+.card.h .hwin{position:relative;z-index:4;flex:1;min-height:0;margin:0 6px;border-radius:2px;
+  overflow:hidden;border:1px solid rgba(var(--el),.3);box-shadow:inset 0 0 18px rgba(0,0,0,.55)}
+.card.h .hwin svg{display:block;width:100%;height:100%}
+
+.card.h .hsum{position:relative;z-index:5;flex:0 0 62px;height:62px;margin:5px 6px 0;padding:3px 6px;
+  border:1px solid rgba(var(--el),.14);border-radius:2px;background:rgba(9,13,18,.7);
+  font-size:12px;line-height:1.5;color:#cfdae4;overflow:hidden}
+.card.h .hsum span{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.card.h .hsum b{color:#fff;font-weight:600}
+/* 截断处渐隐：硬切看起来像坏了，渐隐读作「还有，悬浮看全」（完整效果在 UI.showTip） */
+.card.h .hsum:after{content:"";position:absolute;left:0;right:0;bottom:0;height:15px;pointer-events:none;
+  background:linear-gradient(180deg,rgba(9,13,18,0),rgba(9,13,18,.94))}
+
+.card.h .hfoot{flex:0 0 22px;height:22px;display:flex;align-items:center;justify-content:space-between;
+  margin:4px 6px 5px;padding:0 7px;border-top:1px solid rgba(255,255,255,.06);z-index:5;
+  font-family:var(--mono);font-size:11px;color:#8a97a4}
+.card.h .helem{width:13px;height:13px;display:flex;align-items:center;justify-content:center}
+.card.h .helem svg{width:12px;height:12px;color:rgba(var(--el),.95);filter:drop-shadow(0 0 3px rgba(var(--el),.5))}
+
+/* 不可打：只降这一张的饱和度，不动外发光 —— box-shadow 不受内部 filter 影响，
+   不然选中的琥珀描边也会被一起抽干（REVIEW-DEMO R-5）。 */
+.card.h.cant{border-color:rgba(150,158,168,.32)}
+.card.h.cant:before{filter:saturate(.25)}
+.card.h.cant .hcls{opacity:.42}
+.card.h.cant .hband{background-image:none;background:#0b1017;border-bottom-color:rgba(255,255,255,.06)}
+.card.h.cant .hband h3{color:#93a0ac;text-shadow:0 1px 0 #000}
+.card.h.cant .hringbar i.on{background:#5d666f;box-shadow:none}
+.card.h.cant .hwin{filter:grayscale(.78) brightness(.7);border-color:rgba(255,255,255,.09)}
+.card.h.cant .hsum{color:#7f8c99;background:rgba(8,12,17,.62);border-color:rgba(255,255,255,.05)}
+.card.h.cant .hfoot{color:#6b7885}
+.card.h.cant .helem{opacity:.4}
 
 /* 卡面悬浮详情（两层信息：卡上要点，悬浮全部要点） */
 #cardtip{position:fixed;z-index:90;display:none;width:288px;border:1px solid var(--line2);
   background:rgba(8,12,17,.97);border-radius:3px;padding:11px 13px;
   box-shadow:0 16px 40px rgba(0,0,0,.7);pointer-events:none}
 #cardtip .t1{font-size:15px;color:#fff}
-#cardtip .t2{font-family:var(--mono);font-size:9.5px;color:var(--ink2);margin-top:3px}
-#cardtip .t3{font-size:11.5px;line-height:1.7;color:#b6c2ce;margin-top:8px}
+#cardtip .t2{font-family:var(--mono);font-size:11px;color:var(--ink2);margin-top:3px}
+#cardtip .t3{font-size:13px;line-height:1.7;color:#b6c2ce;margin-top:8px}
 #cardtip .t4{margin-top:7px;padding-top:7px;border-top:1px dashed #1e2731;
-  font-family:var(--mono);font-size:9.5px;color:var(--ink2);line-height:1.7}
-#cardtip .t5{margin-top:7px;font-size:10.5px;color:#8b96a3;line-height:1.7}
-#cardtip .t6{margin-top:6px;font-family:var(--mono);font-size:9.5px;color:var(--ok)}
-#cardtip .t7{margin-top:8px;font-family:var(--mono);font-size:9px;color:var(--acc);letter-spacing:.08em}
+  font-family:var(--mono);font-size:11px;color:var(--ink2);line-height:1.7}
+#cardtip .t5{margin-top:7px;font-size:12px;color:#8b96a3;line-height:1.7}
+#cardtip .t6{margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--ok)}
+#cardtip .t7{margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--acc);letter-spacing:.08em}

@@ -1,4 +1,4 @@
-/* 至日 · 确定性回归（TECH.md §4）
+/* Solstice · 确定性回归（TECH.md §4）
    同 seed 两跑 → digest 必须一致；异 seed → 必须不一致。
    node 直跑，不需要浏览器、不需要 Playwright —— 这正是 sim/ 零渲染依赖的意义。
 

@@ -1,4 +1,4 @@
-/* 至日 · 卡表 · 物（matter）
+/* Solstice · 卡表 · 物（matter）
    字段真源：specs/CARD-SCHEMA.md。本文件按 schema 写全，data/index.js 负责校验、编号、派生。
    sim.op 决定这张卡在世界里做什么——数值必须被世界读到，否则删卡。 */
 SOL.data.matter = [

@@ -1,4 +1,4 @@
-# 至日 · 合并原型
+# Solstice · 合并原型
 
 > 入口：`index.html`（双击，`file://` 离线可开）。Three.js 0.160.0 在 `vendor/`，不走 CDN。
 > 这一版把 `archive/world-3d`（真世界）与 `archive/ui-flow`（信息架构）合成一个：世界是真的，面板是齐的，卡表只有一份。

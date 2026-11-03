@@ -1,4 +1,4 @@
-/* 至日 · 合并原型自检
+/* Solstice · 合并原型自检
    跑法（Node 18+）：node tests/smoke.js
    用本机 Edge（playwright-core 不下载浏览器）：file:// 直接开，检查控制台报错、施卡链路、
    生态 tick、面板开关与卡表校验。 */
@@ -106,21 +106,40 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
   await page.waitForTimeout(300);
   await page.screenshot({ path: path.join(__dirname, 'shot-panel.png'), fullPage: false });
 
-  /* 5. 手牌 + 卡面尺寸 */
+  /* 5. 手牌版式：正文字号必须是设计字号（曾经是 302 卡 × .5 = 6.5px），且 8 张不溢出容器 */
   const cards = await page.evaluate(() => {
     const { W, UI } = window.__dbg;
-    W.hand = ['terrain.earth.0.matter.land', 'flora.wood.1.matter.grass', 'rite.water.2.rite.rain']
-      .map(id => window.SOL.data.byId.get(id));
+    const ids = ['terrain.earth.0.matter.land', 'flora.wood.1.matter.grass', 'rite.water.2.rite.rain'];
+    W.hand = ids.map(id => window.SOL.data.byId.get(id));
     W.sel = 0;
     UI.renderHand();
     const el = document.querySelector('.handslot .card');
     const r = el.getBoundingClientRect();
+    /* 字号要在重排前取：下面的 renderHand 会重建 innerHTML，旧节点变游离态（computed = ""） */
+    const sumFont = parseFloat(getComputedStyle(el.querySelector('.hsum span')).fontSize);
+    const sumLen = el.querySelector('.hsum span').textContent.length;
+    const ringOn = el.querySelectorAll('.hringbar i.on').length;
+    const cant = document.querySelectorAll('.card.h.cant').length;
+
+    /* 塞满 8 张，量左右边界是否越过 #handwrap */
+    while (W.hand.length < window.SOL.sim.HAND_MAX) {
+      const c = window.SOL.sim.drawOne(new Set(W.hand.map(x => x.id)));
+      if (!c) break;
+      W.hand.push(c);
+    }
+    UI.renderHand();
+    const wrap = document.getElementById('handwrap').getBoundingClientRect();
+    const rects = [...document.querySelectorAll('.handslot')].map(s => s.getBoundingClientRect());
+    const outL = rects.length ? Math.max(0, Math.round(wrap.left - Math.min(...rects.map(r => r.left)))) : 0;
+    const outR = rects.length ? Math.max(0, Math.round(Math.max(...rects.map(r => r.right)) - wrap.right)) : 0;
     return {
-      slots: document.querySelectorAll('.handslot').length,
+      slots: rects.length,
       cardBox: [Math.round(r.width), Math.round(r.height)],
-      ringOn: el.querySelectorAll('.ringbar i.on').length,
-      hasNumber: /№/.test(el.querySelector('.foot').textContent),
-      fxLen: el.querySelector('.fx').textContent.length
+      ringOn: ringOn,
+      sumFont: sumFont,
+      sumLen: sumLen,
+      cant: cant,
+      overflow: outL + outR
     };
   });
   await page.evaluate(() => document.getElementById('handwrap').scrollIntoView());

@@ -1,4 +1,4 @@
-/* 至日 · 卡面渲染（唯一一份）
+/* Solstice · 卡面渲染（唯一一份）
    卡面 / 悬浮 / 图鉴 / 抽卡结果都从这里出——同一个字段只有一个显示位置（CARD-SCHEMA §0.1）。 */
 window.SOL = window.SOL || {};
 SOL.ui = SOL.ui || {};
@@ -50,8 +50,34 @@ SOL.ui = SOL.ui || {};
     </svg>`;
   }
 
-  UI.cardFace = function (card, uid) {
+  /* 手牌专用版式（152×216 原生尺寸，不缩放）。
+     原来是 302×440 的整卡 push 到 scale(.5)：fx 13px 缩成 6.5px、cond 4.75px、编号 4.25px，
+     手里八张卡实际上读不出任何一句话（REVIEW-DEMO T-3）。这里按「一眼能判断」重排：
+     名 + 环条 / 画芯 / 三行效果 / 回收值，完整效果交给悬浮（UI.showTip）。
+     不可打的卡降饱和 —— 开局世界是空的时候，这一步就是「先打土地」的无声引导（R-5 / F-1）。 */
+  function handFace(card, uid, can) {
+    const ringc = RINGC[Math.min(10, card.tier)];
+    const bars = Array.from({ length: 12 }, (_, i) => `<i class="${i <= card.tier ? 'on' : ''}"></i>`).join('');
+    return `<div class="card h ${card.class} ${D.elCls(card.primary)}${can ? '' : ' cant'}"
+      data-card="${card.id}" style="--ringc:${ringc};--el:${D.elRgb(card.primary)}">
+      <div class="hband">
+        <span class="hcls"><svg viewBox="0 0 24 24">${CLS_ICON[card.class]}</svg></span>
+        <h3>${esc(card.name.zh)}</h3>
+      </div>
+      <div class="hringbar">${bars}</div>
+      <div class="hwin">${artSVG(card, uid)}</div>
+      <div class="hsum"><span>${highlight(card.line.fx, card.line.hl)}</span></div>
+      <div class="hfoot">
+        <span class="helem" style="--el:${D.elRgb(card.primary)}">
+          <svg viewBox="0 0 100 100">${D.sigil(card.primary)}</svg></span>
+        <span class="hrec">${card.reclaim ? '↩ ' + card.reclaim : '↩ —'}</span>
+      </div>
+    </div>`;
+  }
+
+  UI.cardFace = function (card, uid, mode) {
     uid = uid || (++UI._uid);
+    if (mode === 'h') return handFace(card, uid, SOL.sim.playable(card));
     const ringc = RINGC[Math.min(10, card.tier)];
     const bars = Array.from({ length: 12 }, (_, i) => `<i class="${i <= card.tier ? 'on' : ''}"></i>`).join('');
     const els = card.elements;

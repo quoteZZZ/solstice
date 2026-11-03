@@ -1,4 +1,4 @@
-/* 至日 · 施卡、手牌、经济、痕迹
+/* Solstice · 施卡、手牌、经济、痕迹
    一张卡在世界里做什么，只由 card.sim.op 决定；没有按卡名 if/else。 */
 (function (S, D) {
   const W = S.W;
@@ -31,10 +31,29 @@
       if (!c) break;
       ex.add(c.id); W.hand.push(c);
     }
-    /* 开局保底：三张地形基础，否则第一回合无从下手 */
-    if (!W.hand.some(c => c.sim.op === 'land')) W.hand[0] = D.byId.get('terrain.earth.0.matter.land');
-    if (!W.hand.some(c => c.sim.op === 'sun')) W.hand[1] = D.byId.get('sky.light.0.matter.sun');
-    if (!W.hand.some(c => c.sim.op === 'spring')) W.hand[2] = D.byId.get('terrain.mineral.0.matter.water');
+    /* 开局保底：三张地形基础，否则第一回合无从下手。
+       原来三条 if 顺序往 0/1/2 槽里硬写，后一条会把前一条刚写进去的卡、
+       连同原本就在那个槽里的同类卡一起盖掉：手牌里唯一的土地正好坐在 1 号槽时，
+       「太阳」保底就把它吃了 —— 开局拿到一手没有土地、世界里一格也没有的牌，
+       土地又是唯一能造格的卡，直接软锁。现在只替换「不承担任何保底职责」的槽。 */
+    const NEED = [
+      ['land', 'terrain.earth.0.matter.land'],
+      ['sun', 'sky.light.0.matter.sun'],
+      ['spring', 'terrain.mineral.0.matter.water']
+    ];
+    const keep = new Set();
+    for (const [op] of NEED) {
+      W.hand.forEach((c, i) => { if (c.sim.op === op) keep.add(i); });
+    }
+    for (const [op, id] of NEED) {
+      if (W.hand.some(c => c.sim.op === op)) continue;
+      const c = D.byId.get(id);
+      if (!c) continue;
+      let slot = -1;
+      for (let i = 0; i < W.hand.length; i++) if (!keep.has(i)) { slot = i; break; }
+      if (slot < 0) { W.hand.push(c); keep.add(W.hand.length - 1); }
+      else { W.hand[slot] = c; keep.add(slot); }
+    }
     W.sel = 0;
     return W.hand;
   };
@@ -82,6 +101,51 @@
     return null;
   };
 
+  /* 一张卡「此刻能不能打」——只判世界的最低条件，不判落点（落点由拖影上的提示说）。
+     与 S.gateCheck 同源，只是把「先放哪一格」这层去掉，好让手牌一次问八张。
+     开局世界是空的时候，除土地 / 太阳 / 律之外的卡全都是 false —— 手牌降饱和就是引导。 */
+  S.playable = function (card, life) {
+    const op = card && card.sim && card.sim.op;
+    if (!op) return false;
+    if (op === 'land' || op === 'sun' || op === 'law') return true;
+    if (!W.cells.size) return false;
+    life = life || S.lifeStats();
+    if (op === 'human' && (W.sapient || !life.fauna)) return false;
+    const gate = D.gateOf(card);
+    if (gate === 'fauna' && !life.flora) return false;
+    if (gate === 'sapient' && !life.fauna) return false;
+    return true;
+  };
+
+  /* 施一张卡会动到哪些格：落点预览的第二层描边要用它（REVIEW-DEMO R-1 / #11）。
+     判据与各 op 的实现同源：土地是 size×size 的方块（落在虚空时那些格还不存在，
+     所以这里给坐标而不是格对象），field 的邻居光照与湿地标记会带到邻格，
+     其余 op 只动落点那一格；太阳与律是全局的，不画范围。 */
+  S.castRange = function (card, cell) {
+    if (!card || !cell) return [];
+    const op = card.sim && card.sim.op;
+    if (!op || op === 'sun' || op === 'law') return [];
+    if (op === 'land') {
+      const size = card.sim.size == null ? 2 : card.sim.size;
+      const out = [];
+      for (let dx = -size; dx <= size; dx++) {
+        for (let dy = -size; dy <= size; dy++) {
+          const c = S.at(cell.x + dx, cell.y + dy);
+          out.push({ x: cell.x + dx, y: cell.y + dy, h: c ? c.h : 0.30, fresh: !c });
+        }
+      }
+      return out;
+    }
+    const out = [{ x: cell.x, y: cell.y, h: cell.h, fresh: false }];
+    if (op === 'field') {
+      const m = card.sim;
+      if (m.neighbors || m.flag === 'wetland') {
+        for (const n of S.nb(cell)) out.push({ x: n.x, y: n.y, h: n.h, fresh: false });
+      }
+    }
+    return out;
+  };
+
   /* ───────── 痕迹 ───────── */
   const TRACE_LIFE = [1, 2, 3, 6, 12, 18, 24, 36, 48, 999, 999];
   S.traceLife = c => TRACE_LIFE[Math.min(10, c.tier)];
@@ -93,7 +157,7 @@
     if (near) {
       near.count++; near.born = W.month;
       near.life = Math.max(near.life, S.traceLife(card));
-      if (card.tier >= near.tier) { near.tier = card.tier; near.name = card.name.zh; near.id = card.id; }
+      if (card.tier >= near.tier) { near.tier = card.tier; near.name = card.name.zh; near.idCard = card.id; }
       return near;
     }
     const t = {
@@ -154,7 +218,11 @@
     if (!res.ok) return res;
 
     if (cell) S.addTrace(card, cell);
-    if (cell && !cell.flags.hidden && (W.cells.size !== before || cell))
+    if (cell) S.classifyAround(cell);      // 地形由 sim 判，render 只读（REVIEW-DEMO X-6）
+    /* 年表只记"世界变了形"的施卡：长出地块、改了全局律。
+       原条件是 (size!==before || cell)，后半恒真 → 每张卡都进年表，一晚 71 条（REVIEW-DEMO C 段）。 */
+    const shaped = W.cells.size !== before || op === 'law' || op === 'field' || op === 'sun';
+    if (cell && !cell.flags.hidden && shaped)
       S.addChron('干涉', '「' + card.name.zh + '」落在 (' + x + ', ' + y + ')');
     W.cellsChanged = true;
     S.checkCodex();      // 「三阳」这类当月成立的当刻就亮，不必等下一月

@@ -1,4 +1,4 @@
-/* 至日 · 卡表 · 术（rite）
+/* Solstice · 卡表 · 术（rite）
    术改已有的东西，不新增实体（肥土例外）。 */
 SOL.data.rite = [
 
