@@ -34,7 +34,7 @@
 ## 未实现
 
 - 540 张卡池（现在 55 张）；合成树 `/` 图鉴总数与 `CARD-INDEX` 尚未对齐。
-- 图鉴 54 / 60 条没做（只实装 6 条），**成就解锁卡池**（`SETTING.md` §5.1.2）也没接：点亮只写年表与日志。
+- 图鉴 54 / 60 条没做（只实装 6 条），**成就解锁卡池**（[`SETTING.md`](../specs/SETTING.md) §5.1.3「成就是解锁卡池的途径」）也没接：点亮只写年表与日志。
 - 存档 / 读档（确定性回归已经有了，缺的是全量快照）；图鉴因此只活在当前会话里，刷新即归零。
 - 音频。
 - 生态事件只有"物种归零 → 写年表"，没有迁徙 / 演替。
@@ -55,12 +55,14 @@
 ```powershell
 cd prototypes/solstice
 npm install                  # 只装 playwright-core（不下载浏览器）
+npm run cards                # 卡表契约：硬校验 0 错（不需要浏览器）
 npm test                     # 用本机 Edge 无头跑：控制台报错 / 施卡链路 / 24 月 tick / 面板 / 卡面尺寸
 npm run det                  # 确定性回归：同 seed 两跑 digest 一致、异 seed 不同（不需要浏览器）
 npm run codex                # 图鉴回归：6 条各自能被点亮 + 换界不丢页（不需要浏览器）
 ```
 
-需要 Node 18+ 与本机 Edge（`npm test` 才用得到）。脚本会写 `tests/report.json` 与三张截图（已 gitignore）。
+需要 Node 18+ 与本机 Edge（`npm test` 才用得到）。`npm test` 会写 `tests/report.json` 与三张截图（已 gitignore）。
+除 `npm test` 外四条都不需要浏览器，CI 里跑的就是这四条（另加 `python tools/docs-check.py`）。
 
 ## 目录
 
@@ -72,12 +74,14 @@ styles/panels.css     覆盖层面板 / 创世 / 世界事件
 data/world.js         元素与纹样、形制 / 气候 / 特征 / 判据 / 命名词表
 data/cards.*.js       卡表（按类分三个文件，一张卡一段）
 data/index.js         装配：编号、稀有度、回收、ATK/DEF、校验、索引
-sim/core.js           状态、格网、实体、生命统计、世界摘要
+sim/core.js           状态、格网、实体、生命统计、世界摘要、钩子多播（S.on / S.emit）
+sim/cmd.js            命令层：ui 唯一的写入口（S.cmd.*），每个命令是一个原子动作
 sim/eco.js            水光温三场 + 逐实体 tick（不碰 DOM）
 sim/cast.js           施卡 op 分发、手牌、抽卡、回收、痕迹
 sim/time.js           五档时间、tick、开局
 sim/codex.js          图鉴 6 条判定（一次 scan 喂 6 条，账号级，不碰渲染）
-render/scene.js       渲染器、光、星野、虚空、蓝图、主循环
+sim/events.js         9 条世界事件的表与后果（承受 / 改写）
+render/scene.js       渲染器、光、星野、虚空、蓝图、单帧绘制（不持时钟）
 render/grid.js        格子 mesh 与立牌贴图
 render/cam.js         相机、拾取、世界→屏幕
 render/trace.js       痕迹环
@@ -86,6 +90,7 @@ ui/hud.js             顶栏 / 左栏 / 右栏 / 日志 / toast
 ui/hand.js            手牌扇形与三段拖放
 ui/panels.js          抽卡 / 卡库 / 年表 / 设置 / 键位 / 帮助
 ui/creator.js         创世掷骰与剖面 / 顶视
-ui/events.js          9 条世界事件（承受 / 改写）
-ui/boot.js            启动、键盘、调试钩子
+ui/events.js          世界事件面板：选 / 承受 / 改写（后果在 sim/events.js）
+ui/boot.js            启动、主循环（rAF + dt）、键盘、调试钩子
+tests/                cards / determinism / codex / smoke 四条回归
 ```
