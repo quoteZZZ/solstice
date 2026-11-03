@@ -1,0 +1,122 @@
+/* 至日 · 面板 / 创世 / 世界事件
+   覆盖层占满「世界区域」（左栏到右栏之间也行，这里干脆占满 stage）：面板本身就是一屏。 */
+
+#overlay{position:absolute;inset:0;z-index:60;display:none}
+#overlay.show{display:block}
+#ovbg{position:absolute;inset:0;background:rgba(5,8,11,.74);backdrop-filter:blur(3px)}
+#panel{position:absolute;left:6%;right:6%;top:6%;bottom:6%;display:flex;flex-direction:column;
+  border:1px solid var(--line2);background:#0a0f14;border-radius:4px;
+  box-shadow:0 30px 80px rgba(0,0,0,.7);animation:panelIn .16s both}
+@keyframes panelIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+#phead{flex:0 0 42px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;
+  border-bottom:1px solid var(--line);background:#0d131a}
+#phead .sm{color:#fff}
+#phead .close{cursor:pointer;font-family:var(--mono)}
+#phead .close:hover{color:var(--acc)}
+#pbody{flex:1;min-height:0;padding:14px 16px;overflow:hidden}
+#pfoot{flex:0 0 44px;display:flex;align-items:center;gap:8px;padding:0 16px;
+  border-top:1px solid var(--line);background:#0d131a}
+
+.w{border:1px solid var(--line2);border-radius:3px;background:#0f151d}
+.row{display:flex;align-items:center}
+.gap4{gap:4px}.gap6{gap:6px}.gap8{gap:8px}
+.col{display:flex;flex-direction:column}
+
+/* ── 抽卡 ── */
+.packframe{border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 50% 50%,#141b23,#0a0d12);height:100%}
+.packcard{width:151px;height:220px;border:1px solid var(--line2);background:#161c25;
+  display:flex;flex-direction:column;overflow:hidden;border-radius:2px}
+.packcard .top{height:18px;border-bottom:1px solid var(--line2);display:flex;justify-content:space-between;
+  padding:0 6px;font-family:var(--mono);font-size:8.5px;color:var(--ink2);align-items:center}
+.packcard .mid{flex:1;display:flex;align-items:center;justify-content:center}
+.packcard .bot{height:26px;display:flex;align-items:center;padding:0 6px;font-size:10.5px;
+  border-top:1px dashed var(--line)}
+
+/* ── 卡库 ── */
+.codexEl{width:96px;display:flex;flex-direction:column;gap:5px}
+.codexGrid{display:flex;gap:5px;margin-bottom:4px;align-items:center}
+.cgCell{width:56px;height:74px;border-radius:2px;display:flex;flex-direction:column;overflow:hidden;
+  background:rgba(255,255,255,.012)}
+.cgCell.has{border:1px solid var(--line2);background:#161c25;cursor:pointer}
+.cgCell.has:hover{border-color:var(--acc)}
+.cgCell .cgTag{height:11px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:7px;
+  color:#4c5563;display:flex;align-items:center;padding:0 3px}
+.cgCell .cgBody{flex:1;display:flex;align-items:center;justify-content:center;padding:2px;
+  font-family:var(--mono);font-size:8px;color:#cfd8e2;text-align:center;line-height:1.2}
+.cgCell.empty{border:1px dashed #232c36;color:#2b3540;font-family:var(--mono);font-size:8px}
+
+.dex .stat{display:flex;align-items:center;gap:6px;padding:2px 0}
+.dex .sk{width:30px;font-family:var(--mono);font-size:9px;color:var(--ink2);flex:0 0 30px}
+.dex .sbar{flex:1;height:4px;background:#1b232e;border:1px solid var(--line);position:relative}
+.dex .sbar i{position:absolute;left:0;top:0;bottom:0;display:block;opacity:.85}
+.dex .sv{width:64px;text-align:right;font-family:var(--mono);font-size:9px;color:#dfe7ee}
+.dex .st{width:66px;font-family:var(--mono);font-size:8px;color:#4c5563;text-align:right}
+.dex .lore{display:flex;gap:6px;margin-top:6px;font-size:10.5px;line-height:1.65;color:#a9b5c2}
+.dex .lore b{color:var(--acc2);font-weight:400;flex:0 0 28px;font-family:var(--mono);font-size:9px}
+.dex .rel{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+.dex .rl{border:1px solid var(--line2);border-radius:2px;padding:0 5px;height:16px;display:inline-flex;
+  align-items:center;gap:4px;font-family:var(--mono);font-size:8.5px;color:var(--ink2)}
+.dex .rl b{color:var(--acc);font-weight:400;cursor:pointer}
+.cdx{margin-top:9px;padding-top:8px;border-top:1px dashed #1e2731}
+.cdx .cdtxt{font-size:10.5px;line-height:1.7;color:#b6c2ce;margin-top:5px}
+.cdx .cdfl{margin-top:7px;font-size:10.5px;color:#8b96a3;line-height:1.6}
+
+/* ── 年表 ── */
+.chronRow{display:flex;height:100%}
+
+/* ── 设置 ── */
+.setRow{display:flex;justify-content:space-between;align-items:center;padding:11px 0;
+  border-bottom:1px dashed var(--line)}
+.keyRow{display:flex;align-items:center;padding:7px 0;border-bottom:1px solid #1a212a}
+
+/* ── 创世 ── */
+#creator{position:absolute;inset:0;z-index:80;display:none;background:#080b0f;flex-direction:column}
+#creator.on{display:flex}
+#cTop{flex:0 0 62px;display:flex;align-items:center;gap:14px;padding:0 22px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,#0d141c,#080b0f)}
+#cMain{flex:1;display:flex;gap:16px;padding:16px 22px;min-height:0}
+#cLeft{width:300px;display:flex;flex-direction:column;gap:6px;min-height:0}
+#cCenter{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
+#cRight{width:330px;display:flex;flex-direction:column;gap:6px;min-height:0;overflow:auto}
+#cFoot{flex:0 0 54px;display:flex;align-items:center;gap:8px;padding:0 22px;border-top:1px solid var(--line);
+  background:#0b1016}
+.stp{display:flex;align-items:center;gap:7px;padding:4px 8px;border:1px solid #1b222b;border-radius:2px;
+  background:#0c1218;font-family:var(--mono);font-size:10px;animation:stpIn .3s both}
+@keyframes stpIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+.stp .sic{color:var(--acc2);width:12px;text-align:center}
+.stp .sl{color:var(--ink3);width:26px}
+.stp .sv{color:#cfd8e2;font-size:10px;display:flex;gap:4px;flex-wrap:wrap;overflow:hidden}
+.stp .sv i{color:#3a4652;font-style:normal}
+#cutaway{border:1px solid var(--line2);background:#0a1219;padding:6px;position:relative}
+#cutaway svg{display:block;width:100%;height:auto}
+#cutaway .cvt{transition:opacity .2s}
+#cutaway.dim .cvt{opacity:.25}
+#cutaway.dim .cvt.hl{opacity:1;filter:drop-shadow(0 0 6px rgba(224,163,62,.6))}
+#cvHint{position:absolute;left:10px;bottom:8px;font-family:var(--mono);font-size:9.5px;color:var(--acc);
+  opacity:0;transition:opacity .2s}
+#cvHint.on{opacity:1}
+.tgrid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.tchip{display:flex;align-items:center;gap:5px;border:1px solid var(--line2);border-radius:2px;
+  padding:4px 6px;background:#0e141b;cursor:default}
+.tchip.mapped{border-color:#4a5b6b}
+.tchip .ti{color:var(--acc2);font-family:var(--mono);font-size:11px}
+.tchip .tn{font-size:10.5px;color:#cfd8e2}
+.chk{display:flex;gap:4px;flex-wrap:wrap}
+.chk i{width:15px;height:15px;border:1px solid var(--ok);border-radius:2px;position:relative;display:block}
+.chk i.on:after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:9px;color:var(--ok)}
+.legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:auto}
+.legend .xs{display:flex;align-items:center;gap:4px}
+.legend i{width:7px;height:7px;display:block;border-radius:1px}
+
+/* ── 世界事件 ── */
+#eventwrap{position:absolute;inset:0;z-index:82;background:rgba(6,9,13,.74);backdrop-filter:blur(3px);
+  display:none;align-items:center;justify-content:center}
+#eventwrap.on{display:flex;animation:panelIn .18s both}
+#eventcard{width:660px;border:1px solid #4a3a2a;border-radius:4px;padding:24px 28px;
+  background:linear-gradient(180deg,#171d25,#0d1319);box-shadow:0 24px 60px rgba(0,0,0,.65)}
+#eventcard .band{height:3px;background:linear-gradient(90deg,var(--warn),transparent);margin-bottom:14px}
+#eventcard .ttl{font-size:22px;color:#fff;margin-bottom:9px}
+#eventcard .body{font-size:12.5px;color:#b6c2ce;line-height:1.85}
+#eventcard .tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:11px}

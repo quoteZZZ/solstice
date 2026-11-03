@@ -10,11 +10,15 @@ status: active
 
 | 项 | 值 |
 |---|---|
-| 运行形态 | 纯静态：HTML + CSS + 原生 JS（ES module），无构建、无打包 |
+| 运行形态 | 纯静态：HTML + CSS + 原生 JS，**经典 `<script>` 按序加载**，无构建、无打包 |
 | 入口 | 各原型目录的 `index.html`，`file://` 直接打开 |
-| 唯一第三方库 | Three.js **0.160.0**，已 vendored 到 `prototypes/world-3d/vendor/three.module.js` |
-| 自测 | Playwright（仅 `prototypes/world-3d/tests/`），需 Node 18+ |
-| 数据形态 | **内联在 HTML 里**（`CARDS` / `SPECIES` 常量），尚未抽成 JSON |
+| 唯一第三方库 | Three.js **0.160.0**（UMD），已 vendored 到各原型的 `vendor/three.min.js` |
+| 自测 | Playwright / playwright-core（`prototypes/world-3d/tests/`、`prototypes/solstice/tests/`），需 Node 18+ |
+| 数据形态 | 卡表是 `data/cards.*.js`（按 `CARD-SCHEMA` 字段写），编号 / 回收 / ATK·DEF 由 `data/index.js` 派生（仅合并原型） |
+
+> **为什么不是 ES module**：`file://` 下浏览器按 CORS 拦 ES module 的外部 import，双击会白屏。
+> 经典 `<script>` + 全局命名空间（`window.SOL`）是"离线双击可开"与"分文件"唯一能同时成立的写法。
+> 转正进 `game/` 之后才上 module + 本地静态服务（§3）。
 
 ---
 
@@ -26,6 +30,8 @@ status: active
 4. **自带 README 四段**：验证什么 / 已实现 / 未实现 / 已知坑。
 5. **冻结即不改**：`prototypes/alt/**` 是试吃证据，保持原样；要改就复制成新目录。
 6. **自测就地放**：`tests/` 与 `package.json` 只服务本原型，不往仓库根塞。
+7. **能分层就分层**：单个 HTML 超过约 600 行时，按 `data/` `sim/` `render/` `ui/` 分到子目录，入口只做装配；
+   层级依赖单向（ui → render → sim → data），`sim/` 不碰 DOM 与 `window`。
 
 ---
 

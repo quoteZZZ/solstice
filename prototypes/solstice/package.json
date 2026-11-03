@@ -1,0 +1,14 @@
+{
+  "name": "solstice-prototype-merged",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node tests/smoke.js"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.64.1"
+  }
+}

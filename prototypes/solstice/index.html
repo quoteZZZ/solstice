@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>至日 · 合并原型</title>
+<link rel="stylesheet" href="./styles/app.css">
+<link rel="stylesheet" href="./styles/card.css">
+<link rel="stylesheet" href="./styles/panels.css">
+</head>
+<body>
+<div id="app">
+  <header id="top">
+    <div class="brand"><b>SOLSTICE</b><span>至日</span></div>
+
+    <div class="clock" id="clock" title="1 tick = 1 世界月（TIME.md）">
+      <b id="cYear">0</b><span>年</span><b id="cMonth">1</b><span>月</span>
+      <i id="cSeason">春</i>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><b id="sCells">0</b><span>格</span></div>
+      <div class="stat"><b id="sEss">0</b><span>时素</span></div>
+      <div id="essbar"><i></i></div>
+      <div class="stat"><b id="sLife">0</b><span>种</span></div>
+    </div>
+
+    <div class="sp"></div>
+    <div class="gears" id="gears"></div>
+    <button class="btn" id="bPack" title="抽一包（B）">抽包 30</button>
+    <div class="icons" id="icons"></div>
+  </header>
+
+  <main id="stage">
+    <canvas id="cv"></canvas>
+
+    <div id="hint">世界是空的<br><b>先打一张「土地」</b></div>
+    <div id="log"></div>
+
+    <div id="leftrail"></div>
+    <div id="rightpanel"></div>
+
+    <div id="handwrap">
+      <div id="deck"></div>
+      <div id="hand"></div>
+      <div id="actbar"></div>
+    </div>
+
+    <div id="cardtip"></div>
+    <div id="toasts"></div>
+    <div id="ghostwrap"></div>
+
+    <div id="overlay"></div>
+    <div id="creator"></div>
+    <div id="eventwrap"></div>
+  </main>
+</div>
+
+<!-- Three.js 0.160.0（UMD，vendored；file:// 双击可开，不走 CDN） -->
+<script src="./vendor/three.min.js"></script>
+
+<!-- 数据：元素/掷骰 → 卡表 → 装配（装配要读到元素顺序，所以排最后） -->
+<script src="./data/world.js"></script>
+<script src="./data/cards.matter.js"></script>
+<script src="./data/cards.rite.js"></script>
+<script src="./data/cards.law.js"></script>
+<script src="./data/index.js"></script>
+
+<!-- 仿真：不碰 DOM -->
+<script src="./sim/core.js"></script>
+<script src="./sim/eco.js"></script>
+<script src="./sim/cast.js"></script>
+<script src="./sim/time.js"></script>
+
+<!-- 表现 -->
+<script src="./render/scene.js"></script>
+<script src="./render/grid.js"></script>
+<script src="./render/cam.js"></script>
+<script src="./render/trace.js"></script>
+
+<!-- 界面 -->
+<script src="./ui/cards.js"></script>
+<script src="./ui/hud.js"></script>
+<script src="./ui/hand.js"></script>
+<script src="./ui/panels.js"></script>
+<script src="./ui/creator.js"></script>
+<script src="./ui/events.js"></script>
+<script src="./ui/boot.js"></script>
+</body>
+</html>

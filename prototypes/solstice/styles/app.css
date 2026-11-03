@@ -1,0 +1,175 @@
+/* 至日 · 外壳与常驻 HUD
+   合并自 ui-flow（信息架构）与 world-3d（世界即画布）：世界占满视口，面板浮在它上面。 */
+:root{
+  --bg:#0a0c10; --ink:#c9d3df; --ink2:#7e8a9a; --ink3:#4c5563; --ink4:#333d48;
+  --line:#28313d; --line2:#3d4a5c; --acc:#e0a33e; --acc2:#3f7fa8;
+  --warn:#b4553f; --ok:#5f8f6a; --gold:#d2ae66;
+  --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --sans:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --rail:58px; --right:320px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  user-select:none;-webkit-font-smoothing:antialiased}
+#app{display:flex;flex-direction:column;height:100%}
+
+/* ── 顶栏 ── */
+#top{display:flex;align-items:center;gap:22px;padding:0 18px;height:56px;flex:0 0 56px;
+  border-bottom:1px solid var(--line);z-index:40;position:relative;
+  background:linear-gradient(180deg,#0d141c,#080b0f);box-shadow:0 1px 0 rgba(210,174,102,.07)}
+.brand{display:flex;align-items:baseline;gap:9px;flex-shrink:0}
+.brand b{font-size:12.5px;font-weight:500;letter-spacing:.36em;color:var(--gold);
+  text-shadow:0 0 14px rgba(210,174,102,.35)}
+.brand span{font-size:9.5px;color:var(--ink4);letter-spacing:.24em}
+
+.clock{display:flex;align-items:baseline;gap:4px;font-family:var(--mono);line-height:1}
+.clock b{font-size:18px;font-weight:400;color:#eef5fa}
+.clock span{font-size:9px;color:var(--ink3);margin-right:5px}
+.clock i{font-style:normal;font-size:10px;color:var(--acc2);border:1px solid var(--line2);
+  border-radius:2px;padding:1px 5px;margin-left:4px;font-family:var(--mono)}
+
+.stats{display:flex;align-items:baseline;gap:16px}
+.stat{display:flex;align-items:baseline;gap:5px}
+.stat b{font-size:14px;font-weight:400;color:#e8f0f6;font-family:var(--mono);
+  font-variant-numeric:tabular-nums}
+.stat span{font-size:9px;color:var(--ink4);letter-spacing:.2em}
+#essbar{width:54px;height:3px;background:#131c24;overflow:hidden;align-self:center}
+#essbar i{display:block;height:100%;width:0;transition:width .2s;
+  background:linear-gradient(90deg,var(--acc2),#8fd2e8)}
+
+.sp{flex:1}
+.gears{display:flex;gap:4px}
+.btn{height:26px;padding:0 10px;border:1px solid var(--line2);border-radius:3px;background:#121822;
+  color:var(--ink2);font-family:var(--mono);font-size:10.5px;cursor:pointer;letter-spacing:.04em;
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;transition:.14s;white-space:nowrap}
+.btn:hover{border-color:var(--acc);color:var(--acc)}
+.btn.on{border-color:var(--acc);color:var(--acc);background:#171208}
+.btn:disabled{opacity:.3;cursor:not-allowed}
+.btn.ghost{background:transparent;border-color:#2a323d;color:var(--ink2)}
+.btn.warn{border-color:var(--warn);color:var(--warn)}
+
+.icons{display:flex;gap:5px}
+.ic{width:34px;height:32px;border:1px solid var(--line2);border-radius:3px;background:#121822;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;
+  font-family:var(--mono);font-size:7.5px;color:var(--ink2);cursor:pointer;position:relative;line-height:1.2}
+.ic:hover,.ic.on{border-color:var(--acc);color:var(--acc)}
+
+/* ── 世界 ── */
+#stage{flex:1;position:relative;overflow:hidden;background:#070b0f}
+#cv{position:absolute;inset:0;display:block;width:100%;height:100%;cursor:crosshair}
+
+#hint{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);text-align:center;
+  color:#2a3742;font-size:11.5px;line-height:2.6;pointer-events:none;letter-spacing:.18em;
+  transition:opacity .5s;z-index:6}
+#hint b{color:#566d7c;font-weight:400}
+
+#log{position:absolute;left:calc(var(--rail) + 14px);top:12px;width:236px;z-index:26;
+  font-family:var(--mono);font-size:10px;line-height:1.9;color:#4a5e6e;pointer-events:none;
+  letter-spacing:.03em}
+#log div{opacity:0;animation:logIn .3s forwards}
+#log div.hot{color:var(--acc)}
+@keyframes logIn{to{opacity:1}}
+
+/* ── 左栏：只放页面入口 ── */
+#leftrail{position:absolute;left:0;top:0;bottom:0;width:var(--rail);background:rgba(10,14,19,.92);
+  border-right:1px solid var(--line);z-index:24;display:flex;flex-direction:column;align-items:center;
+  padding-top:8px;gap:6px;transition:width .16s ease;backdrop-filter:blur(2px)}
+#leftrail:hover{width:118px;box-shadow:8px 0 22px rgba(0,0,0,.5)}
+.rail{width:40px;height:40px;border:1px solid var(--line2);border-radius:3px;background:#111821;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  color:var(--ink2);cursor:pointer;transition:width .16s ease,flex-direction .16s}
+#leftrail:hover .rail{width:100px;flex-direction:row;justify-content:flex-start;gap:8px;padding-left:10px}
+.rail:hover,.rail.on{border-color:var(--acc);color:var(--acc)}
+.rail span{font-family:var(--mono);font-size:8px;letter-spacing:.04em;white-space:nowrap;display:none}
+#leftrail:hover .rail span{display:block}
+
+/* ── 右信息栏：一屏三段 ── */
+#rightpanel{position:absolute;right:0;top:0;bottom:0;width:var(--right);background:rgba(10,14,19,.94);
+  border-left:1px solid var(--line);z-index:24;display:flex;flex-direction:column;overflow:hidden;
+  backdrop-filter:blur(2px)}
+.rp{padding:10px 12px;border-bottom:1px solid var(--line)}
+.rp.grow{flex:1;overflow:auto;border-bottom:0}
+.rp .h{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--ink3);margin-bottom:6px}
+.rp .big{font-family:var(--mono);font-size:21px;color:#fff;line-height:1.1}
+.rp .rowline{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;padding:2px 0}
+.xs{font-size:10px;color:var(--ink3)}
+.sm{font-size:11px;color:var(--ink2)}
+.mono{font-family:var(--mono)}
+.tag{border:1px solid var(--line2);border-radius:2px;padding:0 5px;height:15px;display:inline-flex;
+  align-items:center;font-family:var(--mono);font-size:9px;color:var(--ink2)}
+.tag.a{border-color:var(--acc);color:var(--acc)}
+.tag.b{border-color:var(--acc2);color:var(--acc2)}
+.tag.ok{border-color:var(--ok);color:var(--ok)}
+.tag.warn{border-color:var(--warn);color:var(--warn)}
+
+.tl{position:relative;padding-left:13px}
+.tl:before{content:"";position:absolute;left:3px;top:8px;bottom:8px;width:1px;background:#2b3441}
+.tl .it{position:relative;padding:3px 0 7px;cursor:pointer}
+.tl .it:before{content:"";position:absolute;left:-13px;top:9px;width:6px;height:6px;border-radius:50%;
+  background:var(--dot,#3f7fa8);box-shadow:0 0 0 2px #0c1117}
+.tl .it:hover .t{color:var(--acc)}
+
+/* ── 手牌：直接浮在世界底边 ── */
+#handwrap{position:absolute;left:var(--rail);right:var(--right);bottom:0;height:270px;z-index:32;
+  pointer-events:none}
+#hand{position:absolute;inset:0;pointer-events:none}
+.handslot{position:absolute;bottom:6px;width:156px;height:228px;pointer-events:auto;
+  transition:bottom .16s cubic-bezier(.2,.9,.3,1)}
+.handslot .cardwrap{position:absolute;inset:0;transform-origin:50% 100%}
+.handslot .card{position:absolute;left:0;bottom:0;transform:scale(.5);transform-origin:0 100%;
+  transition:transform .16s cubic-bezier(.2,.9,.3,1),box-shadow .16s}
+.handslot:hover{bottom:24px}
+.handslot:hover .card{box-shadow:0 26px 54px rgba(0,0,0,.9),0 0 0 1px rgba(210,174,102,.55)}
+.handslot.sel .card{box-shadow:0 0 0 2px rgba(224,163,62,.95),0 16px 38px rgba(0,0,0,.85)}
+
+#deck{position:absolute;left:4px;bottom:14px;display:flex;gap:7px;pointer-events:none}
+#deck .dk{width:38px;height:44px;border:1px solid #33404f;border-radius:3px;background:rgba(14,19,26,.85);
+  display:flex;flex-direction:column;align-items:center;justify-content:center}
+#deck .dk b{font-family:var(--mono);font-size:13px;color:#dfe7ee;font-weight:500}
+#deck .dk span{font-family:var(--mono);font-size:7.5px;color:#4c5563;letter-spacing:.08em}
+
+#actbar{position:absolute;right:6px;bottom:16px;display:flex;flex-direction:column;gap:6px;
+  pointer-events:auto;z-index:34}
+.ab{width:34px;height:34px;border:1px solid var(--line2);border-radius:3px;background:rgba(16,22,30,.9);
+  color:var(--ink2);display:flex;align-items:center;justify-content:center;cursor:pointer;
+  font-size:14px;font-family:var(--mono)}
+.ab:hover{border-color:var(--acc);color:var(--acc)}
+
+/* ── 提示 / 飘字 / 拖影 ── */
+#toasts{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:70;
+  display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
+.toast{border:1px solid var(--line2);background:rgba(10,14,19,.95);padding:7px 13px;border-radius:3px;
+  box-shadow:0 10px 26px rgba(0,0,0,.55);animation:toastIn .2s both;text-align:center}
+.toast .t{font-size:12px;color:#fff}
+.toast .d{font-family:var(--mono);font-size:9.5px;color:var(--ink2);margin-top:2px}
+@keyframes toastIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+
+#ghostwrap{position:fixed;inset:0;pointer-events:none;z-index:64}
+#ghost{position:absolute;transform:translate(-50%,-50%) scale(.55);pointer-events:none;
+  filter:drop-shadow(0 18px 30px rgba(0,0,0,.7));opacity:.92}
+#ghost .tip{position:absolute;left:50%;top:-30px;transform:translateX(-50%) scale(1.8);
+  font-family:var(--mono);font-size:9px;color:var(--acc);white-space:nowrap;
+  background:rgba(6,9,13,.9);border:1px solid #3a2f1c;padding:3px 7px;border-radius:2px}
+#ghost.rec .tip{color:var(--warn);border-color:#4a2a22}
+
+#gainfly{position:absolute;z-index:66;font-family:var(--mono);font-size:13px;color:var(--acc);
+  pointer-events:none;opacity:0;text-shadow:0 1px 4px #000}
+
+/* ── 地块读数（悬停） ── */
+#hoverinfo{position:fixed;z-index:28;pointer-events:none;display:none;border:1px solid var(--line2);
+  background:rgba(8,12,17,.94);padding:6px 9px;font-family:var(--mono);font-size:10px;color:#cfd8e2;
+  line-height:1.6;white-space:nowrap;border-radius:2px}
+#hoverinfo b{color:#fff;font-weight:500}
+
+/* ── 界面显隐（设置里的「常驻栏」与摆件模式） ── */
+#stage.hide-rail{--rail:0px}
+#stage.hide-rail #leftrail{display:none}
+#stage.hide-right{--right:0px}
+#stage.hide-right #rightpanel{display:none}
+#stage.ambient #leftrail,#stage.ambient #rightpanel,#stage.ambient #deck,
+#stage.ambient #actbar,#stage.ambient #log{display:none}
+#stage.ambient #handwrap{transform:translateY(232px);transition:transform .4s cubic-bezier(.3,.9,.3,1);
+  pointer-events:none;opacity:.9}
+#stage.ambient #hint{opacity:0 !important}
+
+/* ── 创世 / 覆盖层 / 事件：见 panels.css ── */

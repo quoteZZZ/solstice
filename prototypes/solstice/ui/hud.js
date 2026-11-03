@@ -1,0 +1,218 @@
+/* 至日 · 常驻 HUD：顶栏 / 左栏 / 右栏 / 日志 / toast
+   右栏一屏三段（这一界 / 生态 / 刚刚发生），不切页签。 */
+(function (UI, S, D) {
+  const W = S.W;
+
+  UI.GLYPH = {
+    pack: '<rect x="2.5" y="5" width="7" height="9" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 2.8h7.2v9.4" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".55"/>',
+    codex: '<path d="M2.6 3.2h4.6v9.6H2.6zM8.8 3.2h4.6v9.6H8.8z" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M7.2 3.2v9.6" stroke="currentColor" stroke-width="1" opacity=".6"/>',
+    chron: '<rect x="3.5" y="2.5" width="9" height="11" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M5.8 5.5h4.4M5.8 8h4.4M5.8 10.5h2.6" stroke="currentColor" stroke-width="1"/>',
+    creator: '<rect x="2.6" y="2.6" width="10.8" height="10.8" rx="2" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="5.9" cy="5.9" r="1" fill="currentColor"/><circle cx="10.1" cy="5.9" r="1" fill="currentColor"/><circle cx="5.9" cy="10.1" r="1" fill="currentColor"/><circle cx="10.1" cy="10.1" r="1" fill="currentColor"/>',
+    settings: '<circle cx="8" cy="8" r="2.5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 1.6v1.8M8 12.6v1.8M1.6 8h1.8M12.6 8h1.8M3.6 3.6l1.3 1.3M11.1 11.1l1.3 1.3M12.4 3.6l-1.3 1.3M4.9 11.1l-1.3 1.3" stroke="currentColor" stroke-width="1"/>',
+    keys: '<rect x="2" y="4.5" width="12" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M4.6 7h1.2M7.4 7h1.2M10.2 7h1.2M4.6 9.2h1.2M7.4 9.2h4" stroke="currentColor" stroke-width="1"/>',
+    help: '<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M6.2 6.3a1.85 1.85 0 1 1 2.5 1.7c-.6.3-.8.7-.8 1.3" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="11.5" r=".7" fill="currentColor"/>'
+  };
+  UI.glyph = p => `<svg viewBox="0 0 16 16" width="15" height="15" style="display:block">${UI.GLYPH[p] || ''}</svg>`;
+
+  const PANEL_LABEL = { pack: '抽卡', codex: '卡库', chron: '年表', settings: '设置', keys: '键位', help: '帮助' };
+  UI.PANEL_LABEL = PANEL_LABEL;
+
+  UI.initHud = function () {
+    /* 档位：暂停 / 0.5 / 1 / 2 / 4（TIME.md §2） */
+    const gears = document.getElementById('gears');
+    gears.innerHTML = S.GEARS.map((g, i) =>
+      `<button class="btn" data-gear="${i}">${g.label}</button>`).join('');
+    gears.addEventListener('click', e => {
+      const b = e.target.closest('[data-gear]');
+      if (!b) return;
+      S.setGear(+b.dataset.gear);
+      UI.syncGears();
+    });
+
+    document.getElementById('bPack').onclick = () => UI.openPanel('pack');
+
+    const icons = document.getElementById('icons');
+    icons.innerHTML = ['chron', 'pack', 'codex', 'creator', 'settings', 'keys', 'help']
+      .map(p => `<div class="ic" data-panel="${p}" title="${PANEL_LABEL[p] || '创世'}">${UI.glyph(p)}<span>${PANEL_LABEL[p] || '创世'}</span></div>`)
+      .join('');
+    icons.addEventListener('click', e => {
+      const b = e.target.closest('[data-panel]');
+      if (b) UI.openPanel(b.dataset.panel);
+    });
+
+    const rail = document.getElementById('leftrail');
+    rail.innerHTML = ['pack', 'codex', 'chron', 'creator', 'settings', 'keys', 'help']
+      .map(p => `<div class="rail" data-panel="${p}" title="${PANEL_LABEL[p] || '创世'}">${UI.glyph(p)}<span>${PANEL_LABEL[p] || '创世'}</span></div>`)
+      .join('') +
+      `<div class="rail" data-act="ambient" title="摆件模式（P）" style="margin-top:auto;margin-bottom:8px">
+        <svg viewBox="0 0 16 16" width="15" height="15"><rect x="2.5" y="4" width="11" height="8" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="8" r="1.6" fill="currentColor"/></svg><span>摆件</span></div>`;
+    rail.addEventListener('click', e => {
+      const b = e.target.closest('[data-panel],[data-act]');
+      if (!b) return;
+      if (b.dataset.act === 'ambient') UI.toggleAmbient();
+      else UI.openPanel(b.dataset.panel);
+    });
+
+    S.onLog = UI.log;
+    S.onChron = () => UI.renderRight();
+
+    UI.syncGears();
+    UI.renderRight();
+  };
+
+  UI.syncGears = function () {
+    document.querySelectorAll('[data-gear]').forEach(b =>
+      b.classList.toggle('on', +b.dataset.gear === S.gear));
+  };
+
+  /* ── 日志 ── */
+  UI.log = function (msg, hot) {
+    const box = document.getElementById('log');
+    if (!box) return;
+    const d = document.createElement('div');
+    if (hot) d.className = 'hot';
+    d.textContent = msg;
+    box.appendChild(d);
+    setTimeout(() => d.remove(), 4600);
+    while (box.children.length > 8) box.removeChild(box.firstChild);
+  };
+
+  UI.toast = function (t, d) {
+    const box = document.getElementById('toasts');
+    if (!box) return;
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.innerHTML = `<div class="t">${t}</div>${d ? `<div class="d">${d}</div>` : ''}`;
+    box.appendChild(el);
+    setTimeout(() => el.remove(), 5200);
+    while (box.children.length > 4) box.removeChild(box.firstChild);
+  };
+
+  /* ── 顶栏数值 ── */
+  UI.updateHud = function () {
+    const year = document.getElementById('cYear');
+    if (!year) return;
+    year.textContent = S.year();
+    document.getElementById('cMonth').textContent = S.monthOfYear() + 1;
+    document.getElementById('cSeason').textContent = S.season();
+    document.getElementById('sCells').textContent = W.cells.size;
+    document.getElementById('sEss').textContent = W.essence;
+    document.getElementById('sLife').textContent = (() => {
+      const l = S.lifeStats();
+      return l.flora + l.fauna;
+    })();
+    document.querySelector('#essbar i').style.width = Math.round(W.essAcc * 100) + '%';
+    document.getElementById('bPack').disabled = W.essence < S.PACK_COST;
+    document.getElementById('hint').style.opacity = W.cells.size ? '0' : '1';
+  };
+
+  /* ── 右栏 ── */
+  const KIND_LABEL = { land: '裸地', grass: '草原', forest: '林地', water: '水域', rock: '岩坡' };
+  const KIND_COL = { land: '#5a5240', grass: '#5d8a4a', forest: '#2f5a3c', water: '#3f7fa8', rock: '#5b6b78' };
+
+  UI.renderRight = function () {
+    const box = document.getElementById('rightpanel');
+    if (!box) return;
+    const w = W.world || {};
+    const life = S.lifeStats();
+
+    /* 生态构成用真实格数，不用写死的百分比 */
+    const kinds = { land: 0, grass: 0, forest: 0, water: 0, rock: 0 };
+    for (const c of W.cells.values()) kinds[c.kind] = (kinds[c.kind] || 0) + 1;
+    const total = Math.max(1, W.cells.size);
+
+    const species = [];
+    for (const id of life.floraSet) species.push(D.byId.get(id).name.zh);
+    for (const id of life.faunaSet) species.push(D.byId.get(id).name.zh);
+
+    const traces = W.traces.slice(-4).reverse();
+
+    box.innerHTML = `
+      <div class="rp">
+        <div class="h">这一界</div>
+        <div class="big">${w.name || '—'}</div>
+        <div class="xs" style="margin-top:2px">${w.form || '—'} · ${w.climate || '—'}</div>
+        <div class="mono xs" style="margin-top:2px;color:#5d6b7a">${(w.seed || []).join('-')}</div>
+        <div class="rowline" style="margin-top:5px"><span class="xs">时素</span>
+          <span class="mono xs" style="color:var(--acc)">◈ ${W.essence}</span></div>
+        <div class="rowline"><span class="xs">太阳 / 世界律</span>
+          <span class="mono xs">☀ ${W.sun} · 寿命 ×${W.law.lifeX} · 繁 ×${W.law.propX}</span></div>
+      </div>
+
+      <div class="rp">
+        <div class="row" style="justify-content:space-between;align-items:baseline">
+          <span class="h" style="margin:0">生态</span>
+          <span class="tag ${life.flora ? 'ok' : ''}">${!W.cells.size ? '未成形' : !life.flora ? '荒界' : life.flora + life.fauna > 6 ? '丰饶' : '初绿'}</span>
+        </div>
+        <div style="margin-top:4px">
+          ${Object.keys(kinds).map(k => `<div class="row" style="justify-content:space-between;padding:1px 0">
+            <span class="xs"><i style="display:inline-block;width:6px;height:6px;border-radius:1px;
+              background:${KIND_COL[k]};margin-right:5px"></i>${KIND_LABEL[k]}</span>
+            <span class="mono xs" style="color:#8b99a6">${Math.round(kinds[k] / total * 100)}%</span></div>`).join('')}
+        </div>
+        <div class="row" style="justify-content:space-between;margin-top:8px;padding-top:7px;border-top:1px solid #171e27">
+          ${[['植物', life.flora, '#5e8f47'], ['动物', life.fauna, '#c8a94b'], ['智慧', life.sapient, '#e0d6b8']]
+            .map(([k, v, c]) => `<div style="text-align:center;flex:1">
+              <div style="font-size:9px;color:${v ? c : '#333d48'}">●</div>
+              <div class="mono" style="font-size:11px;color:${v ? '#dfe7ee' : '#3a4652'}">${v}</div>
+              <div class="xs" style="font-size:8.5px">${k}</div></div>`).join('')}
+        </div>
+        ${species.length ? `<div class="row" style="flex-wrap:wrap;gap:4px;margin-top:7px">
+          ${species.slice(0, 10).map(n => `<span class="tag">${n}</span>`).join('')}</div>` : ''}
+      </div>
+
+      <div class="rp grow">
+        <div class="row" style="justify-content:space-between;align-items:baseline">
+          <span class="h" style="margin:0">痕迹 · 刚刚发生</span>
+          <span class="xs" style="cursor:pointer" data-chron="1">年表 ▸</span>
+        </div>
+        <div style="margin:6px 0 9px">
+          ${traces.length ? traces.map(t => `<div class="rowline" style="cursor:pointer" data-trace="${t.idCard}">
+            <span class="xs"><i style="display:inline-block;width:5px;height:5px;border-radius:50%;
+              background:${D.elColor(t.el)};margin-right:5px"></i>${t.name}${t.count > 1 ? ' ×' + t.count : ''}</span>
+            <span class="mono xs" style="color:#4c5563">${t.life >= 999 ? '永久' : Math.max(0, t.life - (W.month - t.born)) + ' 月'}</span>
+          </div>`).join('') : '<div class="xs">还没有痕迹——世界还没被碰过</div>'}
+        </div>
+        <div class="tl">
+          ${(W.chron.slice(0, 6)).map(c => {
+            const col = UI.CHRON_COL[c.kind] || '#3f7fa8';
+            return `<div class="it" style="--dot:${col}" data-chron-item="${c.month}">
+              <div class="xs"><span style="color:${col};margin-right:4px">${UI.CHRON_ICON[c.kind] || '·'}</span>
+                第 ${c.month} 月</div>
+              <div class="t" style="font-size:11.5px">${c.text}</div>
+              <div class="xs" style="color:#4c5563">${c.kind}</div></div>`;
+          }).join('') || '<div class="xs">年表还空着</div>'}
+        </div>
+      </div>`;
+
+    box.onclick = e => {
+      const t = e.target.closest('[data-trace]');
+      if (t) { UI.openCard(t.dataset.trace); return; }
+      if (e.target.closest('[data-chron]')) { UI.openPanel('chron'); return; }
+      const it = e.target.closest('[data-chron-item]');
+      if (it) UI.openPanel('chron');
+    };
+  };
+
+  UI.CHRON_ICON = { 干涉: '✦', 气候: '☁', 生态: '✿', 灾变: '⚠', 文明: '⌂' };
+  UI.CHRON_COL = { 干涉: '#e0a33e', 气候: '#5f9fc0', 生态: '#6aa86a', 灾变: '#b4553f', 文明: '#c8a94b' };
+
+  /* 悬停地块读数：真的读 sim 的格，不再用坐标哈希编 */
+  UI.hoverInfo = function (cell, ev) {
+    let box = document.getElementById('hoverinfo');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'hoverinfo';
+      document.getElementById('stage').appendChild(box);
+    }
+    if (!cell) { box.style.display = 'none'; return; }
+    const ents = cell.ents.filter(e => !e.ground).map(e => e.name);
+    box.innerHTML = `<b>${KIND_LABEL[cell.kind] || cell.kind}</b> · ${cell.x}, ${cell.y}<br>
+      水 ${cell.W.toFixed(2)} · 光 ${cell.L.toFixed(2)} · 温 ${cell.T.toFixed(1)}°C<br>
+      ${ents.length ? '活物 ' + ents.slice(0, 4).join('/') : '空'}`;
+    box.style.display = 'block';
+    box.style.left = Math.min(ev.clientX + 16, innerWidth - 210) + 'px';
+    box.style.top = Math.max(8, ev.clientY - 54) + 'px';
+  };
+
+})(SOL.ui, SOL.sim, SOL.data);

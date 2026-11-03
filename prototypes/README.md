@@ -6,10 +6,13 @@
 
 | 目录 | 中文名 | 验证什么 | 状态 |
 |---|---|---|---|
-| [`world-3d/`](world-3d/README.md) | 至日 · 3D 世界版 | 施卡造陆 + 生态自转，用 3D 微缩表现"世界自己活" | 可玩 |
-| [`ui-flow/`](ui-flow/index.html) | 至日 · 界面全流程 | 从创世到卡库 / 年表 / 事件，信息架构能不能一屏装下 | 可点 |
+| [`solstice/`](solstice/README.md) | 至日 · 合并版 | 真 3D 世界 + 全套面板 + 一张按 schema 写的卡表（55 张） | 可玩 / 在改 |
+| [`world-3d/`](world-3d/README.md) | 至日 · 3D 世界版 | 施卡造陆 + 生态自转，用 3D 微缩表现"世界自己活" | 已并入，留作历史 |
+| [`ui-flow/`](ui-flow/index.html) | 至日 · 界面全流程 | 从创世到卡库 / 年表 / 事件，信息架构能不能一屏装下 | 已并入，留作历史 |
 
-两者是同一概念的两套独立实现：3D 版是 Three.js + DOM 卡面，界面版是纯 SVG 平面图 + 面板，卡表不共享。差异见 [`../specs/STATUS.md`](../specs/STATUS.md) §1。
+`solstice/` 是两者的合并结果：世界取自 3D 版（Three.js + 生态仿真），信息架构取自界面版（创世 / 卡库 / 年表 / 事件 / 设置 / 键位），
+卡表合成一份并按 [`../specs/CARD-SCHEMA.md`](../specs/CARD-SCHEMA.md) 补齐。
+两个旧原型不再修改，也不再当依据——差异见 [`../specs/STATUS.md`](../specs/STATUS.md) §1。
 
 ## 冻结的机制试吃（`alt/`）
 
@@ -28,4 +31,5 @@
 1. 新建 `prototypes/<代号>/`（代号用小写英文，能一眼看出机制）
 2. 入口必须叫 `index.html`，第三方库 vendored 进目录
 3. README 四段：验证什么 / 已实现 / 未实现 / 已知坑
-4. 在本表加一行；若它取代了某个旧原型，在旧原型 README 里写一句指向新的
+4. 在本表加一行；若它取代了某个旧原型，在旧原型 README 里写一句指向新的，并把旧条目改成"已并入，留作历史"
+5. 超过 600 行就按 `data/ sim/ render/ ui/` 分文件（经典 `<script>`，见 [TECH.md](../specs/TECH.md) §1）
