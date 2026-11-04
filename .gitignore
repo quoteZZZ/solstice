@@ -1,6 +1,10 @@
 # 自测依赖与产物
 node_modules/
 *.log
+# 评审取图的截图与 log.json：一次五场景 496 张、几十 MB，只留 md 与脚本
+tests/review/
+prototypes/solstice/tests/review/
+prototypes/solstice/tests/review-run/*/
 
 # 系统杂项
 Thumbs.db

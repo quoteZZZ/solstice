@@ -236,7 +236,11 @@
 /* ── 世界事件 ── */
 #eventwrap{position:absolute;inset:0;z-index:82;background:rgba(6,9,13,.76);backdrop-filter:blur(3px);
   display:none;align-items:center;justify-content:center}
-#eventwrap.on{display:flex;animation:panelIn var(--dur-2) var(--ease) both}
+/* 这里必须用只淡入的动画，不能复用 panelIn：panelIn 里带 translate(-50%,-50%)，
+   而 #eventwrap 是 inset:0 的整屏遮罩——套上去之后整块遮罩被推走一半，
+   事件弹窗只剩右下角露在屏幕左上角（评审截图里就是这个样子）。 */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+#eventwrap.on{display:flex;animation:fadeIn var(--dur-2) var(--ease) both}
 #eventcard{width:min(660px, 92vw);border:1px solid #4a3a2a;border-radius:var(--r-4);
   padding:var(--s-7) var(--s-7);
   background:linear-gradient(180deg,#171d25,#0c1116);box-shadow:var(--sh-4)}
