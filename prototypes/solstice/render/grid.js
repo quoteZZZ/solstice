@@ -16,6 +16,27 @@
   const STANDEE_AT = 0.34;
   const TINT = new THREE.Color(1.35, 1.35, 1.35);
 
+  /* 水面波纹：时间做成**共享 uniform**，注入进水材质的顶点着色器。
+     零 CPU 成本——不在 R.frame 里遍历水格（1200 格里遍历一遍就为改几个顶点不值），
+     只在 GPU 上按顶点算。顶面必须是分段平面（3×3），
+     1 段的话只有 4 个角，位移等于整块倾斜，看不出波纹。 */
+  const WATER_U = { value: 0 };
+  R.tickWater = function (now) { WATER_U.value = now * 0.001; };
+
+  function waveInject(mat) {
+    mat.customProgramCacheKey = () => 'solstice-water';
+    mat.onBeforeCompile = shader => {
+      shader.uniforms.uWave = WATER_U;
+      shader.vertexShader = ['uniform float uWave;', shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        ['#include <begin_vertex>',
+         'float w1 = sin(uWave * 1.7 + position.x * 4.2 + position.y * 3.1);',
+         'float w2 = sin(uWave * 1.1 + position.y * 7.3 - position.x * 2.2);',
+         'transformed.z += w1 * 0.013 + w2 * 0.007;'].join('\n')
+      )].join('\n');
+    };
+  }
+
   function shade(hex, amt) {
     const n = parseInt(hex.slice(1), 16);
     let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
@@ -117,31 +138,42 @@
     return tex;
   }
 
-  /* 表现高度 = 地形基准 + 「地盘上升」的增量。
+  /* 表现高度 = 地形基准 + 「地盘上升」的增量 + 每格极微起伏。
      原来直接读 cell.h，而 cell.h 一律 0.30（只有抬地的卡会动），
      草地/林地/岩地全一样高——玩家看不出世界有高差。
-     基准表只有一份（sim 的 S.TERRAIN），render 不再自己抄。 */
+     基准表只有一份（sim 的 S.TERRAIN），render 不再自己抄。
+
+     起伏用**连续函数**，不用逐格随机——这两者的差别是整片地像不像一块地：
+       · 逐格随机（hash）：相邻两格可以差 0.09，侧壁整条露出来，草地中间出现一级级台阶，
+         整片地看起来是一堆浮在虚空上的饼干板；
+       · 连续正弦：相邻两格最多差 0.03（一格 1.0 宽 = 3 %），看不出台阶，
+         但整片地会缓慢起伏，低角度上能读出地形层次。
+     波长刻意取 2 格左右（系数 0.5）——太快就变回逐格噪声，太慢就看不出起伏。 */
+  R.jitOf = cell => (cell.kind === 'water' ? 0
+    : Math.sin(cell.x * 0.52 + 1.7) * 0.030 + Math.cos(cell.y * 0.61 - 0.9) * 0.030);
   R.hOf = function (cell) {
     const t = S.TERRAIN[cell.kind] || S.TERRAIN.land;
-    return Math.max(0.06, t.h + (cell.h - 0.30));
+    return Math.max(0.05, t.h + (cell.h - 0.30) + R.jitOf(cell));
   };
 
   function buildCell(cell) {
     if (cell.mesh) { R.cellGroup.remove(cell.mesh); R.dispose(cell.mesh); cell.mesh = null; }
     const kind = cell.kind, T = S.TERRAIN[kind] || S.TERRAIN.land;
-    /* 高程抖动：每格 ±0.018，只影响表现，不写回 sim（写回去会毁确定性）。
-       水面保持平——它是水面，不是地面。 */
-    const jit = kind === 'water' ? 0 : (hash3(cell.x, cell.y, 7) - 0.5) * 0.036;
-    const base = R.hOf(cell);
-    const h = Math.max(0.06, base + jit);
+    const h = R.hOf(cell);
     /* 有水源的格：地面提亮一档并偏水色，否则「水泉」在画面里不存在（它只是格里有件实体） */
     const wet = cell.ents.some(e => e.tags.indexOf('watersource') >= 0);
 
-    const geo = new THREE.BoxGeometry(0.995, h, 0.995);
-    /* 雾墙：大陆卡（type 130 / 9×9）最外圈压向背景色，边缘才不会是一条硬切边。
-       背景色与 scene.background 同一个值，改那边记得同步。 */
-    const BASE = new THREE.Color(T.col);
+    /* 地表色 = 地形色 + 每格微色斑（±7 %）。
+       两级叠加：低频大斑（波长约 2 格，像地表干湿不均）+ 每格 ±3 % 微差。
+       它只改颜色、不产生几何，所以不像高程那样会在格与格之间立起台阶。
+       雾墙（大陆卡 type 130 的最外圈）压向背景色，背景色与 scene.background 同一个值。 */
+    const lowFreq = Math.sin(cell.x * 0.44 + 2.1) * Math.cos(cell.y * 0.51 - 1.3);
+    const spot = (0.96 + lowFreq * 0.05) * (0.97 + hash3(cell.x, cell.y, 23) * 0.06);
+    const BASE = new THREE.Color(T.col).multiplyScalar(spot);
+    if (wet) BASE.lerp(new THREE.Color(0x4fb8d8), 0.34).multiplyScalar(1.12);
     if (cell.flags.edge) BASE.lerp(new THREE.Color(0x0a1822), 0.55);
+
+    const geo = new THREE.BoxGeometry(0.998, h, 0.998);
     const mat = new THREE.MeshStandardMaterial({
       color: BASE, roughness: kind === 'water' ? 0.22 : 0.9,
       metalness: kind === 'water' ? 0.28 : 0.02,
@@ -152,27 +184,32 @@
     m.castShadow = true; m.receiveShadow = true;
     m.userData.cell = cell;
 
-    /* 水源格：顶面提亮 + 向水色偏一点。不这么做的话「水泉」只是格里有件实体，
-       画面里看不到任何水，玩家不知道这块地为什么会长东西。 */
-    const topCol = new THREE.Color(T.col).multiplyScalar(kind === 'water' ? 1.6 : 1.5);
-    if (wet) topCol.lerp(new THREE.Color(0x4fb8d8), 0.34).multiplyScalar(1.12);
-    if (cell.flags.edge) topCol.lerp(new THREE.Color(0x0a1822), 0.55);
+    /* 顶面只比侧面亮一档。原来 ×1.5（水 ×1.6）加上 0.995 的缝，每块地都是一个
+       独立的亮砖——整片草地看起来像乐高底板，而不是一块地。×1.28 之后顶面与侧面
+       的差别退到「同一种地表被光照打了一下」的程度，分隔交给界缘线去做。 */
+    const topCol = BASE.clone().multiplyScalar(kind === 'water' ? 1.45 : 1.28);
     const topMat = new THREE.MeshStandardMaterial({
       color: topCol,
       roughness: kind === 'water' || wet ? 0.18 : 0.9,
       metalness: kind === 'water' || wet ? 0.3 : 0.02,
       transparent: kind === 'water', opacity: kind === 'water' ? 0.85 : 1
     });
-    const top = new THREE.Mesh(new THREE.PlaneGeometry(0.995, 0.995), topMat);
+    if (kind === 'water') waveInject(topMat);
+    const top = new THREE.Mesh(
+      kind === 'water' ? new THREE.PlaneGeometry(0.998, 0.998, 3, 3) : new THREE.PlaneGeometry(0.998, 0.998),
+      topMat
+    );
     top.rotation.x = -Math.PI / 2;
-    top.position.y = h / 2 + 0.003;
+    /* 水面顶要比方块上沿高出「波纹振幅 + 1 毫米」：位移是双向的，
+       只留 3 mm 的话波谷会沉进方块里，水面上出现一片片被切掉的暗块。 */
+    top.position.y = h / 2 + (kind === 'water' ? 0.022 : 0.003);
     top.receiveShadow = true;
     m.add(top);
 
     /* 界缘：只在「没有邻居」或「邻居是另一种地」的那一面画线。
        全场格线是棋盘语言；只画界缘，线就变成了海岸线（REVIEW-DEMO V-6，也是红线「界缘必须有交代」）。 */
     const sides = [[0, -1], [0, 1], [-1, 0], [1, 0]];
-    const y = h / 2 + 0.004, E = 0.4975;
+    const y = h / 2 + 0.004, E = 0.499;
     const pts = [];
     for (const [dx, dz] of sides) {
       const n = W.cells.get(S.K(cell.x + dx, cell.y + dz));

@@ -171,6 +171,7 @@ SOL.render = SOL.render || {};
     }
 
     R.sync();
+    R.tickWater(now);
     SOL.render.trace.sync();
     SOL.render.trace.fade();
     SOL.render.marks.frame(now);
