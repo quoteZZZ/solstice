@@ -25,6 +25,24 @@
 /* ── 抽卡 ── */
 .packframe{border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;
   background:radial-gradient(ellipse at 50% 50%,#141b23,#0a0d12);height:100%}
+/* 封印态：一张包 + 一条时素横条。开不了包时这里说「差多少」，不用在空框里写字。 */
+.packseal{width:151px;height:220px;border:1px dashed #3a4856;border-radius:3px;
+  background:linear-gradient(170deg,#141a22,#0b0f14 70%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+  padding:0 18px;position:relative}
+.packseal:before{content:"";position:absolute;inset:5px;border:1px solid rgba(255,255,255,.05);border-radius:2px}
+.packseal.ok{border-color:var(--acc);border-style:solid;
+  background:linear-gradient(170deg,#1d1a10,#0d1014 70%);
+  box-shadow:0 0 22px rgba(224,163,62,.18)}
+.packseal .psName{font-size:15px;color:#eef5fa;letter-spacing:.1em}
+.packseal.ok .psName{color:var(--acc)}
+.packseal .psSize{font-family:var(--mono);font-size:calc(11px * var(--fs));color:var(--ink4)}
+.packseal .psEss{width:100%;height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden}
+.packseal .psEss i{display:block;height:100%;background:#4a5c6e;border-radius:2px;
+  transition:width .3s ease}
+.packseal.ok .psEss i{background:var(--acc);box-shadow:0 0 8px rgba(224,163,62,.6)}
+.packseal .psNum{font-family:var(--mono);font-size:calc(12px * var(--fs));color:var(--ink3)}
+.packseal.ok .psNum b{color:var(--acc)}
 /* 摊开的一包：点一张收下（Balatro 的 booster / StS 的三选一） */
 .packpick{cursor:pointer;transition:transform .14s cubic-bezier(.2,.9,.3,1)}
 .packpick:hover{transform:translateY(-7px)}
@@ -49,7 +67,8 @@
   color:var(--ink4);display:flex;align-items:center;padding:0 3px}
 .cgCell .cgBody{flex:1;display:flex;align-items:center;justify-content:center;padding:2px;
   font-family:var(--mono);font-size:calc(11px * var(--fs));color:#cfd8e2;text-align:center;line-height:1.2}
-.cgCell.empty{border:1px dashed #232c36;color:#2b3540;font-family:var(--mono);font-size:calc(11px * var(--fs))}
+/* 空格只留一个近乎看不见的框，保住行列对齐，不再冒充内容 */
+.cgCell.empty{border:1px solid rgba(255,255,255,.055);background:rgba(255,255,255,.014)}
 
 /* ── 图鉴：世界状态成就墙（点亮 = 有边有光） ── */
 .axWall{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}

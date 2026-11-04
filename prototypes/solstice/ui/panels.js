@@ -75,6 +75,19 @@
   UI.packStage = 0;
   UI.packCards = [];
 
+  /* 封印状态的那一张：一包多少钱、现在有多少，用一条横条说，
+     而不是在空荡荡的框中央写一句「时素不够 · 还要 28」（REVIEW-DEMO C-4）。 */
+  function sealFace() {
+    const pct = Math.max(0, Math.min(100, W.essence / S.PACK_COST * 100));
+    const ok = W.essence >= S.PACK_COST;
+    return `<div class="packseal${ok ? ' ok' : ''}">
+      <div class="psName">主包</div>
+      <div class="psSize">${S.PACK_SIZE} 张</div>
+      <div class="psEss"><i style="width:${pct.toFixed(1)}%"></i></div>
+      <div class="psNum"><b>${W.essence}</b> / ${S.PACK_COST}</div>
+    </div>`;
+  }
+
   function packBody() {
     const got = UI.packCards || [];
     const full = W.hand.length >= S.HAND_MAX;
@@ -88,8 +101,7 @@
             <span class="mono" style="color:var(--acc)">${S.PACK_COST}</span></div>
           <div class="mono xs" style="margin-top:6px;color:#3f4b58">池 ${D.total} 张 · ${S.PACK_SIZE} 张 / 包</div>
         </div>
-        <div class="xs" style="margin-top:12px">时素 <span class="mono" style="color:var(--acc)">${W.essence}</span></div>
-        ${swap ? `<div class="xs" style="margin-top:6px">手牌满 · 收下的那张换掉
+        ${swap ? `<div class="xs" style="margin-top:12px">手牌满 · 收下的那张换掉
           <span class="mono" style="color:#e8eef4">${swap.name.zh}</span></div>` : ''}
       </div>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column">
@@ -99,10 +111,7 @@
           <span class="xs" style="margin-left:auto">手牌 ${W.hand.length} / ${S.HAND_MAX}</span>
         </div>
         <div class="packframe" style="flex:1">
-          ${UI.packStage === 0 ? `<div style="width:151px;height:220px;border:1px dashed var(--acc);
-              background:#1a1509;display:flex;align-items:center;justify-content:center;color:var(--acc);
-              font-family:var(--mono);font-size:12px;text-align:center;padding:10px">
-              ${W.essence < S.PACK_COST ? '时素不够 · 还要 ' + (S.PACK_COST - W.essence) : '星尘崩解（不是撕纸）'}</div>` : ''}
+          ${UI.packStage === 0 ? sealFace() : ''}
           ${UI.packStage === 1 ? `<div style="display:flex">${[0, 1, 2, 3, 4].slice(0, got.length).map(i =>
             `<div style="width:120px;height:176px;border:1px solid var(--line2);background:#161c25;margin-left:-38px;
               transform:rotate(${(i - 2) * 5}deg) translateY(${Math.abs(i - 2) * 8}px)"></div>`).join('')}</div>` : ''}
@@ -216,7 +225,9 @@
         <span class="mono xs" style="width:20px;text-align:center">${tier === 10 ? '超' : tier}</span>
         ${['matter', 'rite', 'law'].map(cls => {
           const c = D.cards.find(x => x.primary === el && x.tier === tier && x.class === cls);
-          if (!c) return `<div class="cgCell empty">—</div>`;
+          /* 空格不写「—」：那一道横杠在当时是画面上唯一的「内容」，
+             其实什么也没说，还把注意力从那一张真卡上拉走（REVIEW-DEMO C-4）。 */
+          if (!c) return `<div class="cgCell empty"></div>`;
           const seen = W.seen.has(c.id);
           if (U.codexOwn && !seen) return `<div class="cgCell empty"></div>`;
           return `<div class="cgCell ${seen ? 'has' : ''}" data-card="${c.id}" title="${c.name.zh}">
