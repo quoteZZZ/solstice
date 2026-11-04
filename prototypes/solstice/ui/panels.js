@@ -57,9 +57,9 @@
 
   function footFor(p) {
     if (p === 'pack')
-      return `<button class="btn" data-act="packNext">${UI.packStage === 0 ? '撕开 · −' + S.PACK_COST + ' 时素' : UI.packStage === 1 ? '翻牌 ▸' : '收下'}</button>
+      return `<button class="btn" data-act="packNext">${UI.packStage === 0 ? '撕开 · −' + S.PACK_COST + ' 时素' : UI.packStage === 1 ? '翻牌 ▸' : '不必挑'}</button>
         <button class="btn ghost" data-close="1">关闭</button>
-        <span class="xs" style="margin-left:auto">时素 ${W.essence} · 每月自动 +0.1</span>`;
+        <span class="xs" style="margin-left:auto">时素 ${W.essence} · 每月 +0.1</span>`;
     return `<button class="btn ghost" data-close="1">关闭</button>`;
   }
 
@@ -77,26 +77,24 @@
 
   function packBody() {
     const got = UI.packCards || [];
+    const full = W.hand.length >= S.HAND_MAX;
+    const swap = full ? W.hand[Math.max(0, Math.min(W.hand.length - 1, W.sel))] : null;
     return `<div style="display:flex;gap:16px;height:100%">
-      <div style="width:280px;border-right:1px solid var(--line);padding-right:14px">
+      <div style="width:230px;border-right:1px solid var(--line);padding-right:14px">
         <div class="xs" style="margin-bottom:8px">包种</div>
         <div class="w" style="padding:10px;border-color:var(--acc)">
           <div class="row" style="justify-content:space-between;align-items:baseline">
             <span class="sm" style="color:#fff">主包</span>
             <span class="mono" style="color:var(--acc)">${S.PACK_COST}</span></div>
-          <div class="xs" style="margin-top:3px">0–9 环 · ${S.PACK_SIZE} 张 · 权重只看环级</div>
-          <div class="mono xs" style="margin-top:6px;color:#3f4b58">池 ${D.total} 张（目标 540）</div>
+          <div class="mono xs" style="margin-top:6px;color:#3f4b58">池 ${D.total} 张 · ${S.PACK_SIZE} 张 / 包</div>
         </div>
-        <div class="xs" style="margin-top:10px;line-height:1.7">
-          抽到的卡直接进手牌（同名不重复）。<br>
-          时素由世界月数累积：1 时素 / 10 月。<br>
-          回收闲置卡能补回来（0 环不返还）。
-        </div>
-        <div class="xs" style="margin-top:12px">当前时素 <span class="mono" style="color:var(--acc)">${W.essence}</span></div>
+        <div class="xs" style="margin-top:12px">时素 <span class="mono" style="color:var(--acc)">${W.essence}</span></div>
+        ${swap ? `<div class="xs" style="margin-top:6px">手牌满 · 收下的那张换掉
+          <span class="mono" style="color:#e8eef4">${swap.name.zh}</span></div>` : ''}
       </div>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column">
         <div class="row gap6" style="margin-bottom:10px">
-          ${['封印', '悬浮', '翻牌', '收下'].map((t, i) =>
+          ${['封印', '翻牌', '挑选'].map((t, i) =>
             `<span class="tag ${i === UI.packStage ? 'a' : ''}">${i + 1}. ${t}</span>`).join('')}
           <span class="xs" style="margin-left:auto">手牌 ${W.hand.length} / ${S.HAND_MAX}</span>
         </div>
@@ -108,11 +106,10 @@
           ${UI.packStage === 1 ? `<div style="display:flex">${[0, 1, 2, 3, 4].slice(0, got.length).map(i =>
             `<div style="width:120px;height:176px;border:1px solid var(--line2);background:#161c25;margin-left:-38px;
               transform:rotate(${(i - 2) * 5}deg) translateY(${Math.abs(i - 2) * 8}px)"></div>`).join('')}</div>` : ''}
-          ${UI.packStage >= 2 ? `<div style="display:flex;gap:10px;align-items:flex-end">
-            ${got.map((c, i) => `<div style="transform:scale(.62);transform-origin:bottom center;margin:0 -28px">
-              ${UI.cardFace(c, 'p' + i)}</div>`).join('')}</div>` : ''}
+          ${UI.packStage >= 2 ? `<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;justify-content:center">
+            ${got.map((c, i) => `<div class="packpick" data-act="packPick" data-i="${i}">
+              ${UI.cardFace(c, 'p' + i, 'p')}</div>`).join('')}</div>` : ''}
         </div>
-        <div class="xs" style="margin-top:10px">抽卡是获得新卡的唯一途径；卡进手牌后同名只留一张。</div>
       </div>
     </div>`;
   }
@@ -131,6 +128,21 @@
       UI.packCards = [];
       U.panel = null;
     }
+    UI.renderHand(); UI.updateHud(); UI.renderRight(); UI.renderOverlay();
+  }
+
+  /* 从摊开的包里挑一张：手牌没满就进手牌，满了就换掉选中的那张。
+     挑完即收摊——一包只取一张，剩下的说明「不必挑」，不留残局。 */
+  function packPick(i) {
+    const c = (UI.packCards || [])[i];
+    if (!c) return;
+    const res = S.cmd.takeFromPack(c);
+    if (!res.ok) return UI.toast('收不下', res.msg);
+    UI.toast(res.added ? '收下「' + c.name.zh + '」' : '换入「' + c.name.zh + '」',
+      res.added ? '' : '换下「' + res.replaced + '」');
+    UI.packStage = 0;
+    UI.packCards = [];
+    U.panel = null;
     UI.renderHand(); UI.updateHud(); UI.renderRight(); UI.renderOverlay();
   }
 
@@ -484,6 +496,7 @@
       if (act) {
         const a = act.dataset.act;
         if (a === 'packNext') return packNext();
+        if (a === 'packPick') return packPick(+act.dataset.i);
         if (a === 'codexOwn') { U.codexOwn = !U.codexOwn; return UI.renderOverlay(); }
         if (a === 'toKeys') { U.panel = 'settings'; U.setGroup = 'input'; return UI.renderOverlay(); }
       }

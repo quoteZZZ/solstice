@@ -55,17 +55,25 @@ SOL.ui = SOL.ui || {};
      手里八张卡实际上读不出任何一句话（REVIEW-DEMO T-3）。这里按「一眼能判断」重排：
      名 + 环条 / 画芯 / 三行效果 / 回收值，完整效果交给悬浮（UI.showTip）。
      不可打的卡降饱和 —— 开局世界是空的时候，这一步就是「先打土地」的无声引导（R-5 / F-1）。 */
+  /* 手牌卡面只回答三件事：这是什么（类 / 环）、能放在哪（cond）、做了什么（效果句）。
+     效果句是作者写的整句，读起来慢但不会漏；能放在哪是唯一一件要逐张扫的事，给它一枚角标。
+     cond 是数据里写好的落点约束，不另造说法；「需已有地块」是默认前提（11 张里 8 张都写它），
+     每张都挂就等于没挂——角标只留给例外：虚空、湿土、夜间、有灌木之类。 */
+  const PLAIN_COND = '需已有地块';
+
   function handFace(card, uid, can) {
     const ringc = RINGC[Math.min(10, card.tier)];
     const bars = Array.from({ length: 12 }, (_, i) => `<i class="${i <= card.tier ? 'on' : ''}"></i>`).join('');
+    const need = (card.line && card.line.cond || [])[0];
+    const showNeed = need && need !== PLAIN_COND;
     return `<div class="card h ${card.class} ${D.elCls(card.primary)}${can ? '' : ' cant'}"
       data-card="${card.id}" style="--ringc:${ringc};--el:${D.elRgb(card.primary)}">
       <div class="hband">
-        <span class="hcls"><svg viewBox="0 0 24 24">${CLS_ICON[card.class]}</svg></span>
+        <span class="ctag">${D.clsName[card.class] || ''}</span>
         <h3>${esc(card.name.zh)}</h3>
       </div>
       <div class="hringbar">${bars}</div>
-      <div class="hwin">${artSVG(card, uid)}</div>
+      <div class="hwin">${artSVG(card, uid)}${showNeed ? `<div class="hreq">${esc(need)}</div>` : ''}</div>
       <div class="hsum"><span>${highlight(card.line.fx, card.line.hl)}</span></div>
       <div class="hfoot">
         <span class="helem" style="--el:${D.elRgb(card.primary)}">
@@ -77,7 +85,10 @@ SOL.ui = SOL.ui || {};
 
   UI.cardFace = function (card, uid, mode) {
     uid = uid || (++UI._uid);
+    /* 手牌按「此刻能不能打」降饱和；抽包面板里不这么做——
+       抽包时玩家判断的是这张卡值不值，不是现在打不打得了（REVIEW-DEMO #13）。 */
     if (mode === 'h') return handFace(card, uid, SOL.sim.playable(card));
+    if (mode === 'p') return handFace(card, uid, true);
     const ringc = RINGC[Math.min(10, card.tier)];
     const bars = Array.from({ length: 12 }, (_, i) => `<i class="${i <= card.tier ? 'on' : ''}"></i>`).join('');
     const els = card.elements;

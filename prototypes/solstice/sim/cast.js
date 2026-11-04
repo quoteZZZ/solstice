@@ -58,6 +58,10 @@
     return W.hand;
   };
 
+  /* 撕包只负责把 5 张摊在桌上，不往手牌里塞。
+     原来是一包 5 张全收：手牌上限 8，一包就把手牌灌满，剩下的只能硬着头皮打或者回收，
+     「抽到新卡」从此不是一次决策而是一次倾倒（REVIEW-DEMO F-2）。
+     Balatro 的 booster pack 与 StS 的三选一都是让玩家选，这里照这个来。 */
   S.drawPack = function () {
     if (W.essence < S.PACK_COST) return { ok: false, msg: '时素不够（要 ' + S.PACK_COST + '）' };
     W.essence -= S.PACK_COST;
@@ -67,7 +71,6 @@
       if (!c) break;
       ex.add(c.id); got.push(c);
     }
-    for (const c of got) if (W.hand.length < S.HAND_MAX) W.hand.push(c);
     got.sort((a, b) => a.tier - b.tier);
     S.log('撕开一包 · −' + S.PACK_COST + ' 时素', true);
     return { ok: true, got: got };

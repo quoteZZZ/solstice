@@ -69,6 +69,26 @@
   /* ───────── 卡包 / 事件 ───────── */
   cmd.drawPack = function () { return S.drawPack(); };
 
+  /* 从摊开的包里挑一张进手牌。手牌满了就换掉当前选中的那张——
+     抽包前先点好要换哪张，是这类界面（Balatro / StS）的惯例。
+     换下哪张要写进日志，否则玩家会以为这张卡凭空消失了。 */
+  cmd.takeFromPack = function (card) {
+    if (!card) return { ok: false, msg: '没有这张卡' };
+    const hand = W.hand;
+    if (hand.length < S.HAND_MAX) {
+      hand.push(card);
+      W.sel = hand.length - 1;
+      S.log('收下「' + card.name.zh + '」');
+      return { ok: true, added: true };
+    }
+    const i = Math.max(0, Math.min(hand.length - 1, W.sel));
+    const old = hand[i];
+    hand[i] = card;
+    W.sel = i;
+    S.log('换下「' + old.name.zh + '」，换入「' + card.name.zh + '」');
+    return { ok: true, added: false, replaced: old.name.zh };
+  };
+
   /* 按 id 落一张卡（事件用）：ui 不该拿着 D.byId 自己去拼 sim 的落点。 */
   cmd.spawn = function (id, cell, opts) {
     const card = D.byId.get(id);
