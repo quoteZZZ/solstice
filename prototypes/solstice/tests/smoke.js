@@ -545,6 +545,17 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     return { setup, after, blurred: { sunBefore, sunAfter } };
   })();
 
+  /* 10.11 事件是模态：开着的时候不许把面板叠在它后面（第二轮 S09） */
+  const eventModal = await (async () => {
+    await page.evaluate(() => { const { UI, S } = window.__dbg; UI.closePanel(); S.cmd.gear(0); UI.fireEvent('灾变'); });
+    await page.waitForTimeout(220);
+    await page.keyboard.press('l'); await page.waitForTimeout(200);
+    const during = await page.evaluate(() => ({ event: !!window.__dbg.UI.state.event, panel: window.__dbg.UI.state.panel }));
+    await page.keyboard.press('Escape'); await page.waitForTimeout(200);
+    const afterEsc = await page.evaluate(() => ({ event: !!window.__dbg.UI.state.event, panel: window.__dbg.UI.state.panel }));
+    return { during, afterEsc };
+  })();
+
   /* 11. 断言：上面几段是读数，这里决定退不退 0 */
   if (!table.reclaimOk) errors.push('[assert] reclaim 与环级表不一致');
   if (!(undoGuard.guard && undoGuard.ok2 && !undoGuard.ok3)) errors.push('[assert] 撤销守卫失效（应拒绝无回执/重复撤销）');
@@ -562,6 +573,9 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
   if (spaceInPanel.after.tab === spaceInPanel.setup.tab) {
     errors.push('[assert] 面板里按空格没有激活按钮（页签没切）');
   }
+  if (!eventModal.during.event) errors.push('[assert] 事件没弹出来，S09 用例无效');
+  if (eventModal.during.panel) errors.push('[assert] 事件开着时按 L 仍能开面板：' + eventModal.during.panel);
+  if (eventModal.afterEsc.event) errors.push('[assert] Esc 没关掉事件');
   if (spaceInPanel.after.casts) {
     errors.push('[assert] 面板里按空格触发了 ' + spaceInPanel.after.casts + ' 次 UI.cast');
   }
@@ -611,7 +625,7 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     errors.push('[assert] 事件弹窗不在视口内：' + JSON.stringify(panels.eventBox));
   }
 
-  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, fixes, dragCast, ux3, ux4, mon, narrowFit, spaceInPanel, errors };
+  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, fixes, dragCast, ux3, ux4, mon, narrowFit, spaceInPanel, eventModal, errors };
   fs.writeFileSync(path.join(__dirname, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 1));
 

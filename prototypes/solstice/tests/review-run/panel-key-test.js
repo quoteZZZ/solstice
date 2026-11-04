@@ -37,6 +37,22 @@ const { chromium } = require('playwright-core');
 
   const log = { viewport: [1080, 700], base: await state(), tests: [] };
 
+  // 从 BODY 起 Tab，记录第一次进入 #panel 的序号
+  await page.evaluate(() => document.activeElement.blur());
+  let firstPanelTab = -1;
+  const seq = [];
+  for (let i = 1; i <= 30; i++) {
+    await page.keyboard.press('Tab'); await page.waitForTimeout(30);
+    const s = await page.evaluate(() => {
+      const a = document.activeElement;
+      return { text: (a.innerText || '').replace(/\s+/g, ' ').slice(0, 16), inPanel: !!a.closest('#panel') };
+    });
+    if (firstPanelTab < 0 && s.inPanel) firstPanelTab = i;
+    if (i <= 6) seq.push(s);
+  }
+  log.firstPanelTab = firstPanelTab;
+  log.firstTabs = seq;
+
   await focus('图鉴'); await page.waitForTimeout(100);
   await page.keyboard.press('Enter'); await page.waitForTimeout(500);
   log.tests.push({ key: 'Enter on 图鉴', after: await state() });
@@ -61,6 +77,16 @@ const { chromium } = require('playwright-core');
   await focus('关闭'); await page.waitForTimeout(100);
   await page.keyboard.press('Space'); await page.waitForTimeout(400);
   log.tests.push({ key: 'Space on 关闭', after: await state() });
+
+  // 右栏「年表 ▸」：容器可聚焦但 Enter 不打开
+  await page.evaluate(() => { const g = document.querySelector('.rp.grow'); if (g) g.focus(); });
+  const rpBefore = await page.evaluate(() => ({
+    active: document.activeElement.className,
+    panel: window.__dbg.UI.state.panel,
+    span: (() => { const e = document.querySelector('[data-chron]'); return e && { tag: e.tagName, tabindex: e.getAttribute('tabindex'), role: e.getAttribute('role') }; })()
+  }));
+  await page.keyboard.press('Enter'); await page.waitForTimeout(300);
+  log.rightPanel = { before: rpBefore, after: await page.evaluate(() => ({ panel: window.__dbg.UI.state.panel })) };
 
   // 面板内 K/H
   await page.keyboard.press('k'); await page.waitForTimeout(300);

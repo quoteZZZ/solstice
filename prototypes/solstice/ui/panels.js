@@ -13,8 +13,10 @@
   UI.openPanel = function (p) {
     /* 世界里攒下的提示属于世界上下文：面板一开它们会被 z-index 抬到面板之上，
        横在标题与步骤条之间（UI 评审 P40）。开面板时清掉，面板内的提示另走 #phead。 */
+    /* 只清「纯提示」，带按钮的不清：回收后的「撤销」只有一个几秒的窗口，
+       开面板把它扫掉等于把后悔药扔了（第二轮 X07）。 */
     const stack0 = document.getElementById('toasts');
-    if (stack0) stack0.innerHTML = '';
+    if (stack0) [...stack0.children].forEach(c => { if (!c.querySelector('button')) c.remove(); });
     if (p === 'creator') { UI.openCreator(); return; }
     /* 键位与操作速查不再是独立面板，并进「设置 → 操作」：
        左栏因此只留 年表 / 卡库 / 换界 / 设置 / 摆件 五项（REVIEW-DEMO #12）。 */
@@ -42,14 +44,32 @@
   };
 
   UI.renderOverlay = function () {
+    const it = U.inlineToast;
+    const keep = it && (Date.now() - it.at < 2400) ? it : null;
     const box = document.getElementById('overlay');
     if (!box) return;
     box.classList.toggle('show', !!U.panel);
     box.innerHTML = U.panel ? panelHTML() : '';
     document.querySelectorAll('#leftrail .rail').forEach(r =>
       r.classList.toggle('on', r.dataset.panel === U.panel));
+    /* 重绘前那条行内提示补回去：撕开/收下都是「先发提示再重绘」，不补就看不见（第二轮 X02） */
+    if (keep) {
+      const head = document.getElementById('phead');
+      if (head) {
+        const chip = document.createElement('span');
+        chip.className = 'toast ih';
+        const i = document.createElement('i'); i.textContent = keep.t;
+        chip.appendChild(i);
+        if (keep.d) { const em = document.createElement('em'); em.textContent = keep.d; chip.appendChild(em); }
+        head.insertBefore(chip, head.querySelector('.close') || null);
+        setTimeout(() => chip.remove(), Math.max(300, 2400 - (Date.now() - keep.at)));
+      }
+    }
   };
 
+  /* 行内提示是塞进 #phead 的，而 #overlay 的整块 innerHTML 每次重绘都会重建——
+     撕开/收下时先发提示再重绘，提示当场消失（第二轮 X02）。
+     重绘前记下、重绘后补回，超过 2.4s 的就不再补。 */
   function panelHTML() {
     const pk = S.packOf(UI.packSel);
     const title = {

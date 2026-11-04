@@ -115,7 +115,9 @@
          打一张牌，同时 preventDefault 又吃掉了按钮的 keyup 激活（第二轮 S25 补）。
          实测后果：焦点在「图鉴」页签上按空格，页签没切，世界里的太阳 +1。 */
       if (inPanel && (k === 'Enter' || k === ' ')) return;
-      const pass = k === 'Escape' || k === 'Tab' || isPanelKey;
+      /* 事件是模态：它开着的时候不许再开面板（原来按 L 会把卡库叠在事件遮罩后面，
+         Esc 只能一层层剥，玩家会以为自己卡住了）。事件自己用 Esc 关，或用三个选项回答。 */
+      const pass = k === 'Escape' || k === 'Tab' || (!UI.state.event && isPanelKey);
       if (!pass) { ev.preventDefault(); return; }
     }
 

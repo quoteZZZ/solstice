@@ -78,6 +78,7 @@
        宽屏仍是 8 条。 */
     const cap = window.innerWidth <= 1080 ? 3 : 8;
     while (box.children.length > cap) box.removeChild(box.firstChild);
+    for (const c of box.children) c.style.whiteSpace = '';   // 新条目走 CSS 的省略号
   };
 
   UI.toast = function (t, d, act) {
@@ -93,6 +94,8 @@
       if (d) { const em = document.createElement('em'); em.textContent = d; chip.appendChild(em); }
       const close = head.querySelector('.close');
       head.insertBefore(chip, close || null);
+      /* 记一笔：面板重绘会把整块 #phead 重建，这条提示会跟着消失（第二轮 X02） */
+      UI.state.inlineToast = { t: t, d: d || '', at: Date.now() };
       while (head.querySelectorAll('.toast.ih').length > 1) head.querySelector('.toast.ih').remove();
       setTimeout(() => chip.remove(), 2600);
       return;
@@ -130,12 +133,28 @@
   /* 全站唯一的月份写法。W.month 是 0 起：0 →「1 月」，11 →「12 月」，12 →「1 年 1 月」。
      原来四个地方各写各的（顶栏 0 年 1 月 / 年表 第 24 月 / 图鉴 第 24 月 / 纪年第 2.5 年），
      同一时刻对不上（UI 评审 U21）。 */
+  /* 视口变了要把 log 按新上限重裁：1680 攒了 8 条、缩到 1080 之后它们还全在，
+     直到下一条日志才被裁掉，中间是一块 176×454 的墙（第二轮 X24）。 */
+  UI.trimLog = function () {
+    const box = document.getElementById('log');
+    if (!box) return;
+    const cap = window.innerWidth <= 1080 ? 3 : 8;
+    while (box.children.length > cap) box.removeChild(box.firstChild);
+  };
+
   UI.mon = function (m) {
     const y = Math.floor(m / 12), mo = (m % 12) + 1;
     return y ? y + ' 年 ' + mo + ' 月' : mo + ' 月';
   };
 
   UI.updateHud = function () {
+    /* 抽卡面板（封印阶段）是一段静态 HTML：时素每 10 秒 +1，但面板上的
+       「时素 0」「0/12」「撕开·disabled」都停在打开那一刻（第二轮 X25）。
+       只在阶段 0 且时素真的变了时重绘——挑选阶段重绘会把摊开的牌洗掉。 */
+    if (UI.state.panel === 'pack' && UI.packStage === 0 && UI.state.packShownEss !== W.essence) {
+      UI.state.packShownEss = W.essence;
+      UI.renderOverlay();
+    }
     const year = document.getElementById('cYear');
     if (!year) return;
     /* 第 0 年不写「0 年」：年表那边是「1 月」，时钟却写「0 年 1 月」，
