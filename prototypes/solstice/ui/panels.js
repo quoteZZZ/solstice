@@ -285,11 +285,13 @@
         <div class="row gap8" style="margin-bottom:9px;align-items:center">
           <span class="mono xs" style="color:#8b99a6">已见 ${W.seen.size} / ${D.total}</span>
           <button class="btn sm ${U.codexOwn ? 'on' : 'ghost'}" data-act="codexOwn">只看已见</button>
-          <span class="mono xs" style="color:#8b99a6">池 ${S.drawPool().length} / ${S.poolTotal()}</span>
+          <!-- 「池 50 / 53」原来和「已见 15 / 55」并排：两个总数（55 与 53）差 2 张，
+               界面上没有任何地方解释为什么，读者只会以为其中一个错了（UI 评审 P11）。
+               牌池是「抽卡」这件事的数字，放回抽卡面板；卡库只留一个分母。 -->
         </div>
         ${grid}
       </div>
-      <div style="width:400px;border-left:1px solid var(--line);padding-left:16px;overflow:auto">
+      <div class="cdscroll" style="width:400px;border-left:1px solid var(--line);padding-left:16px;overflow:auto">
         ${sel ? codexDetail(sel) : ''}
       </div>
     </div>`;
