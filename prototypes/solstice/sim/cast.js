@@ -322,9 +322,11 @@
     const rise = card.sim.rise || 0;
     const cooling = card.sim.cooling || 0;
     const dry = card.sim.dry || 0;
-    let made = 0;
+    let fresh = 0, touched = 0;
     for (let dx = -size; dx <= size; dx++) for (let dy = -size; dy <= size; dy++) {
+      const existed = W.cells.has(S.K(x + dx, y + dy));
       const c = S.addCell(x + dx, y + dy, { h: 0.30 });
+      if (!existed) fresh++;
       /* 金属富集：新地里有矿（含矿格敲钟 +2，见 opBell）——特征真的能读到 */
       if (W.effects && W.effects.metal > 0 && S.rand() < 0.35) c.flags.metal = true;
       if (rise) { c.h = Math.min(0.9, c.h + rise); c.mods.t -= cooling; if (dry) c.W = Math.max(0, c.W - dry); }
@@ -334,10 +336,16 @@
            和里面一模一样。给个持久标记，render 把它往背景色压，外圈自然收进雾里。 */
         c.flags.edge = true;
       }
-      made++;
+      touched++;
     }
-    S.log('土地铺开 ' + made + ' 格');
-    return { ok: true, made: made };
+    /* 纯铺地的卡打在一片已经有地的地方 = 世界一个像素都没变。以前这里照样返回 ok，
+       playSlot 就照常扣牌：玩家花掉一张牌，屏幕上什么也没发生（UI 评审 F14）。
+       只拒绝「真的一点都没改」的那种——带 rise / dry / edgeFog 的卡会改到已有格子，那是有效操作。 */
+    if (!fresh && !rise && !dry && !card.sim.edgeFog) {
+      return { ok: false, msg: '这一带已经是地块了' };
+    }
+    S.log(fresh ? '土地铺开 ' + fresh + ' 格' : '把 ' + touched + ' 格地垫高');
+    return { ok: true, made: fresh, touched: touched };
   }
 
   function opSun(card) {

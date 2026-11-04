@@ -41,7 +41,7 @@
   };
 
   function panelHTML() {
-    const pk = S.packOf(U.packSel);
+    const pk = S.packOf(UI.packSel);
     const title = {
       pack: '抽卡 · ' + pk.name + '（' + S.PACK_SIZE + ' 张 / ' + pk.cost + ' 时素）',
       codex: U.codexTab === 'ach'
@@ -61,11 +61,14 @@
 
   function footFor(p) {
     if (p === 'pack') {
-      const pk = S.packOf(U.packSel);
+      const pk = S.packOf(UI.packSel);
       const open = S.packOpen(pk), afford = W.essence >= pk.cost;
+      /* 第三阶段是「必须挑一张」，主按钮原来却写「不必挑」——语义正好相反（UI 评审 P03）。
+         它是「整包不要了」的退路，所以降到 ghost，主按钮位留给卡本身。 */
+      const skip = UI.packStage >= 2;
       const label = UI.packStage === 0 ? '撕开 · −' + pk.cost + ' 时素'
-        : UI.packStage === 1 ? '翻牌 ▸' : '不必挑';
-      return `<button class="btn" data-act="packNext"${UI.packStage === 0 && (!open || !afford) ? ' disabled' : ''}>${label}</button>
+        : UI.packStage === 1 ? '翻牌 ▸' : '跳过这一包';
+      return `<button class="btn${skip ? ' ghost' : ''}" data-act="packNext"${UI.packStage === 0 && (!open || !afford) ? ' disabled' : ''}>${label}</button>
         <button class="btn ghost" data-close="1">关闭</button>
         <span class="xs" style="margin-left:auto">时素 ${W.essence} · 每 10 秒 +1</span>`;
     }
@@ -584,6 +587,11 @@
       }
       const pk = ev.target.closest('[data-pack]');
       if (pk) {
+        /* 已经付费摊开的牌属于上一个包：切包会把它们连同时素一起吞掉，且不退款
+           （UI 评审 P02，实测 12 时素买的 6 张牌凭空消失）。有未取走的牌时先不让切。 */
+        if (UI.packStage >= 1 && (UI.packCards || []).length) {
+          return UI.toast('这一包还没挑', '先收下一张，或点「跳过这一包」');
+        }
         UI.packSel = pk.dataset.pack;
         /* 换包种等于重开：摊开的牌属于上一包，不能留着 */
         UI.packStage = 0; UI.packCards = [];

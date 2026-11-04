@@ -67,6 +67,9 @@
   function beginDrag(ev, i) {
     const card = W.hand[i];
     if (!card) return;
+    /* 上一次拖拽没收干净就再拖：会造出第二张 #ghost，而 getElementById 只删得掉第一张，
+       剩下那张钉死在 left:0/top:0，永久压住左上角的品牌与左栏（UI 评审 H04 / E01）。 */
+    if (drag) endDrag(null);
     ev.preventDefault();
     UI.select(i);
     drag = { i: i, x0: ev.clientX, y0: ev.clientY, moved: false, mode: 'idle', cell: null, pt: null };
@@ -153,8 +156,8 @@
       document.removeEventListener('pointercancel', d.cancel);
       window.removeEventListener('blur', d.cancel);
     }
-    const g = document.getElementById('ghost');
-    if (g) g.remove();
+    /* 用 querySelectorAll 而不是 getElementById：同 id 的残影可能不止一张 */
+    document.querySelectorAll('#ghost').forEach(g => g.remove());
     SOL.render.cam.setHover(null);
     SOL.render.marks.clear();
     if (!d) return;

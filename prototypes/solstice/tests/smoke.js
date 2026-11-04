@@ -267,10 +267,63 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     const seq = [];
     for (let i = 0; i < 5; i++) { const r = S.cmd.reroll(); seq.push(r.cost); }
     const afterFish = W.rerollN;
-    const c = W.hand[0];
-    S.cmd.cast(c, 0, 0);          // 真的用掉一手牌
+    /* 施一张**真能生效**的卡。原来这里往 (0,0) 打手牌第一张，而 (0,0) 早就有地——
+       纯铺地卡现在会被拒绝（F14 的修复），这一步就根本没施成、梯价自然没归零。
+       改到空旷处，并用卡表里的地卡，不依赖手牌抽到什么。 */
+    const land = window.SOL.data.byId.get('terrain.earth.0.matter.land');
+    const castRes = S.cmd.cast(land, 60, 60);
     const reset = S.cmd.rerollCost();
-    return { seq, afterFish, reset };
+    return { seq, afterFish, reset, castOk: !!castRes.ok };
+  });
+
+  /* 10.5 本批修复的回归：价格来源 / 换包保护 / 空施不吃牌 / 跳过按钮 / 抽包文案 */
+  const fixes = await page.evaluate(() => {
+    const { S, W, D, UI } = window.__dbg;
+    const out = {};
+    const land = D.byId.get('terrain.earth.0.matter.land');
+
+    /* F14：在一整片已有地块上再打一张纯铺地卡，必须被拒绝且不扣牌 */
+    W.hand = [land, land];
+    S.cmd.cast(land, 0, 0);
+    const before = W.hand.length;
+    const r = S.cmd.playSlot(0, 0, 0);
+    out.landRefused = !r.ok;
+    out.landMsg = r.msg || '';
+    out.landNoConsume = W.hand.length === before;
+
+    /* P01：面板标题与底部按钮的价格都要跟随选中的包 */
+    UI.packSel = 'high';
+    UI.packStage = 0; UI.packCards = [];
+    UI.openPanel('pack'); UI.renderOverlay();
+    const cost = String(S.packOf('high').cost);
+    out.priceInTitle = document.getElementById('phead').textContent.indexOf(cost) >= 0;
+    out.priceInButton = document.querySelector('[data-act="packNext"]').textContent.indexOf(cost) >= 0;
+    out.packBtnAt = document.querySelector('[data-act="packNext"]').textContent.trim();
+
+    /* P02：有未取走的牌时，点别的包种不能把牌吞掉 */
+    UI.packStage = 1; UI.packCards = [land];
+    const selBefore = UI.packSel;
+    const row = document.querySelector('[data-pack="basic"]');
+    if (row) row.click();
+    out.switchBlocked = UI.packSel === selBefore && (UI.packCards || []).length === 1;
+
+    /* P03：第三阶段的主按钮不能是「不必挑」 */
+    UI.packStage = 2; UI.packCards = [land]; UI.renderOverlay();
+    out.skipLabel = (document.querySelector('[data-act="packNext"]') || {}).textContent || '';
+    UI.packStage = 0; UI.packCards = []; UI.closePanel();
+
+    /* U01：顶栏抽包按钮的文案必须由最便宜的可开包算出，不能是写死的 */
+    UI.updateHud();
+    out.packBtn = document.getElementById('bPack').textContent.trim();
+    const cheap = S.packList().filter(p => S.packOpen(p))
+      .reduce((a, p) => (!a || p.cost < a.cost ? p : a), null);
+    out.cheapCost = cheap ? cheap.cost : null;
+
+    /* U19：世界已经有格时，痕迹空态不能再写「世界还没被碰过」 */
+    W.traces = [];
+    UI.renderRight();
+    out.traceEmpty = (document.querySelector('.rp.grow') || {}).textContent || '';
+    return out;
   });
 
   /* 11. 断言：上面几段是读数，这里决定退不退 0 */
@@ -281,11 +334,22 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
   if (!(draw.forcedTier >= draw.pityTier)) errors.push('[assert] 硬保底没生效');
   if (rr.seq.join(',') !== '5,10,20,40,40') errors.push('[assert] 重抽梯价不对：' + rr.seq.join(','));
   if (rr.reset !== 5) errors.push('[assert] 施卡后重抽价没有归零：' + rr.reset);
+  if (!rr.castOk) errors.push('[assert] 归零测试里那张卡根本没施成');
+  if (!fixes.landRefused) errors.push('[assert] 空施没有被拒绝：' + fixes.landMsg);
+  if (!fixes.landNoConsume) errors.push('[assert] 空施把牌吃掉了');
+  if (!fixes.priceInTitle) errors.push('[assert] 抽卡标题价格没跟随选中包：' + fixes.priceInTitle);
+  if (!fixes.priceInButton) errors.push('[assert] 抽卡按钮价格没跟随选中包：' + fixes.packBtnAt);
+  if (!fixes.switchBlocked) errors.push('[assert] 有未取走的牌时仍能切包');
+  if (!/跳过/.test(fixes.skipLabel)) errors.push('[assert] 第三阶段主按钮文案没改：' + fixes.skipLabel);
+  if (fixes.cheapCost && fixes.packBtn.indexOf(String(fixes.cheapCost)) < 0) {
+    errors.push('[assert] 抽包按钮文案与最便宜包价不符：' + fixes.packBtn + ' vs ' + fixes.cheapCost);
+  }
+  if (/世界还没被碰过/.test(fixes.traceEmpty)) errors.push('[assert] 痕迹空态仍在说「世界还没被碰过」');
   if (!panels.eventBox || !panels.eventBox.inside) {
     errors.push('[assert] 事件弹窗不在视口内：' + JSON.stringify(panels.eventBox));
   }
 
-  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, errors };
+  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, fixes, errors };
   fs.writeFileSync(path.join(__dirname, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 1));
 

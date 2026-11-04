@@ -80,6 +80,17 @@
   UI.toast = function (t, d, act) {
     const box = document.getElementById('toasts');
     if (!box) return;
+    /* 同一句话不叠第二条：连续 8 次无效施放会在顶部堆 4 个一模一样的方框，
+       最新那条反而被挤到最下面，还盖住面板标题（UI 评审 F12 / F13 / P40）。
+       重复就只刷新计时并闪一下，不新增。 */
+    const key = t + '|' + (d || '');
+    for (const old of [...box.children]) {
+      if (old.dataset.k !== key) continue;
+      clearTimeout(old._t);
+      old._t = setTimeout(() => old.remove(), 3800);
+      if (old.animate) old.animate([{ opacity: .35 }, { opacity: 1 }], { duration: 200 });
+      return;
+    }
     const el = document.createElement('div');
     el.className = 'toast';
     el.innerHTML = `<div class="t">${t}</div>${d ? `<div class="d">${d}</div>` : ''}`;
@@ -90,9 +101,10 @@
       b.addEventListener('click', () => { el.remove(); act.fn(); });
       el.appendChild(b);
     }
+    el.dataset.k = key;
     box.appendChild(el);
-    setTimeout(() => el.remove(), 5200);
-    while (box.children.length > 4) box.removeChild(box.firstChild);
+    el._t = setTimeout(() => el.remove(), 3800);
+    while (box.children.length > 3) box.removeChild(box.firstChild);
   };
 
   /* ── 顶栏数值 ── */
@@ -109,9 +121,14 @@
       return l.flora + l.fauna;
     })();
     document.querySelector('#essbar i').style.width = Math.round(W.essAcc * 100) + '%';
-    /* 底栏那颗「抽卡」只要有一档买得起就亮；具体买哪档在面板里选 */
-    document.getElementById('bPack').disabled =
-      !S.packList().some(p => S.packOpen(p) && W.essence >= p.cost);
+    /* 顶栏那颗「抽卡」：文案与可用性读同一个来源——当前开着的包里最便宜那档。
+       原来按钮写死「抽包 30」（index.html），而基础包其实 12：玩家按 30 攒钱，
+       12 就能买；凑到 30 又以为只够一包（UI 评审 U01）。 */
+    const buyable = S.packList().filter(p => S.packOpen(p));
+    const cheapest = buyable.reduce((a, p) => (!a || p.cost < a.cost ? p : a), null);
+    const bPack = document.getElementById('bPack');
+    bPack.textContent = cheapest ? '抽包 ' + cheapest.cost : '抽包';
+    bPack.disabled = !buyable.some(p => W.essence >= p.cost);
     document.getElementById('hint').style.opacity = W.cells.size ? '0' : '1';
   };
 
@@ -229,7 +246,11 @@
             <span class="xs"><i style="display:inline-block;width:5px;height:5px;border-radius:50%;
               background:${D.elColor(t.el)};margin-right:5px"></i>${t.name}${t.count > 1 ? ' ×' + t.count : ''}</span>
             <span class="mono xs" style="color:var(--ink4)">${t.life >= 999 ? '永久' : Math.max(0, t.life - (W.month - t.born)) + ' 月'}</span>
-          </div>`).join('') : '<div class="xs">还没有痕迹——世界还没被碰过</div>'}
+          </div>`).join('')
+            /* 「还没有痕迹」只在世界真的没被碰过时成立。痕迹按月龄过期，
+               146 格、4 年的世界里这段会变空，而空态还写着「没被碰过」——
+               同一屏下方的年表却列着 6 条（UI 评审 U19）。 */
+            : `<div class="xs">${W.cells.size ? '最近的痕迹都已消散 · 见年表 ▸' : '还没有痕迹——世界还没被碰过'}</div>`}
         </div>
         <div class="tl">
           ${(W.chron.slice(0, 6)).map(c => {
