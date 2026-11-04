@@ -99,6 +99,18 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     UI.closePanel();
     UI.fireEvent('灾变');
     out.event = document.getElementById('eventwrap').classList.contains('on');
+    /* 事件弹窗必须整块落在视口内。#eventwrap 是 inset:0 的整屏遮罩，一旦它自己被
+       某个带 translate 的 keyframes 推走（panelIn 里就有 translate(-50%,-50%)），
+       弹窗只剩一角露在屏幕左上——评审时真的发生过，而且三份取证坐标一模一样。
+       两条判据分别挡两种成因：遮罩宽高 > 0 挡「容器塌成 0×0」，四条边在视口内挡「被 transform 推走」。 */
+    const eb = document.getElementById('eventcard').getBoundingClientRect();
+    const wb = document.getElementById('eventwrap').getBoundingClientRect();
+    out.eventBox = {
+      card: [Math.round(eb.x), Math.round(eb.y), Math.round(eb.width), Math.round(eb.height)],
+      wrap: [Math.round(wb.width), Math.round(wb.height)],
+      inside: eb.left >= 0 && eb.top >= 0 && eb.right <= innerWidth && eb.bottom <= innerHeight &&
+        wb.width > 0 && wb.height > 0
+    };
     UI.closeEvent();
     return out;
   });
@@ -269,6 +281,9 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
   if (!(draw.forcedTier >= draw.pityTier)) errors.push('[assert] 硬保底没生效');
   if (rr.seq.join(',') !== '5,10,20,40,40') errors.push('[assert] 重抽梯价不对：' + rr.seq.join(','));
   if (rr.reset !== 5) errors.push('[assert] 施卡后重抽价没有归零：' + rr.reset);
+  if (!panels.eventBox || !panels.eventBox.inside) {
+    errors.push('[assert] 事件弹窗不在视口内：' + JSON.stringify(panels.eventBox));
+  }
 
   const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, errors };
   fs.writeFileSync(path.join(__dirname, 'report.json'), JSON.stringify(report, null, 2));
