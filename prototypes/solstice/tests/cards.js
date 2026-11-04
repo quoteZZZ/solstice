@@ -61,10 +61,11 @@ say(cards.every(c => c.line && typeof c.line.fx === 'string' && c.line.fx.length
 say(cards.every(c => (c.line.hl || []).every(h => c.line.fx.indexOf(h) >= 0)), '高亮片段都能在 fx 里指到');
 say(cards.every(c => (c.line.num || []).length <= 4), '卡面小数字不超过 4 条');
 say(cards.every(c => (c.stats || []).every(s => !s.bind || BINDS.indexOf(s.bind) >= 0)), 'stats.bind 都是已登记读数');
-say(cards.every(c => c.reclaim === (c.tier === 0 ? 0 : Math.round(c.value * 0.15))), 'reclaim 由 value 派生');
+say(cards.every(c => c.reclaim === (c.tier === 0 ? 0 : D.RECLAIM[Math.min(10, c.tier)])), 'reclaim 按环级查表（0 环为 0）');
+say(Math.max(...cards.map(c => c.reclaim)) < 12, '单张回收价不到一包基础包（退回<一包，无套利）');
 
 console.log('\n软警告 ' + (D.warn || []).length + ' 条（不拦，记进 STATUS.md §3）：');
 (D.warn || []).forEach(w => console.log('  · ' + w));
 
-console.log('\n' + (fail ? 'FAIL · ' + fail + ' 项' : 'PASS · 9 项'));
+console.log('\n' + (fail ? 'FAIL · ' + fail + ' 项' : 'PASS · 10 项'));
 process.exit(fail ? 1 : 0);

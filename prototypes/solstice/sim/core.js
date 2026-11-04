@@ -11,10 +11,12 @@ SOL.sim = SOL.sim || {};
     month: 0,                  // 世界月（1 tick = 1 月，TIME.md §1）
     hour: 6,                   // 表现钟：90 秒 = 1 天，只喂雾 / 昼夜表现，不参与结算
     essence: 0, essAcc: 0,     // 时素
+    pity: 0,                   // 连续没抽到高环的次数（旱情补偿，见 cast.js）
     sun: 0,                    // 太阳卡累计
     law: { lifeX: 1, propX: 1, evapX: 1, lightOff: 0 },
     speed: 1, paused: true,
     hand: [], sel: -1,
+    recycleLog: null,          // 最近一次回收的回执（撤销只认它，见 cast.js）
     sapient: 0,                // 智慧层（启智后果，永久）
     traces: [], traceSeq: 0,
     chron: [],
@@ -220,7 +222,8 @@ SOL.sim = SOL.sim || {};
      重掷 = 重新播种，所以同一个 world.seed 必然重置出同一个世界。 */
   S.resetWorld = function (world) {
     W.cells.clear();
-    W.month = 0; W.hour = 6; W.essence = 0; W.essAcc = 0; W.sun = 0;
+    W.month = 0; W.hour = 6; W.essence = 0; W.essAcc = 0; W.sun = 0; W.pity = 0;
+    W.recycleLog = null;
     W.law = { lifeX: 1, propX: 1, evapX: 1, lightOff: 0 };
     W.traces = []; W.traceSeq = 0; W.chron = []; W.sapient = 0;
     W.castSeq = 0;

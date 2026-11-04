@@ -4,6 +4,7 @@
   const W = S.W;
 
   S.PACK_SIZE = 6;
+  S.FRESH_PER_PACK = 2;      // 一包里至少两张是没见过的（重复保护的配额，见 drawPack）
   S.HAND_MAX = 8;
 
   const isGround = e => e.ground;
@@ -32,21 +33,49 @@
   S.tierOpen = t => S.PACKS.some(p => S.packOpen(p) && t >= p.lo && t <= p.hi);
   S.drawPool = () => D.cards.filter(c => !(c.evolve && c.evolve.from) && S.tierOpen(c.tier));
 
-  S.drawOne = function (exclude, pack) {
+  /* ── 旱情补偿（borrowed：Slay the Spire 的 card rarity offset）──
+     静态权重表下，高阶包单抽出现 7 环以上的概率只有 4.6%（一包 6 张里至少一张 24.7%），
+     平均要买四包、192 时素、32 分钟才见一张高环卡；而运气好时又可能连着来。
+     StS 的做法是给稀有率一个偏移量：每出一张普通卡 +1%、出稀有归零。
+     这里照同一个意思，但用乘法而不是百分点——因为我们的权重表是按环递减的，
+     加法会把 tier 9（0.03）抬成和 tier 3（0.75）一个量级。 */
+  S.PITY_TIER = 7;      // 从这一环起算「高环」
+  S.PITY_STEP = 0.08;   // 每次没抽到，高环权重 +8%
+  S.PITY_MAX = 3.2;     // 软上限：最多放大到 3.2 倍
+  S.PITY_HARD = 30;     // 硬保底：连续 30 次没出，下一包必然给一张
+
+  S.drawOne = function (exclude, pack, fresh) {
     const src = pack ? S.poolIn(pack) : S.drawPool();
-    const pool = src.filter(c => !exclude.has(c.id));
+    let pool = src.filter(c => !exclude.has(c.id));
     if (!pool.length) return null;
-    const w = pool.map(c => D.weight(c.tier));
+    /* 重复保护（borrowed：炉石 2020 的 duplicate protection）：池里还有没抽到过的，就只从里面抽。
+       我们池只有 53 张、一包摊 6 张，靠运气去撞，最后几张会拖很久；
+       而「卡库里暗着的格子」本来就已经在说「这些你还没见过」，抽包照着它发就是了。 */
+    if (fresh) {
+      const unseen = pool.filter(c => !W.seen.has(c.id));
+      if (unseen.length) pool = unseen;
+    }
+    const hi = pool.filter(c => c.tier >= S.PITY_TIER);
+    /* 硬保底只在高环池非空时生效：没抽到过高环又连着 30 次没出，下一张直接给 */
+    if (hi.length && W.pity >= S.PITY_HARD) {
+      const got = hi[S.randInt(hi.length)];
+      W.seen.add(got.id); W.pity = 0;
+      return got;
+    }
+    const k = Math.min(S.PITY_MAX, 1 + W.pity * S.PITY_STEP);
+    const w = pool.map(c => D.weight(c.tier) * (c.tier >= S.PITY_TIER ? k : 1));
     let r = S.rand() * w.reduce((a, b) => a + b, 0);
-    for (let i = 0; i < pool.length; i++) { r -= w[i]; if (r <= 0) { W.seen.add(pool[i].id); return pool[i]; } }
-    const last = pool[pool.length - 1];
-    W.seen.add(last.id);
-    return last;
+    let got = pool[pool.length - 1];
+    for (let i = 0; i < pool.length; i++) { r -= w[i]; if (r <= 0) { got = pool[i]; break; } }
+    W.seen.add(got.id);
+    W.pity = got.tier >= S.PITY_TIER ? 0 : W.pity + 1;
+    return got;
   };
 
   S.dealHand = function () {
     const ex = new Set();
     W.hand = [];
+    W.recycleLog = null;
     for (let i = 0; i < S.HAND_MAX; i++) {
       const c = S.drawOne(ex);
       if (!c) break;
@@ -90,7 +119,11 @@
     W.essence -= p.cost;
     const ex = new Set(W.hand.map(c => c.id)), got = [];
     for (let i = 0; i < S.PACK_SIZE; i++) {
-      const c = S.drawOne(ex, p);
+      /* 前 FRESH_PER_PACK 张保证是没见过的，其余照旧从全池抽。
+         6 张全保护实测过头了：高阶池只有 15 张，三包就见完，tier≥7 平均不到两包就出一次
+         （原本四包），稀有度直接失效；抽穿基础池也从「约 18 包」缩到 7 包。
+         配额制同时保住两件事：一包里总有新面孔，稀有卡也还是稀有卡。 */
+      const c = S.drawOne(ex, p, i < S.FRESH_PER_PACK);
       if (!c) break;
       ex.add(c.id); got.push(c);
     }
@@ -107,20 +140,30 @@
     W.essence += c.reclaim;
     S.log('回收「' + c.name.zh + '」+' + c.reclaim);
     W.sel = Math.min(W.sel, Math.max(0, W.hand.length - 1));
+    /* 撤销窗口只留最近这一次，并且只认这一张 id。
+       原来 unrecycle 只校验时素，不校验「这张卡是不是刚回收的」也不校验手牌上限：
+       连按四次就能把同一张卡插进手牌四份，而 0 环卡 reclaim = 0，等于零成本印卡（实测 8 → 12 张）。 */
+    W.recycleLog = { id: c.id, at: i, gain: c.reclaim };
     return { ok: true, gain: c.reclaim, at: i, id: c.id };
   };
 
   /* 撤销回收：一张牌点错就没了，界面上没有任何确认步骤——
-    点错一次的代价和主动回收一样大，不合理。撤销窗口只给几秒（toast 的生命）。
-     时素已经花掉就撤销不了（不能凭空生一张卡出来）。 */
+     点错一次的代价和主动回收一样大，不合理。撤销窗口只给几秒（toast 的生命），
+     并且只对「刚回收的那一张、刚拿回的那一笔」有效；时素已经花掉就撤销不了。 */
   S.unrecycle = function (i, id) {
-    const c = D.byId.get(id);
+    const rc = W.recycleLog;
+    if (!rc) return { ok: false, msg: '没有可撤销的回收' };
+    if (id != null && rc.id !== id) return { ok: false, msg: '只能撤销刚回收的那一张' };
+    if (W.hand.length >= S.HAND_MAX) return { ok: false, msg: '手牌满了' };
+    const c = D.byId.get(rc.id);
     if (!c) return { ok: false, msg: '这张卡不在了' };
-    if (W.essence < c.reclaim) return { ok: false, msg: '时素已经花掉' };
-    W.essence -= c.reclaim;
-    W.hand.splice(Math.max(0, Math.min(W.hand.length, i)), 0, c);
-    W.sel = Math.max(0, Math.min(W.hand.length - 1, i));
-    S.log('收回「' + c.name.zh + '」−' + c.reclaim);
+    if (W.essence < rc.gain) return { ok: false, msg: '时素已经花掉' };
+    W.essence -= rc.gain;
+    const at = Math.max(0, Math.min(W.hand.length, i == null ? rc.at : i));
+    W.hand.splice(at, 0, c);
+    W.sel = Math.max(0, Math.min(W.hand.length - 1, at));
+    W.recycleLog = null;      // 撤销是一次性的，不能连按
+    S.log('收回「' + c.name.zh + '」−' + rc.gain);
     return { ok: true };
   };
 
@@ -426,6 +469,7 @@
   /* ───────── 用掉一张手牌并补一张 ───────── */
   S.consume = function (i) {
     W.hand.splice(i, 1);
+    W.recycleLog = null;       // 手牌一动，回执的位置就失效了
     const ex = new Set(W.hand.map(c => c.id));
     const c = S.drawOne(ex);
     if (c) W.hand.splice(Math.min(i, W.hand.length), 0, c);

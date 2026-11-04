@@ -15,13 +15,22 @@
 
   const all = [].concat(D.matter || [], D.rite || [], D.law || []);
 
+  /* 回收价：按环级查表（0 环不返还）。
+     原来是 `round(value × 0.15)`，而 value 是手填的「份量」，跨度 4–130、指数级增长，
+     于是回收价从 1 跳到 20（「大陆」回收 20 = 1.7 个基础包），三档包的期望回收
+     还反了（基础 42% / 进阶 63% / 高阶 69%）。改由环级派生后是 26% / 33% / 27%——
+     区间压掉一半，且高环不再靠「回收换钱」给满足感，那条交给抽卡的旱情补偿与重复保护。
+     注：三档包区间重叠（0–3 / 1–6 / 3–9），一张表不可能让三档都正好 25%，这里取 26–33%。 */
+  const RECLAIM = [0, 1, 1, 2, 2, 2, 3, 4, 5, 7, 9];
+  D.RECLAIM = RECLAIM;      // 回归脚本按它核对派生结果，不另抄一份表
+
   /* ── 默认值与派生 ── */
   for (const c of all) {
     c.primary = c.primary || c.elements[0];
     c.duration = c.duration || (c.class === 'law' ? 'permanent' : c.class === 'rite' ? 'instant' : 'sustain');
     c.rarity_word = RARITY.filter(([, t]) => c.tier >= t).pop()[0];
     c.value = c.value == null ? 4 : c.value;
-    c.reclaim = c.tier === 0 ? 0 : Math.round(c.value * 0.15);
+    c.reclaim = c.tier === 0 ? 0 : RECLAIM[Math.min(10, c.tier)];
     const radius = c.radius_w || 0.006;
     const dur = DUR_BONUS[c.duration] || 0;
     const mobility = (c.runtime.tags || []).some(t => t === 'fly' || t === 'swim') ? 5 : 0;

@@ -14,7 +14,7 @@ status: active
 
 | 原型 | 入口 | 状态 | 实装内容 |
 |---|---|---|---|
-| **Solstice · 合并版** | `prototypes/solstice/index.html` | 可玩（在改） | 55 张卡 / 真 3D 格网 + 立牌 / 生态 tick / 创世掷骰 / 卡库 / 图鉴 6 条 / 年表 / 事件 / 设置（含键位与操作速查）/ 抽卡（**四档包** 12/24/48，开包六选一）/ 三段拖放 / 痕迹层 / **落点预览**（`S.castRange` + `render/marks.js`） / 右栏水 · 光 · 温区间条 / 回收可撤销 |
+| **Solstice · 合并版** | `prototypes/solstice/index.html` | 可玩（在改） | 55 张卡 / 真 3D 格网 + 立牌 / 生态 tick / 创世掷骰 / 卡库 / 图鉴 6 条 / 年表 / 事件 / 设置（含键位与操作速查）/ 抽卡（**四档包** 12/24/48，开包六选一，**每包 2 张新面孔 + 7 环旱情补偿**）/ 三段拖放 / 痕迹层 / **落点预览**（`S.castRange` + `render/marks.js`） / 右栏水 · 光 · 温区间条 / 回收按环级查表（26–33 %）+ 撤销一次性 |
 | Solstice · 3D 世界版 | `prototypes/archive/world-3d/index.html` | 已并入，留作历史（冻结） | 21 张卡 / 11 个物种 / 格地形 + 立牌 / 生态 tick / 手牌 · 开包 · 回收 |
 | Solstice · 界面全流程版 | `prototypes/archive/ui-flow/index.html` | 已并入，留作历史（冻结） | 创世（四组参数滚轴）→ 世界（顶栏 + 左功能栏 + 右信息栏 + 手牌）→ 卡库 / 年表 / 事件 / 余痕 / 生态环 / 拖卡 |
 | `alt/*` 五个 | `prototypes/alt/<代号>/index.html` | **冻结** | 见各自 README；不再修改 |

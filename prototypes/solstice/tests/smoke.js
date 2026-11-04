@@ -29,7 +29,7 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
       warn: D.warn,
       ids: new Set(D.cards.map(c => c.id)).size,
       numbered: D.cards.every(c => /^№ \d{4} \/ \d{4}$/.test(c.number)),
-      reclaimOk: D.cards.every(c => c.tier === 0 ? c.reclaim === 0 : c.reclaim === Math.round(c.value * 0.15))
+      reclaimOk: D.cards.every(c => c.tier === 0 ? c.reclaim === 0 : c.reclaim === D.RECLAIM[Math.min(10, c.tier)])
     };
   });
 
@@ -218,7 +218,43 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     return { before: n0, mid: mid, after: W.hand.length, essBack: W.essence, hadButton: !!btn };
   });
 
-  const report = { table, world, sim, panels, cards, keyboard, ess, undo, errors };
+  /* 9. 撤销只认刚回收的那一张、只一次；不能再凭空插卡（回收价改表后这条更值钱） */
+  const undoGuard = await page.evaluate(() => {
+    const { S, W } = window.__dbg;
+    const D = window.SOL.data;
+    const tree = D.byId.get('flora.wood.2.matter.tree');
+    W.hand = [tree, D.byId.get('terrain.earth.0.matter.land')];
+    W.sel = 0; W.essence = 100; W.recycleLog = null;
+    const n0 = W.hand.length;
+    const r1 = S.cmd.unrecycle(0, tree.id);          // 没有回执 → 必须拒绝
+    const guard = !r1.ok && W.hand.length === n0;
+    S.cmd.recycle(0);
+    const r2 = S.cmd.unrecycle(0, tree.id);          // 刚回收 → 允许
+    const r3 = S.cmd.unrecycle(0, tree.id);          // 第二次 → 拒绝
+    return { guard, ok2: r2.ok, ok3: r3.ok, n: W.hand.length, cap: S.HAND_MAX };
+  });
+
+  /* 10. 抽卡：第二包不重发第一包发过的（重复保护）+ 硬保底一定给高环 */
+  const draw = await page.evaluate(() => {
+    const { S, W } = window.__dbg;
+    W.seen = new Set(); W.pity = 0; W.essence = 9999; W.hand = [];
+    const a = S.drawPack('basic').got.map(c => c.id);
+    const b = S.drawPack('basic').got.map(c => c.id);
+    const overlap = b.filter(id => a.indexOf(id) >= 0).length;
+    const freshMin = S.PACK_SIZE - S.FRESH_PER_PACK;
+    W.pity = S.PITY_HARD;
+    const forced = S.drawOne(new Set(), S.packOf('high'));
+    return { overlap, freshMin, forcedTier: forced && forced.tier, pityTier: S.PITY_TIER };
+  });
+
+  /* 11. 断言：上面几段是读数，这里决定退不退 0 */
+  if (!table.reclaimOk) errors.push('[assert] reclaim 与环级表不一致');
+  if (!(undoGuard.guard && undoGuard.ok2 && !undoGuard.ok3)) errors.push('[assert] 撤销守卫失效（应拒绝无回执/重复撤销）');
+  if (undoGuard.n !== 2) errors.push('[assert] 撤销后手牌数 ' + undoGuard.n + '（应为 2）');
+  if (draw.overlap > draw.freshMin) errors.push('[assert] 重复保护配额超限：' + draw.overlap + ' > ' + draw.freshMin);
+  if (!(draw.forcedTier >= draw.pityTier)) errors.push('[assert] 硬保底没生效');
+
+  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, errors };
   fs.writeFileSync(path.join(__dirname, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 1));
 
