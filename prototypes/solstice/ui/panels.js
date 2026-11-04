@@ -7,15 +7,15 @@
     codexTab: 'cards', codexEl: '水', codexSel: null, codexOwn: false, codexMore: false,
     dexGrp: '全部',
     chronFilter: '全部',
-    setGroup: 'video',
-    keyTab: '全部'
+    setGroup: 'video'
   };
 
   UI.openPanel = function (p) {
     if (p === 'creator') { UI.openCreator(); return; }
     /* 键位与操作速查不再是独立面板，并进「设置 → 操作」：
        左栏因此只留 年表 / 卡库 / 换界 / 设置 / 摆件 五项（REVIEW-DEMO #12）。 */
-    if (p === 'keys' || p === 'help') { p = 'settings'; U.setGroup = 'input'; }
+    if (p === 'keys') { p = 'settings'; U.setGroup = 'keys'; }
+    if (p === 'help') { p = 'settings'; U.setGroup = 'input'; }
     if (!['pack', 'codex', 'chron', 'settings'].includes(p)) return;
     U.panel = p;
     if (p === 'pack') UI.packStage = 0;
@@ -281,19 +281,26 @@
       <div class="xs" style="margin-top:9px">id <span class="mono">${c.id}</span></div>`;
   }
 
-  /* ── 年表 ── */
+  /* ── 年表 ──
+     骨架与卡库同一套：左一列筛选、中间主体、右侧详情（REVIEW-DEMO C-1/C-3）。
+     五个抽屉只有这一套骨架，玩家不用每次重新判断「我在哪一层」。 */
   function chronBody() {
     const kinds = ['全部', '干涉', '气候', '生态', '灾变', '文明', '图鉴'];
     const kf = U.chronFilter;
     const list = W.chron.filter(c => kf === '全部' || c.kind === kf);
+    const countOf = k => k === '全部' ? W.chron.length : W.chron.filter(c => c.kind === k).length;
     /* 选中项存对象而不是下标：年表会 unshift+pop 截断（上限 300），
        存下标的话截断一次就会「点 A 显示 B」（REVIEW-DEMO X-15）。 */
     const sel = U.chronSel && W.chron.indexOf(U.chronSel) >= 0 ? U.chronSel : null;
-    return `<div class="chronRow">
-      <div style="flex:1;border-right:1px solid var(--line);padding-right:14px;overflow:auto">
-        <div class="row gap6" style="margin-bottom:12px">
-          ${kinds.map(k => `<button class="btn ${kf === k ? 'on' : 'ghost'}" data-kf="${k}" style="height:24px">${k}</button>`).join('')}
-          <span class="xs" style="align-self:center;margin-left:auto">${list.length} 条 · 上限 300</span>
+    return `<div style="display:flex;gap:14px;height:100%;overflow:hidden">
+      <div class="codexEl">
+        ${kinds.map(k => `<button class="btn ${kf === k ? 'on' : 'ghost'}" data-kf="${k}"
+          style="height:42px;flex-direction:column;gap:0"><span>${k}</span>
+          <span style="font-size:11px;color:var(--ink4)">${countOf(k)}</span></button>`).join('')}
+      </div>
+      <div style="flex:1;min-width:0;border-right:1px solid var(--line);padding-right:14px;overflow:auto">
+        <div class="row gap6" style="margin-bottom:10px;align-items:center">
+          <span class="mono xs" style="color:var(--ink3)">${list.length} 条 · 上限 300</span>
         </div>
         <div class="tl">
           ${list.map((c, i) => `<div class="it" style="--dot:${UI.CHRON_COL[c.kind] || '#3f7fa8'}" data-ci="${W.chron.indexOf(c)}">
@@ -303,7 +310,7 @@
             <div class="xs" style="color:var(--ink4)">${c.kind}</div></div>`).join('') || '<div class="xs">这一类还没有记录</div>'}
         </div>
       </div>
-      <div style="width:380px;padding-left:16px;overflow:auto">
+      <div style="width:380px;overflow:auto">
         ${sel ? `<div class="xs">这一条发生时</div>
           <div style="font-size:14px;color:#fff;margin:8px 0">${sel.text}</div>
           <div class="rowline"><span class="xs">月份</span><span class="mono sm">${sel.month} 月</span></div>
@@ -328,13 +335,16 @@
     input: [
       { k: '拖动灵敏度', v: ['慢', '中', '快'], cur: () => SOL.render.cam.sensLabel || '中', set: v => SOL.render.cam.setSens(v) }
     ],
+    /* 键位自成一栏：并进「操作」时下面还压着一张 340 高的手势图，
+       二十条键位得先滚过图才看得见；而分组本身就是一个筛选，再套一层 tab 又多一层。 */
+    keys: [],
     ui: [
       { k: '常驻栏', v: ['全部', '仅右栏', '全隐'], cur: () => UI.uiMode || '全部', set: v => UI.setUiMode(v) }
     ]
   };
 
   function settingsBody() {
-    const nav = [['video', '画面'], ['world', '世界'], ['input', '操作'], ['ui', '界面']];
+    const nav = [['video', '画面'], ['world', '世界'], ['input', '操作'], ['keys', '键位'], ['ui', '界面']];
     const g = U.setGroup;
     const rows = SETTINGS[g] || [];
     return `<div style="display:flex;height:100%;min-height:0">
@@ -350,9 +360,8 @@
               data-val="${v}" style="height:26px">${v}</button>`).join('')}
           </div>
         </div>`).join('')}
-        ${g === 'input' ? `<div style="margin-top:18px;display:flex;flex-direction:column;gap:16px">
-          ${helpBlock()}${keysBody()}
-        </div>` : ''}
+        ${g === 'input' ? `<div style="margin-top:18px">${helpBlock()}</div>` : ''}
+        ${g === 'keys' ? `<div style="margin-top:4px">${keysBody()}</div>` : ''}
       </div>
     </div>`;
   }
@@ -397,27 +406,31 @@
      任何按键都走进重绑分支，Esc 永不生效并抛 undefined.key。见 REVIEW-DEMO-2026-11-03 X-1。 */
   let waitingFor = null;
 
-  /* 键位表：现在是「设置 → 操作」里的一段，不是独立面板了 */
+  /* 键位表：是「设置 → 操作」里的一段，不是独立面板。
+     原来顶上还有一排分组 tab，和卡库/年表的竖列筛选打架（REVIEW-DEMO C-3）；
+     这里分组只分五段，加小标题比再加一个控件省事，也不多一层「我在哪」。 */
   function keysBody() {
-    const tabs = ['全部', '手牌', '世界', '视角', '时间', '界面', '面板'];
-    const tab = U.keyTab;
     const dup = keyConflicts();
-    const rows = UI.KEYS.filter(k => tab === '全部' || k.group === tab);
-    return `<div class="row gap6" style="margin-bottom:8px">
-      ${tabs.map(t => `<button class="btn ${tab === t ? 'on' : 'ghost'}" data-kt="${t}" style="height:24px">${t}</button>`).join('')}
-      <span class="xs" style="align-self:center;margin-left:auto">${
-        dup.size ? '⚠ ' + dup.size + ' 组键位冲突' : '可改 · 锁死'}</span>
-    </div>
-    ${rows.map(k => {
-      const bad = dup.has(k.key);
-      return `<div class="keyRow" style="${bad ? 'box-shadow:inset 2px 0 0 #b4553f;padding-left:6px' : ''}">
-        <span class="xs" style="width:40px">${k.group}</span>
-        <span class="sm" style="flex:1">${k.name}${bad ? '<span class="tag warn" style="margin-left:6px">冲突</span>' : ''}</span>
-        <button class="btn ${k.ed ? '' : 'ghost'}" data-k="${k.act}" style="width:160px;height:26px"
-          ${k.ed ? '' : 'disabled'}>${k.key}</button>
-        <span style="width:64px;text-align:right">${k.ed ? '<span class="tag ok">可改</span>' : '<span class="tag">锁死</span>'}</span>
-      </div>`;
-    }).join('')}`;
+    const groups = [];
+    for (const k of UI.KEYS) {
+      const g = groups.find(x => x.name === k.group);
+      if (g) g.rows.push(k);
+      else groups.push({ name: k.group, rows: [k] });
+    }
+    return `<div class="row gap8" style="margin-bottom:10px;align-items:center">
+        <span class="xs">${dup.size ? '<span style="color:#c8684f">⚠ ' + dup.size + ' 组键位冲突</span>' : '可改 · 锁死'}</span>
+        <span class="xs" style="margin-left:auto">点右侧键名改绑 · Esc 取消</span>
+      </div>
+      ${groups.map(g => `<div class="keyGrp">${g.name}</div>
+        ${g.rows.map(k => {
+          const bad = dup.has(k.key);
+          return `<div class="keyRow" style="${bad ? 'box-shadow:inset 2px 0 0 #b4553f;padding-left:6px' : ''}">
+            <span class="sm" style="flex:1">${k.name}${bad ? '<span class="tag warn" style="margin-left:6px">冲突</span>' : ''}</span>
+            <button class="btn ${k.ed ? '' : 'ghost'}" data-k="${k.act}" style="width:160px;height:26px"
+              ${k.ed ? '' : 'disabled'}>${k.key}</button>
+            <span style="width:64px;text-align:right">${k.ed ? '<span class="tag ok">可改</span>' : '<span class="tag">锁死</span>'}</span>
+          </div>`;
+        }).join('')}`).join('')}`;
   }
 
   UI.beginRebind = function (act) {
@@ -478,7 +491,7 @@
       <div style="width:300px;display:flex;flex-direction:column;gap:8px">
         ${[['⌖', '视角', '拖拽旋转 · 滚轮缩放 · F1–F4 俯仰 · Z 缩放档'],
            ['▤', '界面', '左栏点开面板 · 右栏常驻 · P 摆件 · Esc 退'],
-           ['◇', '世界', '悬停看该格的水/光/温与活物；律卡不需要落点'],
+           ['◇', '世界', '悬停看该格的水/光/温与活物；WASD 走格 · Enter 落卡；律卡不需要落点'],
            ['⚑', '事件', 'E 演练 · Esc 关 · 承受 / 改写（改写在面板里说明代价）']]
           .map(([i, t, d]) => `<div class="w" style="padding:11px;display:flex;gap:10px;align-items:flex-start">
             <span style="font-size:15px;color:var(--acc);line-height:1">${i}</span>
@@ -523,8 +536,6 @@
         if (row) row.set(val);
         return UI.renderOverlay();
       }
-      const kt = ev.target.closest('[data-kt]');
-      if (kt) { U.keyTab = kt.dataset.kt; return UI.renderOverlay(); }
       const kb = ev.target.closest('[data-k]');
       if (kb && !kb.disabled) { UI.beginRebind(kb.dataset.k); }
     });

@@ -90,6 +90,10 @@
 .setRow{display:flex;justify-content:space-between;align-items:center;padding:11px 0;
   border-bottom:1px dashed var(--line)}
 .keyRow{display:flex;align-items:center;padding:7px 0;border-bottom:1px solid #1a212a}
+/* 分组标题：替代原来那排 tab。分组是阅读结构，不是控件（C-3）。 */
+.keyGrp{margin:14px 0 4px;font-family:var(--mono);font-size:calc(11px * var(--fs));
+  letter-spacing:.12em;color:var(--ink4)}
+.keyGrp:first-of-type{margin-top:4px}
 
 /* ── 创世 ── */
 #creator{position:absolute;inset:0;z-index:80;display:none;background:#080b0f;flex-direction:column}
