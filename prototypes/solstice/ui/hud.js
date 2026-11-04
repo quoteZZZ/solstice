@@ -78,6 +78,22 @@
   };
 
   UI.toast = function (t, d, act) {
+    /* 面板开着的时候不要发到全屏顶部：那一层 z-index 70 > 面板 60，
+       会正好横在面板标题与步骤条之间（UI 评审 P40）。改成塞进 #phead 的一枚行内小条。 */
+    const ov = document.getElementById('overlay');
+    const head = document.getElementById('phead');
+    if (ov && ov.classList.contains('show') && head && !act) {
+      const chip = document.createElement('span');
+      chip.className = 'toast ih';
+      const i = document.createElement('i'); i.textContent = t;
+      chip.appendChild(i);
+      if (d) { const em = document.createElement('em'); em.textContent = d; chip.appendChild(em); }
+      const close = head.querySelector('.close');
+      head.insertBefore(chip, close || null);
+      while (head.querySelectorAll('.toast.ih').length > 1) head.querySelector('.toast.ih').remove();
+      setTimeout(() => chip.remove(), 2600);
+      return;
+    }
     const box = document.getElementById('toasts');
     if (!box) return;
     /* 同一句话不叠第二条：连续 8 次无效施放会在顶部堆 4 个一模一样的方框，

@@ -348,8 +348,9 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     out.priceInButton = document.querySelector('[data-act="packNext"]').textContent.indexOf(cost) >= 0;
     out.packBtnAt = document.querySelector('[data-act="packNext"]').textContent.trim();
 
-    /* P02：有未取走的牌时，点别的包种不能把牌吞掉 */
-    UI.packStage = 1; UI.packCards = [land];
+    /* P02：有未取走的牌时，点别的包种不能把牌吞掉。
+       注意阶段号：撕开现在直接进「挑选」（stage 2），中间那站空白翻牌已删除。 */
+    UI.packStage = 2; UI.packCards = [land];
     const selBefore = UI.packSel;
     const row = document.querySelector('[data-pack="basic"]');
     if (row) row.click();
@@ -374,6 +375,26 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     return out;
   });
 
+  /* 10.6 第三批：面板内的提示不能压面板；log 要有底板 */
+  const ux3 = await page.evaluate(() => {
+    const { UI } = window.__dbg;
+    const out = {};
+    UI.openPanel('pack'); UI.renderOverlay();
+    const stack = document.getElementById('toasts');
+    stack.innerHTML = '';
+    UI.toast('测试提示', '副行');
+    out.inHead = document.getElementById('phead').querySelectorAll('.toast.ih').length;
+    out.inStack = stack.children.length;
+    UI.closePanel();
+    stack.innerHTML = '';
+    UI.toast('世界里的提示', '');
+    out.outside = stack.children.length;
+    const log = getComputedStyle(document.getElementById('log'));
+    out.logBg = log.backgroundImage.slice(0, 24);
+    out.logColor = log.color;
+    return out;
+  });
+
   /* 11. 断言：上面几段是读数，这里决定退不退 0 */
   if (!table.reclaimOk) errors.push('[assert] reclaim 与环级表不一致');
   if (!(undoGuard.guard && undoGuard.ok2 && !undoGuard.ok3)) errors.push('[assert] 撤销守卫失效（应拒绝无回执/重复撤销）');
@@ -388,6 +409,10 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
   if (!dragCast.grew) errors.push('[assert] 拖到世界没有施卡（cells ' + dragCast.before + '→' + dragCast.after + '）：' + dragCast.tip);
   if (dragCast.tip && /随机/.test(dragCast.tip)) errors.push('[assert] 拖到世界仍被判成随机落点：' + dragCast.tip);
   if (dragCast.ghosts) errors.push('[assert] 松手后还留着 ' + dragCast.ghosts + ' 张拖影');
+  if (ux3.inHead !== 1) errors.push('[assert] 面板打开时提示没有进 #phead：' + ux3.inHead);
+  if (ux3.inStack !== 0) errors.push('[assert] 面板打开时提示仍发到全屏顶部（会压面板）');
+  if (ux3.outside !== 1) errors.push('[assert] 没有面板时提示没回到顶部栈');
+  if (!/gradient/.test(ux3.logBg)) errors.push('[assert] log 没有底板，压在浅色地面上会读不出：' + ux3.logBg);
   if (!fixes.landRefused) errors.push('[assert] 空施没有被拒绝：' + fixes.landMsg);
   if (!fixes.landNoConsume) errors.push('[assert] 空施把牌吃掉了');
   if (!fixes.priceInTitle) errors.push('[assert] 抽卡标题价格没跟随选中包：' + fixes.priceInTitle);
@@ -402,7 +427,7 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     errors.push('[assert] 事件弹窗不在视口内：' + JSON.stringify(panels.eventBox));
   }
 
-  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, fixes, dragCast, errors };
+  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, fixes, dragCast, ux3, errors };
   fs.writeFileSync(path.join(__dirname, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 1));
 

@@ -203,7 +203,10 @@
     UI.renderRight();
     SOL.render.marks.clear();
     /* 原式 '+'(gain||0) || '' 前半永远是真值串，于是每张无收益的卡都飘一个「+0」 */
+    /* 成功必须有回执：原来只有「给时素的卡」才飘字，其余卡施完屏幕上什么都不多。
+       土地类回报铺了几格，其余卡靠落点环（render/marks.js 已加强）。 */
     if (pt && res.gain) UI.flyTo(x, y, '+' + res.gain);
+    else if (res.made) UI.flyTo(x, y, '+' + res.made + ' 格');
     if (op === 'land') setTimeout(() => SOL.render.cam.recenter(), 30);
   };
 

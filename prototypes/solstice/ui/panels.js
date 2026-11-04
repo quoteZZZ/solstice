@@ -11,6 +11,10 @@
   };
 
   UI.openPanel = function (p) {
+    /* 世界里攒下的提示属于世界上下文：面板一开它们会被 z-index 抬到面板之上，
+       横在标题与步骤条之间（UI 评审 P40）。开面板时清掉，面板内的提示另走 #phead。 */
+    const stack0 = document.getElementById('toasts');
+    if (stack0) stack0.innerHTML = '';
     if (p === 'creator') { UI.openCreator(); return; }
     /* 键位与操作速查不再是独立面板，并进「设置 → 操作」：
        左栏因此只留 年表 / 卡库 / 换界 / 设置 / 摆件 五项（REVIEW-DEMO #12）。 */
@@ -66,8 +70,7 @@
       /* 第三阶段是「必须挑一张」，主按钮原来却写「不必挑」——语义正好相反（UI 评审 P03）。
          它是「整包不要了」的退路，所以降到 ghost，主按钮位留给卡本身。 */
       const skip = UI.packStage >= 2;
-      const label = UI.packStage === 0 ? '撕开 · −' + pk.cost + ' 时素'
-        : UI.packStage === 1 ? '翻牌 ▸' : '跳过这一包';
+      const label = UI.packStage === 0 ? '撕开 · −' + pk.cost + ' 时素' : '跳过这一包';
       return `<button class="btn${skip ? ' ghost' : ''}" data-act="packNext"${UI.packStage === 0 && (!open || !afford) ? ' disabled' : ''}>${label}</button>
         <button class="btn ghost" data-close="1">关闭</button>
         <span class="xs" style="margin-left:auto">时素 ${W.essence} · 每 10 秒 +1</span>`;
@@ -133,14 +136,12 @@
       </div>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column">
         <div class="row gap6" style="margin:0 auto var(--s-4);max-width:720px;width:100%">
-          ${['封印', '翻牌', '挑选'].map((t, i) =>
-            `<span class="tag ${i === UI.packStage ? 'a' : ''}">${i + 1}. ${t}</span>`).join('')}
+          ${['封印', '挑选'].map((t, i) =>
+            `<span class="tag ${(i === 0 ? UI.packStage === 0 : UI.packStage >= 2) ? 'a' : ''}">${i + 1}. ${t}</span>`).join('')}
           <span class="xs" style="margin-left:auto;color:var(--ink-3)">手牌 ${W.hand.length} / ${S.HAND_MAX}</span>
         </div>
         <div class="packframe" style="flex:1">
           ${UI.packStage === 0 ? sealFace() : ''}
-          ${UI.packStage === 1 ? `<div style="display:flex">${got.map((_, i) =>
-            `<div class="dealcard" style="transform:rotate(${(i - 2.5) * 4}deg) translateY(${Math.abs(i - 2.5) * 7}px)"></div>`).join('')}</div>` : ''}
           ${UI.packStage >= 2 ? `<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;justify-content:center">
             ${got.map((c, i) => `<div class="packpick" data-act="packPick" data-i="${i}">
               ${UI.cardFace(c, 'p' + i, 'p')}</div>`).join('')}</div>` : ''}
@@ -154,10 +155,11 @@
       const res = S.cmd.drawPack(UI.packSel);
       if (!res.ok) return UI.toast('抽不了', res.msg);
       UI.packCards = res.got;
-      UI.packStage = 1;
-      UI.toast('撕开「' + res.pack.name + '」', '−' + res.pack.cost + ' 时素');
-    } else if (UI.packStage === 1) {
+      /* 撕开就直接见牌。原来中间还有一站「翻牌」，画面上是 6 张**完全空白的卡背**
+         （`.dealcard` 里没有内容、没有点击），玩家看不出那是牌，只能再按一次按钮
+         （UI 评审 P04 / F26 / §1.2）。这一站没承载任何信息，并进挑选。 */
       UI.packStage = 2;
+      UI.toast('撕开「' + res.pack.name + '」', '−' + res.pack.cost + ' 时素');
     } else {
       UI.packStage = 0;
       UI.packCards = [];
@@ -589,7 +591,7 @@
       if (pk) {
         /* 已经付费摊开的牌属于上一个包：切包会把它们连同时素一起吞掉，且不退款
            （UI 评审 P02，实测 12 时素买的 6 张牌凭空消失）。有未取走的牌时先不让切。 */
-        if (UI.packStage >= 1 && (UI.packCards || []).length) {
+        if (UI.packStage >= 2 && (UI.packCards || []).length) {
           return UI.toast('这一包还没挑', '先收下一张，或点「跳过这一包」');
         }
         UI.packSel = pk.dataset.pack;

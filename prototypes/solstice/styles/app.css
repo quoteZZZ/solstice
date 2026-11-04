@@ -160,9 +160,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg-0);color:var(--ink-2);
   text-shadow:0 2px 18px rgba(0,0,0,.92),0 0 2px rgba(0,0,0,.9)}
 #hint b{color:var(--acc);font-weight:500}
 
-#log{position:absolute;left:calc(var(--rail) + var(--s-5));top:var(--s-5);width:236px;z-index:26;
-  font-family:var(--mono);font-size:calc(var(--fz-3) * var(--fs));line-height:1.9;color:#4a5e6e;
-  pointer-events:none;letter-spacing:.03em}
+/* 一行字压在一个会变的世界画面上：深色海面时约 2.1:1，滚到浅色沙地上时字比底还暗，
+   等于「刚刚发生了什么」这条唯一即时通道不存在（UI 评审 U32）。
+   给一块左浓右透的底板 + 描边阴影，任何底色上都能读。 */
+#log{position:absolute;left:calc(var(--rail) + var(--s-3));top:var(--s-3);width:244px;z-index:26;
+  font-family:var(--mono);font-size:calc(var(--fz-3) * var(--fs));line-height:1.85;color:#b9c6d4;
+  pointer-events:none;letter-spacing:.03em;padding:var(--s-2) var(--s-3);border-radius:var(--r-2);
+  background:linear-gradient(90deg,rgba(7,11,15,.80),rgba(7,11,15,.42) 72%,rgba(7,11,15,0));
+  text-shadow:0 1px 2px rgba(0,0,0,.95)}
 #log div{opacity:0;animation:logIn var(--dur-3) forwards}
 #log div.hot{color:var(--acc)}
 @keyframes logIn{to{opacity:1}}
@@ -337,7 +342,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg-0);color:var(--ink-2);
   #essbar{width:44px}
 }
 @media (max-width:1080px){
-  :root{ --right:268px; --s-6:12px; --s-7:18px; --hand-scale:.82; }
+  /* .82 时正文只剩 9.8px（UI 评审 E16），抬到 .88；重叠从 20% 涨到 23%，
+     但名字居中永远露得出来，缺的是字而不是位置。 */
+  :root{ --right:268px; --s-6:12px; --s-7:18px; --hand-scale:.88; }
   #log{display:none}
   .stats{gap:var(--s-4)}
   .rp{padding:var(--s-4)}
@@ -348,3 +355,31 @@ html,body{height:100%;overflow:hidden;background:var(--bg-0);color:var(--ink-2);
   .handslot{bottom:calc(var(--lift,0px))}
   .handslot:hover{bottom:calc(10px + var(--lift,0px))}
 }
+
+
+/* ── 滚动容器（UI 评审 U22 / P12）──
+   深色底上浏览器默认的细滚动条基本看不见，右栏「痕迹」和卡库详情都是
+   「内容被切一半且没有任何提示可以滚」。自绘一条 8px、拇指有对比的条。 */
+#rightpanel .rp.grow, #pbody, .cgWall, #cRight{scrollbar-width:thin;
+  scrollbar-color:var(--line-3) transparent}
+#rightpanel .rp.grow::-webkit-scrollbar, #pbody::-webkit-scrollbar,
+.cgWall::-webkit-scrollbar, #cRight::-webkit-scrollbar{width:8px;height:8px}
+#rightpanel .rp.grow::-webkit-scrollbar-thumb, #pbody::-webkit-scrollbar-thumb,
+.cgWall::-webkit-scrollbar-thumb, #cRight::-webkit-scrollbar-thumb{
+  background:var(--line-3);border-radius:4px;border:2px solid transparent;background-clip:padding-box}
+#rightpanel .rp.grow::-webkit-scrollbar-thumb:hover, #pbody::-webkit-scrollbar-thumb:hover{
+  background:#54687d;background-clip:padding-box}
+#rightpanel .rp.grow::-webkit-scrollbar-track, #pbody::-webkit-scrollbar-track,
+.cgWall::-webkit-scrollbar-track, #cRight::-webkit-scrollbar-track{background:transparent}
+
+/* ── 面板打开时的提示（UI 评审 P40）──
+   提示层 z-index 70 高于面板的 60，撕开/选牌那几条会横在面板标题与步骤条之间。
+   面板开着的时候不发到全屏顶部，改成塞进 #phead 的一枚行内小条：
+   位置就是玩家正在看的地方，也不遮任何内容。 */
+#phead .toast.ih{display:inline-flex;align-items:baseline;gap:var(--s-3);height:22px;
+  max-width:52%;padding:0 var(--s-4);overflow:hidden;
+  border:1px solid var(--acc-line);border-radius:var(--r-1);background:rgba(224,163,62,.10);
+  color:var(--ink-1);font-size:calc(var(--fz-2) * var(--fs));white-space:nowrap;
+  animation:toastIn var(--dur-2) var(--ease) both}
+#phead .toast.ih i{font-style:normal;overflow:hidden;text-overflow:ellipsis}
+#phead .toast.ih em{font-style:normal;font-family:var(--mono);color:var(--ink-3)}

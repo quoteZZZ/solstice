@@ -130,9 +130,11 @@
     for (const m of pulses) {
       if (!m.visible) continue;
       m.userData.age += dt;
-      const k = Math.min(1, m.userData.age / 620);
-      m.scale.setScalar(0.35 + k * 1.55);
-      m.material.opacity = 0.5 * (1 - k) * (1 - k);
+      /* 施卡成功之后画面上唯一的变化就是这个环。原来 0.5 的峰值、620ms，
+         在满地都是痕迹环的地面上根本分不出来（UI 评审 H06：失败有 toast、成功什么都没有）。 */
+      const k = Math.min(1, m.userData.age / 780);
+      m.scale.setScalar(0.38 + k * 1.85);
+      m.material.opacity = 0.92 * (1 - k) * (1 - k);
       if (k >= 1) m.visible = false;
     }
   };
