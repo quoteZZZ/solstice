@@ -59,7 +59,7 @@
   S.CODEX_GROUPS = ['天文', '水文', '生态'];
 
   S.codexCount = () => A.on.size;
-  /* 卡池上限读这个数（cast.js 的 poolCap）：图鉴点亮 → 能抽到更高环 */
+  /* 卡包解锁读这个数（cast.js 的 packOpen：高阶包要 1 条、超环包要 3 条） */
   S.codexLit = () => A.on.size;
   S.codexOf = grp => S.CODEX.filter(a => a.grp === grp);
 
@@ -73,6 +73,7 @@
     const f = scan();
     const lit = [];
     const poolBefore = S.drawPool().length;
+    const openBefore = S.packList().filter(S.packOpen).map(p => p.id);
     for (const a of S.CODEX) {
       if (A.on.has(a.id)) continue;
       const ok = a.test(f);
@@ -89,9 +90,13 @@
       lit.push(a);
     }
     if (lit.length) {
-      /* 点亮涨的是可抽的最高环，年表得把这件事说出来，否则「解锁」只发生在数字里 */
+      /* 点亮可能开出一档新包。年表得把这件事说出来，否则「解锁」只发生在数字里。 */
       const grew = S.drawPool().length - poolBefore;
-      if (grew > 0) S.addChron('图鉴', '卡池 +' + grew + ' 张，可抽到 ' + S.poolCap() + ' 环');
+      const fresh = S.packList().filter(p => S.packOpen(p) && openBefore.indexOf(p.id) < 0);
+      if (grew > 0) {
+        S.addChron('图鉴', '卡池 +' + grew + ' 张' +
+          (fresh.length ? ' · 「' + fresh.map(p => p.name).join(' / ') + '」解锁' : ''));
+      }
       S.emit('codex', lit);
     }
     return lit.length ? lit : null;

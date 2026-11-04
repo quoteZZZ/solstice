@@ -23,6 +23,18 @@
 .col{display:flex;flex-direction:column}
 
 /* ── 抽卡 ── */
+/* 包种：一行说完价格、环区间、还差几条图鉴。买不到的整行压暗并写「图鉴 x / n」。 */
+.packrow{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;gap:2px 8px;
+  width:100%;text-align:left;padding:8px 10px;margin-bottom:5px;border-radius:2px;cursor:pointer;
+  border:1px solid transparent;background:rgba(255,255,255,.014);color:inherit;font:inherit}
+.packrow:hover{border-color:#2b3644}
+.packrow .prn{font-size:calc(13px * var(--fs));color:#dfe7ee}
+.packrow .prc{font-family:var(--mono);font-size:calc(13px * var(--fs));color:var(--ink3)}
+.packrow .prr{grid-column:1 / -1;font-family:var(--mono);font-size:calc(11px * var(--fs));color:var(--ink4)}
+.packrow.on{border-color:var(--acc);background:rgba(224,163,62,.06)}
+.packrow.on .prn,.packrow.on .prc{color:var(--acc)}
+.packrow.lock{cursor:not-allowed;opacity:.5}
+.packrow .prl{grid-column:1 / -1;font-family:var(--mono);font-size:calc(11px * var(--fs));color:#8a5a3a}
 .packframe{border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;
   background:radial-gradient(ellipse at 50% 50%,#141b23,#0a0d12);height:100%}
 /* 封印态：一张包 + 一条时素横条。开不了包时这里说「差多少」，不用在空框里写字。 */
@@ -43,6 +55,11 @@
 .packseal.ok .psEss i{background:var(--acc);box-shadow:0 0 8px rgba(224,163,62,.6)}
 .packseal .psNum{font-family:var(--mono);font-size:calc(12px * var(--fs));color:var(--ink3)}
 .packseal.ok .psNum b{color:var(--acc)}
+.packseal.lock{border-color:#3a2a1e}
+.packseal.lock .psName{color:#7d6650}
+/* 翻牌：6 张暗牌摊开（张数跟包走，不再写死 5 个空位） */
+.dealcard{width:120px;height:176px;border:1px solid var(--line2);background:#161c25;margin-left:-38px}
+.dealcard:first-child{margin-left:0}
 /* 摊开的一包：点一张收下（Balatro 的 booster / StS 的三选一） */
 .packpick{cursor:pointer;transition:transform .14s cubic-bezier(.2,.9,.3,1)}
 .packpick:hover{transform:translateY(-7px)}
@@ -58,22 +75,25 @@
 
 /* ── 卡库 ── */
 .codexEl{width:96px;display:flex;flex-direction:column;gap:5px}
-.codexGrid{display:flex;gap:5px;margin-bottom:4px;align-items:center}
-.cgCell{width:56px;height:74px;border-radius:2px;display:flex;flex-direction:column;overflow:hidden;
-  background:rgba(255,255,255,.012)}
-.cgCell.has{border:1px solid var(--line2);background:#161c25;cursor:pointer}
-.cgCell.has:hover{border-color:var(--acc)}
-.cgCell .cgTag{height:11px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:calc(11px * var(--fs));
-  color:var(--ink4);display:flex;align-items:center;padding:0 3px}
-.cgCell .cgBody{flex:1;display:flex;align-items:center;justify-content:center;padding:2px;
-  font-family:var(--mono);font-size:calc(11px * var(--fs));color:#cfd8e2;text-align:center;line-height:1.2}
-/* 空格只留一个近乎看不见的框，保住行列对齐，不再冒充内容 */
-.cgCell.empty{border:1px solid rgba(255,255,255,.055);background:rgba(255,255,255,.014)}
-/* 高于卡池上限的环：虚线 + 压暗。跟「还没抽到」分开——那一格是能抽到的，这一格还抽不到 */
-.cgCell.lock{border:1px dashed #1f2731;background:rgba(0,0,0,.16)}
-.cgCell.lock .cgBody{color:#3b4552}
-.cgCell.lock .cgTag{color:#333c47}
-
+/* 收藏格：插画 + 名 + 环/类。按可用宽自动铺列，空格不存在，所以不需要占位框。 */
+.cgWall{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px;align-content:start}
+.cgt{border:1px solid var(--line);border-radius:2px;overflow:hidden;cursor:pointer;
+  background:rgba(255,255,255,.012);display:flex;flex-direction:column}
+.cgt:hover{border-color:var(--acc)}
+/* 还没抽到的：留插画的形，抽掉颜色 —— 看得见轮廓，读得出「这里有一张」 */
+.cgt:not(.has) .cgtArt{opacity:.42;filter:grayscale(.85) brightness(.8)}
+.cgt .cgtArt{aspect-ratio:4/3;overflow:hidden;opacity:.5}
+.cgt .cgtArt svg{display:block;width:100%;height:100%}
+.cgt .cgtName{font-size:calc(12px * var(--fs));color:#cfd8e2;text-align:center;padding:4px 3px 0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cgt .cgtMeta{font-size:calc(10px * var(--fs));color:var(--ink4);text-align:center;padding:1px 3px 5px}
+.cgt.has .cgtArt{opacity:1}
+.cgt.has .cgtName{color:#eef5fa}
+.cgt.has{border-color:var(--line2);background:#161c25}
+/* 高于可抽环：虚线 + 压暗，跟「还没抽到」分清 */
+.cgt.lock{border-style:dashed;border-color:#1f2731;background:rgba(0,0,0,.16);cursor:default}
+.cgt.lock .cgtArt{opacity:.16;filter:grayscale(1)}
+.cgt.lock .cgtName,.cgt.lock .cgtMeta{color:#3b4552}
 /* ── 图鉴：世界状态成就墙（点亮 = 有边有光） ── */
 .axWall{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .axc{border:1px dashed #232c36;border-radius:3px;
@@ -89,6 +109,13 @@
 .axc.on .axj{color:#a9b5c2}
 .axc .axf{margin-top:auto;font-family:var(--mono);font-size:calc(11px * var(--fs));color:var(--ink4)}
 .axc.on .axf{color:var(--acc)}
+/* 条件类型做成一枚小徽章，不再每张卡刷一行正文；need 型另给一条进度 */
+.axb{border:1px solid #26303c;border-radius:2px;padding:0 5px;line-height:15px;
+  font-size:calc(10px * var(--fs));color:#6d7b89;letter-spacing:.04em}
+.axc.on .axb{border-color:rgba(224,163,62,.45);color:var(--acc)}
+.axp{height:2px;border-radius:1px;background:#1b232e;overflow:hidden}
+.axp i{display:block;height:100%;background:#4a5c6e;transition:width .3s ease}
+.axc.on .axp i{background:var(--acc)}
 
 .dex .stat{display:flex;align-items:center;gap:6px;padding:2px 0}
 .dex .sk{width:30px;font-family:var(--mono);font-size:calc(11px * var(--fs));color:var(--ink2);flex:0 0 30px}
@@ -136,8 +163,10 @@
 .stp .sl{color:var(--ink3);width:26px}
 .stp .sv{color:#cfd8e2;font-size:calc(12px * var(--fs));display:flex;gap:4px;flex-wrap:wrap;overflow:hidden}
 .stp .sv i{color:var(--ink4);font-style:normal}
-#cutaway{border:1px solid var(--line2);background:#0a1219;padding:6px;position:relative}
-#cutaway svg{display:block;width:100%;height:auto}
+#cutaway{border:1px solid var(--line2);background:#0a1219;padding:6px;position:relative;
+  /* 剖面图吃掉整列剩下的高度：原来内容顶到 450px 就结束，下面留一条空带 */
+  flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+#cutaway svg{display:block;width:100%;height:auto;max-height:100%}
 #cutaway .cvt{transition:opacity .2s}
 #cutaway.dim .cvt{opacity:.25}
 #cutaway.dim .cvt.hl{opacity:1;filter:drop-shadow(0 0 6px rgba(224,163,62,.6))}

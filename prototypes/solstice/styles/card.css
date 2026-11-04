@@ -127,13 +127,16 @@
   box-shadow:0 0 0 1px rgba(255,255,255,.18),0 2px 6px rgba(0,0,0,.6);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-.card.h .hsum{position:relative;z-index:5;flex:0 0 62px;height:62px;margin:5px 6px 0;padding:3px 6px;
+/* 效果句要能装下最长的一张（「树」34 字 = 4 行）。原来是 3 行 62px，
+   「树」「鹰」的第二行之后被生切掉，看起来像文案写错——宁可让插画矮 14px，
+   也不能让正文缺半句。 */
+.card.h .hsum{position:relative;z-index:5;flex:0 0 76px;height:76px;margin:5px 6px 0;padding:3px 6px;
   border:1px solid rgba(var(--el),.14);border-radius:2px;background:rgba(9,13,18,.7);
   font-size:12px;line-height:1.5;color:#cfdae4;overflow:hidden}
-.card.h .hsum span{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.card.h .hsum span{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 .card.h .hsum b{color:#fff;font-weight:600}
 /* 截断处渐隐：硬切看起来像坏了，渐隐读作「还有，悬浮看全」（完整效果在 UI.showTip） */
-.card.h .hsum:after{content:"";position:absolute;left:0;right:0;bottom:0;height:15px;pointer-events:none;
+.card.h .hsum:after{content:"";position:absolute;left:0;right:0;bottom:0;height:10px;pointer-events:none;
   background:linear-gradient(180deg,rgba(9,13,18,0),rgba(9,13,18,.94))}
 
 .card.h .hfoot{flex:0 0 22px;height:22px;display:flex;align-items:center;justify-content:space-between;

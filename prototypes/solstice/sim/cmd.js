@@ -46,6 +46,7 @@
   };
 
   cmd.recycle = function (i) { return S.recycle(i == null ? W.sel : i); };
+  cmd.unrecycle = function (i, id) { return S.unrecycle(i, id); };
   cmd.dealHand = function () { return S.dealHand(); };
 
   /* 重抽：先看价、再扣、再发。扣时素从前写在 ui 里，是 ui 唯一改世界钱包的地方。 */
@@ -66,8 +67,11 @@
      ui 里不出现 S.advance —— 换前端时只需实现一个主循环去调它。 */
   cmd.advance = function (dt) { return S.advance(dt); };
 
+  /* 时素与档位无关，所以它不搭 advance 的车（暂停时 advance 直接返回 0） */
+  cmd.essenceTick = function (dt) { return S.essenceTick(dt); };
+
   /* ───────── 卡包 / 事件 ───────── */
-  cmd.drawPack = function () { return S.drawPack(); };
+  cmd.drawPack = function (packId) { return S.drawPack(packId); };
 
   /* 从摊开的包里挑一张进手牌。手牌满了就换掉当前选中的那张——
      抽包前先点好要换哪张，是这类界面（Balatro / StS）的惯例。

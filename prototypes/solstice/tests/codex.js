@@ -139,19 +139,28 @@ function ok(name, cond, note) {
   ok('新界不再算三阳', !again || !again.some(a => a.id === 'sky.three'));
 }
 
-/* ── 8 卡池：点亮一条就多一圈可抽 ── */
+/* ── 8 卡包：四档环区间、图鉴挡最高档 ── */
 {
   const { S, D } = boot();
-  const base = S.drawPool().length, cap = S.poolCap();
-  ok('开局卡池不含高阶环', S.drawPool().every(c => c.tier <= cap), base + ' 张 / 上限 ' + cap + ' 环');
+  const base = S.drawPool().length;
+  const hiOpen0 = S.packOpen(S.PACKS.find(p => p.id === 'high'));
+  ok('开局高阶包未解锁', hiOpen0 === false);
+  ok('开局池不含高阶环', S.drawPool().every(c => S.tierOpen(c.tier)), base + ' 张');
   ok('高阶卡确实被挡在池外', base < S.poolTotal(), base + ' < ' + S.poolTotal());
+  ok('基础 / 进阶包一直买得到',
+    S.packOpen(S.packOf('basic')) && S.packOpen(S.packOf('mid')));
   CAST(S, D, 'terrain.earth.0.matter.land');
   CAST(S, D, 'sky.light.0.matter.sun');
   CAST(S, D, 'sky.light.0.matter.sun');
   CAST(S, D, 'sky.light.0.matter.sun');
   S.checkCodex();
-  ok('点亮后卡池上限 +1', S.poolCap() === cap + 1, cap + ' → ' + S.poolCap());
+  ok('点亮一条后高阶包解锁', S.packOpen(S.packOf('high')), '图鉴 ' + S.codexLit());
   ok('点亮后卡池变大', S.drawPool().length > base, base + ' → ' + S.drawPool().length);
+  ok('包里有 6 张', (() => {
+    S.W.essence = 99;
+    const r = S.drawPack('mid');
+    return r.ok && r.got.length === S.PACK_SIZE;
+  })(), 'PACK_SIZE = ' + S.PACK_SIZE);
 }
 
 /* ── 汇总 ── */

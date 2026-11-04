@@ -115,6 +115,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
 .tl .it:before{content:"";position:absolute;left:-13px;top:9px;width:6px;height:6px;border-radius:50%;
   background:var(--dot,#3f7fa8);box-shadow:0 0 0 2px #0c1117}
 .tl .it:hover .t{color:var(--acc)}
+/* 折叠后的次数徽：让「土地 ×8」一眼看出这是一组，不是一条 */
+.tl .it .itc{margin-left:6px;padding:0 4px;border-radius:2px;font-size:calc(10px * var(--fs));
+  color:#9aa7b4;background:rgba(255,255,255,.07)}
 
 /* ── 键盘可达 ──
    Tab 归还浏览器后，可点元素必须有可见的聚焦环；鼠标点出来的环一律不显示。
@@ -154,9 +157,13 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
 #toasts{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:70;
   display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
 .toast{border:1px solid var(--line2);background:rgba(10,14,19,.95);padding:7px 13px;border-radius:3px;
-  box-shadow:0 10px 26px rgba(0,0,0,.55);animation:toastIn .2s both;text-align:center}
+  box-shadow:0 10px 26px rgba(0,0,0,.55);animation:toastIn .2s both;text-align:center;
+  /* 带按钮的 toast 要点得到：容器整体不吃事件，能点的只有那颗按钮 */
+  pointer-events:none}
+.toast .toact{pointer-events:auto}
 .toast .t{font-size:calc(13px * var(--fs));color:#fff}
 .toast .d{font-family:var(--mono);font-size:calc(11px * var(--fs));color:var(--ink2);margin-top:2px}
+.toast .toact{margin-top:7px;height:22px;border-color:var(--acc);color:var(--acc)}
 @keyframes toastIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 
 #ghostwrap{position:fixed;inset:0;pointer-events:none;z-index:64}
@@ -201,5 +208,5 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
 .fpt{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;border-radius:1px;
   background:var(--acc);box-shadow:0 0 6px rgba(224,163,62,.75)}
 .fpt.ok{background:#6aa86a;box-shadow:0 0 7px rgba(106,168,106,.85)}
-.fbv{width:30px;text-align:right;font-family:var(--mono);font-size:calc(11px * var(--fs));color:#cfdae4;
+.fbv{width:34px;text-align:right;font-family:var(--mono);font-size:calc(11px * var(--fs));color:#cfdae4;
   font-variant-numeric:tabular-nums}

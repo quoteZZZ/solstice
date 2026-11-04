@@ -200,7 +200,15 @@
   UI.recycle = function () {
     const res = S.cmd.recycle(W.sel);
     if (!res.ok) return UI.toast('不能回收', res.msg);
-    UI.toast('回收', '+' + res.gain + ' 时素');
+    const at = res.at, id = res.id;
+    UI.toast('回收', '+' + res.gain + ' 时素', {
+      label: '撤销',
+      fn() {
+        const r = S.cmd.unrecycle(at, id);
+        if (!r.ok) return UI.toast('收不回来', r.msg);
+        UI.renderHand(); UI.updateHud(); UI.renderRight();
+      }
+    });
     UI.renderHand(); UI.updateHud(); UI.renderRight();
   };
 

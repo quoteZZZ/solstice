@@ -216,10 +216,15 @@
     /* 主循环归这一层：装配层拥有时钟（TECH.md §3.1）。render 不再自己 requestAnimationFrame，
        只被叫来画一帧。换前端 / 做回放 / 加存档，都只需要替换这里的这一个循环。 */
     let last = performance.now();
+    let lastEss = -1;
     function frame(now) {
       const dt = Math.min(80, now - last);
       last = now;
+      /* 时素按真实时间涨，和世界档位无关（SETTING §3.1）：暂停时也要涨，
+         否则「停下来想想」就是纯亏。世界那边照旧走 advance。 */
+      S.cmd.essenceTick(dt);
       const ticks = S.cmd.advance(dt);
+      if (W.essence !== lastEss) { lastEss = W.essence; UI.updateHud(); }
       R.frame(now, ticks);
       requestAnimationFrame(frame);
     }

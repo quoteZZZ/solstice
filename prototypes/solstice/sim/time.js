@@ -32,9 +32,6 @@
     S.entityTick();
     S.expireTraces();
 
-    W.essAcc += 0.1;
-    if (W.essAcc >= 1) { W.essAcc -= 1; W.essence++; }
-
     /* 肥力自然消退：两季左右回落到 0 */
     for (const c of W.cells.values()) if (c.fertile) c.fertile *= 0.97;
 
@@ -42,6 +39,19 @@
 
     S.monthChanged = true;
     S.emit('tick');
+  };
+
+  /* 时素按真实时间涨：每 10 秒 1 点（SETTING.md §3.1），**不随档位加速，暂停也照涨**。
+     原来挂在 tick 里（每世界月 +0.1），4× 就变成 4 倍收入 —— 于是「停下来读一张卡」
+     在数值上是纯亏，最优玩法是开着 4× 不看画面。时素买的是「等」，不是「快进」。
+     dtMs 由主循环传入，sim 里不读时钟（TECH.md §4）。 */
+  S.ESS_MS = 10000;
+  S.essenceTick = function (dtMs) {
+    if (!(dtMs > 0)) return 0;
+    W.essAcc += dtMs / S.ESS_MS;
+    let n = 0;
+    while (W.essAcc >= 1) { W.essAcc -= 1; W.essence++; n++; }
+    return n;
   };
 
   /* 每帧推进：dt 毫秒。1× = 1 秒 1 月（TIME.md §1）。

@@ -68,8 +68,10 @@
       rewrite: () => { S.addChron('文明', '有人把第一道文字磨掉了'); } }
   ];
 
-  /* 改写的价在 sim：UI 只负责显示与提示，不负责扣钱。 */
-  S.REWRITE_COST = 60;
+  /* 改写的价在 sim：UI 只负责显示与提示，不负责扣钱。
+     原来 60 = 600 秒（1×）的纯等，单局根本攒不到 —— 于是事件永远只有一个按钮，
+     「承受 / 改写」是假选择。压到一包的钱（12），它才真的成为一个取舍。 */
+  S.REWRITE_COST = 12;
 
   cmd.pickEvent = function (kind) {
     const pool = kind ? EVENTS.filter(e => e.k === kind) : EVENTS;

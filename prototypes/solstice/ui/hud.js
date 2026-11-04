@@ -77,12 +77,19 @@
     while (box.children.length > 8) box.removeChild(box.firstChild);
   };
 
-  UI.toast = function (t, d) {
+  UI.toast = function (t, d, act) {
     const box = document.getElementById('toasts');
     if (!box) return;
     const el = document.createElement('div');
     el.className = 'toast';
     el.innerHTML = `<div class="t">${t}</div>${d ? `<div class="d">${d}</div>` : ''}`;
+    if (act) {
+      const b = document.createElement('button');
+      b.className = 'btn ghost toact';
+      b.textContent = act.label;
+      b.addEventListener('click', () => { el.remove(); act.fn(); });
+      el.appendChild(b);
+    }
     box.appendChild(el);
     setTimeout(() => el.remove(), 5200);
     while (box.children.length > 4) box.removeChild(box.firstChild);
@@ -102,7 +109,9 @@
       return l.flora + l.fauna;
     })();
     document.querySelector('#essbar i').style.width = Math.round(W.essAcc * 100) + '%';
-    document.getElementById('bPack').disabled = W.essence < S.PACK_COST;
+    /* 底栏那颗「抽卡」只要有一档买得起就亮；具体买哪档在面板里选 */
+    document.getElementById('bPack').disabled =
+      !S.packList().some(p => S.packOpen(p) && W.essence >= p.cost);
     document.getElementById('hint').style.opacity = W.cells.size ? '0' : '1';
   };
 
@@ -119,9 +128,9 @@
      不编一个「舒适区间」出来，那是假的信息（REVIEW-DEMO S-6 / R-3）。 */
   function fieldBars(f) {
     const rows = [
-      { k: '水', v: f.w, lo: 0, hi: 3, good: [1, 3], fix: 2 },
-      { k: '光', v: f.l, lo: 0, hi: 3, good: [1, 3], fix: 2 },
-      { k: '温', v: f.t, lo: 10, hi: 30, mark: 20, fix: 1 }
+      { k: '水', v: f.w, lo: 0, hi: 3, good: [1, 3], fix: 2, unit: '' },
+      { k: '光', v: f.l, lo: 0, hi: 3, good: [1, 3], fix: 2, unit: '' },
+      { k: '温', v: f.t, lo: 10, hi: 30, mark: 20, fix: 1, unit: '°' }
     ];
     const pct = (v, lo, hi) => Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100));
     return rows.map(r => {
@@ -136,7 +145,7 @@
           ${r.mark != null ? `<i class="ftick" style="left:${pct(r.mark, r.lo, r.hi)}%"></i>` : ''}
           <i class="fpt${inBand ? ' ok' : ''}" style="left:${at}%"></i>
         </div>
-        <span class="fbv">${r.v.toFixed(r.fix)}</span>
+        <span class="fbv">${r.v.toFixed(r.fix)}${r.unit || ''}</span>
       </div>`;
     }).join('');
   }

@@ -132,6 +132,19 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     const rects = [...document.querySelectorAll('.handslot')].map(s => s.getBoundingClientRect());
     const outL = rects.length ? Math.max(0, Math.round(wrap.left - Math.min(...rects.map(r => r.left)))) : 0;
     const outR = rects.length ? Math.max(0, Math.round(Math.max(...rects.map(r => r.right)) - wrap.right)) : 0;
+
+    /* 55 张卡的手牌正文都装得下：3 行 clamp 时「树」「鹰」被切掉 18px，且没有省略号 */
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;left:-9999px;top:0;width:136px';
+    document.body.appendChild(probe);
+    const clipped = [];
+    for (const c of window.SOL.data.cards) {
+      probe.innerHTML = UI.cardFace(c, 'probe', 'h');
+      const el = probe.querySelector('.hsum span');
+      if (el && el.scrollHeight > el.clientHeight + 1) clipped.push(c.name.zh);
+    }
+    probe.remove();
+
     return {
       slots: rects.length,
       cardBox: [Math.round(r.width), Math.round(r.height)],
@@ -139,7 +152,8 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
       sumFont: sumFont,
       sumLen: sumLen,
       cant: cant,
-      overflow: outL + outR
+      overflow: outL + outR,
+      clipped: clipped
     };
   });
   await page.evaluate(() => document.getElementById('handwrap').scrollIntoView());
@@ -169,7 +183,42 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
   const after = await page.evaluate(() => window.__dbg.S.W.cells.size);
   const keyboard = { before, after, landed: after - before, ...cursor };
 
-  const report = { table, world, sim, panels, cards, keyboard, errors };
+  /* 7. 时素只按真实时间涨：暂停也涨、4× 不会多涨（SETTING §3.1「不随加速变化」） */
+  const ess = await page.evaluate(() => {
+    const { S, W } = window.__dbg;
+    const out = {};
+    S.cmd.gear(0);                       // 暂停
+    const e0 = W.essence;
+    S.cmd.essenceTick(10000);            // 正好 10 秒
+    out.paused = W.essence - e0;
+    S.cmd.gear(4);                       // 4× 世界
+    const e1 = W.essence;
+    S.cmd.essenceTick(10000);
+    out.fast = W.essence - e1;
+    /* 世界档位只影响月数，不影响时素 */
+    const m0 = W.month;
+    S.cmd.advance(1000);
+    out.monthsAt4x = W.month - m0;
+    S.cmd.gear(1);
+    return out;
+  });
+
+  /* 8. 回收可撤销：点错一张不该不可挽回 */
+  const undo = await page.evaluate(() => {
+    const { S, W, UI } = window.__dbg;
+    const D = window.SOL.data;
+    W.hand = [D.byId.get('flora.wood.2.matter.tree'), D.byId.get('terrain.earth.0.matter.land')];
+    W.sel = 0; W.essence = 0;
+    UI.renderHand();
+    const n0 = W.hand.length;
+    UI.recycle();
+    const mid = { n: W.hand.length, ess: W.essence };
+    const btn = document.querySelector('#toasts .toast .toact');
+    if (btn) btn.click();
+    return { before: n0, mid: mid, after: W.hand.length, essBack: W.essence, hadButton: !!btn };
+  });
+
+  const report = { table, world, sim, panels, cards, keyboard, ess, undo, errors };
   fs.writeFileSync(path.join(__dirname, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 1));
 

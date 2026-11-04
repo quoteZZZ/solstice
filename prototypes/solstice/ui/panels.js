@@ -38,8 +38,9 @@
   };
 
   function panelHTML() {
+    const pk = S.packOf(U.packSel);
     const title = {
-      pack: '抽卡 · 主包（' + S.PACK_SIZE + ' 张 / ' + S.PACK_COST + ' 时素）',
+      pack: '抽卡 · ' + pk.name + '（' + S.PACK_SIZE + ' 张 / ' + pk.cost + ' 时素）',
       codex: U.codexTab === 'ach'
         ? '图鉴 · 已点亮 ' + S.codexCount() + ' / ' + S.CODEX.length
         : '卡库 · 已见 ' + W.seen.size + ' / ' + D.total,
@@ -56,10 +57,15 @@
   }
 
   function footFor(p) {
-    if (p === 'pack')
-      return `<button class="btn" data-act="packNext">${UI.packStage === 0 ? '撕开 · −' + S.PACK_COST + ' 时素' : UI.packStage === 1 ? '翻牌 ▸' : '不必挑'}</button>
+    if (p === 'pack') {
+      const pk = S.packOf(U.packSel);
+      const open = S.packOpen(pk), afford = W.essence >= pk.cost;
+      const label = UI.packStage === 0 ? '撕开 · −' + pk.cost + ' 时素'
+        : UI.packStage === 1 ? '翻牌 ▸' : '不必挑';
+      return `<button class="btn" data-act="packNext"${UI.packStage === 0 && (!open || !afford) ? ' disabled' : ''}>${label}</button>
         <button class="btn ghost" data-close="1">关闭</button>
-        <span class="xs" style="margin-left:auto">时素 ${W.essence} · 每月 +0.1</span>`;
+        <span class="xs" style="margin-left:auto">时素 ${W.essence} · 每 10 秒 +1</span>`;
+    }
     return `<button class="btn ghost" data-close="1">关闭</button>`;
   }
 
@@ -74,18 +80,37 @@
   /* ── 抽卡 ── */
   UI.packStage = 0;
   UI.packCards = [];
+  UI.packSel = 'basic';
 
   /* 封印状态的那一张：一包多少钱、现在有多少，用一条横条说，
      而不是在空荡荡的框中央写一句「时素不够 · 还要 28」（REVIEW-DEMO C-4）。 */
   function sealFace() {
-    const pct = Math.max(0, Math.min(100, W.essence / S.PACK_COST * 100));
-    const ok = W.essence >= S.PACK_COST;
-    return `<div class="packseal${ok ? ' ok' : ''}">
-      <div class="psName">主包</div>
-      <div class="psSize">${S.PACK_SIZE} 张 · 池 ${S.drawPool().length}/${S.poolTotal()}</div>
+    const p = S.packOf(UI.packSel);
+    const open = S.packOpen(p);
+    const pct = Math.max(0, Math.min(100, W.essence / p.cost * 100));
+    const ok = open && W.essence >= p.cost;
+    return `<div class="packseal${ok ? ' ok' : ''}${open ? '' : ' lock'}">
+      <div class="psName">${p.name}</div>
+      <div class="psSize">${S.PACK_SIZE} 张 · ${p.lo}–${p.hi} 环</div>
+      <div class="psSize">池 ${S.poolIn(p).length} / ${S.poolTotal()}</div>
       <div class="psEss"><i style="width:${pct.toFixed(1)}%"></i></div>
-      <div class="psNum"><b>${W.essence}</b> / ${S.PACK_COST}</div>
+      <div class="psNum"><b>${W.essence}</b> / ${p.cost}</div>
     </div>`;
+  }
+
+  /* 包种列表：价格、环区间、还差几条图鉴——一行说完，不写句子 */
+  function packRows() {
+    return S.packList().map(p => {
+      const open = S.packOpen(p);
+      const on = p.id === UI.packSel;
+      const n = S.poolIn(p).length;
+      return `<button class="packrow${on ? ' on' : ''}${open ? '' : ' lock'}" data-pack="${p.id}">
+        <span class="prn">${p.name}</span>
+        <span class="prc mono">${p.cost}</span>
+        <span class="prr mono">${p.lo}–${p.hi} 环 · ${n} 张</span>
+        ${open ? '' : `<span class="prl mono">图鉴 ${S.codexLit()} / ${p.need}</span>`}
+      </button>`;
+    }).join('');
   }
 
   function packBody() {
@@ -95,12 +120,8 @@
     return `<div style="display:flex;gap:16px;height:100%">
       <div style="width:230px;border-right:1px solid var(--line);padding-right:14px">
         <div class="xs" style="margin-bottom:8px">包种</div>
-        <div class="w" style="padding:10px;border-color:var(--acc)">
-          <div class="row" style="justify-content:space-between;align-items:baseline">
-            <span class="sm" style="color:#fff">主包</span>
-            <span class="mono" style="color:var(--acc)">${S.PACK_COST}</span></div>
-          <div class="mono xs" style="margin-top:6px;color:#3f4b58">池 ${S.drawPool().length} / ${S.poolTotal()} · ${S.PACK_SIZE} 张 / 包</div>
-        </div>
+        ${packRows()}
+        <div class="mono xs" style="margin-top:10px;color:#3f4b58">池 ${S.drawPool().length} / ${S.poolTotal()} · ${S.PACK_SIZE} 张 / 包</div>
         ${swap ? `<div class="xs" style="margin-top:12px">手牌满 · 收下的那张换掉
           <span class="mono" style="color:#e8eef4">${swap.name.zh}</span></div>` : ''}
       </div>
@@ -112,9 +133,8 @@
         </div>
         <div class="packframe" style="flex:1">
           ${UI.packStage === 0 ? sealFace() : ''}
-          ${UI.packStage === 1 ? `<div style="display:flex">${[0, 1, 2, 3, 4].slice(0, got.length).map(i =>
-            `<div style="width:120px;height:176px;border:1px solid var(--line2);background:#161c25;margin-left:-38px;
-              transform:rotate(${(i - 2) * 5}deg) translateY(${Math.abs(i - 2) * 8}px)"></div>`).join('')}</div>` : ''}
+          ${UI.packStage === 1 ? `<div style="display:flex">${got.map((_, i) =>
+            `<div class="dealcard" style="transform:rotate(${(i - 2.5) * 4}deg) translateY(${Math.abs(i - 2.5) * 7}px)"></div>`).join('')}</div>` : ''}
           ${UI.packStage >= 2 ? `<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;justify-content:center">
             ${got.map((c, i) => `<div class="packpick" data-act="packPick" data-i="${i}">
               ${UI.cardFace(c, 'p' + i, 'p')}</div>`).join('')}</div>` : ''}
@@ -125,11 +145,11 @@
 
   function packNext() {
     if (UI.packStage === 0) {
-      const res = S.cmd.drawPack();
-      if (!res.ok) return UI.toast('时素不够', res.msg);
+      const res = S.cmd.drawPack(UI.packSel);
+      if (!res.ok) return UI.toast('抽不了', res.msg);
       UI.packCards = res.got;
       UI.packStage = 1;
-      UI.toast('撕开一包', '−' + S.PACK_COST + ' 时素');
+      UI.toast('撕开「' + res.pack.name + '」', '−' + res.pack.cost + ' 时素');
     } else if (UI.packStage === 1) {
       UI.packStage = 2;
     } else {
@@ -205,11 +225,18 @@
   function dexCell(a) {
     const lit = S.codex.on.has(a.id);
     const at = S.codex.at[a.id];
+    /* need 型条目 sim 里逐月数着（A.st），界面原来只写「未点亮」——
+       玩家凑「长夜 · 连续 12 月」时完全不知道自己到第几个月。 */
+    const st = lit ? a.need : (S.codex.st[a.id] || 0);
+    const pct = a.need ? Math.min(100, st / a.need * 100) : 0;
     return `<div class="axc ${lit ? 'on' : ''}">
-      <div class="axh"><span>${a.grp}</span>${a.need ? `<span>连续 ${a.need} 月</span>` : '<span>当月成立</span>'}</div>
+      <div class="axh"><span>${a.grp}</span>
+        <span class="axb">${a.need ? '连续 ' + a.need + ' 月' : '当月'}</span></div>
       <div class="axn">${a.name}</div>
       <div class="axj">${a.hint}</div>
-      <div class="axf">${lit ? '第 ' + at.month + ' 月 · ' + at.world : '未点亮'}</div>
+      ${a.need ? `<div class="axp"><i style="width:${pct.toFixed(1)}%"></i></div>` : ''}
+      <div class="axf">${lit ? '第 ' + at.month + ' 月 · ' + at.world
+        : a.need ? st + ' / ' + a.need + ' 月' : '未点亮'}</div>
     </div>`;
   }
 
@@ -222,23 +249,21 @@
     const seenIn = e => D.cards.filter(c => c.primary === e && W.seen.has(c.id)).length;
     const totalIn = e => D.cards.filter(c => c.primary === e).length;
 
-    const grid = Array.from({ length: 11 }, (_, tier) =>
-      `<div class="codexGrid">
-        <span class="mono xs" style="width:20px;text-align:center">${tier === 10 ? '超' : tier}</span>
-        ${['matter', 'rite', 'law'].map(cls => {
-          const c = D.cards.find(x => x.primary === el && x.tier === tier && x.class === cls);
-          /* 空格不写「—」：那一道横杠在当时是画面上唯一的「内容」，
-             其实什么也没说，还把注意力从那一张真卡上拉走（REVIEW-DEMO C-4）。 */
-          if (!c) return `<div class="cgCell empty"></div>`;
-          const seen = W.seen.has(c.id);
-          if (U.codexOwn && !seen) return `<div class="cgCell empty"></div>`;
-          /* 环数高于当前卡池上限 = 图鉴还没点亮到那儿。虚线格，和「还没抽到」的实心暗格分开。 */
-          const locked = c.tier > S.poolCap();
-          return `<div class="cgCell ${seen ? 'has' : ''}${locked ? ' lock' : ''}" data-card="${c.id}" title="${c.name.zh}">
-            <div class="cgTag">${D.clsName[cls]}</div>
-            <div class="cgBody">${seen ? c.name.zh : '·'}</div></div>`;
-        }).join('')}
-      </div>`).join('');
+    /* 卡库是「收藏墙」，不是环级矩阵。矩阵 11 环 × 3 类 = 33 格，一个元素只有 2–8 张卡，
+       撑满 600px 宽就是一大片空格；按环高 74 又装不下 11 行。改成流动卡格：
+       只画真有的卡，按可用宽度自动铺 4–5 列，空格自然消失（C-4 的同一句话）。 */
+    const grid = `<div class="cgWall">${D.cards.filter(c => c.primary === el).map((c, i) => {
+      const seen = W.seen.has(c.id);
+      if (U.codexOwn && !seen) return '';
+      /* 没有一档买得到的包覆盖这一环 = 图鉴还没点亮到那儿，虚框且不可点开。 */
+      const locked = !S.tierOpen(c.tier);
+      return `<div class="cgt${seen ? ' has' : ''}${locked ? ' lock' : ''}" data-card="${c.id}"
+        title="${c.name.zh}${locked ? ' · 未解锁' : seen ? '' : ' · 未抽到'}">
+        <div class="cgtArt">${UI.artSVG(c, 'cg' + i)}</div>
+        <div class="cgtName">${seen ? c.name.zh : '·'}</div>
+        <div class="cgtMeta mono"><span>${c.tier === 10 ? '超' : c.tier}</span>环 · ${D.clsName[c.class]}</div>
+      </div>`;
+    }).join('')}</div>`;
 
     return `<div style="display:flex;gap:14px;height:100%;overflow:hidden">
       <div class="codexEl">
@@ -305,9 +330,12 @@
     const kf = U.chronFilter;
     const list = W.chron.filter(c => kf === '全部' || c.kind === kf);
     const countOf = k => k === '全部' ? W.chron.length : W.chron.filter(c => c.kind === k).length;
+    const rows = foldChron(list);
     /* 选中项存对象而不是下标：年表会 unshift+pop 截断（上限 300），
-       存下标的话截断一次就会「点 A 显示 B」（REVIEW-DEMO X-15）。 */
-    const sel = U.chronSel && W.chron.indexOf(U.chronSel) >= 0 ? U.chronSel : null;
+       存下标的话截断一次就会「点 A 显示 B」（REVIEW-DEMO X-15）。
+       没选就落到最新一条上——空着一整列去写「点任一条」，等于花 380px 教人怎么点。 */
+    const sel = U.chronSel && W.chron.indexOf(U.chronSel) >= 0 ? U.chronSel : (list[0] || null);
+    const selRow = sel ? rows.find(r => r.items.indexOf(sel) >= 0) : null;
     return `<div style="display:flex;gap:14px;height:100%;overflow:hidden">
       <div class="codexEl">
         ${kinds.map(k => `<button class="btn ${kf === k ? 'on' : 'ghost'}" data-kf="${k}"
@@ -316,25 +344,48 @@
       </div>
       <div style="flex:1;min-width:0;border-right:1px solid var(--line);padding-right:14px;overflow:auto">
         <div class="row gap6" style="margin-bottom:10px;align-items:center">
-          <span class="mono xs" style="color:var(--ink3)">${list.length} 条 · 上限 300</span>
+          <span class="mono xs" style="color:var(--ink3)">${rows.length} 组 · ${list.length} 条 · 上限 300</span>
         </div>
         <div class="tl">
-          ${list.map((c, i) => `<div class="it" style="--dot:${UI.CHRON_COL[c.kind] || '#3f7fa8'}" data-ci="${W.chron.indexOf(c)}">
-            <div class="xs"><span style="color:${UI.CHRON_COL[c.kind] || '#3f7fa8'};margin-right:4px">${UI.CHRON_ICON[c.kind] || '·'}</span>
-              第 ${c.month} 月</div>
-            <div class="t" style="font-size:13px;color:${sel === c ? 'var(--acc)' : '#fff'}">${c.text}</div>
-            <div class="xs" style="color:var(--ink4)">${c.kind}</div></div>`).join('') || '<div class="xs">这一类还没有记录</div>'}
+          ${rows.map(r => `<div class="it" style="--dot:${UI.CHRON_COL[r.kind] || '#3f7fa8'}"
+              data-ci="${W.chron.indexOf(r.items[0])}">
+            <div class="xs"><span style="color:${UI.CHRON_COL[r.kind] || '#3f7fa8'};margin-right:4px">${UI.CHRON_ICON[r.kind] || '·'}</span>
+              ${monthSpan(r)}${r.n > 1 ? `<span class="itc mono">×${r.n}</span>` : ''}</div>
+            <div class="t" style="font-size:13px;color:${selRow === r ? 'var(--acc)' : '#fff'}">${r.text}</div>
+            <div class="xs" style="color:var(--ink4)">${r.kind}</div></div>`).join('') || '<div class="xs">这一类还没有记录</div>'}
         </div>
       </div>
       <div style="width:380px;overflow:auto">
-        ${sel ? `<div class="xs">这一条发生时</div>
-          <div style="font-size:14px;color:#fff;margin:8px 0">${sel.text}</div>
-          <div class="rowline"><span class="xs">月份</span><span class="mono sm">${sel.month} 月</span></div>
+        ${sel ? `<div style="font-size:14px;color:#fff;margin:2px 0 10px">${selRow ? selRow.text : sel.text}</div>
+          <div class="rowline"><span class="xs">月份</span><span class="mono sm">${selRow ? monthSpan(selRow) : sel.month + ' 月'}</span></div>
           <div class="rowline"><span class="xs">类型</span><span class="sm">${sel.kind}</span></div>
-          <div class="xs" style="margin-top:10px">年表只记录发生过的事；回滚与重演还没实装。</div>`
-          : `<div class="xs">点任一条 → 这里显示它发生在第几月。年表同时是记忆与因果索引。</div>`}
+          ${selRow && selRow.n > 1 ? `<div class="rowline"><span class="xs">合并</span><span class="mono sm">${selRow.n} 次相邻同类</span></div>` : ''}`
+          : ''}
       </div>
     </div>`;
+  }
+
+  /* 相邻同类条目折成一条：一局里「土地落在 (x,y)」能占年表八成，
+     真正的气候 / 生态 / 图鉴被埋在中间。只折「相邻且同一个动作」的，
+     跨月穿插的事件不会被打乱顺序。 */
+  function foldChron(list) {
+    const keyOf = c => c.kind + '|' + c.text.replace(/[（(][^)）]*[)）]/g, '').replace(/落在.*$/, '').trim();
+    const out = [];
+    for (const c of list) {
+      const k = keyOf(c);
+      const last = out[out.length - 1];
+      if (last && last.key === k) { last.n++; last.items.push(c); continue; }
+      out.push({ key: k, kind: c.kind, text: c.text, n: 1, items: [c] });
+    }
+    /* 折叠后的条目不再挂某一次的坐标：三处不同落点合成一条时，
+       写 (3, 3) 等于拿一处的细节代表三十九次。 */
+    for (const r of out) if (r.n > 1) r.text = r.text.replace(/落在\s*[（(][^)）]*[)）]/, '落在 多处');
+    return out;
+  }
+
+  function monthSpan(r) {
+    const a = r.items[r.items.length - 1].month, b = r.items[0].month;
+    return a === b ? '第 ' + a + ' 月' : '第 ' + a + '–' + b + ' 月';
   }
 
   /* ── 设置：每一项都真的接线到渲染或 sim ── */
@@ -368,7 +419,7 @@
         ${nav.map(([k, t]) => `<button class="btn ${g === k ? 'on' : 'ghost'}" data-sg="${k}"
           style="justify-content:flex-start">${t}</button>`).join('')}
       </div>
-      <div style="flex:1;min-width:0;padding-left:20px;overflow:auto">
+      <div style="flex:1;min-width:0;padding-left:20px;overflow:auto;display:flex;flex-direction:column">
         ${rows.map(r => `<div class="setRow">
           <span class="sm">${r.k}</span>
           <div style="display:flex;gap:6px">
@@ -482,37 +533,34 @@
   };
 
   /* ── 操作速查：现在是「设置 → 操作」里的一段 ── */
+  /* 只讲「手怎么动」。右侧原来还摆了四张卡（视角 / 界面 / 世界 / 事件），
+     内容与「键位」那栏重复了八成，而且都是成句的说明——键位只在键位表里说一次。 */
   function helpBlock() {
-    return `<div style="display:flex;gap:16px;align-items:flex-start">
-      <div style="flex:1.4;border:1px solid var(--line2);padding:14px">
-        <div class="sm" style="color:#fff;margin-bottom:6px">手势：一套轴，三种结果</div>
-        <svg viewBox="0 0 620 340" style="width:100%;height:auto">
-          <rect x="250" y="120" width="120" height="150" rx="4" fill="#1a2230" stroke="#3d4a5c"/>
-          <text x="310" y="200" text-anchor="middle" font-family="ui-monospace,Consolas" font-size="11" fill="#7e8a9a">手牌</text>
-          <ellipse cx="76" cy="150" rx="52" ry="11" fill="#22402f" stroke="#3a5a48"/>
-          <text x="76" y="154" text-anchor="middle" font-family="ui-monospace,Consolas" font-size="8" fill="#7fa08c">地面</text>
-          <path d="M310,112 L310,42" stroke="#e0a33e" stroke-width="2"/>
-          <path d="M310,36 L302,52 L318,52 Z" fill="#e0a33e"/>
-          <text x="326" y="56" font-family="ui-monospace,Consolas" font-size="11" fill="#e0a33e">向上拖 = 随机落点释放</text>
-          <text x="326" y="74" font-family="ui-monospace,Consolas" font-size="10" fill="#7e8a9a">或按 空格</text>
-          <path d="M240,190 C160,190 120,168 98,140" stroke="#5f9fc0" stroke-width="2" fill="none"/>
-          <path d="M90,132 L94,150 L110,142 Z" fill="#5f9fc0"/>
-          <text x="14" y="118" font-family="ui-monospace,Consolas" font-size="11" fill="#5f9fc0">拖到地面 = 指定落点</text>
-          <path d="M310,282 L310,318" stroke="#b4553f" stroke-width="2"/>
-          <path d="M310,282 L302,298 L318,298 Z" fill="#b4553f"/>
-          <text x="326" y="292" font-family="ui-monospace,Consolas" font-size="11" fill="#b4553f">向下拖 = 回收</text>
-          <text x="326" y="310" font-family="ui-monospace,Consolas" font-size="10" fill="#7e8a9a">或按 X</text>
-        </svg>
-      </div>
-      <div style="width:300px;display:flex;flex-direction:column;gap:8px">
-        ${[['⌖', '视角', '拖拽旋转 · 滚轮缩放 · F1–F4 俯仰 · Z 缩放档'],
-           ['▤', '界面', '左栏点开面板 · 右栏常驻 · P 摆件 · Esc 退'],
-           ['◇', '世界', '悬停看该格的水/光/温与活物；WASD 走格 · Enter 落卡；律卡不需要落点'],
-           ['⚑', '事件', 'E 演练 · Esc 关 · 承受 / 改写（改写在面板里说明代价）']]
-          .map(([i, t, d]) => `<div class="w" style="padding:11px;display:flex;gap:10px;align-items:flex-start">
-            <span style="font-size:15px;color:var(--acc);line-height:1">${i}</span>
-            <div><div class="sm" style="color:#fff">${t}</div>
-              <div class="xs" style="margin-top:4px;line-height:1.6">${d}</div></div></div>`).join('')}
+    return `<div style="border:1px solid var(--line2);padding:14px;flex:1;display:flex;flex-direction:column;min-height:0">
+      <div class="sm" style="color:#fff;margin-bottom:8px">手势：一套轴，三种结果</div>
+      <div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden">
+      <svg viewBox="0 0 620 340" preserveAspectRatio="xMidYMid meet"
+        style="width:100%;height:auto;max-height:min(58vh,520px)">
+        <rect x="250" y="120" width="120" height="150" rx="4" fill="#1a2230" stroke="#3d4a5c"/>
+        <text x="310" y="200" text-anchor="middle" font-family="ui-monospace,Consolas" font-size="11" fill="#7e8a9a">手牌</text>
+        <ellipse cx="76" cy="150" rx="52" ry="11" fill="#22402f" stroke="#3a5a48"/>
+        <text x="76" y="154" text-anchor="middle" font-family="ui-monospace,Consolas" font-size="8" fill="#7fa08c">地面</text>
+        <path d="M310,112 L310,42" stroke="#e0a33e" stroke-width="2"/>
+        <path d="M310,36 L302,52 L318,52 Z" fill="#e0a33e"/>
+        <text x="326" y="56" font-family="ui-monospace,Consolas" font-size="11" fill="#e0a33e">向上拖 = 随机落点释放</text>
+        <text x="326" y="74" font-family="ui-monospace,Consolas" font-size="10" fill="#7e8a9a">或按 空格</text>
+        <path d="M240,190 C160,190 120,168 98,140" stroke="#5f9fc0" stroke-width="2" fill="none"/>
+        <path d="M90,132 L94,150 L110,142 Z" fill="#5f9fc0"/>
+        <text x="14" y="118" font-family="ui-monospace,Consolas" font-size="11" fill="#5f9fc0">拖到地面 = 指定落点</text>
+        <path d="M310,282 L310,318" stroke="#b4553f" stroke-width="2"/>
+        <path d="M310,282 L302,298 L318,298 Z" fill="#b4553f"/>
+        <text x="326" y="292" font-family="ui-monospace,Consolas" font-size="11" fill="#b4553f">向下拖 = 回收</text>
+        <text x="326" y="310" font-family="ui-monospace,Consolas" font-size="10" fill="#7e8a9a">或按 X</text>
+        <!-- 键盘那条路：不用鼠标也能落一张卡 -->
+        <rect x="24" y="240" width="120" height="26" rx="3" fill="#141b23" stroke="#2d3844"/>
+        <text x="84" y="257" text-anchor="middle" font-family="ui-monospace,Consolas" font-size="11" fill="#8b99a6">WASD → Enter</text>
+        <text x="24" y="288" font-family="ui-monospace,Consolas" font-size="10" fill="#7e8a9a">走格 · 在游标处落卡</text>
+      </svg>
       </div>
     </div>`;
   }
@@ -530,6 +578,13 @@
         if (a === 'packPick') return packPick(+act.dataset.i);
         if (a === 'codexOwn') { U.codexOwn = !U.codexOwn; return UI.renderOverlay(); }
         if (a === 'toKeys') { U.panel = 'settings'; U.setGroup = 'input'; return UI.renderOverlay(); }
+      }
+      const pk = ev.target.closest('[data-pack]');
+      if (pk) {
+        UI.packSel = pk.dataset.pack;
+        /* 换包种等于重开：摊开的牌属于上一包，不能留着 */
+        UI.packStage = 0; UI.packCards = [];
+        return UI.renderOverlay();
       }
       const card = ev.target.closest('[data-card]');
       if (card) { UI.openCard(card.dataset.card); return; }

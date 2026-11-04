@@ -3,24 +3,38 @@
 (function (S, D) {
   const W = S.W;
 
-  S.PACK_COST = 30;
-  S.PACK_SIZE = 5;
+  S.PACK_SIZE = 6;
   S.HAND_MAX = 8;
 
   const isGround = e => e.ground;
 
   /* ───────── 抽卡 ───────── */
-  /* 卡池分两段（SETTING §5.1.3「成就解锁卡池」）：低的恒开，高的等图鉴。
-     现在图鉴只有 6 条，按主题给每个组配一个扩展包等于凭空编一张 55 张卡的主题表，
-     所以用一条不编内容的规则顶上：**每点亮一条图鉴，可抽的最高环 +1**。
-     0 条时只能抽 ≤3 环（44 张），6 条全亮才放 tier 9 的大陆出来。 */
-  S.POOL_BASE_TIER = 3;
-  S.poolCap = () => Math.min(9, S.POOL_BASE_TIER + S.codexLit());
-  S.poolTotal = () => D.cards.filter(c => !(c.evolve && c.evolve.from)).length;
-  S.drawPool = () => D.cards.filter(c => !(c.evolve && c.evolve.from) && c.tier <= S.poolCap());
+  /* 卡包按环级分档（SETTING §3.2.1）。价格只跟环区间走，不看世界发展到哪一步——
+     「没有纪元、没有世界规模，高环卡能不能拿到，只看你愿不愿意花时素」。
+     唯一的例外是 §5.1.3 的「成就是解锁卡池的途径」：高阶包要 1 条图鉴、超环包要 3 条。
+     两节文档在这里本来是打架的（§3.2.1 说全靠时素，§5.1.3 说要成就），
+     折中办法是让成就只挡最高的那一两档，基础 / 进阶永远买得到。 */
+  S.PACKS = [
+    { id: 'basic', name: '基础包', cost: 12, lo: 0, hi: 3, need: 0 },
+    { id: 'mid', name: '进阶包', cost: 24, lo: 1, hi: 6, need: 0 },
+    { id: 'high', name: '高阶包', cost: 48, lo: 3, hi: 9, need: 1 },
+    { id: 'ultra', name: '超环包', cost: 96, lo: 10, hi: 10, need: 3 }
+  ];
 
-  S.drawOne = function (exclude) {
-    const pool = S.drawPool().filter(c => !exclude.has(c.id));
+  S.poolTotal = () => D.cards.filter(c => !(c.evolve && c.evolve.from)).length;
+  S.poolIn = p => D.cards.filter(c => !(c.evolve && c.evolve.from) && c.tier >= p.lo && c.tier <= p.hi);
+  /* 池里一张卡都没有的档不出现在界面上：超环包现在就是空的，
+     等 tier 10 的卡填进来它会自己出现，不用再改这里。 */
+  S.packList = () => S.PACKS.filter(p => S.poolIn(p).length > 0);
+  S.packOf = id => S.packList().find(p => p.id === id) || S.packList()[0];
+  S.packOpen = p => S.codexLit() >= p.need;
+  /* 某一环此刻能不能抽到：得有一档「买得到」的包覆盖它。图鉴进度就是这么反映到卡库上的。 */
+  S.tierOpen = t => S.PACKS.some(p => S.packOpen(p) && t >= p.lo && t <= p.hi);
+  S.drawPool = () => D.cards.filter(c => !(c.evolve && c.evolve.from) && S.tierOpen(c.tier));
+
+  S.drawOne = function (exclude, pack) {
+    const src = pack ? S.poolIn(pack) : S.drawPool();
+    const pool = src.filter(c => !exclude.has(c.id));
     if (!pool.length) return null;
     const w = pool.map(c => D.weight(c.tier));
     let r = S.rand() * w.reduce((a, b) => a + b, 0);
@@ -65,22 +79,24 @@
     return W.hand;
   };
 
-  /* 撕包只负责把 5 张摊在桌上，不往手牌里塞。
-     原来是一包 5 张全收：手牌上限 8，一包就把手牌灌满，剩下的只能硬着头皮打或者回收，
+  /* 撕一包只把 6 张摊在桌上，不往手牌里塞。
+     原来是一包全收：手牌上限 8，一包就把手牌灌满，剩下的只能硬着头皮打或者回收，
      「抽到新卡」从此不是一次决策而是一次倾倒（REVIEW-DEMO F-2）。
      Balatro 的 booster pack 与 StS 的三选一都是让玩家选，这里照这个来。 */
-  S.drawPack = function () {
-    if (W.essence < S.PACK_COST) return { ok: false, msg: '时素不够（要 ' + S.PACK_COST + '）' };
-    W.essence -= S.PACK_COST;
+  S.drawPack = function (packId) {
+    const p = S.packOf(packId);
+    if (!S.packOpen(p)) return { ok: false, msg: '「' + p.name + '」还没解锁（要 ' + p.need + ' 条图鉴）' };
+    if (W.essence < p.cost) return { ok: false, msg: '时素不够（要 ' + p.cost + '）' };
+    W.essence -= p.cost;
     const ex = new Set(W.hand.map(c => c.id)), got = [];
     for (let i = 0; i < S.PACK_SIZE; i++) {
-      const c = S.drawOne(ex);
+      const c = S.drawOne(ex, p);
       if (!c) break;
       ex.add(c.id); got.push(c);
     }
     got.sort((a, b) => a.tier - b.tier);
-    S.log('撕开一包 · −' + S.PACK_COST + ' 时素', true);
-    return { ok: true, got: got };
+    S.log('撕开「' + p.name + '」 · −' + p.cost + ' 时素', true);
+    return { ok: true, pack: p, got: got };
   };
 
   S.recycle = function (i) {
@@ -91,7 +107,21 @@
     W.essence += c.reclaim;
     S.log('回收「' + c.name.zh + '」+' + c.reclaim);
     W.sel = Math.min(W.sel, Math.max(0, W.hand.length - 1));
-    return { ok: true, gain: c.reclaim };
+    return { ok: true, gain: c.reclaim, at: i, id: c.id };
+  };
+
+  /* 撤销回收：一张牌点错就没了，界面上没有任何确认步骤——
+    点错一次的代价和主动回收一样大，不合理。撤销窗口只给几秒（toast 的生命）。
+     时素已经花掉就撤销不了（不能凭空生一张卡出来）。 */
+  S.unrecycle = function (i, id) {
+    const c = D.byId.get(id);
+    if (!c) return { ok: false, msg: '这张卡不在了' };
+    if (W.essence < c.reclaim) return { ok: false, msg: '时素已经花掉' };
+    W.essence -= c.reclaim;
+    W.hand.splice(Math.max(0, Math.min(W.hand.length, i)), 0, c);
+    W.sel = Math.max(0, Math.min(W.hand.length - 1, i));
+    S.log('收回「' + c.name.zh + '」−' + c.reclaim);
+    return { ok: true };
   };
 
   /* ───────── 门控 ───────── */

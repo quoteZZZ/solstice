@@ -83,6 +83,9 @@ SOL.ui = SOL.ui || {};
     </div>`;
   }
 
+  /* 卡库的收藏格要一块缩略插画，跟卡面同一套（同一个函数，不另画一种图） */
+  UI.artSVG = artSVG;
+
   UI.cardFace = function (card, uid, mode) {
     uid = uid || (++UI._uid);
     /* 手牌按「此刻能不能打」降饱和；抽包面板里不这么做——

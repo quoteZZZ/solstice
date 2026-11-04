@@ -300,7 +300,6 @@
             <span class="mono" style="font-size:17px;color:#fff">${CRE.name}</span>
             <span class="tag a">${form.name}</span><span class="tag b">${CRE.climate}</span>
             <span class="tag ok">判据 ${WD.judge.length} / ${WD.judge.length}</span>
-            <span class="sm" style="margin-left:auto;color:var(--ink3)">世界仍然从虚无开始——形制只是蓝图</span>
           </div>
           <div class="legend">
             ${[['#4a6b3f', '表层土'], ['#3b3226', '土壤'], ['#39424e', '岩层'], ['#232a33', '基岩'], ['#1d4a5c', '地下水'], ['#c79a54', '矿脉']]
@@ -316,7 +315,8 @@
           <div class="tgrid">
             ${traits.map(t => `<div class="tchip on ${t.wired ? 'live' : 'ghost'}"
               title="${t.name}｜${t.note}（${t.cat}）${t.wired ? '' : ' · 仅剖面，本界不结算'}" data-cv="${t.name}">
-              <span class="ti">${t.ico}</span><span class="tn">${t.name}</span>${t.wired ? '<em class="tw">生效</em>' : ''}</div>`).join('')}
+              <span class="ti">${t.ico}</span><span class="tn">${t.name}</span>${
+                t.wired ? `<em class="tw">${t.val || '生效'}</em>` : ''}</div>`).join('')}
           </div>
 
           <div class="row" style="justify-content:space-between;align-items:baseline;margin:14px 0 6px">
@@ -332,16 +332,10 @@
             <div class="rowline"><span class="xs">起伏</span><span class="mono xs">${CRE.params.relief}</span></div>
             <div class="rowline"><span class="xs">物种池</span><span class="mono xs">${CRE.params.species} 种</span></div>
           </div>
-          <div class="xs" style="margin-top:10px;line-height:1.7">
-            标「生效」的四项真进结算：地热（全界 +0.5 °C）、贫瘠（生长 ×0.7）、
-            隔离（繁殖 ×0.8）、金属富集（新铺的地 35 % 含矿）。
-            没标的那几条只在剖面图里出现——这一界里它不结算，只是地貌传闻。
-          </div>
         </div>
       </div>
 
       <div id="cFoot">
-        <span class="xs">你只能重掷——形制、气候、特征都不由你挑；同一坐标 = 同一个世界</span>
         ${CRE.fromWorld ? '<button class="btn ghost" data-c="back" style="margin-left:auto">← 返回当前界</button>'
           : '<span style="margin-left:auto"></span>'}
         <button class="btn ${CRE.fromWorld && CRE.armed ? 'warn' : 'on'}" data-c="enter"
