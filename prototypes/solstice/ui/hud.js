@@ -225,10 +225,16 @@
           <span class="mono xs">☀ ${W.sun} · 寿命 ×${W.law.lifeX} · 繁 ×${W.law.propX}</span></div>
       </div>
 
-      ${field ? `<div class="rp">
+      <div class="rp">
         <div class="h">环境</div>
-        ${fieldBars(field)}
-      </div>` : ''}
+        ${field ? fieldBars(field) : `<div class="fb"><span class="fbk">水</span>
+          <div class="fbar"></div><span class="fbv">–</span></div>
+        <div class="fb"><span class="fbk">光</span>
+          <div class="fbar"></div><span class="fbv">–</span></div>
+        <div class="fb"><span class="fbk">温</span>
+          <div class="fbar"></div><span class="fbv">–</span></div>
+        <div class="xs" style="color:var(--ink-4);margin-top:4px">还没有地块</div>`}
+      </div>
 
       <div class="rp">
         <div class="row" style="justify-content:space-between;align-items:baseline">

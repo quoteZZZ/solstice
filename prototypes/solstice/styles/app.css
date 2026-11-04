@@ -167,27 +167,36 @@ html,body{height:100%;overflow:hidden;background:var(--bg-0);color:var(--ink-2);
   font-family:var(--mono);font-size:calc(var(--fz-3) * var(--fs));line-height:1.85;color:#b9c6d4;
   pointer-events:none;letter-spacing:.03em;padding:var(--s-2) var(--s-3);border-radius:var(--r-2);
   background:linear-gradient(90deg,rgba(7,11,15,.80),rgba(7,11,15,.42) 72%,rgba(7,11,15,0));
-  text-shadow:0 1px 2px rgba(0,0,0,.95)}
+  text-shadow:0 1px 2px rgba(0,0,0,.95);transition:left var(--dur-2) var(--ease)}
+/* 左栏展开到 118px 时会压到 log 上（log z-index 26 > 左栏 24，字直接盖在「年表」上）。
+   log 在 DOM 里排在左栏前面，用不了 ~ 选择器，用 :has 跟着让位。 */
+#stage:has(#leftrail:hover) #log{left:calc(118px + var(--s-3))}
 #log div{opacity:0;animation:logIn var(--dur-3) forwards}
 #log div.hot{color:var(--acc)}
 @keyframes logIn{to{opacity:1}}
 
 /* ── 左栏：只放页面入口 ── */
+/* 展开时不能让图标动：原来 align-items:center + 宽度 56→118，
+   整列按钮跟着重新居中，图标横移 31px（UI 评审 U09）。改成左对齐定死。 */
 #leftrail{position:absolute;left:0;top:0;bottom:0;width:var(--rail);background:rgba(10,14,19,.92);
-  border-right:1px solid var(--line-1);z-index:24;display:flex;flex-direction:column;align-items:center;
-  padding-top:var(--s-4);gap:var(--s-3);transition:width var(--dur-2) var(--ease);backdrop-filter:blur(2px)}
+  border-right:1px solid var(--line-1);z-index:24;display:flex;flex-direction:column;align-items:flex-start;
+  padding:var(--s-4) 0 0 5px;gap:var(--s-3);transition:width var(--dur-2) var(--ease);backdrop-filter:blur(2px)}
 #leftrail:hover{width:118px;box-shadow:8px 0 22px rgba(0,0,0,.5)}
-.rail{width:46px;height:46px;border:1px solid var(--line-2);border-radius:var(--r-2);background:var(--bg-2);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--s-1);
+.rail{position:relative;width:46px;height:46px;border:1px solid var(--line-2);border-radius:var(--r-2);
+  background:var(--bg-2);display:flex;align-items:center;justify-content:center;
   color:var(--ink-3);cursor:pointer;box-shadow:var(--sh-1);flex:0 0 auto;
-  transition:width var(--dur-2) var(--ease),flex-direction var(--dur-2),background var(--dur-1),
-    border-color var(--dur-1),color var(--dur-1)}
-#leftrail:hover .rail{width:100px;flex-direction:row;justify-content:flex-start;gap:var(--s-4);padding-left:var(--s-5)}
+  transition:background var(--dur-1),border-color var(--dur-1),color var(--dur-1)}
+#leftrail:hover .rail{width:100px;justify-content:flex-start;padding-left:15px}
 .rail:hover,.rail.on{border-color:var(--acc-line);color:var(--acc);background:rgba(224,163,62,.06)}
 .rail:active{background:rgba(224,163,62,.12)}
 /* 标签常显：8 个纯抽象图标 + 原生 tooltip 是最难认的一种入口（REVIEW-DEMO C-2） */
-.rail span{font-family:var(--mono);font-size:calc(var(--fz-2) * var(--fs));letter-spacing:.04em;
-  white-space:nowrap;display:block;color:var(--ink-3)}
+/* 标签绝对定位在图标右侧，不参与按钮排版：展开只是把宽度让出来，
+   图标一格都不动（原来切 flex-direction 不可动画，图标是瞬移的）。 */
+.rail span{position:absolute;left:52px;top:50%;transform:translateY(-50%);
+  width:0;opacity:0;overflow:hidden;font-family:var(--mono);
+  font-size:calc(var(--fz-2) * var(--fs));letter-spacing:.04em;white-space:nowrap;
+  color:var(--ink-3);transition:width var(--dur-2) var(--ease),opacity var(--dur-1) var(--ease)}
+#leftrail:hover .rail span{width:auto;opacity:1}
 .rail:hover span,.rail.on span{color:var(--acc)}
 
 /* ── 右信息栏：一屏三段 ── */
@@ -200,9 +209,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg-0);color:var(--ink-2);
 /* 段标题：小字号 + 通栏字距，右端留一条渐隐的横线把它和数据分开 */
 .rp .h{position:relative;font-family:var(--mono);font-size:calc(var(--fz-2) * var(--fs));
   letter-spacing:.14em;color:var(--ink-3);margin-bottom:var(--s-4);padding-right:var(--s-5)}
-.rp > .h:after{content:"";position:absolute;right:0;top:50%;width:calc(var(--s-6) - 2px);height:1px;
-  background:linear-gradient(90deg,var(--line-2),transparent)}
-.rp > .row .h:after{display:none}
+/* 原来标题右端有一条 10px 的渐隐短线，想「把标题和数据分开」。实际效果是：
+   它离标题 200px 远、孤零零挂在栏右边，读起来像渲染残留（UI 评审 U24）。
+   分隔交给下面的 margin 和段与段之间的 1px 边线，这里删掉。 */
 .rp .big{font-family:var(--mono);font-size:calc(21px * var(--fs));color:var(--ink-1);line-height:1.15;
   letter-spacing:.02em}
 .rp .rowline{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s-4);
