@@ -17,6 +17,7 @@ SOL.sim = SOL.sim || {};
     law: { lifeX: 1, propX: 1, evapX: 1, lightOff: 0 },
     speed: 1, paused: true,
     hand: [], sel: -1,
+    rerollN: 0,                // 连续重抽次数（梯价用，施卡后归零）
     recycleLog: null,          // 最近一次回收的回执（撤销只认它，见 cast.js）
     sapient: 0,                // 智慧层（启智后果，永久）
     traces: [], traceSeq: 0,
@@ -229,7 +230,7 @@ SOL.sim = SOL.sim || {};
   S.resetWorld = function (world) {
     W.cells.clear();
     W.month = 0; W.hour = 6; W.essence = 0; W.essAcc = 0; W.sun = 0; W.sunTemp = 0; W.pity = 0;
-    W.recycleLog = null;
+    W.recycleLog = null; W.rerollN = 0;
     W.law = { lifeX: 1, propX: 1, evapX: 1, lightOff: 0 };
     W.traces = []; W.traceSeq = 0; W.chron = []; W.sapient = 0;
     W.castSeq = 0;

@@ -247,14 +247,30 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     return { overlap, freshMin, forcedTier: forced && forced.tier, pityTier: S.PITY_TIER };
   });
 
+  /* 10.5 重抽梯价：连抽翻倍、施卡归零（定额 5 时素时重抽比抽卡还划算） */
+  const rr = await page.evaluate(() => {
+    const { S, W } = window.__dbg;
+    S.cmd.gear(0);
+    W.essence = 300; W.rerollN = 0;
+    const seq = [];
+    for (let i = 0; i < 5; i++) { const r = S.cmd.reroll(); seq.push(r.cost); }
+    const afterFish = W.rerollN;
+    const c = W.hand[0];
+    S.cmd.cast(c, 0, 0);          // 真的用掉一手牌
+    const reset = S.cmd.rerollCost();
+    return { seq, afterFish, reset };
+  });
+
   /* 11. 断言：上面几段是读数，这里决定退不退 0 */
   if (!table.reclaimOk) errors.push('[assert] reclaim 与环级表不一致');
   if (!(undoGuard.guard && undoGuard.ok2 && !undoGuard.ok3)) errors.push('[assert] 撤销守卫失效（应拒绝无回执/重复撤销）');
   if (undoGuard.n !== 2) errors.push('[assert] 撤销后手牌数 ' + undoGuard.n + '（应为 2）');
   if (draw.overlap > draw.freshMin) errors.push('[assert] 重复保护配额超限：' + draw.overlap + ' > ' + draw.freshMin);
   if (!(draw.forcedTier >= draw.pityTier)) errors.push('[assert] 硬保底没生效');
+  if (rr.seq.join(',') !== '5,10,20,40,40') errors.push('[assert] 重抽梯价不对：' + rr.seq.join(','));
+  if (rr.reset !== 5) errors.push('[assert] 施卡后重抽价没有归零：' + rr.reset);
 
-  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, errors };
+  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, errors };
   fs.writeFileSync(path.join(__dirname, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 1));
 

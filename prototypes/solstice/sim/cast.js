@@ -311,6 +311,7 @@
     if (cell && !cell.flags.hidden && shaped)
       S.addChron('干涉', '「' + card.name.zh + '」落在 (' + x + ', ' + y + ')');
     W.cellsChanged = true;
+    W.rerollN = 0;       // 真的用掉一手牌了，重抽梯价归零
     S.checkCodex();      // 「三阳」这类当月成立的当刻就亮，不必等下一月
     return res;
   };

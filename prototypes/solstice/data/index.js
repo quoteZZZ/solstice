@@ -112,6 +112,23 @@
 
     /* 5 复合卡该更稀有（软）——旧版这条带「含风元素」的特判，实际只对夜沼鸟生效，已去掉 */
     if (c.elements.length >= 3 && c.tier <= 1) soft.push(c.name.zh + ' · ' + c.elements.length + ' 元素却只有 ' + c.tier + ' 环');
+
+    /* 6 species 必须自洽。sim.spawn 是「读不到就用默认值」的写法，
+       少写一个 hp 不会报错，只会让那只兔子永远打不死——
+       这类错只有跑起来才看得见，所以在装配期拦掉。 */
+    if (c.sim && c.sim.op === 'spawn') {
+      const sp = c.species;
+      if (!sp || typeof sp !== 'object') { bad(c, 'sim.op = spawn 但没有 species'); continue; }
+      const SHAPES = ['tree', 'bush', 'grass', 'animal', 'blob'];
+      if (sp.shape && SHAPES.indexOf(sp.shape) < 0) bad(c, 'species.shape 未登记：' + sp.shape);
+      if (sp.diet && sp.diet !== '草' && sp.diet !== '肉') bad(c, 'species.diet 只能是草 / 肉：' + sp.diet);
+      if (sp.diet) {
+        if (!(sp.hp > 0)) bad(c, 'species 是动物但没有 hp');
+        if (!(sp.speed > 0)) bad(c, 'species 是动物但没有 speed');
+        if (sp.growth || sp.propag) bad(c, 'species 同时是动物又带生长字段');
+      } else if (!(sp.lifespan > 0)) bad(c, 'species 没有 lifespan');
+      if (sp.grow && !sp.propag && sp.shape !== 'tree') soft.push(c.name.zh + ' · 会生长但不会繁殖，只能靠施卡出现');
+    }
   }
 
   D.errors = hard;

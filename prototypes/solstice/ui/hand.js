@@ -43,7 +43,7 @@
     act.innerHTML = `
       <div class="ab" data-act="random" tabindex="0" role="button" title="随机落点释放（空格）">✦</div>
       <div class="ab" data-act="recycle" tabindex="0" role="button" title="回收选中的卡（X）">↩</div>
-      <div class="ab" data-act="reroll" tabindex="0" role="button" title="重抽一手（5 时素 · R）">↻</div>
+      <div class="ab" data-act="reroll" tabindex="0" role="button" title="重抽一手（${S.cmd.rerollCost()} 时素 · R · 连抽翻倍）">↻</div>
       <div class="ab" data-act="gear" tabindex="0" role="button" title="档位（J）" style="font-size:11px">${S.GEARS[S.gear].label}</div>`;
   };
 
@@ -217,7 +217,7 @@
 
   UI.reroll = function () {
     const res = S.cmd.reroll();
-    if (!res.ok) return UI.toast('时素不够', '重抽要 5 时素');
+    if (!res.ok) return UI.toast('时素不够', res.msg);
     UI.renderHand(); UI.updateHud(); UI.renderRight();
     UI.log('重抽一手 −' + res.cost + ' 时素', true);
   };

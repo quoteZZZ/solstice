@@ -217,15 +217,33 @@
        只被叫来画一帧。换前端 / 做回放 / 加存档，都只需要替换这里的这一个循环。 */
     let last = performance.now();
     let lastEss = -1;
+    /* 主循环里任何一处抛异常，requestAnimationFrame 就再也不排下一帧了——
+       画面停住、时钟停住，而屏幕上没有任何提示：玩家只会觉得「卡死了」。
+       一圈一次 try：这帧出错就记一条、跳过这一帧的画，下一帧照排。
+       连续错满 60 帧（约 1 秒）才真的停下，免得台上滚屏刷成一片。 */
+    let failStreak = 0;
     function frame(now) {
       const dt = Math.min(80, now - last);
       last = now;
-      /* 时素按真实时间涨，和世界档位无关（SETTING §3.1）：暂停时也要涨，
-         否则「停下来想想」就是纯亏。世界那边照旧走 advance。 */
-      S.cmd.essenceTick(dt);
-      const ticks = S.cmd.advance(dt);
-      if (W.essence !== lastEss) { lastEss = W.essence; UI.updateHud(); }
-      R.frame(now, ticks);
+      try {
+        /* 时素按真实时间涨，和世界档位无关（SETTING §3.1）：暂停时也要涨，
+           否则「停下来想想」就是纯亏。世界那边照旧走 advance。 */
+        S.cmd.essenceTick(dt);
+        const ticks = S.cmd.advance(dt);
+        if (W.essence !== lastEss) { lastEss = W.essence; UI.updateHud(); }
+        R.frame(now, ticks);
+        failStreak = 0;
+      } catch (e) {
+        failStreak++;
+        if (failStreak === 1) {
+          console.error('[frame]', e);
+          try { UI.toast('画面出错', '世界仍在推进，可继续操作'); } catch (_) {}
+        }
+        if (failStreak > 60) {
+          console.error('[frame] 连续 60 帧失败，主循环停下', e);
+          return;
+        }
+      }
       requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);

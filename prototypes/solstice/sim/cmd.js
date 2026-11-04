@@ -49,13 +49,23 @@
   cmd.unrecycle = function (i, id) { return S.unrecycle(i, id); };
   cmd.dealHand = function () { return S.dealHand(); };
 
-  /* 重抽：先看价、再扣、再发。扣时素从前写在 ui 里，是 ui 唯一改世界钱包的地方。 */
+  /* 重抽：先看价、再扣、再发。扣时素从前写在 ui 里，是 ui 唯一改世界钱包的地方。
+
+     梯价：连着重抽不施卡，价就翻倍（5 → 10 → 20 → 40 封顶），施一张卡归零。
+     定额 5 时素是套利口子——重抽一次给 8 张，比 12 时素 6 张的包还划算，
+     于是最优解变成「不施卡，一直重抽到手牌最好」，而且它不需要看世界。
+     梯价把「重抽」按回它该有的位置：卡住了换一手，不是拿它当抽卡机。 */
+  cmd.rerollCost = function () {
+    return Math.min(40, 5 * Math.pow(2, Math.min(3, W.rerollN || 0)));
+  };
+
   cmd.reroll = function () {
-    const COST = 5;
+    const COST = cmd.rerollCost();
     if (W.essence < COST) return { ok: false, msg: '时素不够（重抽要 ' + COST + '）' };
     W.essence -= COST;
+    W.rerollN = (W.rerollN || 0) + 1;
     S.dealHand();
-    return { ok: true, cost: COST };
+    return { ok: true, cost: COST, next: cmd.rerollCost() };
   };
 
   /* ───────── 时间 ───────── */
