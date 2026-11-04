@@ -30,7 +30,7 @@
       <div class="band"></div>
       <div class="row" style="justify-content:space-between">
         <span class="mono xs" style="letter-spacing:.18em;color:var(--warn)">世界事件 · ${e.k}</span>
-        <span class="xs">第 ${W.month} 月</span>
+        <span class="xs">${UI.mon(W.month)}</span>
       </div>
       <div class="row" style="gap:18px;margin-top:14px;align-items:flex-start">
         ${evArt(e.a)}

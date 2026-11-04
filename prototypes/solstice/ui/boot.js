@@ -94,6 +94,22 @@
   function onKey(ev) {
     if (UI.captureKey(ev)) { ev.preventDefault(); return; }
 
+    /* 拖拽进行中只认 Esc（取消）。原来空格/X/R/数字都能穿进来：
+       空格再放一张、松手又放一张，一次手势最多烧 3 张牌（第二轮 S08）。 */
+    if (UI.isDragging && UI.isDragging() && ev.key !== 'Escape') {
+      ev.preventDefault();
+      return;
+    }
+    /* 面板开着的时候，世界键（空格/X/R/J/1–8/WASD/Enter/F1–F4/Z/P/E/G/H/K）不该穿到背后去：
+       原来面板里按空格会直接在世界里放一张牌（第二轮 S07 / K02）。
+       放行：Esc（关面板）、Tab（焦点）、以及四个面板开关键（B/L/C/O，用来切换面板）。 */
+    if (UI.state.panel) {
+      const k = ev.key;
+      const pass = k === 'Escape' || k === 'Tab' ||
+        ['b', 'l', 'c', 'o'].includes(k.toLowerCase());
+      if (!pass) { ev.preventDefault(); return; }
+    }
+
     /* 焦点在输入框里：除了 Esc 交出焦点，其余一律放给输入框。
        否则在种子输入框里打字会顺手触发施卡 / 开面板（REVIEW-DEMO X-7）。 */
     const t = ev.target;

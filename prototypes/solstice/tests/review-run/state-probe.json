@@ -1,0 +1,713 @@
+[
+ {
+  "id": "A1",
+  "title": "0→撕开→挑选→收下一张",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "sealEss": 500,
+    "openedEss": 488,
+    "stage": 2,
+    "cards": 6,
+    "afterPanel": null,
+    "afterStage": 0,
+    "handDelta": 0,
+    "sel": 0
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "A2",
+  "title": "0→撕开→挑选→跳过",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "label": "跳过这一包",
+    "stage": 2,
+    "cards": 6,
+    "afterPanel": null,
+    "afterStage": 0,
+    "afterCards": 0,
+    "handDelta": 0,
+    "essence": 488
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "A3",
+  "title": "0→撕开→关面板→再开（stage/cards 是否保留）",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "beforeStage": 2,
+    "beforeCards": 6,
+    "closed": null,
+    "reopened": "pack",
+    "stage": 2,
+    "cards": 6
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "A4",
+  "title": "0→撕开→切包（应被拦）",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "selBefore": "basic",
+    "clickRow": "mid",
+    "selAfter": "basic",
+    "stage": 2,
+    "cards": 6,
+    "toasts": [
+     "这一包还没挑先收下一张，或点「跳过这一包」"
+    ]
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "A5",
+  "title": "0→撕开→时素归零→再点主按钮",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "label": "跳过这一包",
+    "disabled": false,
+    "afterPanel": null,
+    "afterStage": 0,
+    "cards": 0
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "A6",
+  "title": "手牌满时收下（换哪张 / 面板标签是否跟着 sel 变）",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "sel0": 2,
+    "label1": "不锈",
+    "labelOnOpen": "不锈",
+    "labelAfterKey5": "不锈",
+    "selAfterKey5": 4,
+    "targetNameBefore": "苔",
+    "replacedSlot": 4,
+    "handN": 8,
+    "toasts": [],
+    "beforeIds": [
+     "terrain.mineral.0.matter.ironfilings",
+     "rite.metal.0.rite.scratch",
+     "law.metal.0.law.rustless",
+     "mineral.metal.4.matter.bell",
+     "flora.wood.0.matter.moss",
+     "rite.wood.0.rite.sprout",
+     "law.wood.0.law.rooted",
+     "flora.wood.1.matter.grass"
+    ]
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "A7",
+  "title": "连抽两次（同一包种 / 换包种）",
+  "ok": true,
+  "data": {
+   "verdict": [
+    {
+     "round": 0,
+     "essenceAfterDraw": 488,
+     "stage": 2,
+     "handAfter": 8,
+     "sel": 0,
+     "panel": null
+    },
+    {
+     "round": 1,
+     "essenceAfterDraw": 476,
+     "stage": 2,
+     "handAfter": 8,
+     "sel": 0,
+     "panel": null
+    }
+   ]
+  },
+  "errs": []
+ },
+ {
+  "id": "A8",
+  "title": "撕开后按 B 再开面板",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "stageBefore": 2,
+    "cardsBefore": 6,
+    "panelAfterB": "pack",
+    "stageAfterB": 2,
+    "cardsAfterB": 6
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "B1",
+  "title": "四面板互切 + 同键再按是否关闭",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "seq": [
+     {
+      "key": "b",
+      "panel": "pack",
+      "setGroup": "video"
+     },
+     {
+      "key": "l",
+      "panel": "codex",
+      "setGroup": "video"
+     },
+     {
+      "key": "c",
+      "panel": "chron",
+      "setGroup": "video"
+     },
+     {
+      "key": "o",
+      "panel": "settings",
+      "setGroup": "video"
+     }
+    ],
+    "panelBeforeRepeat": "settings",
+    "panelAfterSameKey": "settings",
+    "overlayAfterSameKey": true,
+    "panelAfterEsc": null
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "B2",
+  "title": "开面板 → 点遮罩关闭",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "open": "chron",
+    "afterOverlayClick": null,
+    "overlay": false
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "B3",
+  "title": "卡库→点卡进详情→Esc",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "codexSelOnOpen": null,
+    "codexSelAfterClick": "terrain.mineral.0.matter.water",
+    "panelAfterEsc": null,
+    "reopenSel": "terrain.mineral.0.matter.water",
+    "reopenEl": "水"
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "B4",
+  "title": "设置分组跨开合保留 / O 与 K 的落点",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "firstGroup": "video",
+    "clicked": "ui",
+    "reopenO": "ui",
+    "afterK": "keys",
+    "reopenOafterK": "keys"
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "B5",
+  "title": "键位改绑→Esc 取消 / 等待中关面板再按键",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "keys0": "random=  recycle=X reroll=R gear=J ambient=P event=E zoomIn=Z pack=B codex=L chron=C creator=G settings=O keys=K help=H",
+    "waitingVisible": [
+     "pack"
+    ],
+    "escKeys": "random=  recycle=X reroll=R gear=J ambient=P event=E zoomIn=Z pack=B codex=L chron=C creator=G settings=O keys=K help=H",
+    "escPanel": "settings",
+    "waitingOnClose": [],
+    "panelOnClose": null,
+    "cursorBefore": null,
+    "cursorAfterW": null,
+    "keysAfterW": "random=  recycle=W reroll=R gear=J ambient=P event=E zoomIn=Z pack=B codex=L chron=C creator=G settings=O keys=K help=H",
+    "toasts": [
+     "已改键「回收选中」→ W"
+    ]
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "B6",
+  "title": "年表筛选→关→再开",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "filterOnOpen": "全部",
+    "rowsAll": 9,
+    "filterSet": "气候",
+    "rowsClimate": 7,
+    "filterReopen": "气候",
+    "rowsReopen": 7
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "C1",
+  "title": "摆件模式 → 开面板 → 退出摆件 / Esc / 拖手牌",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "handRect": {
+     "hand": [
+      296,
+      973,
+      136,
+      216
+     ],
+     "wrap": [
+      960,
+      262
+     ],
+     "vh": 1000
+    },
+    "panelWhileAmbient": "codex",
+    "panelStill": "codex",
+    "modeSeq": [
+     null,
+     null
+    ]
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "C2",
+  "title": "摆件模式 → 拖手牌（是否可拖 / 拖到哪）",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "handSlot": {
+     "x": 364,
+     "y": 985,
+     "w": 136,
+     "h": 216,
+     "top": 973,
+     "bottom": 1189,
+     "vh": 1000
+    },
+    "ghostWhileDrag": 1,
+    "handBefore": 8,
+    "handAfter": 8,
+    "cellsBefore": 81,
+    "cellsAfter": 86
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "C3",
+  "title": "创世 → 返回当前界（世界是否完好 / RNG 是否被改）",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "beforeDigest": {
+     "hash": "75e21069",
+     "rng": 455945787,
+     "cells": 81,
+     "month": 6,
+     "essence": 500,
+     "sun": 0,
+     "law": {
+      "lifeX": 1,
+      "propX": 1,
+      "evapX": 1,
+      "lightOff": 0
+     },
+     "traces": 0,
+     "sapient": 0
+    },
+    "fromWorld": true,
+    "hasBack": true,
+    "afterBackDigest": {
+     "hash": "75e21069",
+     "rng": 455945787,
+     "cells": 81,
+     "month": 6,
+     "essence": 500,
+     "sun": 0,
+     "law": {
+      "lifeX": 1,
+      "propX": 1,
+      "evapX": 1,
+      "lightOff": 0
+     },
+     "traces": 0,
+     "sapient": 0
+    },
+    "createdWhileOn": true,
+    "digestAfterRerollBack": {
+     "hash": "163fe1d3",
+     "rng": 2384935785,
+     "cells": 81,
+     "month": 6,
+     "essence": 500,
+     "sun": 0,
+     "law": {
+      "lifeX": 1,
+      "propX": 1,
+      "evapX": 1,
+      "lightOff": 0
+     },
+     "traces": 0,
+     "sapient": 0
+    },
+    "rngBefore": 455945787,
+    "rngAfterReroll": 2384935785,
+    "rngAfterBack": 2384935785
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "C4",
+  "title": "空世界按 G：进得去出不来？",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "cells": 0,
+    "fromWorld": false,
+    "hasBack": false,
+    "creatorAfterEsc": true,
+    "creatorAfterEsc2": true
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "C5",
+  "title": "创世 → 进入新区（旧世界替换 / 抽卡残局是否跟随）",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "packStageBefore": 2,
+    "packCardsBefore": 6,
+    "creatorArmed": true,
+    "monthAfter": 0,
+    "cellsAfter": 0,
+    "essenceAfter": 0,
+    "gear": 2,
+    "panel2": "pack",
+    "stage2": 2,
+    "cards2": 6
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "C6",
+  "title": "事件：三路各一次 / Esc / 再触发 / 与面板叠加",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "out": [
+     {
+      "route": "bear",
+      "opened": true,
+      "after": false
+     },
+     {
+      "route": "rewrite",
+      "after": false
+     },
+     {
+      "route": "esc",
+      "after": false
+     },
+     {
+      "route": "re-trigger",
+      "event": true
+     }
+    ],
+    "stackEvent": true,
+    "stackPanel": "codex",
+    "stackOverlay": true,
+    "afterEscEvent": false,
+    "afterEscPanel": "codex"
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "D1",
+  "title": "WASD → Enter 施卡 → Esc / 面板里 WASD / 面板里空格",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "cursor0": null,
+    "cursorMoved": [
+     -1,
+     -3
+    ],
+    "cellsBefore": 25,
+    "cellsAfterEnter": 42,
+    "cursorInPanel": [
+     -1,
+     -3
+    ],
+    "cursorAfterWASDinPanel": [
+     -1,
+     -3
+    ],
+    "panelStill": "codex",
+    "cellsPreSpace": 42,
+    "cellsPostSpace": 42,
+    "handPre": 8,
+    "handPost": 8
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "D2",
+  "title": "Tab 顺序：面板开着时焦点是否跑到背景",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "seq": [
+     "btn@bg",
+     "btn@bg",
+     "btn on@bg",
+     "btn@bg",
+     "btn@bg",
+     "bPack@bg",
+     "rail@bg",
+     "rail on@bg",
+     "rail@bg",
+     "rail@bg",
+     "rail@bg",
+     "rp grow@bg",
+     "handslot sel@bg",
+     "handslot @bg"
+    ],
+    "inPanel": 0,
+    "bg": 14
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "D3",
+  "title": "拖拽中按功能键（Space/X/B/G/P/1）",
+  "ok": true,
+  "data": {
+   "verdict": [
+    {
+     "key": "Space",
+     "handBefore": 8,
+     "handMid": 8,
+     "handAfter": 8,
+     "cellsBefore": 81,
+     "cellsMid": 94,
+     "cellsAfter": 94,
+     "ghostMid": 1,
+     "ghostAfter": 0
+    },
+    {
+     "key": "X",
+     "handBefore": 8,
+     "handMid": 7,
+     "handAfter": 7,
+     "cellsAfter": 94,
+     "sel": 0,
+     "ghostAfter": 0
+    },
+    {
+     "key": "B",
+     "panelMid": "pack",
+     "handBefore": 7,
+     "handAfter": 7,
+     "cellsBefore": 94,
+     "cellsAfter": 94,
+     "panelAfter": "pack",
+     "ghostAfter": 0
+    }
+   ]
+  },
+  "errs": []
+ },
+ {
+  "id": "D4",
+  "title": "改绑到 WASD / 1 / E 的冲突检查",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "rebindToW": {
+     "pack": "W",
+     "recycle": "X",
+     "toasts": [
+      "已改键「抽卡」→ W"
+     ]
+    },
+    "rebindTo1": {
+     "pack": "W",
+     "recycle": "1",
+     "toasts": [
+      "已改键「回收选中」→ 1"
+     ]
+    },
+    "cursorBeforeW": null,
+    "cursorAfterW": [
+     -1,
+     -1
+    ],
+    "panelAfterW": null,
+    "selAfterKey1": 0
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "E1",
+  "title": "暂停 → 施卡 → 恢复",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "gear0": 0,
+    "paused": true,
+    "monthBefore": 0,
+    "monthAfterCast": 0,
+    "monthAfterWait": 0,
+    "resumeGear": 2,
+    "monthResumed": 0
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "E2",
+  "title": "4× → 连续施卡",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "gear": 4,
+    "rows": [
+     {
+      "k": 0,
+      "ok": true,
+      "msg": "",
+      "month": 0,
+      "hand": 8
+     },
+     {
+      "k": 1,
+      "ok": true,
+      "msg": "",
+      "month": 0,
+      "hand": 8
+     },
+     {
+      "k": 2,
+      "ok": true,
+      "msg": "",
+      "month": 0,
+      "hand": 8
+     },
+     {
+      "k": 3,
+      "ok": false,
+      "msg": "要放在已有地块上",
+      "month": 0,
+      "hand": 8
+     },
+     {
+      "k": 4,
+      "ok": false,
+      "msg": "要放在已有地块上",
+      "month": 0,
+      "hand": 8
+     },
+     {
+      "k": 5,
+      "ok": false,
+      "msg": "要放在已有地块上",
+      "month": 0,
+      "hand": 8
+     }
+    ],
+    "monthDelta": 0,
+    "handAfter": 8
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "E3",
+  "title": "时素归零 → 还能做什么",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "essence": 0,
+    "ui": {
+     "packBtn": {
+      "text": "抽包 12",
+      "disabled": true
+     },
+     "packNextDisabled": true,
+     "rerollTitle": "重抽一手（5 时素 · R · 连抽翻倍）"
+    },
+    "panelAfterClick": "pack",
+    "stage": 0,
+    "essenceAfterReroll": 0,
+    "rewriteDisabled": true
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "E4",
+  "title": "牌池抽空后抽卡",
+  "ok": true,
+  "data": {
+   "verdict": {
+    "poolN": 50,
+    "handN": 50,
+    "essenceBefore": 500,
+    "essenceAfter": 488,
+    "stage": 2,
+    "cards": 0,
+    "picks": 0,
+    "label": "跳过这一包",
+    "afterSkipPanel": null,
+    "afterSkipStage": 0,
+    "reopenStage": 0,
+    "poolText": [
+     "50",
+     "53"
+    ]
+   }
+  },
+  "errs": []
+ }
+]

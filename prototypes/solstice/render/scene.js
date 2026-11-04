@@ -210,7 +210,11 @@ SOL.render = SOL.render || {};
 
   /* 设置面板真正接线的三项 */
   R.pixelRatio = 1.5;
-  R.shadows = true;
+  /* 默认关：整条场景里没有任何 castShadow 的网格（地形 m.castShadow=false，
+     立牌是平面），阴影贴图每帧照跑一遍 2048²，实测 2.45→2.47ms 只是起步，
+     关键是它把 render.drawCalls 推高一档（第二轮 W04：3.81ms/帧、+55%）。
+     设置里仍可手动打开，但视觉上没有东西会投影。 */
+  R.shadows = false;
   R.fogLevel = '标准';
   const FOG_DENSITY = { 无: 0.012, 薄: 0.032, 标准: 0.05, 厚: 0.085 };
 

@@ -135,7 +135,12 @@
   UI.updateHud = function () {
     const year = document.getElementById('cYear');
     if (!year) return;
-    year.textContent = S.year();
+    /* 第 0 年不写「0 年」：年表那边是「1 月」，时钟却写「0 年 1 月」，
+       同一个时刻两种写法（第二轮 U21 补）。 */
+    const y0 = S.year();
+    year.textContent = y0;
+    year.style.display = y0 ? '' : 'none';
+    if (year.nextElementSibling) year.nextElementSibling.style.display = y0 ? '' : 'none';
     document.getElementById('cMonth').textContent = S.monthOfYear() + 1;
     document.getElementById('cSeason').textContent = S.season();
     document.getElementById('sCells').textContent = W.cells.size;

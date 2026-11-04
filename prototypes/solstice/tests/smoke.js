@@ -342,7 +342,47 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
       await page.waitForTimeout(180);
       const after2 = await page.evaluate(() => window.__dbg.S.W.cells.size);
 
-      return { before, after, tip, ghosts, grew: after > before, panelBefore: before2, panelAfter: after2 };
+      /* 一次拖放只能施一张（第二轮 S03：画布 pointerup 与 endDrag 各施一次）。
+         不能用痕迹数当计数——土地打在虚空上不产生痕迹，得直接数 UI.cast 调用。 */
+      await page.evaluate(() => {
+        const { UI } = window.__dbg;
+        window.__casts = 0;
+        if (!UI.__castWrapped) {
+          const orig = UI.cast;
+          UI.cast = function () { window.__casts++; return orig.apply(this, arguments); };
+          UI.__castWrapped = true;
+        }
+      });
+      const st = await page.evaluate(() => {
+        const b = document.querySelector('.handslot').getBoundingClientRect();
+        return { x: Math.round(b.x + b.width / 2), y: Math.round(b.y + b.height / 2) };
+      });
+      await page.mouse.move(st.x, st.y);
+      await page.mouse.down();
+      for (let i = 1; i <= 8; i++) {
+        await page.mouse.move(st.x + (pt.x - st.x) * i / 8, st.y + (pt.y - st.y) * i / 8);
+        await page.waitForTimeout(16);
+      }
+      await page.mouse.up();
+      await page.waitForTimeout(200);
+      const t1 = await page.evaluate(() => { const n = window.__casts; window.__casts = 0; return n; });
+
+      /* 拖拽中按 Esc 必须是取消，不能施卡（第二轮 S02） */
+      const e0 = await page.evaluate(() => window.__dbg.S.W.cells.size);
+      await page.mouse.move(st.x, st.y);
+      await page.mouse.down();
+      for (let i = 1; i <= 8; i++) {
+        await page.mouse.move(st.x + (pt.x - st.x) * i / 8, st.y + (pt.y - st.y) * i / 8);
+        await page.waitForTimeout(16);
+      }
+      await page.keyboard.press('Escape');
+      await page.mouse.up();
+      await page.waitForTimeout(200);
+      const e1 = await page.evaluate(() => window.__dbg.S.W.cells.size);
+
+      return { before, after, tip, ghosts, grew: after > before,
+        panelBefore: before2, panelAfter: after2, tracesPerDrag: t1,
+        escBefore: e0, escAfter: e1 };
     } catch (e) { return { err: String(e && e.message) }; }
   })();
 
@@ -448,6 +488,34 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     return out;
   });
 
+  /* 10.9 窄屏两处硬伤：末卡压右栏、动作栏被卡盖（第二轮 N02/N07） */
+  const narrowFit = await (async () => {
+    try {
+      /* 前面的用例把面板打开着，先关掉，否则遮罩会吃掉 hit-test */
+      await page.evaluate(() => window.__dbg.UI.closePanel());
+      await page.waitForTimeout(80);
+      await page.setViewportSize({ width: 1080, height: 700 });
+      await page.waitForTimeout(260);
+      await page.evaluate(() => { const { UI } = window.__dbg; UI.renderHand(); UI.updateHud(); });
+      await page.waitForTimeout(120);
+      const r = await page.evaluate(() => {
+        const rp = document.getElementById('rightpanel').getBoundingClientRect();
+        const slots = [...document.querySelectorAll('.handslot')];
+        const last = slots[slots.length - 1].getBoundingClientRect();
+        const ab = document.querySelectorAll('#actbar .ab')[3];
+        const abr = ab.getBoundingClientRect();
+        const hit = document.elementFromPoint(abr.x + abr.width / 2, abr.y + abr.height / 2);
+        return {
+          lastOverlap: Math.round(last.right - rp.x),
+          actbarOk: !!(hit && hit.closest('#actbar'))
+        };
+      });
+      await page.setViewportSize({ width: 1680, height: 1000 });
+      await page.waitForTimeout(220);
+      return r;
+    } catch (e) { return { err: String(e && e.message) }; }
+  })();
+
   /* 11. 断言：上面几段是读数，这里决定退不退 0 */
   if (!table.reclaimOk) errors.push('[assert] reclaim 与环级表不一致');
   if (!(undoGuard.guard && undoGuard.ok2 && !undoGuard.ok3)) errors.push('[assert] 撤销守卫失效（应拒绝无回执/重复撤销）');
@@ -462,6 +530,13 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
   if (!dragCast.grew) errors.push('[assert] 拖到世界没有施卡（cells ' + dragCast.before + '→' + dragCast.after + '）：' + dragCast.tip);
   if (dragCast.tip && /随机/.test(dragCast.tip)) errors.push('[assert] 拖到世界仍被判成随机落点：' + dragCast.tip);
   if (dragCast.ghosts) errors.push('[assert] 松手后还留着 ' + dragCast.ghosts + ' 张拖影');
+  if (narrowFit.err) errors.push('[assert] 窄屏用例抛错：' + narrowFit.err);
+  if (narrowFit.lastOverlap > 0) errors.push('[assert] 1080 下末张手牌压进右栏 ' + narrowFit.lastOverlap + 'px');
+  if (narrowFit.actbarOk === false) errors.push('[assert] 1080 下动作栏被手牌盖住');
+  if (dragCast.tracesPerDrag !== 1) errors.push('[assert] 一次拖放调用了 ' + dragCast.tracesPerDrag + ' 次 UI.cast（应为 1）');
+  if (dragCast.escAfter !== dragCast.escBefore) {
+    errors.push('[assert] 拖拽中按 Esc 仍然施了卡：cells ' + dragCast.escBefore + '→' + dragCast.escAfter);
+  }
   if (dragCast.panelAfter !== dragCast.panelBefore) {
     errors.push('[assert] 拖到右栏上竟然施了卡：cells ' + dragCast.panelBefore + '→' + dragCast.panelAfter);
   }
@@ -494,7 +569,7 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     errors.push('[assert] 事件弹窗不在视口内：' + JSON.stringify(panels.eventBox));
   }
 
-  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, fixes, dragCast, ux3, ux4, mon, errors };
+  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, fixes, dragCast, ux3, ux4, mon, narrowFit, errors };
   fs.writeFileSync(path.join(__dirname, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 1));
 

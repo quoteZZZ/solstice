@@ -1,0 +1,12 @@
+=== void cells 25
+0 {"call":"doc-pointerup","tgt":"cv"}
+1 {"call":"UI.cast","i":0,"cell":null,"pt":[-3,-3],"stack":"Object.onClick (file:///E:/solstice/prototypes/solstice/ui/boot.js:184:28) << HTMLCanvasElement.<anonymous> (file:///E:/solstice/prototypes/solstice/render/cam.js:180:15)"}
+2 {"call":"doc-pointerup-bubble","tgt":"cv"}
+3 {"call":"UI.cast","i":0,"cell":null,"pt":[-3,-3],"stack":"HTMLDocument.endDrag (file:///E:/solstice/prototypes/solstice/ui/hand.js:183:38)"}
+toasts ["进入这一界青星屿 · 天是空的，先打一张「土地」","要放在地块上虚空承不住这张卡"]
+=== cell cells 94
+0 {"call":"doc-pointerup","tgt":"cv"}
+1 {"call":"UI.cast","i":0,"cell":[-2,-1],"pt":[-2,-1],"stack":"Object.onClick (file:///E:/solstice/prototypes/solstice/ui/boot.js:184:28) << HTMLCanvasElement.<anonymous> (file:///E:/solstice/prototypes/solstice/render/cam.js:180:15)"}
+2 {"call":"doc-pointerup-bubble","tgt":"cv"}
+3 {"call":"UI.cast","i":0,"cell":[-2,-1],"pt":[-2,-1],"stack":"HTMLDocument.endDrag (file:///E:/solstice/prototypes/solstice/ui/hand.js:183:38)"}
+toasts ["进入这一界长星环礁 · 天是空的，先打一张「土地」"]

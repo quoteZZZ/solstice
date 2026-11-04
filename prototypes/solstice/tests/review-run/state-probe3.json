@@ -1,0 +1,104 @@
+[
+ {
+  "id": "G1",
+  "title": "拖放一次施几张",
+  "casts": [
+   "sky.light.0.matter.sun",
+   "rite.metal.0.rite.scratch"
+  ],
+  "ghost": 0
+ },
+ {
+  "id": "G2",
+  "title": "拖拽中 Space → 松手",
+  "castsMid": [
+   "terrain.earth.0.matter.land"
+  ],
+  "castsEnd": [
+   "terrain.earth.0.matter.land",
+   "law.fire.0.law.warm",
+   "flora.water.1.matter.reed"
+  ],
+  "ghost": 0,
+  "handSel": 0
+ },
+ {
+  "id": "G3",
+  "title": "拖拽中 X → 松手",
+  "casts": [
+   "sky.light.0.matter.sun",
+   "flora.wood.1.matter.shrub"
+  ],
+  "handBefore": [
+   "sky.light.0.matter.sun",
+   "terrain.mineral.0.matter.water",
+   "flora.light.2.matter.rowan",
+   "fauna.dark.2.matter.wolf",
+   "law.metal.0.law.rustless",
+   "terrain.earth.0.matter.land",
+   "flora.wood.2.matter.tree"
+  ],
+  "handAfter": [
+   "rite.metal.0.rite.scratch",
+   "terrain.mineral.0.matter.water",
+   "flora.light.2.matter.rowan",
+   "fauna.dark.2.matter.wolf",
+   "law.metal.0.law.rustless",
+   "terrain.earth.0.matter.land",
+   "flora.wood.2.matter.tree"
+  ],
+  "sel": 0
+ },
+ {
+  "id": "G4",
+  "title": "拖拽中 B → 松手（面板下施卡）",
+  "panel": "pack",
+  "casts": [],
+  "ghost": 0
+ },
+ {
+  "id": "G5",
+  "title": "拖拽中 Esc",
+  "castsBefore": [],
+  "castsAfter": [
+   "terrain.earth.0.matter.land",
+   "law.dark.0.law.hidden"
+  ],
+  "ghost": 0
+ },
+ {
+  "id": "G6",
+  "title": "仅右栏 → P → P",
+  "seq": [
+   "仅右栏",
+   "全隐",
+   "全部"
+  ]
+ },
+ {
+  "id": "G7",
+  "title": "事件 → G → Enter×2",
+  "event0": true,
+  "creator": true,
+  "armed": true,
+  "month": 0,
+  "cells": 0,
+  "eventAfterNewWorld": true,
+  "creatorAfter": false,
+  "eventAfterEsc": false
+ },
+ {
+  "id": "G8",
+  "title": "回收撤销 toast → 开面板",
+  "before": {
+   "toasts": [
+    "进入这一界长星裂谷 · 天是空的，先打一张「土地」",
+    "不能回收0 环卡不返还时素"
+   ],
+   "hand": 8
+  },
+  "after": {
+   "toasts": []
+  }
+ }
+]

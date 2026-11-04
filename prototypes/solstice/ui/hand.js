@@ -26,7 +26,10 @@
        统计一次传进去：八张卡共用同一份读数，也保证同一帧里八张卡的判断不会互相矛盾。 */
     const life = S.lifeStats();
     const wrap = document.getElementById('handwrap');
-    const avail = ((wrap && wrap.clientWidth) || 900) - 24;
+    /* 扇形是转过的：最外侧那张转 ±8.4°，136×216 的卡旋转后左右各溢出约 16px，
+       于是它的角会压到右栏上去（第二轮窄屏实测 1080 压 23px、1366 压 19px）。
+       把两端各让出一份溢出量，靠 sp 变窄把最外卡往内收。 */
+    const avail = ((wrap && wrap.clientWidth) || 900) - 24 - 34;
     const cw = CW * UI.handScale();
     const sp = n > 1
       ? Math.max(78, Math.min(cw, (avail - cw) / (n - 1)))
@@ -64,6 +67,9 @@
   };
 
   /* ── 拖放 ── */
+  /* 给 ui/boot.js 的按键分发用：拖拽期间除了 Esc 一律不响应 */
+  UI.isDragging = function () { return !!drag; };
+
   function beginDrag(ev, i) {
     const card = W.hand[i];
     if (!card) return;
@@ -139,7 +145,11 @@
       const pt = cell ? { x: cell.x, y: cell.y } : SOL.render.cam.planeAt(ev.clientX, ev.clientY);
       drag.cell = cell; drag.pt = pt;
       SOL.render.cam.setHover(cell);
-      SOL.render.marks.set(SOL.sim.castRange(card, cell));
+      /* 虚空落点没有格子可拾取，但土地开局的 5×5 预览必须画出来——
+         否则「拖到空处」只有一个字，玩家不知道要铺多大（第二轮 H01 补）。
+         照 ui/boot.js 悬停分支的做法，用平面点造一个假格。 */
+      const fake = (!cell && pt) ? { x: Math.round(pt.x), y: Math.round(pt.y), h: 0.30 } : null;
+      SOL.render.marks.set(SOL.sim.castRange(card, cell || fake));
       if (tip) {
         const op = card.sim.op;
         /* 「虚空造陆」只在真的是虚空时成立。已有地块的地方 opLand 会跳过甚至整体拒绝，
@@ -179,6 +189,9 @@
     SOL.render.cam.setHover(null);
     SOL.render.marks.clear();
     if (!d) return;
+    /* 取消路径（Esc / pointercancel / window blur）传的是 null：
+       原来把 null 当「普通结束」，于是按 Esc 反而把牌打出去了（第二轮 S02）。 */
+    if (ev == null) return;
     if (d.mode === 'recycle') return UI.recycle();
     if (d.mode === 'cast') return UI.cast(d.i, d.cell, d.pt);
     /* random 分支已取消：拖拽只按落点位置分「施卡 / 回收」两种，

@@ -26,6 +26,7 @@
        时素在撕开的那一刻就扣了，重开面板把 packStage 归 0 等于把包和钱一起吞了。
        只有在没有待挑的牌时才回到封口状态。 */
     if (p === 'pack' && !(UI.packCards && UI.packCards.length)) UI.packStage = 0;
+    waitingFor = null;   // 换面板 / 关面板 = 放弃改绑（第二轮 S04）
     UI.renderOverlay();
     /* 原来这里往世界 log 里写一条「打开：年表」。世界 log 是「刚刚世界上发生了什么」，
        开面板是玩家自己的操作，写进去会把真实事件挤掉（UI 评审 E13 / U13）。
@@ -33,6 +34,9 @@
   };
 
   UI.closePanel = function () {
+    /* 改绑等待态只在 captureKey 里清，面板一关就变成「下一次按任何键都静默改键」，
+       W 会被绑给「回收选中」而 WASD 又抢回去，等于造出一个死键（第二轮 S04）。 */
+    waitingFor = null;
     U.panel = null;
     UI.renderOverlay();
   };
@@ -446,7 +450,7 @@
         ${nav.map(([k, t]) => `<button class="btn ${g === k ? 'on' : 'ghost'}" data-sg="${k}"
           style="justify-content:flex-start">${t}</button>`).join('')}
       </div>
-      <div style="flex:1;min-width:0;padding-left:20px;overflow:auto;display:flex;flex-direction:column">
+      <div class="setpane" style="flex:1;min-width:0;padding-left:20px;overflow:auto;display:flex;flex-direction:column">
         ${rows.map(r => `<div class="setRow">
           <span class="sm">${r.k}</span>
           <div style="display:flex;gap:6px">
@@ -631,6 +635,7 @@
       const ci = ev.target.closest('[data-ci]');
       if (ci) { U.chronSel = W.chron[+ci.dataset.ci] || null; return UI.renderOverlay(); }
       const sg = ev.target.closest('[data-sg]');
+      if (sg) waitingFor = null;   // 切分组同样放弃改绑（第二轮 S04）
       if (sg) { U.setGroup = sg.dataset.sg; return UI.renderOverlay(); }
       const st = ev.target.closest('[data-set]');
       if (st) {

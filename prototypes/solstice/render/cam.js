@@ -166,14 +166,19 @@
   /* 指针：拖拽转相机；不拖拽时悬停高亮；点击交给 UI */
   C.attach = function (hooks) {
     const cv = R.canvas;
-    let drag = false, lx = 0, ly = 0, moved = 0;
+    let drag = false, lx = 0, ly = 0, moved = 0, downOnCv = false;
 
     cv.addEventListener('pointerdown', e => {
-      drag = true; lx = e.clientX; ly = e.clientY; moved = 0;
+      drag = true; downOnCv = true; lx = e.clientX; ly = e.clientY; moved = 0;
       cv.setPointerCapture && cv.setPointerCapture(e.pointerId);
     });
     cv.addEventListener('pointerup', e => {
       drag = false;
+      /* 只处理「在画布上按下、在画布上抬起」的点击。
+         从手牌拖进来的 pointerup 也落在画布上，moved 还是 0 → 会被当成一次点击，
+         于是同一次拖放施了两张牌：endDrag 一张、这里又一张（第二轮 S03）。 */
+      const wasDown = downOnCv; downOnCv = false;
+      if (!wasDown) return;
       if (moved <= 10 && hooks && hooks.onClick) {
         const cell = C.pickAt(e.clientX, e.clientY);
         const pt = cell ? { x: cell.x, y: cell.y } : C.planeAt(e.clientX, e.clientY);

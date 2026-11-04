@@ -1,0 +1,7 @@
+S01 {"fromWorld":true,"hasBack":true,"creatorAfterEsc":false}
+S02 {"midCasts":0,"midGhost":0,"endCasts":0,"endGhost":0,"cards":[]}
+S03 {"casts":[{"i":0,"cell":[-1,-1],"card":"terrain.earth.0.matter.land"}],"ghost":0,"toasts":["进入这一界双羽岬 · 天是空的，先打一张「土地」","放不下这一带已经是地块了"]}
+S03b {"casts":[{"i":0,"cell":null,"card":"terrain.earth.0.matter.land"}],"cells":25,"toasts":["进入这一界白纹环礁 · 天是空的，先打一张「土地」"]}
+S04 {"waiting":["recycle"],"keysAfterW":"random=  recycle=X reroll=R gear=J ambient=P event=E zoomIn=Z pack=B codex=L chron=C creator=G settings=O keys=K help=H","wAfterCursor":[-1,-1],"wAfterPanel":null,"groupSwitchPanel":"pack","toasts":[]}
+S08 {"midCasts":1,"endCasts":2,"cards":["terrain.earth.0.matter.land","law.metal.0.law.rustless"]}
+S20 {"ghost":1,"cells":81,"casts":0,"panel":"pack"}

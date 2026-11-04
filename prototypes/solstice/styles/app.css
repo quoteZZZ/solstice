@@ -269,8 +269,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg-0);color:var(--ink-2);
 #deck .dk span{font-family:var(--mono);font-size:calc(var(--fz-2) * var(--fs));color:var(--ink-4);
   letter-spacing:.08em}
 
+/* #actbar 是 #handwrap 的子节点，所以它的 z-index 只在手牌这个层叠上下文里比大小：
+   卡片最高到 200，34 根本压不住，右下角第 4 个按钮会被最右边那张卡盖掉一半（第二轮窄屏实测）。
+   提到 300，仍在手牌层内，但压得住任何一张卡。 */
 #actbar{position:absolute;right:var(--s-3);bottom:var(--s-5);display:flex;flex-direction:column;
-  gap:var(--s-3);pointer-events:auto;z-index:34}
+  gap:var(--s-3);pointer-events:auto;z-index:300}
 .ab{width:36px;height:36px;border:1px solid var(--line-2);border-radius:var(--r-2);
   background:rgba(16,22,30,.92);color:var(--ink-3);display:flex;align-items:center;justify-content:center;
   cursor:pointer;font-size:calc(14px * var(--fs));font-family:var(--mono);
@@ -375,10 +378,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg-0);color:var(--ink-2);
    所以下面除了自绘滚动条，再加一条常驻的底部渐隐：它才是在静态画面里真正起作用的提示。 */
 #rightpanel .rp.grow::-webkit-scrollbar, #pbody::-webkit-scrollbar,
 .cgWall::-webkit-scrollbar, #cRight::-webkit-scrollbar,
-.cdscroll::-webkit-scrollbar{width:8px;height:8px}
+.cdscroll::-webkit-scrollbar, .setpane::-webkit-scrollbar{width:8px;height:8px}
 #rightpanel .rp.grow::-webkit-scrollbar-thumb, #pbody::-webkit-scrollbar-thumb,
 .cgWall::-webkit-scrollbar-thumb, #cRight::-webkit-scrollbar-thumb,
-.cdscroll::-webkit-scrollbar-thumb{
+.cdscroll::-webkit-scrollbar-thumb, .setpane::-webkit-scrollbar-thumb{
   background:#5b7080;border-radius:4px;border:2px solid transparent;background-clip:padding-box}
 #rightpanel .rp.grow::-webkit-scrollbar-thumb:hover, #pbody::-webkit-scrollbar-thumb:hover{
   background:#54687d;background-clip:padding-box}
@@ -399,6 +402,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg-0);color:var(--ink-2);
 
 /* 「还有内容」的常驻提示：粘在滚动容器底部的一条 20px 渐隐。
    不用 JS 判断是否到底——20px 的淡出即使盖在最后一行上也不会读不出来。 */
-.cdscroll::after, #rightpanel .rp.grow::after, #pbody::after{
+.cdscroll::after, #rightpanel .rp.grow::after, #pbody::after, .setpane::after{
   content:"";position:sticky;display:block;bottom:0;height:20px;margin-top:-20px;
   background:linear-gradient(rgba(10,14,19,0),rgba(10,14,19,.88));pointer-events:none}

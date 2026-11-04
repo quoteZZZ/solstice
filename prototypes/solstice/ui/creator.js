@@ -78,7 +78,10 @@
       UI.rollWorld(q || null);
     }
     /* 已经有世界时，创世是「换界」而不是「开局」——必须留一条退路（X-2） */
-    CRE.fromWorld = !!(S.W && S.W.cells && S.W.cells.size);
+    /* 原来用 cells.size 判「有没有当前界」：空世界进创世后一格都没打，
+       于是底部没有「← 返回当前界」、Esc 也不退——整页没有任何出口（第二轮 S01）。
+       改成看「本局有没有开过局」这个标志。 */
+    CRE.fromWorld = !!(UI.state && UI.state.started);
     CRE.armed = false;
     U.panel = null;
     UI.renderOverlay();
@@ -399,6 +402,7 @@
   };
 
   UI.enterWorld = function () {
+    UI.state.started = true;      // 见上面的 CRE.fromWorld：本局开过局，创世就一定有退路
     const form = CRE.form;
     const world = {
       name: CRE.name, form: form.name, climate: CRE.climate,

@@ -1,0 +1,84 @@
+[
+ {
+  "id": "I1",
+  "a": {
+   "slots": [
+    {
+     "i": 0,
+     "at": [
+      -3,
+      -3
+     ],
+     "ok": true,
+     "msg": "",
+     "card": "flora.wood.1.matter.hemlock"
+    }
+   ],
+   "cells": 25,
+   "hand": [
+    "flora.wood.1.matter.hemlock",
+    "sky.light.0.matter.sun",
+    "fauna.dark.2.matter.wolf",
+    "rite.metal.0.rite.scratch",
+    "rite.wood.0.rite.sprout",
+    "rite.earth.2.rite.fertile",
+    "rite.light.0.rite.flash",
+    "terrain.mineral.0.matter.water"
+   ],
+   "toasts": [
+    "进入这一界孤野岬 · 天是空的，先打一张「土地」",
+    "要放在地块上虚空承不住这张卡"
+   ]
+  },
+  "errs": []
+ },
+ {
+  "id": "I2",
+  "e0": "冰川期",
+  "w": {
+   "month": 0,
+   "cells": 0,
+   "chron": 1,
+   "event": true
+  },
+  "after": {
+   "month": 0,
+   "cells": 0,
+   "chron": [
+    "0|灾变|冰川期：被承受",
+    "0|气候|「长羽屿」成形 · 极地苔原"
+   ],
+   "event": false
+  },
+  "errs": []
+ },
+ {
+  "id": "I3",
+  "before": {
+   "essence": 1,
+   "toast": [
+    "进入这一界灰脊海 · 天是空的，先打一张「土地」",
+    "回收+1 时素撤销"
+   ],
+   "hasUndo": true
+  },
+  "after": {
+   "toast": [],
+   "canUndo": false
+  },
+  "errs": []
+ },
+ {
+  "id": "I4",
+  "a": {
+   "month": 0,
+   "gear": 4
+  },
+  "b": {
+   "month": 0,
+   "gear": 4,
+   "cells": 72
+  },
+  "errs": []
+ }
+]

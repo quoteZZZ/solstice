@@ -6,7 +6,7 @@ const fs = require('fs');
 const { pathToFileURL } = require('url');
 const { chromium } = require('playwright-core');
 
-const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
+const PAGE = pathToFileURL(path.join(__dirname, '..', '..', 'index.html')).href;
 const argv = process.argv.slice(2);
 const arg = (k, d) => {
   const eq = argv.find(a => a.startsWith('--' + k + '='));
@@ -50,9 +50,9 @@ const R = r => ({ x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width)
         const coveredByOther = topEl && !el.contains(topEl) && topEl.closest && topEl.closest('.handslot')
           ? +topEl.closest('.handslot').dataset.i : null;
         return {
-          i, x: b.x, y: b.y, w: b.width, h: b.height, right: b.right,
-          card: { x: cb.x, y: cb.y, w: cb.width, h: cb.height, right: cb.right },
-          name: { text: name.textContent, x: nb.x, w: nb.width, center: cx },
+          i, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h), right: Math.round(b.r),
+          card: { x: Math.round(cb.x), y: Math.round(cb.y), w: Math.round(cb.width), h: Math.round(cb.height), right: Math.round(cb.right) },
+          name: { text: name.textContent, x: Math.round(nb.x), w: Math.round(nb.width), center: Math.round(cx) },
           nameCoveredBy: coveredByOther,
           clippedRight: Math.max(0, Math.round(cb.right - document.getElementById('rightpanel').getBoundingClientRect().left)),
           clippedViewport: Math.max(0, Math.round(cb.right - innerWidth))

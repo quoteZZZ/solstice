@@ -1,0 +1,246 @@
+[
+ {
+  "id": "H1",
+  "before": {
+   "casts": [],
+   "slots": [],
+   "hand": [
+    "terrain.earth.0.matter.land",
+    "sky.light.0.matter.sun",
+    "terrain.mineral.0.matter.water",
+    "rite.fire.0.rite.spark",
+    "law.water.0.law.seep",
+    "fauna.light.3.matter.lark",
+    "law.wood.4.law.abundance",
+    "rite.water.5.rite.divert"
+   ],
+   "sel": 0,
+   "cells": 81,
+   "essence": 500,
+   "ghost": 0,
+   "month": 0
+  },
+  "after": {
+   "casts": [
+    {
+     "i": 0,
+     "cell": [
+      -1,
+      -1
+     ],
+     "stack": "Object.onClick (file:///E:/solstice/prototypes/solstice/ui/boot.js:184:28) << HTMLCanvasElement.<anonymous> (file:///E:/solstice/prototypes/solstice/render/cam.js:180:15)"
+    },
+    {
+     "i": 0,
+     "cell": [
+      -1,
+      -1
+     ],
+     "stack": "HTMLDocument.endDrag (file:///E:/solstice/prototypes/solstice/ui/hand.js:183:38)"
+    }
+   ],
+   "slots": [
+    {
+     "i": 0,
+     "at": [
+      -1,
+      -1
+     ],
+     "ok": false,
+     "msg": "这一带已经是地块了",
+     "card": "terrain.earth.0.matter.land"
+    },
+    {
+     "i": 0,
+     "at": [
+      -1,
+      -1
+     ],
+     "ok": false,
+     "msg": "这一带已经是地块了",
+     "card": "terrain.earth.0.matter.land"
+    }
+   ],
+   "hand": [
+    "terrain.earth.0.matter.land",
+    "sky.light.0.matter.sun",
+    "terrain.mineral.0.matter.water",
+    "rite.fire.0.rite.spark",
+    "law.water.0.law.seep",
+    "fauna.light.3.matter.lark",
+    "law.wood.4.law.abundance",
+    "rite.water.5.rite.divert"
+   ],
+   "sel": 0,
+   "cells": 81,
+   "essence": 500,
+   "ghost": 0,
+   "month": 0
+  }
+ },
+ {
+  "id": "H2",
+  "mid": {
+   "casts": [
+    {
+     "i": 0,
+     "cell": [
+      -1,
+      3
+     ],
+     "stack": "endDrag (file:///E:/solstice/prototypes/solstice/ui/hand.js:183:38) << HTMLDocument.esc (file:///E:/solstice/prototypes/solstice/ui/hand.js:90:70)"
+    }
+   ],
+   "slots": [
+    {
+     "i": 0,
+     "at": [
+      -1,
+      3
+     ],
+     "ok": true,
+     "msg": "",
+     "card": "rite.earth.2.rite.fertile"
+    }
+   ],
+   "hand": [
+    "rite.earth.2.rite.fertile",
+    "sky.light.0.matter.sun",
+    "terrain.mineral.0.matter.water",
+    "rite.wood.3.rite.wildgrowth",
+    "rite.fire.0.rite.spark",
+    "rite.water.2.rite.rain",
+    "law.earth.0.law.loose",
+    "rite.wood.0.rite.sprout"
+   ],
+   "sel": 0,
+   "cells": 86,
+   "essence": 500,
+   "ghost": 0,
+   "month": 0
+  },
+  "after": {
+   "casts": [
+    {
+     "i": 0,
+     "cell": [
+      -1,
+      3
+     ],
+     "stack": "endDrag (file:///E:/solstice/prototypes/solstice/ui/hand.js:183:38) << HTMLDocument.esc (file:///E:/solstice/prototypes/solstice/ui/hand.js:90:70)"
+    },
+    {
+     "i": 0,
+     "cell": [
+      -1,
+      -1
+     ],
+     "stack": "Object.onClick (file:///E:/solstice/prototypes/solstice/ui/boot.js:184:28) << HTMLCanvasElement.<anonymous> (file:///E:/solstice/prototypes/solstice/render/cam.js:180:15)"
+    }
+   ],
+   "slots": [
+    {
+     "i": 0,
+     "at": [
+      -1,
+      3
+     ],
+     "ok": true,
+     "msg": "",
+     "card": "rite.earth.2.rite.fertile"
+    },
+    {
+     "i": 0,
+     "at": [
+      -1,
+      -1
+     ],
+     "ok": true,
+     "msg": "",
+     "card": "flora.light.2.matter.rowan"
+    }
+   ],
+   "hand": [
+    "flora.light.2.matter.rowan",
+    "sky.light.0.matter.sun",
+    "terrain.mineral.0.matter.water",
+    "rite.wood.3.rite.wildgrowth",
+    "rite.fire.0.rite.spark",
+    "rite.water.2.rite.rain",
+    "law.earth.0.law.loose",
+    "rite.wood.0.rite.sprout"
+   ],
+   "sel": 0,
+   "cells": 86,
+   "essence": 500,
+   "ghost": 0,
+   "month": 0
+  }
+ },
+ {
+  "id": "H3",
+  "mid0Ghost": 1,
+  "midGhost": 1,
+  "after": {
+   "casts": [],
+   "slots": [],
+   "hand": [
+    "terrain.mineral.0.matter.water",
+    "terrain.earth.0.matter.land",
+    "rite.water.0.rite.dampen",
+    "law.water.0.law.seep",
+    "terrain.mineral.0.matter.ironfilings",
+    "rite.fire.0.rite.spark",
+    "rite.light.2.rite.sunspot",
+    "sky.light.0.matter.sun"
+   ],
+   "sel": 0,
+   "cells": 81,
+   "essence": 500,
+   "ghost": 0,
+   "month": 0
+  }
+ },
+ {
+  "id": "H4",
+  "after": {
+   "casts": [
+    {
+     "i": 0,
+     "cell": [
+      -1,
+      -1
+     ],
+     "stack": "Object.onClick (file:///E:/solstice/prototypes/solstice/ui/boot.js:184:28) << HTMLCanvasElement.<anonymous> (file:///E:/solstice/prototypes/solstice/render/cam.js:180:15)"
+    }
+   ],
+   "slots": [
+    {
+     "i": 0,
+     "at": [
+      -1,
+      -1
+     ],
+     "ok": false,
+     "msg": "这一带已经是地块了",
+     "card": "terrain.earth.0.matter.land"
+    }
+   ],
+   "hand": [
+    "terrain.earth.0.matter.land",
+    "sky.light.0.matter.sun",
+    "terrain.mineral.0.matter.water",
+    "rite.wood.0.rite.sprout",
+    "flora.wood.1.matter.grass",
+    "flora.wood.1.matter.shrub",
+    "rite.dark.0.rite.veil",
+    "law.dark.0.law.hidden"
+   ],
+   "sel": 0,
+   "cells": 81,
+   "essence": 500,
+   "ghost": 0,
+   "month": 0
+  }
+ }
+]

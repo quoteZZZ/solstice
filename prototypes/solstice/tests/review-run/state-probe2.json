@@ -1,0 +1,266 @@
+[
+ {
+  "id": "F1",
+  "title": "面板开着按功能键：Space / X / R / J / E / P 是否穿透到世界",
+  "data": {
+   "rows": [
+    {
+     "key": " ",
+     "castDelta": 1,
+     "gear": 2,
+     "handChanged": true,
+     "panel": "codex",
+     "toasts": []
+    },
+    {
+     "key": "x",
+     "castDelta": 0,
+     "gear": 2,
+     "handChanged": true,
+     "panel": "codex",
+     "toasts": [
+      "回收+1 时素撤销"
+     ]
+    },
+    {
+     "key": "r",
+     "castDelta": 0,
+     "gear": 2,
+     "handChanged": true,
+     "panel": "codex",
+     "toasts": [
+      "回收+1 时素撤销"
+     ]
+    },
+    {
+     "key": "j",
+     "castDelta": 0,
+     "gear": 3,
+     "handChanged": false,
+     "panel": "codex",
+     "toasts": [
+      "回收+1 时素撤销"
+     ]
+    }
+   ],
+   "castTotal": 1,
+   "panelBeforeE": "codex",
+   "afterE": {
+    "panel": null,
+    "event": true
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "F2",
+  "title": "拖拽中按 Space：是否一次手势施两张",
+  "data": {
+   "castBefore": 0,
+   "dragStart": {
+    "panel": null,
+    "event": false,
+    "packStage": 0,
+    "packCards": 0,
+    "uiMode": "全部",
+    "setGroup": "video",
+    "hand": [
+     "terrain.earth.0.matter.land",
+     "sky.light.0.matter.sun",
+     "terrain.mineral.0.matter.water",
+     "rite.light.0.rite.flash",
+     "law.earth.0.law.loose",
+     "rite.fire.0.rite.ignite",
+     "law.fire.0.law.warm",
+     "fauna.earth.1.matter.rabbit"
+    ],
+    "sel": 0,
+    "castN": 0,
+    "essence": 500,
+    "month": 0,
+    "gear": 2,
+    "cells": 81,
+    "creator": false,
+    "overlay": false,
+    "eventOn": false,
+    "cursor": [
+     -1,
+     3
+    ],
+    "ghost": 1,
+    "active": "",
+    "waiting": [],
+    "pbodyScroll": null,
+    "toasts": [
+     "进入这一界长沙岛 · 天是空的，先打一张「土地」"
+    ]
+   },
+   "castAfterSpace": 1,
+   "castAfterUp": 3,
+   "handBefore": [
+    "terrain.earth.0.matter.land",
+    "sky.light.0.matter.sun",
+    "terrain.mineral.0.matter.water",
+    "rite.light.0.rite.flash",
+    "law.earth.0.law.loose",
+    "rite.fire.0.rite.ignite",
+    "law.fire.0.law.warm",
+    "fauna.earth.1.matter.rabbit"
+   ],
+   "handAfter": [
+    "fauna.earth.2.matter.deer",
+    "sky.light.0.matter.sun",
+    "terrain.mineral.0.matter.water",
+    "rite.light.0.rite.flash",
+    "law.earth.0.law.loose",
+    "rite.fire.0.rite.ignite",
+    "law.fire.0.law.warm",
+    "fauna.earth.1.matter.rabbit"
+   ],
+   "cells": [
+    81,
+    86,
+    86
+   ]
+  },
+  "errs": []
+ },
+ {
+  "id": "F3",
+  "title": "设置→界面→常驻栏：当前值是否高亮正确（UI.uiMode 读错地方）",
+  "data": {
+   "modeAfterSet": "全隐",
+   "highlighted": [
+    "全部*",
+    "仅右栏",
+    "全隐"
+   ],
+   "modeAfterReopen": "全部",
+   "highlightedReopen": [
+    "全部*",
+    "仅右栏",
+    "全隐"
+   ]
+  },
+  "errs": []
+ },
+ {
+  "id": "F4",
+  "title": "设置→界面→常驻栏：全隐态下 P 键能否恢复 / Esc 顺序",
+  "data": {
+   "afterFirstP": "全部",
+   "afterSecondP": "全隐"
+  },
+  "errs": []
+ },
+ {
+  "id": "F5",
+  "title": "Tab：面板开着时按键多少次才进面板 / 背景按钮能否被 Enter 触发",
+  "data": {
+   "firstPanelTab": 25,
+   "total": 30,
+   "seq": [
+    "btn@bg",
+    "btn@bg",
+    "btn on@bg",
+    "btn@bg",
+    "btn@bg",
+    "bPack@bg",
+    "rail@bg",
+    "rail on@bg",
+    "rail@bg",
+    "rail@bg",
+    "rail@bg",
+    "rp grow@bg",
+    "handslot sel@bg",
+    "handslot @bg",
+    "handslot @bg",
+    "handslot @bg",
+    "handslot @bg",
+    "handslot @bg",
+    "handslot @bg",
+    "handslot @bg"
+   ]
+  },
+  "errs": []
+ },
+ {
+  "id": "F6",
+  "title": "事件开着：开面板 / 开摆件 / 开创世 的叠加与退出顺序",
+  "data": {
+   "out": [
+    {
+     "step": "E→P",
+     "event": true,
+     "mode": "全隐",
+     "creator": false
+    },
+    {
+     "step": "Esc1",
+     "event": false,
+     "mode": "全隐"
+    },
+    {
+     "step": "Esc2",
+     "event": false,
+     "mode": "全部"
+    }
+   ],
+   "eventOpened": true,
+   "afterG": {
+    "event": true,
+    "creator": true
+   },
+   "esc1": {
+    "event": false,
+    "creator": true
+   },
+   "esc2": {
+    "creator": false
+   }
+  },
+  "errs": []
+ },
+ {
+  "id": "F7",
+  "title": "改绑等待中切换分组 → 等待态是否还在（无提示）",
+  "data": {
+   "waiting0": [
+    "pack"
+   ],
+   "group": "video",
+   "waitingAfterSwitch": [],
+   "panelAfterB": "settings",
+   "toasts": [
+    "已改键「抽卡」→ B"
+   ],
+   "keys": "random=  recycle=X reroll=R gear=J ambient=P event=E zoomIn=Z pack=B codex=L chron=C creator=G settings=O keys=K help=H"
+  },
+  "errs": []
+ },
+ {
+  "id": "F8",
+  "title": "空手牌：抽卡 / 选卡 / 施卡 / 面板",
+  "data": {
+   "hand0": 0,
+   "sel0": -1,
+   "swapLabel": null,
+   "handAfterPick": 1,
+   "selAfterPick": 0,
+   "castAfterEnter": 0
+  },
+  "errs": []
+ },
+ {
+  "id": "F9",
+  "title": "面板重绘是否重置滚动位置（按同键 / 切面板回来）",
+  "data": {
+   "scroll": {
+    "before": 0,
+    "h": 742
+   },
+   "afterSameKey": 0
+  },
+  "errs": []
+ }
+]
