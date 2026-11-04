@@ -307,6 +307,20 @@
       if (!slot) return;
       beginDrag(ev, +slot.dataset.i);
     });
+    /* 焦点即选中：Tab 走到哪张牌，选中的就是哪张。
+       原来 Tab 只移焦点、`W.sel` 不动，于是「选中土地、焦点在雨上」按空格施的是土地
+       （第二轮 K03/K04）。这里只改 W.sel 与 .sel 类，不整体重绘——重绘会把焦点丢掉。 */
+    hand.addEventListener('focusin', ev => {
+      const slot = ev.target.closest('.handslot');
+      if (!slot) return;
+      const i = +slot.dataset.i;
+      if (!(i >= 0) || i === W.sel) return;
+      S.cmd.select(i);
+      hand.querySelectorAll('.handslot.sel').forEach(e => { if (e !== slot) e.classList.remove('sel'); });
+      slot.classList.add('sel');
+      UI.updateHud();
+    });
+
     hand.addEventListener('pointerover', ev => {
       const slot = ev.target.closest('.handslot');
       if (!slot || drag) return;

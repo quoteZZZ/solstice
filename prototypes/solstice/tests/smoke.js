@@ -556,6 +556,40 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     return { during, afterEsc };
   })();
 
+  /* 10.12 焦点：面板打开要接住焦点并困在里面；手牌的焦点＝选中（第二轮 K01 / K03 / K16） */
+  const focusModel = await (async () => {
+    await page.evaluate(() => { const { UI, S } = window.__dbg; UI.closePanel(); S.cmd.gear(0); });
+    await page.waitForTimeout(120);
+    await page.keyboard.press('l'); await page.waitForTimeout(220);
+    const onOpen = await page.evaluate(() => !!(document.activeElement && document.activeElement.closest('#panel')));
+    let trapped = true;
+    for (let i = 0; i < 20; i++) {
+      await page.keyboard.press('Tab');
+      if (!(await page.evaluate(() => !!(document.activeElement && document.activeElement.closest('#panel'))))) { trapped = false; break; }
+    }
+    await page.evaluate(() => { const t = document.querySelector('#panel [data-ctab="ach"]'); if (t) t.click(); });
+    await page.waitForTimeout(180);
+    const afterRerender = await page.evaluate(() => ({
+      inPanel: !!(document.activeElement && document.activeElement.closest('#panel')),
+      sig: document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.ctab : null
+    }));
+    await page.evaluate(() => window.__dbg.UI.closePanel());
+    await page.waitForTimeout(120);
+    /* 手牌：把焦点放到第 3 张，选中应该跟着走 */
+    const hand = await page.evaluate(() => {
+      /* 先把牌填满 8 张再验，否则前面的用例把牌打少了会跳过 */
+      const { S, D, UI } = window.__dbg;
+      const land = D.byId.get('terrain.earth.0.matter.land');
+      S.W.hand = new Array(8).fill(land);
+      UI.renderHand(); UI.updateHud();
+      const slots = [...document.querySelectorAll('.handslot')];
+      if (slots.length < 3) return { skip: true };
+      slots[2].focus();
+      return { sel: S.W.sel, count: slots.length };
+    });
+    return { onOpen, trapped, afterRerender, hand };
+  })();
+
   /* 11. 断言：上面几段是读数，这里决定退不退 0 */
   if (!table.reclaimOk) errors.push('[assert] reclaim 与环级表不一致');
   if (!(undoGuard.guard && undoGuard.ok2 && !undoGuard.ok3)) errors.push('[assert] 撤销守卫失效（应拒绝无回执/重复撤销）');
@@ -572,6 +606,12 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
   if (dragCast.ghosts) errors.push('[assert] 松手后还留着 ' + dragCast.ghosts + ' 张拖影');
   if (spaceInPanel.after.tab === spaceInPanel.setup.tab) {
     errors.push('[assert] 面板里按空格没有激活按钮（页签没切）');
+  }
+  if (!focusModel.onOpen) errors.push('[assert] 面板打开后焦点没有进面板');
+  if (!focusModel.trapped) errors.push('[assert] Tab 能跑出面板（焦点陷阱失效）');
+  if (!focusModel.afterRerender.inPanel) errors.push('[assert] 面板内重绘后焦点掉回背景');
+  if (focusModel.hand && !focusModel.hand.skip && focusModel.hand.sel !== 2) {
+    errors.push('[assert] 手牌焦点不在第 3 张时选中却还是 ' + focusModel.hand.sel);
   }
   if (!eventModal.during.event) errors.push('[assert] 事件没弹出来，S09 用例无效');
   if (eventModal.during.panel) errors.push('[assert] 事件开着时按 L 仍能开面板：' + eventModal.during.panel);
@@ -625,7 +665,7 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     errors.push('[assert] 事件弹窗不在视口内：' + JSON.stringify(panels.eventBox));
   }
 
-  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, fixes, dragCast, ux3, ux4, mon, narrowFit, spaceInPanel, eventModal, errors };
+  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, fixes, dragCast, ux3, ux4, mon, narrowFit, spaceInPanel, eventModal, focusModel, errors };
   fs.writeFileSync(path.join(__dirname, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 1));
 

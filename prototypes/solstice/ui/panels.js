@@ -43,8 +43,54 @@
     UI.renderOverlay();
   };
 
+  /* ── 焦点（第二轮 K01 / K16）──
+     面板打开后焦点必须进面板，否则要穿 24 个背景停点才能摸到一个按钮；
+     面板内重绘（点页签、切分组）会重建 DOM，焦点掉回 BODY，下一次 Tab 又从顶栏开始。
+     做法：重绘前记下焦点元素的数据签名，重绘后按它找回来；新开面板则聚焦第一个可聚焦项。 */
+  const FOCUS_ATTRS = ['act', 'ctab', 'set', 'val', 'k', 'pack', 'card', 'i', 'el', 'dg', 'sg'];
+  function focusSigOf(el) {
+    if (!el || !el.dataset) return null;
+    for (const k of FOCUS_ATTRS) {
+      const v = el.dataset[k];
+      if (v != null && v !== '') return '[' + 'data-' + k + '="' + (window.CSS && CSS.escape ? CSS.escape(v) : v) + '"]';
+    }
+    return null;
+  }
+  function focusables() {
+    const panel = document.getElementById('panel');
+    if (!panel) return [];
+    /* 不能用 offsetParent 判可见：#overlay 是 position:fixed，它的子元素 offsetParent 恒为 null，
+       那样会一个候选都选不出来（第一版就是这么失效的）。用矩形宽高判。 */
+    return [...panel.querySelectorAll('button:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+      .filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+  }
+  let lastPanel = null;
+  let lastFocusSig = null;
+
+  /* 记住面板内最后聚焦的那个，重绘后能找回来 */
+  document.addEventListener('focusin', ev => {
+    if (ev.target && ev.target.closest && ev.target.closest('#panel')) lastFocusSig = focusSigOf(ev.target);
+  });
+
+  /* 焦点陷阱：面板开着时 Tab 在面板内循环，不许绕回背景的 24 个停点（第二轮 K01）。
+     focusables() 每次现算——面板内容会变。 */
+  document.addEventListener('keydown', ev => {
+    if (ev.key !== 'Tab' || !UI.state.panel) return;
+    const f = focusables();
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    const cur = document.activeElement;
+    const inPanel = cur && cur.closest && cur.closest('#panel');
+    if (!inPanel) { ev.preventDefault(); first.focus(); return; }
+    if (!ev.shiftKey && cur === last) { ev.preventDefault(); first.focus(); }
+    else if (ev.shiftKey && cur === first) { ev.preventDefault(); last.focus(); }
+  });
+
   UI.renderOverlay = function () {
     const it = U.inlineToast;
+    const prevSig = lastFocusSig || focusSigOf(document.activeElement);
+    const hadFocus = !!(document.activeElement && document.activeElement.closest &&
+      document.activeElement.closest('#panel'));
     const keep = it && (Date.now() - it.at < 2400) ? it : null;
     const box = document.getElementById('overlay');
     if (!box) return;
@@ -52,6 +98,20 @@
     box.innerHTML = U.panel ? panelHTML() : '';
     document.querySelectorAll('#leftrail .rail').forEach(r =>
       r.classList.toggle('on', r.dataset.panel === U.panel));
+    /* 焦点：刚开面板 → 第一个可聚焦项；面板内重绘 → 按签名找回原来那个 */
+    if (U.panel && U.panel !== lastPanel) {
+      const f = focusables();
+      if (f.length) f[0].focus();
+      lastFocusSig = null;
+    } else if (U.panel && hadFocus) {
+      /* 重绘前焦点在面板里，就必须还在里面：先按签名找回，找不回就落到第一个控件。
+         不这么兜底的话，点一次页签焦点就掉回 BODY，下一次 Tab 又从顶栏重数 24 站（K16）。 */
+      const back = prevSig ? document.querySelector('#panel ' + prevSig) : null;
+      if (back) back.focus();
+      else { const f = focusables(); if (f.length) f[0].focus(); }
+    }
+    lastPanel = U.panel || null;
+    if (!U.panel) lastFocusSig = null;
     /* 重绘前那条行内提示补回去：撕开/收下都是「先发提示再重绘」，不补就看不见（第二轮 X02） */
     if (keep) {
       const head = document.getElementById('phead');

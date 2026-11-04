@@ -1,7 +1,7 @@
 # Solstice 原型 · 窄屏与纯键盘复测（2026-11-04 · 2d347da）
 
 取证：`node tests/review-run.js --scenario=narrow|keyboard` + `tests/review-run/narrow-probe.js` / `layout-shots.js` / `keyboard-probe3.js` / `panel-key-test.js`。
-源码树干净（HEAD `2d347da`），未改源码；尺寸取自 `log.json` / `probe*.json`，关键截图逐张 `ViewImage` 核对。
+源码与 `2d347da` 相同（`282e65b` 只提交了文档），未改源码；尺寸取自 `log.json` / `probe*.json`，关键截图逐张 `ViewImage` 核对。
 证据目录：`tests/review-run/narrow-shots/`（下文路径相对本文件）。
 
 ## 视口结论
@@ -58,7 +58,7 @@
 
 ### N03 · 1080×700 · 手牌 · 8 张重叠 37px，正文右 31% 被邻卡盖；缩放后正文 10.56px
 - **触发场景**：可用宽 760，8 张，pitch 83.2。
-- **现象**：pitch 83.2 vs 卡宽 120 → 重叠 37px（31%）；`.hsum` 12px × .88 = 10.56px；名字中心 8/8 命中自身（未被盖），但 `h3` 盒右缘被邻卡压 1–28px（越靠右越深）。8 张无重叠需 ≈960px，可用 760（差 200px）。
+- **现象**：pitch 83.2 vs 卡宽 120 → 重叠 37px（31%）；`.hsum` 12px × .88 = 10.56px；名字中心 8/8 命中自身（未被盖），但 `h3` 盒右缘第 4–7 张被邻卡压 6–28px。8 张无重叠需 ≈960px，可用 760（差 200px）。
 - **证据**：`narrow-shots/w1080.png`
 - **严重度**：P2
 - **建议**：≤1080 把同时可见牌数降到 6–7 或改两排；至少让手牌获得焦点时显示与 hover 相同的完整卡文（否则键盘读不到被盖的半句）。
