@@ -186,5 +186,19 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', '..', 'index.html')).href;
     await p.close();
   }
 
+  /* 9. S09b 事件-only 按 G（没有面板时守卫不生效） */
+  {
+    const p = await open(true);
+    await p.keyboard.press('e'); await p.waitForTimeout(220);
+    await p.keyboard.press('g'); await p.waitForTimeout(320);
+    const a = await snap(p);
+    await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+    const b = await snap(p);
+    await p.keyboard.press('Escape'); await p.waitForTimeout(220);
+    const c = await snap(p);
+    console.log('S09b', JSON.stringify({ afterG: { event: a.event, creator: a.creator, panel: a.panel }, esc1: { event: b.event, creator: b.creator }, esc2: { event: c.event, creator: c.creator } }));
+    await p.close();
+  }
+
   await b.close();
 })();

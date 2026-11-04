@@ -101,12 +101,21 @@
       return;
     }
     /* 面板开着的时候，世界键（空格/X/R/J/1–8/WASD/Enter/F1–F4/Z/P/E/G/H/K）不该穿到背后去：
-       原来面板里按空格会直接在世界里放一张牌（第二轮 S07 / K02）。
-       放行：Esc（关面板）、Tab（焦点）、以及四个面板开关键（B/L/C/O，用来切换面板）。 */
-    if (UI.state.panel) {
+       原来面板里按空格会直接在世界里放一张牌（第二轮 S07 / K02）。 */
+    if (UI.state.panel || UI.state.event) {
       const k = ev.key;
-      const pass = k === 'Escape' || k === 'Tab' ||
-        ['b', 'l', 'c', 'o'].includes(k.toLowerCase());
+      const ae = document.activeElement;
+      const inPanel = !!(ae && ae.closest && ae.closest('#panel, #eventcard'));
+      /* 面板开关键不要手写：原来只放行 b/l/c/o，K 和 H 就成了死键（第二轮 S26）。
+         直接查 UI.KEYS 里 group === '面板' 的那几条，键位改了也不用改这里。 */
+      const isPanelKey = UI.KEYS.some(x => x.group === '面板' && x.key.length === 1 &&
+        x.key.toLowerCase() === k.toLowerCase());
+      /* 焦点在面板里时，Enter / Space 交给原生按钮，并且**必须直接 return**：
+         只「放行」不返回的话，代码会继续走到下面的空格分支——空格被当成「随机释放」
+         打一张牌，同时 preventDefault 又吃掉了按钮的 keyup 激活（第二轮 S25 补）。
+         实测后果：焦点在「图鉴」页签上按空格，页签没切，世界里的太阳 +1。 */
+      if (inPanel && (k === 'Enter' || k === ' ')) return;
+      const pass = k === 'Escape' || k === 'Tab' || isPanelKey;
       if (!pass) { ev.preventDefault(); return; }
     }
 
@@ -216,6 +225,9 @@
         } else R.marks.clear();
       }
     });
+
+    /* 手牌重排的 resize 监听放在 ui/hand.js —— 它和 renderHand 同作用域，
+       不依赖 boot 的执行顺序（这里原先有一份，实测不生效）。 */
 
     S.on('tick', () => {
       UI.updateHud();

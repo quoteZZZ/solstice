@@ -494,8 +494,12 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
       /* 前面的用例把面板打开着，先关掉，否则遮罩会吃掉 hit-test */
       await page.evaluate(() => window.__dbg.UI.closePanel());
       await page.waitForTimeout(80);
+      /* 先放大再缩回：手牌位置是烘死的像素，不重排会两边同时溢出（第二轮 X13） */
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.waitForTimeout(200);
+      await page.evaluate(() => { window.__dbg.UI.renderHand(); });
       await page.setViewportSize({ width: 1080, height: 700 });
-      await page.waitForTimeout(260);
+      await page.waitForTimeout(620);
       await page.evaluate(() => { const { UI } = window.__dbg; UI.renderHand(); UI.updateHud(); });
       await page.waitForTimeout(120);
       const r = await page.evaluate(() => {
@@ -506,6 +510,7 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
         const abr = ab.getBoundingClientRect();
         const hit = document.elementFromPoint(abr.x + abr.width / 2, abr.y + abr.height / 2);
         return {
+          firstLeft: Math.round(last.left - last.left + slots[0].getBoundingClientRect().x),
           lastOverlap: Math.round(last.right - rp.x),
           actbarOk: !!(hit && hit.closest('#actbar'))
         };
@@ -514,6 +519,25 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
       await page.waitForTimeout(220);
       return r;
     } catch (e) { return { err: String(e && e.message) }; }
+  })();
+
+  /* 10.10 面板里的空格：应激活按钮，不许穿透到世界（第二轮 S25 补） */
+  const spaceInPanel = await (async () => {
+    const setup = await page.evaluate(() => {
+      const { UI, S } = window.__dbg;
+      UI.openPanel('codex'); UI.renderOverlay();
+      const t = document.querySelector('#panel [data-ctab="ach"]');
+      if (t) t.focus();
+      return { tab: UI.state.codexTab, sun: S.W.sun };
+    });
+    await page.keyboard.press(' '); await page.waitForTimeout(220);
+    const after = await page.evaluate(() => ({ tab: window.__dbg.UI.state.codexTab, sun: window.__dbg.S.W.sun }));
+    await page.evaluate(() => { document.activeElement.blur(); });
+    const sunBefore = await page.evaluate(() => window.__dbg.S.W.sun);
+    await page.keyboard.press(' '); await page.waitForTimeout(220);
+    const sunAfter = await page.evaluate(() => window.__dbg.S.W.sun);
+    await page.evaluate(() => window.__dbg.UI.closePanel());
+    return { setup, after, blurred: { sunBefore, sunAfter } };
   })();
 
   /* 11. 断言：上面几段是读数，这里决定退不退 0 */
@@ -530,7 +554,17 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
   if (!dragCast.grew) errors.push('[assert] 拖到世界没有施卡（cells ' + dragCast.before + '→' + dragCast.after + '）：' + dragCast.tip);
   if (dragCast.tip && /随机/.test(dragCast.tip)) errors.push('[assert] 拖到世界仍被判成随机落点：' + dragCast.tip);
   if (dragCast.ghosts) errors.push('[assert] 松手后还留着 ' + dragCast.ghosts + ' 张拖影');
+  if (spaceInPanel.after.tab === spaceInPanel.setup.tab) {
+    errors.push('[assert] 面板里按空格没有激活按钮（页签没切）');
+  }
+  if (spaceInPanel.after.sun !== spaceInPanel.setup.sun) {
+    errors.push('[assert] 面板里按空格穿透到世界施了卡：sun ' + spaceInPanel.setup.sun + '→' + spaceInPanel.after.sun);
+  }
+  if (spaceInPanel.blurred.sunAfter !== spaceInPanel.blurred.sunBefore) {
+    errors.push('[assert] 面板开着、焦点在背景时按空格仍然施卡');
+  }
   if (narrowFit.err) errors.push('[assert] 窄屏用例抛错：' + narrowFit.err);
+  if (narrowFit.firstLeft < 0) errors.push('[assert] 缩窗后首张手牌跑出左边界：x=' + narrowFit.firstLeft);
   if (narrowFit.lastOverlap > 0) errors.push('[assert] 1080 下末张手牌压进右栏 ' + narrowFit.lastOverlap + 'px');
   if (narrowFit.actbarOk === false) errors.push('[assert] 1080 下动作栏被手牌盖住');
   if (dragCast.tracesPerDrag !== 1) errors.push('[assert] 一次拖放调用了 ' + dragCast.tracesPerDrag + ' 次 UI.cast（应为 1）');
@@ -569,7 +603,7 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     errors.push('[assert] 事件弹窗不在视口内：' + JSON.stringify(panels.eventBox));
   }
 
-  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, fixes, dragCast, ux3, ux4, mon, narrowFit, errors };
+  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, fixes, dragCast, ux3, ux4, mon, narrowFit, spaceInPanel, errors };
   fs.writeFileSync(path.join(__dirname, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 1));
 

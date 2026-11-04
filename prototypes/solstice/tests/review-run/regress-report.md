@@ -1,21 +1,13 @@
-# 回归验证报告（2026-11-04 第二轮 · 快照 16:47）
+# 回归验证报告（2026-11-04 第二轮 · HEAD 0cfbe56）
 
 **范围**：只回答「上轮 31 条到底修没修」，不找新问题、不改源码。
 **环境**：1080×700 主测（+ 1366×800 补证）；Edge headless；`deviceScaleFactor:1`（读数=CSS px）。
-**快照**：HEAD `334b2d8` + 工作树 11 个未提交修改（最后落盘 16:47:25）。本版**全部条目都按这个快照重测过**，不是沿用上一版的读数。
-| 文件 | 时间 |
-|---|---|
-| render/cam.js | 16:36:24 |
-| ui/hand.js | 16:46:01 |
-| ui/boot.js | 16:46:57 |
-| render/scene.js | 16:46:57 |
-| ui/creator.js | 16:38:45 |
-| ui/events.js / ui/hud.js | 16:39:09 |
-| ui/panels.js / styles/app.css | 16:47:25 |
+**快照**：**HEAD `0cfbe56`**（含第二轮全部修复提交）。31 条在本 HEAD 上整轮复跑过；`regress2-*` 目录里的读数就是这一轮刷新后的。
+期间工作树被我上一版报告引用时的 11 个未提交修改（`cam.js 16:36`、`hand.js 16:46`、`boot.js 16:46`、`scene.js 16:46`、`creator.js 16:38`、`events.js/hud.js 16:39`、`panels.js/app.css 16:47`）已在 `89216f8` / `0cfbe56` 一系提交里落定。
 
 **取证**
 - 四场景：`tests/review-run/regress2-{full,narrow,keyboard,stress}/` —— 27 / 29 / 41 / 29 张，`failures:0 console:0`，1080×700 下 `--hand-scale` 全部 `.88`
-- 全量读数：`tests/review-run/regress2-audit/`（`audit.json` + 7 张图）
+- 全量读数：`tests/review-run/regress2-audit/`（`audit.json` + 9 张图）
 - 指针/拖拽：`tests/review-run/regress2-pointer/`（`probes.json` + 8 张图，真实 pointerdown/move/up + 键盘）
 
 | # | 编号 | 结论 | 读数/证据 | 备注 |
@@ -28,14 +20,14 @@
 | 6 | U19 | PASS | cells 81、traces 空 →「最近的痕迹都已消散 · 见年表 ▸」；`neverTouched:false` | — |
 | 7 | H01 / U25 / F24 | PASS | 拖到已有格：tip「松手放在 (-7, -2)」、`marks{n:1,g:0}`、松手 1 次 cast（`水@-7,-2`）。拖到虚空：tip「松手在这片虚空造陆」、**`marks{n:0,g:25}`（5×5 虚格预览已画出来）**、松手 1 次 cast `土地@-12,-1`、cells 225→250、飘字「+25 格」（`regress2-pointer/03b-h01-void-middrag.png`） | 上一版的「空心虚空无预览」已修；提示不再是「随机落点」 |
 | 8 | H02 | PASS | 向下拖 62px：tip 仍 idle 灰字（非回收红）、`marks 0/0`、松手 `casts:[]`、cells/hand 不变 | — |
-| 9 | U38 | PASS | 拖「水」（已有格必成功）→ Esc：`#ghost` 1→0、`casts:[]`、hand 8 张原样；随后 mouseup 仍 `casts:[]` | HEAD 上这是真 bug（`endDrag(null)` 会顺手施卡），现已在工作树修好 |
+| 9 | U38 | PASS | 拖「水」（已有格必成功）→ Esc：`#ghost` 1→0、`casts:[]`、hand 8 张原样；随后 mouseup 仍 `casts:[]` | `334b2d8` 上这是真 bug（`endDrag(null)` 会顺手施卡），`hand.js` 的 `if (ev == null) return` 已修；我上一版曾误判为 PASS，见下节 |
 | 10 | H04 / E01 | PASS | 合成连两次 `pointerdown`：`#ghost` 1→1（不出现第 2 张），left `148.95px`（不是 0,0）；松手后 0 张（`regress2-pointer/06-h04.png`） | — |
 | 11 | H06 | PASS | 施土地后 `#gainfly`「+21 格」opacity 1；`pulses:8` 其中 `vis:1`（峰值 0.92、780ms、scale→2.23） | 飘字稳定；环是瞬时的，静帧靠飘字取证 |
 | 12 | P04 / F26 | PASS | 撕开后 `.packpick` 6 张 / `.card` 6 张 / `.dealcard` 0 张；步骤条 2 站「1. 封印 / 2. 挑选」（`regress2-audit/12-pack-deal.png`） | 空白卡背那一站已并掉 |
 | 13 | F12 / F13 | PASS | 同一句连发 4 次 → 1 条；再发 6 条不同句 → 上限 3 条 | — |
 | 14 | P40 | PASS | 开面板前 `#toasts` 3 条 → 开后 0 条；新提示落 `#phead .toast.ih`（top 80–101），正文顶 120 | 不压标题/步骤条 |
 | 15 | U22 / P12 | PASS | `.cdscroll::after`、`#pbody::after`、`#rightpanel .rp.grow::after` 三者均 `content:""`、`height:20px`、`position:sticky`、渐隐到 `rgba(10,14,19,.88)`；两个滚动容器分别溢出 378 / 358px | 上一版此处两个读数为空是探针先 closePanel 导致的，已按面板打开状态重测 |
-| 16 | U32 | PASS | `#log` 底色 `linear-gradient(90deg, rgba(7,11,15,.80) … 0)`、12px、`#b9c6d4`、8 行可读（`regress2-audit/16-log.png`） | 1080px 下 `#log` 被 `@media(max-width:1080px)` 隐藏，故在 1366 取证 |
+| 16 | U32 | PASS | `#log` 底色 `linear-gradient(90deg, rgba(7,11,15,.80) … 0)`、12px、`#b9c6d4`；1366 下 8 行、**1080 下保留 3 行（176×64）**都可读（`regress2-audit/16-log.png`） | 早期快照 1080 下整段 `display:none`，`6107ee6` 已改成「窄屏留三行」 |
 | 17 | U21 / P14 / E39 | PASS | 顶栏第 0 年：`#cYear` `display:none`，画面只剩「1 月 春」（`regress2-audit/17-clock-year0.png`）；事件弹窗「1 年 8 月」与顶栏一致（`regress2-full/24-event.png`）；年表「1 年 1 月–2 年 1 月 / 1 月」；`第 N 年`、小数年、`第 N 月` 命中均为 0 | 上一版的两处旧写法（顶栏 0 年、事件「第 19 月」）都已修 |
 | 18 | E13 / U13 | PASS | 连续开关 chron/codex/settings 后 `#log` 子节点 0、文本空 | — |
 | 19 | U09 | PASS | 图标 x：rest 20.5 → hover 21.0（Δ0.5px）；标签 left 58、宽 22.9、opacity 0→1 | 从右侧淡入，图标不横移 |
@@ -61,7 +53,8 @@
 3. **S08 拖拽中 Space/X 再施一张** → `boot.js` 的 `UI.isDragging()` 守卫；复测 Space、X 在拖拽中 `casts:[]`，松手各 1 次。
 4. **#17 U21 月份写法 / #7 虚空 5×5 预览** → `hud.js`、`events.js`、`hand.js` 已修；复测见 #17、#7。
 
-## 附带观察（不计入 31 条）
+## 附带观察（不在 31 条内，本轮验证窗口里撞到/被问到的）
 
-- 1080px 宽下 `#log` 被媒体查询整段隐藏，世界事件文本没有替代出口。
-- `ui/hand.js` 的扇形让位从 `-24` 改成了 `-24-34`，本轮未测该项（不在 31 条内）。
+- **面板键盘可达（r-state 的 S25/S26）——在 `0cfbe56` 上已修**，我独立复核：Tab 到「图鉴 0/6」→ Enter，`codexTab: cards → ach`；面板开着按 K → `settings/keys`、按 H → `settings/input`。当前守卫按 `UI.KEYS` 的「面板」组放行，并给面板内聚焦的 Enter/Space 开了口子。
+- **事件叠层（r-state 的 S09）——仍在**：事件开着（`panel:null`）按 L 会把卡库面板开在事件遮罩后面（`event:true, panel:'codex'`），接着按 Esc 先关事件、再露出面板。不在 31 条内，未计入结论。
+- `ui/hand.js` 的扇形让位从 `-24` 改成了 `-24-34`（窄屏最外卡压右栏），本轮未测该项（不在 31 条内）。

@@ -1,11 +1,11 @@
 # 状态机审计 · Solstice 原型
 
-- 审计对象：`E:/solstice/prototypes/solstice` @ `334b2d8`（评审起始 HEAD；`ui/hand.js` 16:14 的拖放命中修复已包含）
-- 复核：16:36–16:50 工作树（未提交）落了 S01–S04 的修复，已用 `state-probe7.js` 在新树上逐条复测（`state-probe7.txt`）：**S01/S02/S03/S04 四条均已收掉**。其余 20 条结论不变（S08 的次数受 cam 修复影响，从 3 降到 2，已在条目内注明）；读数除注明外对应 HEAD `334b2d8`。
+- 审计对象：`E:/solstice/prototypes/solstice`，起始 HEAD `334b2d8`；最终复核于工作区 17:08（HEAD `0cfbe56` + 未提交的 `boot.js`/`creator.js` 第三轮改动）
+- 复核：`89216f8` 修掉 S01–S04/S07/S08/S20（S05 被按键守卫顺带堵死）；工作区第三轮又修掉 S06、S25、S26。已用 `state-probe7/8/9` 逐条复测（对应 `.txt`）。**共 11 条已收掉**；未修 15 条读数对应 `334b2d8`（S09 在两版上一致复现）。
 - 视口：1680×1000，msedge headless，`file://` 直开
-- 取证脚本（均在 `tests/review-run/`，未改任何源码）：`state-probe.js`（A–E 28 场景）、`state-probe2.js`（F 面板/焦点）、`state-probe3.js`（G 拖拽交叉）、`state-probe4.js`（H 调用栈）、`state-probe5.js`（I 跨世界/撤销）、`state-probe6.js`（拖放两次 cast 的栈）、`state-probe7.js`（工作树复核）
-- 读数：`state-probe*.json` / `state-probe6.txt` / `state-probe7.txt`；截图：`state-shots/`
-- 结论：**24 条问题**（P1×4、P2×10、P3×10），其中 4 条已在工作树修复并复核通过，**当前未修 20 条**。抽卡主流程（撕开→挑选→跳过）是稳的；未修问题集中在**面板输入穿透、跨世界残留、焦点与叠层**三块。
+- 取证脚本（均在 `tests/review-run/`，未改任何源码）：`state-probe.js`（A–E 28 场景）、`state-probe2.js`（F 面板/焦点）、`state-probe3.js`（G 拖拽交叉）、`state-probe4.js`（H 调用栈）、`state-probe5.js`（I 跨世界/撤销）、`state-probe6.js`（拖放两次 cast 的栈）、`state-probe7.js`（工作树复核）、`state-probe8.js`（第二轮提交复核）、`state-probe9.js`（第三轮复核）
+- 读数：`state-probe*.json` / `state-probe6.txt` / `state-probe7.txt` / `state-probe8.txt` / `state-probe9.txt`；截图：`state-shots/`
+- 结论：**26 条问题**（P1×4、P2×11、P3×11），其中 11 条已修复并复核通过，**当前未修 15 条**（P2×6、P3×9）。抽卡主流程（撕开→挑选→跳过）是稳的；未修问题集中在**事件叠层、跨世界残留、焦点与模式互斥**三块。
 
 ---
 
@@ -18,9 +18,9 @@
 | 3 | 0→撕开→关面板→再开 | OK（stage 2 / 6 张保留） | — |
 | 4 | 0→撕开→切包 | OK（被拦，toast「这一包还没挑」） | — |
 | 5 | 0→撕开→时素归零→再点 | OK（主按钮变「跳过这一包」并关闭；再撕开因 disabled 不可点） | — |
-| 6 | 手牌满时收下 | 有问题（面板「换掉 X」不随 1–8 更新，实际换掉另一张） | S05 |
+| 6 | 手牌满时收下 | 已修（按键守卫后 1–8 改不了选，标签与替换槽一致；根因仍在 S05） | S05 |
 | 7 | 连抽两次 | OK（两轮 −12，手牌恒 8：收下即补位） | — |
-| 8 | 撕开后按 B 再开 | 有问题（B 只重绘不关闭；同时空格/X 穿透面板） | S07/S15 |
+| 8 | 撕开后按 B 再开 | 部分修复（空格/X 穿透已修；B 同键仍只重绘不关闭） | S15 |
 | 9 | 四面板互切 | OK（B/L/C/O 各自替换，无叠加） | — |
 | 10 | 开面板→Esc | OK（关闭） | — |
 | 11 | 开面板→点遮罩 | OK（关闭） | — |
@@ -33,12 +33,12 @@
 | 18 | 摆件→Esc | OK（回「全部」） | — |
 | 19 | 摆件→拖手牌 | 有问题（手牌只下移 222px，仍有 27px 命中区，可拖可施卡） | S11 |
 | 20 | 创世→返回当前界 | 部分修复（空世界退路 S01 已修；重掷改 RNG 仍未修） | S13 |
-| 21 | 创世→进新区 | 有问题（格子/月/时素/档位都换新；但旧包残局跟过去、事件跨世界） | S06/S10 |
+| 21 | 创世→进新区 | 部分修复（旧包残局 S06 已修；事件跨世界 S10 仍在） | S10 |
 | 22 | 事件三路→Esc→再触发 | 有问题（承受/改写/Esc 都关且能再触发；但可与面板/创世叠层） | S09 |
 | 23 | WASD→Enter→Esc | OK（游标移动并施卡；无游标时 Enter 静默，见 S21） | S21 |
-| 24 | 面板里按 WASD | 有问题（游标不动，但 Space/X/R/J 穿透） | S07 |
-| 25 | Tab 绕一圈 | 有问题（前 24 个焦点全在背景，面板控件第 25 个才到） | S12 |
-| 26 | 拖拽中按功能键 | 部分修复（Esc 施卡已修；Space 仍会在一次手势里施 2 张） | S08/S20 |
+| 24 | 面板里按 WASD | OK（WASD 不穿透；焦点在面板里时 Space 交给原生按钮，不再施卡） | — |
+| 25 | Tab 绕一圈 | 部分修复（Enter/Space 已能激活面板按钮；但焦点仍要 25 次才进面板） | S12 |
+| 26 | 拖拽中按功能键 | 已修（Esc 真取消；拖拽中 Space/X/数字被吞，松手只施 1 张） | S02/S08/S20 |
 | 27 | 暂停→施卡→恢复 | OK（月份不动、卡生效、恢复后继续走） | — |
 | 28 | 4×→连续施卡 | OK（6 连施无异常，档位保持） | — |
 | 29 | 时素归零 | OK（抽包 disabled、重抽/改写不可用；可回收/施卡，等时素自然回涨） | — |
@@ -121,8 +121,9 @@
 - **期望**：面板写着换掉哪张，就换掉哪张；或数字键在抽卡面板里改的是包内选牌。
 - **实际**：`packBody` 在渲染时把 `swap` 快照进 HTML，数字键只改 `W.sel` + `renderHand()`，不重绘 overlay。面板仍写「换掉 不锈」，`takeFromPack` 按新 `sel=4` 换掉「苔」。手牌被遮住，玩家没有任何办法看出选中的变了。
 - **证据**：`state-shots/07-pack-full-hand.png`（标签「换掉 不锈」）；`state-probe.json` A6：`{sel0:2, label1:"不锈", selAfterKey5:4, labelAfterKey5:"不锈", replacedSlot:4, targetNameBefore:"苔"}`
-- **严重度**：P2
+- **严重度**：P2（已修复）
 - **建议**：`W.sel` 变化时若 `UI.state.panel==='pack'` 就 `renderOverlay()`；或在面板里画一条 8 格手牌，允许直接点选替换目标。
+- **状态**：`89216f8` 的面板按键守卫让「面板开着按 1–8」不可达（`state-probe8.txt` S05：按 5 后 `sel` 仍 2、标签仍「不锈」、替换槽 2 与标签一致）。根因（`packBody` 只在渲染时快照 `swap`）还在，若日后有其它途径改 `W.sel` 会复发。
 
 ---
 
@@ -149,8 +150,9 @@
 - **期望**：面板期间禁用世界操作（至少不静默执行）。
 - **实际**：`onKey` 只对方向键/Enter 判 `panel`；空格 → `castRandom` 施卡（世界在面板后变化，`flyTo` 的「+5 格」还飘在面板上）、X → 回收选中、R → 重抽、J → 换档。面板自身不刷新，手牌与面板读数跟真实状态脱节。
 - **证据**：`state-shots/p2-01-panel-keythrough.png`（卡库面板 + 顶部「回收 +1 时素 撤销」+ 右侧「+5 格」）；`state-probe2.json` F1：`castDelta:1`（空格）、`handChanged:true`（X/R）、`gear:3`（J）
-- **严重度**：P2
+- **严重度**：P2（已修复）
 - **建议**：`onKey` 在 `UI.state.panel || UI.state.event` 时只放行 Esc 与「面板入口键 + 数字键（如果确实要做包内选牌）」，其余直接 return。
+- **状态**：`89216f8` 在 `boot.js` 加了面板守卫：面板开着时除 Esc / Tab / B / L / C / O 外全部吞掉。`state-probe8.txt` S07：Space/X/R/J 后 `castN:0`、`gear:2`、`essence:500`、`panel:"codex"`。（放行列表漏了 K/H，见 S26。）
 
 ---
 
@@ -163,8 +165,9 @@
 - **期望**：空格或松手，只生效一个。
 - **实际**：Space 先 `castRandom` 施一张；松手时 `endDrag` 用旧下标再施一张。HEAD `334b2d8` 还有画布 `pointerup` 的第三次（land / warm / reed）；工作树修掉重复 click 后仍是 **2 张**（`state-probe7.txt`：land / rustless）。X、数字键同理会先回收/改选，再按旧下标施卡。
 - **证据**：`state-shots/p2-03-drag-space-count.png`；`state-probe3.json` G2（HEAD）：`{mid:["…land"], end:["…land","…warm","…reed"]}`；`state-probe7.txt` S08（工作树）：`{midCasts:1, endCasts:2}`
-- **严重度**：P2
+- **严重度**：P2（已修复）
 - **建议**：`beginDrag` 置 `UI.state.dragging=true`，`onKey` 在拖拽期间屏蔽所有世界键（Esc 除外，且 Esc 要真取消）；`endDrag` 之后复位。
+- **状态**：`89216f8` 用 `UI.isDragging()`（`hand.js:71`）在 `boot.js:99` 拦住拖拽期间除 Esc 外的所有键。`state-probe8.txt` S08：拖拽中按 Space / X / 1 均 `midCasts` 不增，松手各只 +1；`state-probe7.txt` 的 `{mid:1,end:2}` 已是修复前的历史读数。
 
 ---
 
@@ -175,8 +178,8 @@
   2. L 开卡库（事件仍在最上）
   3. Esc → Esc
 - **期望**：事件期间不响应面板键；或开面板前先收事件。
-- **实际**：`fireEvent` 会把 `U.panel` 置 null，但**反过来** `openPanel` 不检查 `U.event`。codex（z60）被事件（z82）盖住；Esc 只关事件，露出卡库。事件 + G 同理：创世（z80）塞在事件下面，Esc 两次才回到世界。
-- **证据**：`state-shots/22-event-panel-stack.png`（事件前景、卡库背景可见）；`state-shots/p2-07-event-creator.png`（事件前景、创世剖面在背后）；`state-probe.json` C6：`stackEvent:true, stackPanel:"codex"`；F6：`afterG:{event:true, creator:true}`
+- **实际**：`fireEvent` 会把 `U.panel` 置 null，但**反过来** `openPanel` 不检查 `U.event`。codex（z60）被事件（z82）盖住；Esc 只关事件，露出卡库。`89216f8` 的按键守卫只挡「面板开着按 G」，事件开着（panel 为 null）时 G 仍会开；创世（z80）塞在事件下面，Esc 两次才回到世界。
+- **证据**：`state-shots/22-event-panel-stack.png`（事件前景、卡库背景可见）；`state-shots/p2-07-event-creator.png`（事件前景、创世剖面在背后）；`state-probe.json` C6：`stackEvent:true, stackPanel:"codex"`；F6：`afterG:{event:true, creator:true}`；`state-probe8.txt` S09：`{event1:true, panel1:"codex"}`，事件-only → G 仍 `{event:true, creator:true}`
 - **严重度**：P2
 - **建议**：`openPanel` / `openCreator` 入口处 `if (UI.state.event) return UI.toast('先处理事件', …)`，或在打开前 `closeEvent()`。
 
@@ -259,7 +262,7 @@
 - **实际**：`openPanel` 无条件 `U.panel=p; renderOverlay()`，面板不关；`innerHTML` 重建让滚动位置回到顶部。B/L/O/K 同样。
 - **证据**：`state-probe.json` B1：`panelBeforeRepeat:"settings" → panelAfterSameKey:"settings"`；A8：`panelAfterB:"pack"`、stage 2 保留
 - **严重度**：P3
-- **建议**：`onKey` 里入口键做 toggle：`UI.state.panel===p ? closePanel() : openPanel(p)`；重绘时保留 `#pbody` 内滚动容器的 `scrollTop`。
+- **建议**：`onKey` 里入口键做 toggle：`UI.state.panel===p ? closePanel() : openPanel(p)`；重绘时保留 `#pbody` 内滚动容器的 `scrollTop`。另：第二轮守卫放行 B/L/C/O 却漏了 K/H，见 S26。
 
 ---
 
@@ -327,8 +330,9 @@
 - **期望**：开面板时主动结束拖拽并提示。
 - **实际**：`#ghost`（z64）压在面板（z60）上继续跟随，还带着「松手铺在 (0,0) 周围」的提示；松手后因 `elementFromPoint` 已是面板、`inWorld=false`，拖拽被判 idle，什么都不发生（cells 81 不变），也没有 toast。
 - **证据**：`state-shots/p7-ghost-over-panel.png`（ghost 盖在抽卡面板中央）；`state-probe4.json` H3：`ghost 1→1→0, casts 0`
-- **严重度**：P3
+- **严重度**：P3（已修复）
 - **建议**：`beginDrag` 期间打开面板/事件/创世 → 先 `endDrag(null, cancel)`，并给一条「已取消拖拽」。
+- **状态**：`89216f8` 的拖拽守卫把 B 也挡在拖拽期间，面板不再可能在拖拽中打开。`state-probe8.txt` S20：`panelMid:null, overlayMid:false, ghostMid:1`，松手 `casts:1, cells:81`。原「ghost 压在面板上」的症状已不可达。
 
 ---
 
@@ -384,6 +388,35 @@
 - **证据**：`state-shots/16-ambient-panel.png`；`state-probe.json` C1（`panelStill:"codex"`）；`state-probe3.json` G6：`["仅右栏","全隐","全部"]`
 - **严重度**：P3
 - **建议**：`toggleAmbient` 记住进入前的 mode；退出摆件时按约定关闭面板（或明确保留并在文档里写死）。
+
+---
+
+### S25 · 面板 · 面板开着时 Enter / Space 被守卫吞掉，键盘无法操作面板按钮
+
+- **路径**：
+  1. L 打开卡库
+  2. Tab 到面板内第一个按钮（第 25 个焦点，「图鉴 0/6」）
+  3. 按 Enter（或 Space）
+- **期望**：触发聚焦的按钮（切到图鉴）；至少不要比修复前更差。
+- **实际**：`89216f8` 的面板守卫在原生 button 的默认激活之前执行；Enter / Space 都不在放行列表（只有 Esc / Tab / B / L / C / O），`preventDefault()` 取消了按钮的默认点击。实测焦点在 `[data-ctab="ach"]` 的 BUTTON 上，Enter 后 `codexTab` 仍是 `cards`、面板没变。Tab 能进面板、Esc 能关，但面板里所有按钮都只能鼠标点。
+- **证据**：`state-shots/p9-panel-enter.png`；读数：focus `{tag:"BUTTON", ctab:"ach"}`，before `{tab:"cards"}` → afterEnter `{tab:"cards", panel:"codex"}`。对照旧版（`git worktree add /tmp/solstice-old 334b2d8`，同一路径同一按键）：`cards → ach`，即 `89216f8` 是回归。
+- **严重度**：P2
+- **建议**：守卫里放行「焦点位于 `#panel` 内」的 Enter / Space（`if (document.activeElement.closest('#panel'))` 直接放行，交给原生按钮/已有的 `data-act` 分支）；或把守卫移到焦点输入分支之后。
+
+---
+
+### S26 · 键位 · 面板开着时 K / H 变成死键，B/L/C/O 却能切
+
+- **路径**：
+  1. L 打开卡库
+  2. 按 K
+  3. 按 H
+  4. 按 O
+- **期望**：K/H 和 B/L/C/O 一样能切到 设置→键位 / 操作（`UI.KEYS` 里它们同属「面板」组）。
+- **实际**：`89216f8` 的面板守卫放行列表是手写的 `['b','l','c','o']`，K/H 被 `preventDefault` 吞掉；O 照常把面板切成设置。结果同一类入口键里四个能用、两个静默失效。
+- **证据**：`state-probe8.txt` S15：`{afterK:"chron", afterH:"chron", afterO:"settings"}`（K 前是年表，K/H 后仍是年表）
+- **严重度**：P3
+- **建议**：放行列表改成「所有面板入口键」——直接读 `UI.KEYS` 里 act ∈ {pack, codex, chron, settings, keys, help, creator} 的键，避免下次再加面板又漏一个。
 
 ---
 

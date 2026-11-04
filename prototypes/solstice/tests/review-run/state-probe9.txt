@@ -1,0 +1,6 @@
+S06 {"before":{"stage":2,"cards":6},"world2":{"month":0,"cells":0,"ess":0},"afterB":{"stage":0,"cards":0,"panel":"pack"}}
+S25 {"focus":{"tag":"BUTTON","ctab":"ach"},"enter":["cards","ach"],"space":{"tab":["ach","cards"],"castDelta":0,"cells":[81,81]}}
+S26 {"start":"chron","afterK":{"panel":"settings","group":"keys"},"afterH":{"panel":"settings","group":"input"}}
+S09 {"eventL":{"event":true,"panel":"codex"},"esc1":{"event":false,"panel":"codex"},"eventG":{"event":false,"creator":true,"panel":null}}
+S07S08 {"spaceInPanel":0,"midCasts":0,"endCasts":1,"ghostMid":1}
+S20 {"panelMid":null,"ghostMid":1,"endCasts":1,"cells":81}

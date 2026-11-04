@@ -1,0 +1,11 @@
+S07 {"rows":[{"k":"Space","castN":0,"gear":2,"sel":0,"panel":"codex","ess":500},{"k":"x","castN":0,"gear":2,"sel":0,"panel":"codex","ess":500},{"k":"r","castN":0,"gear":2,"sel":0,"panel":"codex","ess":500},{"k":"j","castN":0,"gear":2,"sel":0,"panel":"codex","ess":500}],"gearBefore":2,"essBefore":500}
+S05 {"label1":"不锈","sel1":2,"labelAfterKey5":"不锈","selAfterKey5":2,"replacedSlot":2,"handHas":8}
+S08-Space {"preCasts":0,"midCasts":0,"midGhost":1,"endCasts":1,"sel":0}
+S08-x {"preCasts":1,"midCasts":1,"midGhost":1,"endCasts":2,"sel":0}
+S08-1 {"preCasts":2,"midCasts":2,"midGhost":1,"endCasts":3,"sel":0}
+S20 {"panelMid":null,"overlayMid":false,"ghostMid":1,"casts":1,"cells":81}
+S09 {"event1":true,"panel1":"codex","afterEscEvent":false,"panelStill":"codex","eventAfterG":false,"creator":false}
+S15 {"c1":"chron","c2":"chron","afterK":"chron","afterH":"chron","afterO":"settings","afterB":"pack"}
+S16 {"firstGroup":"settings","afterK":"keys|settings","reopenO":"keys|settings"}
+S12 {"firstPanel":25}
+S09b {"afterG":{"event":true,"creator":true,"panel":null},"esc1":{"event":false,"creator":true},"esc2":{"event":false,"creator":false}}

@@ -70,6 +70,15 @@
   /* 给 ui/boot.js 的按键分发用：拖拽期间除了 Esc 一律不响应 */
   UI.isDragging = function () { return !!drag; };
 
+  /* 窗口一变就重排。手牌的位置是像素（left + 步长）烘死的，不重排的话
+     1440→1080 之后首卡跑到 -72、末卡右沿 936，两边同时溢出（第二轮 X13，P1）。
+     排两次是因为 resize 常常早于媒体查询重排完成，第一次读到的 clientWidth 还是旧值。 */
+  window.addEventListener('resize', () => {
+    const run = () => { if (UI.renderHand) UI.renderHand(); };
+    setTimeout(() => requestAnimationFrame(run), 120);
+    setTimeout(() => requestAnimationFrame(run), 420);
+  });
+
   function beginDrag(ev, i) {
     const card = W.hand[i];
     if (!card) return;

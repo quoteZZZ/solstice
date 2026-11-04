@@ -409,6 +409,9 @@
       seed: CRE.seed, traits: CRE.traits.map(i => WD.traits[i].name)
     };
     S.cmd.newWorld(world);
+    /* 换界之后上一包没挑的牌不该跟过来（第二轮 X03：时素已经退回初始值，
+       却还能白挑 6 张）。抽卡阶段在任何「换世界」路径上都要清。 */
+    UI.packStage = 0; UI.packCards = [];
     UI.closeCreator();
     /* 先定档位再渲染手牌：底栏那格档位字符是 renderHand 拼的，顺序反了就恒显示「暂停」（X-9） */
     S.cmd.gear(2);          // 1×
