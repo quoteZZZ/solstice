@@ -11,6 +11,14 @@
   C.target = null;
   C.hover = null;
 
+  /* 目标位姿。档位切换（F1–F4 / Z / 滚轮档 / 回中）只改这里，
+     真正落到相机上的值每帧朝它靠——原来是 setPitch 里直接 place()，
+     镜头一格一格跳，切换俯仰时整个画面「啪」地闪一下。
+     拖拽与滚轮不属于「过渡」：那是手在直接操作，必须 1:1 跟手，
+     所以它们会先把 goal 拉回当前值，打断进行中的缓动。 */
+  C.goal = { yaw: 0, pitch: 0, dist: 0, x: 0, y: 0, z: 0 };
+  let glideLast = 0;
+
   const PITCHES = [0.26, 0.52, 0.95, 1.45];
   const ZOOMS = [24, 14, 8.6, 5.2, 3.4];
 
@@ -31,6 +39,7 @@
     C.hit = new THREE.Vector3();
 
     C.place();
+    C.snapGoal();
   };
 
   C.place = function () {
@@ -40,24 +49,32 @@
     cam.lookAt(t);
   };
 
+  /* 把目标拉回当前值（手一动就打断缓动） */
+  C.snapGoal = function () {
+    const g = C.goal, t = C.target;
+    g.yaw = C.yaw; g.pitch = C.pitch; g.dist = C.dist;
+    if (t) { g.x = t.x; g.y = t.y; g.z = t.z; }
+  };
+
+  C.glideTo = function (x, y, z) {
+    C.goal.x = x; C.goal.y = y; C.goal.z = z;
+  };
+
   C.recenter = function () {
     if (!W.cells.size) return;
     let sx = 0, sy = 0;
     for (const c of W.cells.values()) { sx += c.x; sy += c.y; }
-    C.target.set(sx / W.cells.size, 0.22, sy / W.cells.size);
-    C.place();
+    C.glideTo(sx / W.cells.size, 0.22, sy / W.cells.size);
   };
 
   C.setPitch = function (i) {
-    C.pitch = PITCHES[Math.max(0, Math.min(3, i))];
     C.pitchIdx = Math.max(0, Math.min(3, i));
-    C.place();
+    C.goal.pitch = PITCHES[C.pitchIdx];
   };
 
   C.setZoom = function (i) {
     C.zoomIdx = Math.max(0, Math.min(4, i));
-    C.dist = ZOOMS[C.zoomIdx];
-    C.place();
+    C.goal.dist = ZOOMS[C.zoomIdx];
   };
 
   C.nudgeZoom = function (d) {
@@ -104,13 +121,43 @@
     C.hover = cell;
     C.keepHover = !!keep;
     if (!cell) { C.hoverBox.visible = false; return; }
-    C.hoverBox.position.set(cell.x, cell.h + 0.012, cell.y);
+    /* 贴地高度必须走 R.hOf：cell.h 恒为 0.30，草地/林地/岩地比它高，
+       用逻辑高度画框会让框陷进方块里（草地那一圈几乎看不见）。 */
+    const top = (R.hOf && S.at(cell.x, cell.y)) ? R.hOf(S.at(cell.x, cell.y)) : cell.h;
+    C.hoverBox.position.set(cell.x, top + 0.012, cell.y);
     C.hoverBox.material.opacity = 0.85;
     C.hoverBox.material.color.set(0x8fd2e8);
     C.hoverBox.visible = true;
   };
 
   C.frame = function (now) {
+    /* 朝目标位姿缓动。指数趋近（1 − e^(−dt/τ)）而不是定速 lerp：
+       定速在掉帧时会变慢、在帧率稳定时又显得僵硬，指数永远同一个「手感时间」。 */
+    const g = C.goal, t = C.target;
+    const dt = glideLast ? Math.min(64, now - glideLast) : 16;
+    glideLast = now;
+    const k = 1 - Math.exp(-dt / 78);
+    let moving = false;
+    if (Math.abs(g.yaw - C.yaw) > 1e-4) { C.yaw += (g.yaw - C.yaw) * k; moving = true; }
+    if (Math.abs(g.pitch - C.pitch) > 1e-4) { C.pitch += (g.pitch - C.pitch) * k; moving = true; }
+    if (Math.abs(g.dist - C.dist) > 1e-3) { C.dist += (g.dist - C.dist) * k; moving = true; }
+    if (t) {
+      if (Math.abs(g.x - t.x) > 1e-3) { t.x += (g.x - t.x) * k; moving = true; }
+      if (Math.abs(g.y - t.y) > 1e-3) { t.y += (g.y - t.y) * k; moving = true; }
+      if (Math.abs(g.z - t.z) > 1e-3) { t.z += (g.z - t.z) * k; moving = true; }
+    }
+    if (moving) {
+      /* 收敛到阈内就吸附，否则永远差最后一点点、每帧都 place() 一次 */
+      if (Math.abs(g.yaw - C.yaw) < 1e-3) C.yaw = g.yaw;
+      if (Math.abs(g.pitch - C.pitch) < 1e-3) C.pitch = g.pitch;
+      if (Math.abs(g.dist - C.dist) < 1e-2) C.dist = g.dist;
+      if (t) {
+        if (Math.abs(g.x - t.x) < 1e-2) t.x = g.x;
+        if (Math.abs(g.y - t.y) < 1e-2) t.y = g.y;
+        if (Math.abs(g.z - t.z) < 1e-2) t.z = g.z;
+      }
+      C.place();
+    }
     R.faceCam(now);
     if (!C.hoverBox || !C.hoverBox.visible) return;
     C.hoverBox.material.opacity = C.keepHover ? 0.85 : C.hoverBox.material.opacity * 0.985;
@@ -140,6 +187,8 @@
         C.yaw += dx * 0.006 * C.sens;
         C.pitch = Math.max(0.16, Math.min(1.52, C.pitch + dy * 0.004 * C.sens));
         lx = e.clientX; ly = e.clientY;
+        /* 手在拖，就打断缓动：不打断的话每帧缓动会把镜头往旧目标拽一点，拖起来发涩 */
+        C.snapGoal();
         C.place();
       }
       if (!drag && hooks && hooks.onHover) {
@@ -155,6 +204,7 @@
       e.preventDefault();
       C.dist = Math.max(3, Math.min(34, C.dist + e.deltaY * 0.012 * C.sens));
       C.zoomIdx = null;
+      C.snapGoal();
       C.place();
     }, { passive: false });
   };

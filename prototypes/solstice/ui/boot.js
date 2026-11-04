@@ -79,8 +79,9 @@
     const x1 = right ? right.left - 24 : r.right - 60;
     const y1 = hand ? hand.top - 16 : r.bottom - 40;
     if (s.x > x0 && s.x < x1 && s.y > r.top + 56 && s.y < y1) return;
-    R.cam.target.set(cursor.x, 0.22, cursor.y);
-    R.cam.place();
+    /* 走缓动而不是瞬移：键盘每按一下都要把镜头「拽」一次的话，
+       连按 WASD 时画面是逐格抽搐的，看不出是自己走还是被打断。 */
+    R.cam.glideTo(cursor.x, 0.22, cursor.y);
   }
 
   function moveCursor(sx, sy) {
