@@ -114,14 +114,21 @@
     const card = W.hand[drag.i];
     const cvRect = SOL.render.canvas.getBoundingClientRect();
     const handRect = document.getElementById('handwrap').getBoundingClientRect();
-    const overCanvas = ev.clientX > cvRect.left && ev.clientX < cvRect.right &&
-      ev.clientY > cvRect.top && ev.clientY < cvRect.bottom;
+    /* 用 elementFromPoint 判「指针底下到底是什么」，而不是拿画布矩形去猜。
+       画布是整屏铺的，左右两栏和面板都浮在它上面——按矩形判会把「拖到右栏上」
+       也算成「在世界里」，牌就施到面板背后的格子里去了（第二轮自查实测：
+       拖到右栏松手，格数 81→94）。#ghost 是 pointer-events:none，不会干扰判定。 */
+    const hit = document.elementFromPoint(ev.clientX, ev.clientY);
+    const overCanvas = hit === SOL.render.canvas ||
+      (ev.clientX > cvRect.left && ev.clientX < cvRect.right &&
+       ev.clientY > cvRect.top && ev.clientY < cvRect.bottom &&
+       !hit);
     /* 「在世界里」= 画布内、且在 handwrap 上沿以上。
        手牌贴着屏幕底边，抬手去世界**必然是向上**——所以原来那条「向上拖 = 随机落点」
        （dy < -40）会抢在「拖到指定格」之前把每一次真实拖拽都吃掉，施卡主路径等于不存在
        （UI 评审 H01 / U25）。现在按**落点位置**分，不按方向：进了世界就是指定落点，
        留在手牌带里只有回收。随机落点退回 ✦ 按钮与空格。 */
-    const inWorld = overCanvas && ev.clientY < handRect.top - 8;
+    const inWorld = (hit === SOL.render.canvas) && ev.clientY < handRect.top - 8;
 
     drag.cell = null; drag.pt = null;
 
@@ -135,7 +142,10 @@
       SOL.render.marks.set(SOL.sim.castRange(card, cell));
       if (tip) {
         const op = card.sim.op;
-        tip.textContent = op === 'land' ? '松手在这片虚空造陆'
+        /* 「虚空造陆」只在真的是虚空时成立。已有地块的地方 opLand 会跳过甚至整体拒绝，
+           提示不能承诺一件不会发生的事（第二轮自查）。 */
+        tip.textContent = op === 'land' ? (cell ? '松手铺在 (' + cell.x + ', ' + cell.y + ') 周围'
+                                                  : '松手在这片虚空造陆')
           : op === 'law' || op === 'sun' ? '松手生效（不必指格子）'
           : cell ? '松手放在 (' + cell.x + ', ' + cell.y + ')'
           : '要放在已有地块上';

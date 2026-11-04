@@ -320,7 +320,29 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
       await page.waitForTimeout(220);
       const after = await page.evaluate(() => window.__dbg.S.W.cells.size);
       const ghosts = await page.evaluate(() => document.querySelectorAll('#ghost').length);
-      return { before, after, tip, ghosts, grew: after > before };
+
+      /* 反例：拖到右栏上松手，不许施卡。画布是整屏铺的，按矩形判「在世界里」
+         会把面板背后的格子也算进来（实测 81→94）。 */
+      const before2 = await page.evaluate(() => window.__dbg.S.W.cells.size);
+      const pn = await page.evaluate(() => {
+        const r = document.getElementById('rightpanel').getBoundingClientRect();
+        return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height * 0.4) };
+      });
+      const s2 = await page.evaluate(() => {
+        const b = document.querySelector('.handslot').getBoundingClientRect();
+        return { x: Math.round(b.x + b.width / 2), y: Math.round(b.y + b.height / 2) };
+      });
+      await page.mouse.move(s2.x, s2.y);
+      await page.mouse.down();
+      for (let i = 1; i <= 8; i++) {
+        await page.mouse.move(s2.x + (pn.x - s2.x) * i / 8, s2.y + (pn.y - s2.y) * i / 8);
+        await page.waitForTimeout(18);
+      }
+      await page.mouse.up();
+      await page.waitForTimeout(180);
+      const after2 = await page.evaluate(() => window.__dbg.S.W.cells.size);
+
+      return { before, after, tip, ghosts, grew: after > before, panelBefore: before2, panelAfter: after2 };
     } catch (e) { return { err: String(e && e.message) }; }
   })();
 
@@ -440,6 +462,9 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
   if (!dragCast.grew) errors.push('[assert] 拖到世界没有施卡（cells ' + dragCast.before + '→' + dragCast.after + '）：' + dragCast.tip);
   if (dragCast.tip && /随机/.test(dragCast.tip)) errors.push('[assert] 拖到世界仍被判成随机落点：' + dragCast.tip);
   if (dragCast.ghosts) errors.push('[assert] 松手后还留着 ' + dragCast.ghosts + ' 张拖影');
+  if (dragCast.panelAfter !== dragCast.panelBefore) {
+    errors.push('[assert] 拖到右栏上竟然施了卡：cells ' + dragCast.panelBefore + '→' + dragCast.panelAfter);
+  }
   if (mon.fmt.join('|') !== '1 月|6 月|12 月|1 年 1 月|1 年 12 月|2 年 1 月|2 年 7 月') {
     errors.push('[assert] 月份格式化不对：' + mon.fmt.join('|'));
   }
