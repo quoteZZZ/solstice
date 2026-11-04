@@ -293,15 +293,24 @@
     </div>`;
   }
 
+  /* 关系链的键名只有五个，全部来自 data/*.js 的 rel[].k */
+  const REL_LABEL = { sym: '共生', foe: '相冲', food: '食物', req: '需要', where: '落点' };
+
   function codexDetail(c) {
     return `<div style="display:flex;flex-direction:column;align-items:center">
         <div style="transform:scale(.86);transform-origin:top center;height:384px">${UI.cardFace(c, 'cx')}</div>
       </div>
       <div style="display:flex;justify-content:space-between;margin-top:2px;padding:9px 2px;
         border-top:1px solid var(--line-1);border-bottom:1px solid var(--line-1)">
-        ${[['◔', '半径', c.radius_w.toFixed(3) + ' W'],
-           ['⚠', '扰动', c.disturb == null ? '未定' : '+' + c.disturb],
-           ['↩', '回收', c.reclaim ? '+' + c.reclaim : '—']]
+        ${(() => {
+          /* 55 张卡里 disturb / cooldown 一张没填，界面却照着三格排版，
+             于是每个玩家都会看到「未定」「—」这两个占位符，还放大成主视觉（UI 评审 P20）。
+             有值才出行；一格时居中，不硬撑三栏。 */
+          const cells = [['◔', '半径', c.radius_w.toFixed(3) + ' W']];
+          if (c.disturb != null) cells.push(['⚠', '扰动', '+' + c.disturb]);
+          if (c.reclaim) cells.push(['↩', '回收', '+' + c.reclaim]);
+          return cells;
+        })()
           .map(([i, k, v]) => `<div style="text-align:center;flex:1">
             <div style="font-size:14px;color:var(--acc)">${i}</div>
             <div class="mono" style="font-size:12px;color:#e8eef4">${v}</div>
@@ -313,8 +322,14 @@
         ${UI.statsBlock(c)}
         ${(c.lore || []).map(l => `<div class="lore"><b>${l.k === 'habit' ? '习性' : l.k === 'behavior' ? '行为' : '传说'}</b>
           <span>${l.t}</span></div>`).join('')}
-        ${(c.rel || []).length ? `<div class="rel">${c.rel.map(r => `<span class="rl">${r.k}<b
-          data-card="${r.to}">${(D.byId.get(r.to) || { name: { zh: '?' } }).name.zh}</b></span>`).join('')}</div>` : ''}
+        ${(c.rel || []).length ? `<div class="rel">${c.rel.map(r => {
+          /* 原来直接把 r.k 印出来，玩家看到的是「sym 产氧」「req 湿地」——数据里的键名（UI 评审 §1.5 / F32）。
+             note 字段一直有数据却从没渲染过，一并补上。 */
+          const lab = REL_LABEL[r.k];
+          const nm = (D.byId.get(r.to) || { name: { zh: '?' } }).name.zh;
+          return `<span class="rl">${lab ? '<em>' + lab + '</em>' : ''}<b data-card="${r.to}">${nm}</b>` +
+            (r.note ? '<i>' + r.note + '</i>' : '') + '</span>';
+        }).join('')}</div>` : ''}
       </div>
       <div class="cdx">
         <div class="mono xs" style="color:var(--acc);letter-spacing:.1em">完整效果</div>

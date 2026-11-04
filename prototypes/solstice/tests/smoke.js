@@ -395,6 +395,22 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     return out;
   });
 
+  /* 10.7 图鉴详情：关系链要有中文标签、不许漏内部键名；没有值的指标不再占位 */
+  const ux4 = await page.evaluate(() => {
+    const { UI, D } = window.__dbg;
+    const out = {};
+    /* 挑一张带 rel 的卡：水族里第一个有 rel 的 */
+    const withRel = Array.from(D.byId.values()).find(c => (c.rel || []).length);
+    UI.openCard(withRel.id);
+    const body = document.getElementById('pbody').textContent;
+    out.card = withRel.name.zh;
+    out.relRaw = /(^|[^a-z])(sym|foe|req|where|food)([^a-z]|$)/.test(body);
+    out.relLabel = /共生|相冲|食物|需要|落点/.test(body);
+    out.noteShown = withRel.rel.some(r => r.note && body.indexOf(r.note) >= 0);
+    out.placeholder = body.indexOf('未定') >= 0;
+    return out;
+  });
+
   /* 11. 断言：上面几段是读数，这里决定退不退 0 */
   if (!table.reclaimOk) errors.push('[assert] reclaim 与环级表不一致');
   if (!(undoGuard.guard && undoGuard.ok2 && !undoGuard.ok3)) errors.push('[assert] 撤销守卫失效（应拒绝无回执/重复撤销）');
@@ -409,6 +425,10 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
   if (!dragCast.grew) errors.push('[assert] 拖到世界没有施卡（cells ' + dragCast.before + '→' + dragCast.after + '）：' + dragCast.tip);
   if (dragCast.tip && /随机/.test(dragCast.tip)) errors.push('[assert] 拖到世界仍被判成随机落点：' + dragCast.tip);
   if (dragCast.ghosts) errors.push('[assert] 松手后还留着 ' + dragCast.ghosts + ' 张拖影');
+  if (ux4.relRaw) errors.push('[assert] 图鉴详情把内部键名印出来了（' + ux4.card + '）');
+  if (!ux4.relLabel) errors.push('[assert] 图鉴详情的关系链没有中文标签（' + ux4.card + '）');
+  if (!ux4.noteShown) errors.push('[assert] 关系链的 note 没有渲染（' + ux4.card + '）');
+  if (ux4.placeholder) errors.push('[assert] 图鉴详情仍有「未定」占位：' + ux4.card);
   if (ux3.inHead !== 1) errors.push('[assert] 面板打开时提示没有进 #phead：' + ux3.inHead);
   if (ux3.inStack !== 0) errors.push('[assert] 面板打开时提示仍发到全屏顶部（会压面板）');
   if (ux3.outside !== 1) errors.push('[assert] 没有面板时提示没回到顶部栈');
@@ -427,7 +447,7 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     errors.push('[assert] 事件弹窗不在视口内：' + JSON.stringify(panels.eventBox));
   }
 
-  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, fixes, dragCast, ux3, errors };
+  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, fixes, dragCast, ux3, ux4, errors };
   fs.writeFileSync(path.join(__dirname, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 1));
 

@@ -237,14 +237,15 @@
         </div>
         <div style="margin-top:4px">
           ${Object.keys(kinds).map(k => `<div class="row" style="justify-content:space-between;padding:1px 0">
-            <span class="xs"><i style="display:inline-block;width:6px;height:6px;border-radius:1px;
-              background:${KIND_COL[k]};margin-right:5px"></i>${KIND_LABEL[k]}</span>
+            <span class="xs"><i style="display:inline-block;width:8px;height:8px;border-radius:2px;
+              background:${KIND_COL[k]};box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);margin-right:5px"></i>${KIND_LABEL[k]}</span>
             <span class="mono xs" style="color:var(--ink-3)">${Math.round(kinds[k] / total * 100)}%</span></div>`).join('')}
         </div>
         <div class="row" style="justify-content:space-between;margin-top:8px;padding-top:7px;border-top:1px solid var(--line-1)">
           ${[['植物', life.flora, '#5e8f47'], ['动物', life.fauna, 'var(--gold)'], ['智慧', life.sapient, '#e0d6b8']]
+            /* 0 值原来画一颗暗灰圆点，读起来像「还在加载」（UI 评审 U18）；改成一道短横。 */
             .map(([k, v, c]) => `<div style="text-align:center;flex:1">
-              <div style="font-size:11px;color:${v ? c : '#59646f'}">●</div>
+              <div style="font-size:11px;color:${v ? c : 'var(--ink-4)'}">${v ? '●' : '–'}</div>
               <div class="mono" style="font-size:11px;color:${v ? 'var(--ink-1)' : 'var(--ink-4)'}">${v}</div>
               <div style="font-size:11px;color:var(--ink3)">${k}</div></div>`).join('')}
         </div>
