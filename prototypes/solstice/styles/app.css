@@ -357,7 +357,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg-0);color:var(--ink-2);
   /* .82 时正文只剩 9.8px（UI 评审 E16），抬到 .88；重叠从 20% 涨到 23%，
      但名字居中永远露得出来，缺的是字而不是位置。 */
   :root{ --right:268px; --s-6:12px; --s-7:18px; --hand-scale:.88; }
-  #log{display:none}
+  /* 原来这里直接把世界 log 整段 display:none：1080 宽下「刚刚发生了什么」就只剩
+     右栏那条按月过期的痕迹列表，施卡/灾害的即时文本没有出口（第二轮回归观察）。
+     改成压成 3 行的窄条，最新一条在最上面（column-reverse），盖住的面积比右栏少一半。 */
+  /* 条数由 UI.log 按视口裁（窄屏 3 条），这里只负责变窄，不靠 overflow 裁——
+     column-reverse + overflow 到底裁掉哪三行是反直觉的，实测过不可靠。 */
+  #log{width:176px;line-height:1.55}
   .stats{gap:var(--s-4)}
   .rp{padding:var(--s-4)}
 }

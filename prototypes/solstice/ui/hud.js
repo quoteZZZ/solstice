@@ -74,7 +74,10 @@
     d.textContent = msg;
     box.appendChild(d);
     setTimeout(() => d.remove(), 4600);
-    while (box.children.length > 8) box.removeChild(box.firstChild);
+    /* 窄屏只留 3 条：1080 宽下这块压在世界上，8 条会把左半边铺满。
+       宽屏仍是 8 条。 */
+    const cap = window.innerWidth <= 1080 ? 3 : 8;
+    while (box.children.length > cap) box.removeChild(box.firstChild);
   };
 
   UI.toast = function (t, d, act) {
