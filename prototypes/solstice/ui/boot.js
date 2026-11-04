@@ -129,10 +129,19 @@
       return;
     }
 
-    /* div 做的按钮不会自己响应 Enter / 空格，这里补上——不然键盘用户 Tab 到了也按不动 */
+    /* 焦点在真正的 <button> 上时，Enter / 空格是它自己的：这里必须直接放行。
+       原来顶栏「2×」按空格不换档、焦点在「抽包」上按 Enter 反倒在世界里施了张卡
+       （第二轮 K08）——因为世界分支把这两个键抢走了，原生激活永远等不到。 */
+    const aeb = document.activeElement;
+    if ((ev.key === 'Enter' || ev.key === ' ') && aeb && aeb.tagName === 'BUTTON' && !aeb.disabled) {
+      return;
+    }
+
+    /* div 做的按钮不会自己响应 Enter / 空格，这里补上——不然键盘用户 Tab 到了也按不动。
+       右栏「年表 ▸」是 span，靠 data-chron 走同一条路（第二轮 K07）。 */
     const ae = document.activeElement;
     if ((ev.key === 'Enter' || ev.key === ' ') && ae && ae.dataset &&
-        (ae.dataset.act || ae.dataset.panel)) {
+        (ae.dataset.act || ae.dataset.panel || ae.dataset.chron)) {
       ev.preventDefault(); ae.click(); return;
     }
 

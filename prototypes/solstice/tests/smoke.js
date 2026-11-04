@@ -605,6 +605,30 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     return { onOpen, trapped, afterRerender, hand };
   })();
 
+  /* 10.13 顶栏与右栏的键盘：按钮该自己响应，世界不许抢（第二轮 K07 / K08） */
+  const barKeys = await (async () => {
+    await page.evaluate(() => { const { UI, S, D } = window.__dbg; UI.closePanel(); S.cmd.gear(1); S.W.essence = 99;
+      window.__c = 0; const o = UI.cast; UI.uiCastOrig = UI.uiCastOrig || o;
+      UI.cast = function () { window.__c++; return o.apply(this, arguments); };
+      UI.updateHud(); });
+    await page.evaluate(() => document.getElementById('bPack').focus());
+    const cells0 = await page.evaluate(() => window.__dbg.S.W.cells.size);
+    await page.keyboard.press('Enter'); await page.waitForTimeout(220);
+    const packKey = await page.evaluate(() => ({ panel: window.__dbg.UI.state.panel, casts: window.__c, cells: window.__dbg.S.W.cells.size }));
+    await page.evaluate(() => window.__dbg.UI.closePanel());
+    await page.waitForTimeout(120);
+    const chronFocusable = await page.evaluate(() => {
+      const el = document.querySelector('[data-chron="1"]');
+      if (!el) return false;
+      el.focus();
+      return document.activeElement === el;
+    });
+    await page.keyboard.press('Enter'); await page.waitForTimeout(200);
+    const chronOpened = await page.evaluate(() => window.__dbg.UI.state.panel);
+    await page.evaluate(() => window.__dbg.UI.closePanel());
+    return { packKey, cells0, chronFocusable, chronOpened };
+  })();
+
   /* 11. 断言：上面几段是读数，这里决定退不退 0 */
   if (!table.reclaimOk) errors.push('[assert] reclaim 与环级表不一致');
   if (!(undoGuard.guard && undoGuard.ok2 && !undoGuard.ok3)) errors.push('[assert] 撤销守卫失效（应拒绝无回执/重复撤销）');
@@ -622,6 +646,12 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
   if (spaceInPanel.after.tab === spaceInPanel.setup.tab) {
     errors.push('[assert] 面板里按空格没有激活按钮（页签没切）');
   }
+  if (barKeys.packKey.panel !== 'pack') errors.push('[assert] 焦点在「抽包」上按 Enter 没打开面板');
+  if (barKeys.packKey.casts !== 0 || barKeys.packKey.cells !== barKeys.cells0) {
+    errors.push('[assert] 按 Enter 打开面板时空格抢去施卡了：' + JSON.stringify(barKeys.packKey));
+  }
+  if (!barKeys.chronFocusable) errors.push('[assert] 右栏「年表 ▸」不可聚焦');
+  if (barKeys.chronOpened !== 'chron') errors.push('[assert] 「年表 ▸」按 Enter 没打开年表');
   if (!focusModel.onOpen) errors.push('[assert] 面板打开后焦点没有进面板');
   if (!focusModel.trapped) errors.push('[assert] Tab 能跑出面板（焦点陷阱失效）');
   if (!focusModel.afterRerender.inPanel) errors.push('[assert] 面板内重绘后焦点掉回背景');
@@ -686,7 +716,7 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     errors.push('[assert] 事件弹窗不在视口内：' + JSON.stringify(panels.eventBox));
   }
 
-  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, fixes, dragCast, ux3, ux4, mon, narrowFit, spaceInPanel, eventModal, focusModel, errors };
+  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, fixes, dragCast, ux3, ux4, mon, narrowFit, spaceInPanel, eventModal, focusModel, barKeys, errors };
   fs.writeFileSync(path.join(__dirname, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 1));
 

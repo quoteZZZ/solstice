@@ -297,7 +297,7 @@
       <div class="rp grow">
         <div class="row" style="justify-content:space-between;align-items:baseline">
           <span class="h" style="margin:0">痕迹 · 刚刚发生</span>
-          <span class="xs" style="cursor:pointer" data-chron="1">年表 ▸</span>
+          <span class="xs" role="button" tabindex="0" style="cursor:pointer" data-chron="1">年表 ▸</span>
         </div>
         <div style="margin:6px 0 9px">
           ${traces.length ? traces.map(t => `<div class="rowline" style="cursor:pointer" data-trace="${t.idCard}">
