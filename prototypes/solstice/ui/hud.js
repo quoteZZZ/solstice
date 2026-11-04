@@ -124,6 +124,14 @@
   };
 
   /* ── 顶栏数值 ── */
+  /* 全站唯一的月份写法。W.month 是 0 起：0 →「1 月」，11 →「12 月」，12 →「1 年 1 月」。
+     原来四个地方各写各的（顶栏 0 年 1 月 / 年表 第 24 月 / 图鉴 第 24 月 / 纪年第 2.5 年），
+     同一时刻对不上（UI 评审 U21）。 */
+  UI.mon = function (m) {
+    const y = Math.floor(m / 12), mo = (m % 12) + 1;
+    return y ? y + ' 年 ' + mo + ' 月' : mo + ' 月';
+  };
+
   UI.updateHud = function () {
     const year = document.getElementById('cYear');
     if (!year) return;
@@ -280,7 +288,7 @@
             const col = UI.CHRON_COL[c.kind] || '#3f7fa8';
             return `<div class="it" style="--dot:${col}" data-chron-item="${c.month}">
               <div class="xs"><span style="color:${col};margin-right:4px">${UI.CHRON_ICON[c.kind] || '·'}</span>
-                第 ${c.month} 月</div>
+                ${UI.mon(c.month)}</div>
               <div class="t" style="font-size:13px">${c.text}</div>
               <div class="xs" style="color:var(--ink4)">${c.kind}</div></div>`;
           }).join('') || '<div class="xs">年表还空着</div>'}

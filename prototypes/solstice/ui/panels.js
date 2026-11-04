@@ -27,7 +27,9 @@
        只有在没有待挑的牌时才回到封口状态。 */
     if (p === 'pack' && !(UI.packCards && UI.packCards.length)) UI.packStage = 0;
     UI.renderOverlay();
-    UI.log('打开：' + (UI.PANEL_LABEL[p] || p), true);
+    /* 原来这里往世界 log 里写一条「打开：年表」。世界 log 是「刚刚世界上发生了什么」，
+       开面板是玩家自己的操作，写进去会把真实事件挤掉（UI 评审 E13 / U13）。
+       开没开面板，面板本身就是反馈。 */
   };
 
   UI.closePanel = function () {
@@ -243,7 +245,7 @@
       <div class="axn">${a.name}</div>
       <div class="axj">${a.hint}</div>
       ${a.need ? `<div class="axp"><i style="width:${pct.toFixed(1)}%"></i></div>` : ''}
-      <div class="axf">${lit ? '第 ' + at.month + ' 月 · ' + at.world
+      <div class="axf">${lit ? UI.mon(at.month) + ' · ' + at.world
         : a.need ? st + ' / ' + a.need + ' 月' : '未点亮'}</div>
     </div>`;
   }
@@ -408,7 +410,7 @@
 
   function monthSpan(r) {
     const a = r.items[r.items.length - 1].month, b = r.items[0].month;
-    return a === b ? '第 ' + a + ' 月' : '第 ' + a + '–' + b + ' 月';
+    return a === b ? UI.mon(a) : UI.mon(a) + '–' + UI.mon(b);
   }
 
   /* ── 设置：每一项都真的接线到渲染或 sim ── */

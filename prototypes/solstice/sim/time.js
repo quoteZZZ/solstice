@@ -54,8 +54,10 @@
        而玩家真正想知道的是「第六年这一界长成了什么样」。 */
     if (W.month % 12 === 0 && W.cells.size) {
       const life = S.lifeStats();
-      S.addChron('纪年', '第 ' + (W.month / 12) + ' 年 · ' + W.cells.size + ' 格 · 植物 ' +
-        life.flora + ' 种 · 兽 ' + life.fauna + ' 种');
+      /* 原来这里是 '第 ' + (W.month / 12) + ' 年'：month=30 会印出「第 2.5 年」。
+         而且行首本来就有时间列，年份等于写了两遍（UI 评审 U21 / P14 / E39）。
+         时间交给 UI 的 UI.mon() 统一格式化，正文只留世界读数。 */
+      S.addChron('纪年', W.cells.size + ' 格 · 植物 ' + life.flora + ' 种 · 兽 ' + life.fauna + ' 种');
     }
 
     S.monthChanged = true;

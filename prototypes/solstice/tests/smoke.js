@@ -411,6 +411,21 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     return out;
   });
 
+  /* 10.8 月份写法：全站一个来源，且不能出现小数年 */
+  const mon = await page.evaluate(() => {
+    const { UI, S, W } = window.__dbg;
+    const out = {};
+    out.fmt = [0, 5, 11, 12, 23, 24, 30].map(m => UI.mon(m));
+    /* 推到下一年，逼出一条「纪年」，再看它有没有印小数年 / 有没有重复年份 */
+    W.month = 47; W.cells.size = 25;
+    for (let i = 0; i < 3; i++) S.tick();
+    const years = W.chron.filter(c => c.kind === '纪年');
+    out.yearCount = years.length;
+    out.yearText = years.length ? years[years.length - 1].text : '';
+    out.decimalAnywhere = W.chron.some(c => /\d+\.\d+\s*年/.test(c.text));
+    return out;
+  });
+
   /* 11. 断言：上面几段是读数，这里决定退不退 0 */
   if (!table.reclaimOk) errors.push('[assert] reclaim 与环级表不一致');
   if (!(undoGuard.guard && undoGuard.ok2 && !undoGuard.ok3)) errors.push('[assert] 撤销守卫失效（应拒绝无回执/重复撤销）');
@@ -425,6 +440,13 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
   if (!dragCast.grew) errors.push('[assert] 拖到世界没有施卡（cells ' + dragCast.before + '→' + dragCast.after + '）：' + dragCast.tip);
   if (dragCast.tip && /随机/.test(dragCast.tip)) errors.push('[assert] 拖到世界仍被判成随机落点：' + dragCast.tip);
   if (dragCast.ghosts) errors.push('[assert] 松手后还留着 ' + dragCast.ghosts + ' 张拖影');
+  if (mon.fmt.join('|') !== '1 月|6 月|12 月|1 年 1 月|1 年 12 月|2 年 1 月|2 年 7 月') {
+    errors.push('[assert] 月份格式化不对：' + mon.fmt.join('|'));
+  }
+  if (mon.decimalAnywhere) errors.push('[assert] 年表出现小数年');
+  if (mon.yearCount && mon.yearText.indexOf('年') >= 0) {
+    errors.push('[assert] 纪年正文还在重复年份：' + mon.yearText);
+  }
   if (ux4.relRaw) errors.push('[assert] 图鉴详情把内部键名印出来了（' + ux4.card + '）');
   if (!ux4.relLabel) errors.push('[assert] 图鉴详情的关系链没有中文标签（' + ux4.card + '）');
   if (!ux4.noteShown) errors.push('[assert] 关系链的 note 没有渲染（' + ux4.card + '）');
@@ -447,7 +469,7 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     errors.push('[assert] 事件弹窗不在视口内：' + JSON.stringify(panels.eventBox));
   }
 
-  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, fixes, dragCast, ux3, ux4, errors };
+  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, fixes, dragCast, ux3, ux4, mon, errors };
   fs.writeFileSync(path.join(__dirname, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 1));
 
