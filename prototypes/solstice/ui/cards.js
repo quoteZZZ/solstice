@@ -86,11 +86,11 @@ SOL.ui = SOL.ui || {};
   /* 卡库的收藏格要一块缩略插画，跟卡面同一套（同一个函数，不另画一种图） */
   UI.artSVG = artSVG;
 
-  UI.cardFace = function (card, uid, mode) {
+  UI.cardFace = function (card, uid, mode, life) {
     uid = uid || (++UI._uid);
     /* 手牌按「此刻能不能打」降饱和；抽包面板里不这么做——
        抽包时玩家判断的是这张卡值不值，不是现在打不打得了（REVIEW-DEMO #13）。 */
-    if (mode === 'h') return handFace(card, uid, SOL.sim.playable(card));
+    if (mode === 'h') return handFace(card, uid, SOL.sim.playable(card, life));
     if (mode === 'p') return handFace(card, uid, true);
     const ringc = RINGC[Math.min(10, card.tier)];
     const bars = Array.from({ length: 12 }, (_, i) => `<i class="${i <= card.tier ? 'on' : ''}"></i>`).join('');

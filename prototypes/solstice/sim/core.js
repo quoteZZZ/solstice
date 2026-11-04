@@ -12,7 +12,8 @@ SOL.sim = SOL.sim || {};
     hour: 6,                   // 表现钟：90 秒 = 1 天，只喂雾 / 昼夜表现，不参与结算
     essence: 0, essAcc: 0,     // 时素
     pity: 0,                   // 连续没抽到高环的次数（旱情补偿，见 cast.js）
-    sun: 0,                    // 太阳卡累计
+    sun: 0,                    // 太阳卡累计（光照叠加，最多 3）
+    sunTemp: 0,                // 太阳带来的基准温度（只加一次，见 cast.js opSun）
     law: { lifeX: 1, propX: 1, evapX: 1, lightOff: 0 },
     speed: 1, paused: true,
     hand: [], sel: -1,
@@ -140,12 +141,16 @@ SOL.sim = SOL.sim || {};
     for (const n of S.nb(cell)) n.kind = S.classify(n);
   };
 
+  /* 地形表：h 是**表现高度**（render 读它决定方块多高），col 是底色。
+     两者都只有表现层在消费，但放在 sim 里是因为 kind 由 sim 判（X-6）——
+     分开两处写会分叉：曾经 render 自己抄了一份高度表，改了一处忘另一处。
+     h 的差值就是玩家能看见的高差：水面最低、岩最高，草地/林地比裸地高一点。 */
   S.TERRAIN = {
-    land:  { h: 0.30, col: 0x4a4232 },
-    water: { h: 0.11, col: 0x15394a },
-    rock:  { h: 0.62, col: 0x434b55 },
-    grass: { h: 0.34, col: 0x1b3120 },
-    forest:{ h: 0.40, col: 0x142718 }
+    land:  { h: 0.30, col: 0x5c5340 },
+    water: { h: 0.08, col: 0x1b4a60 },
+    rock:  { h: 0.62, col: 0x535d69 },
+    grass: { h: 0.36, col: 0x25452c },
+    forest:{ h: 0.44, col: 0x1c3520 }
   };
 
   /* ───────────────── 实体 ───────────────── */
@@ -164,6 +169,7 @@ SOL.sim = SOL.sim || {};
       grow: sp.grow || 0,
       edible: sp.edible || 0,
       propag: sp.propag || 0,
+      minW: sp.minW || 1,          // 繁殖需要的最低水量（卡面按物种写的门槛，见 eco.js）
       size: sp.size || 1,
       diet: sp.diet || null,
       speed: sp.speed || 1,
@@ -222,7 +228,7 @@ SOL.sim = SOL.sim || {};
      重掷 = 重新播种，所以同一个 world.seed 必然重置出同一个世界。 */
   S.resetWorld = function (world) {
     W.cells.clear();
-    W.month = 0; W.hour = 6; W.essence = 0; W.essAcc = 0; W.sun = 0; W.pity = 0;
+    W.month = 0; W.hour = 6; W.essence = 0; W.essAcc = 0; W.sun = 0; W.sunTemp = 0; W.pity = 0;
     W.recycleLog = null;
     W.law = { lifeX: 1, propX: 1, evapX: 1, lightOff: 0 };
     W.traces = []; W.traceSeq = 0; W.chron = []; W.sapient = 0;

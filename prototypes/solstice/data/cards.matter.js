@@ -7,7 +7,7 @@ SOL.data.matter = [
   {
     id:'sky.light.0.matter.sun', name:{zh:'太阳',en:'Sun'}, title:'世界的第一道光',
     slug:'sun', elements:['光'], tier:0, class:'matter',
-    line:{ fx:'升起光源：全图光照 +1、温度 +0.5；可叠加三次。',
+    line:{ fx:'升起光源：全图光照 +1（可叠三次），基准温度 +0.5（只加一次）。',
       cond:[], num:[{k:'光照',v:'+1'},{k:'温度',v:'+0.5'},{k:'上限',v:'3 次'}],
       hl:['+1'] },
     radius_w:0.02, value:4,
@@ -315,7 +315,7 @@ SOL.data.matter = [
   {
     id:'flora.light.2.matter.rowan', name:{zh:'花楸',en:'Rowan'}, title:'果熟时招来候鸟',
     slug:'rowan', elements:['木','光'], tier:2, class:'matter',
-    line:{ fx:'春开白花、秋结红果；果期候鸟把种子带走 0.02 W。',
+    line:{ fx:'春开白花、秋结红果；果熟后种子被带走，约 18 月向邻格播一株。',
       cond:['需林缘','附近有晨鸟'], num:[{k:'寿命',v:'160 月'},{k:'果期',v:'20 月'},{k:'传播',v:'0.02 W'}],
       hl:['红果'] },
     radius_w:0.03, value:14,
@@ -323,7 +323,7 @@ SOL.data.matter = [
     lore:[{k:'habit',t:'花楸春天开一树白，秋天落一地红。果实是给鸟的报酬。' },
       {k:'behavior',t:'鸟吃完果子把种子带到别处——这是花楸唯一会「走路」的方式。'}],
     effect:[{k:'季节',v:'春为白花、秋为红果，其余季节只有枝。'},
-      {k:'传播',v:'果期且有晨鸟时，每季向邻格播一株。'},
+      {k:'传播',v:'约 18 月一次向邻格播一株（速度只看 propag，不要求有鸟）。'},
       {k:'进化',v:'生物量足够且满 5 年 → 古树（暂未实装）。'}],
     rel:[{k:'sym',to:'fauna.light.3.matter.lark',note:'吃果传播'}],
     usage:'想让它自己走远，就先放晨鸟。',
@@ -351,7 +351,7 @@ SOL.data.matter = [
     flavor:{zh:'它长在水犹豫的地方。'},
     art:{sigil:'水',palette:['#081419','#4a7350','#0d1a1e']},
     runtime:{tags:['grower','living','edible','waterkeep'], gate:'flora'},
-    species:{lifespan:40,grow:0.8,edible:1,propag:5,size:2,shape:'grass'},
+    species:{lifespan:40,grow:0.8,edible:1,propag:5,minW:1.5,size:2,shape:'grass'},
     sim:{op:'spawn'}
   },
   {
@@ -402,7 +402,7 @@ SOL.data.matter = [
   {
     id:'fauna.wood.1.matter.monkey', name:{zh:'猴',en:'Monkey'}, title:'成群，会攀爬',
     slug:'monkey', elements:['木','暗'], tier:1, class:'matter',
-    line:{ fx:'食草，速度 2，缺食时掉血；给「启智」后行为彻底改变。',
+    line:{ fx:'食草，速度 2，缺食时掉血；是「启智」唯一认可的对象。',
       cond:['需有植物','生命层：动物'], num:[{k:'速度',v:'2'},{k:'寿命',v:'60 月'},{k:'启智',v:'可'}],
       hl:['启智'] },
     radius_w:0.012, value:6,
@@ -607,7 +607,7 @@ SOL.data.matter = [
   {
     id:'terrain.water.6.matter.waterfall', name:{zh:'瀑布',en:'Waterfall'}, title:'水从高处下来',
     slug:'waterfall', elements:['水'], tier:6, class:'matter',
-    line:{ fx:'本格成为强水源并抬高 0.02 W；相邻四格供水翻倍。',
+    line:{ fx:'本格成为强水源（+1.5 水），四邻溅湿 +0.8；本格抬高一层。',
       cond:['需已有地块'], num:[{k:'供水',v:'+1.5/月'},{k:'抬高',v:'0.02 W'},{k:'溅湿',v:'4 格'}],
       hl:['强水源'] },
     radius_w:0.165, value:44,
@@ -622,6 +622,6 @@ SOL.data.matter = [
     flavor:{zh:'水只会从挡不住的地方下来。'},
     art:{sigil:'水',palette:['#071620','#3f8fab','#0a1a22']},
     runtime:{tags:['watersource','container']},
-    sim:{op:'spring', strong:1.5}
+    sim:{op:'spring', strong:1.5, spill:0.8, rise:0.05, needW:true}
   }
 ];

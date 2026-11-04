@@ -195,9 +195,9 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     const e1 = W.essence;
     S.cmd.essenceTick(10000);
     out.fast = W.essence - e1;
-    /* 世界档位只影响月数，不影响时素 */
+    /* 世界档位只影响月数，不影响时素。一个月是 S.MONTH_MS 毫秒，4× 走同样长的一段真实时间应该推进 4 个月 */
     const m0 = W.month;
-    S.cmd.advance(1000);
+    S.cmd.advance(S.MONTH_MS);
     out.monthsAt4x = W.month - m0;
     S.cmd.gear(1);
     return out;

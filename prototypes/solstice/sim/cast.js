@@ -302,6 +302,9 @@
 
     if (cell) S.addTrace(card, cell);
     if (cell) S.classifyAround(cell);      // 地形由 sim 判，render 只读（REVIEW-DEMO X-6）
+    /* 施卡成功是「一次事件」，不只是「状态变了一下」：表现层要能对同一个瞬间做反馈
+       （落点扩散环）。挂在注册表上，render 订阅，不必让 ui 记得去通知画面。 */
+    S.emit('cast', { x: x, y: y, card: card, op: op, cell: cell });
     /* 年表只记"世界变了形"的施卡：长出地块、改了全局律。
        原条件是 (size!==before || cell)，后半恒真 → 每张卡都进年表，一晚 71 条（REVIEW-DEMO C 段）。 */
     const shaped = W.cells.size !== before || op === 'law' || op === 'field' || op === 'sun';
@@ -326,6 +329,9 @@
       if (rise) { c.h = Math.min(0.9, c.h + rise); c.mods.t -= cooling; if (dry) c.W = Math.max(0, c.W - dry); }
       if (card.sim.edgeFog && (Math.abs(dx) === size || Math.abs(dy) === size)) {
         c.mods.l -= 0.2; c.W = Math.min(3, c.W + 0.2);
+        /* 边缘要能看见：卡面写「边缘的雾不是装饰」，可原来这一圈除了数值之外
+           和里面一模一样。给个持久标记，render 把它往背景色压，外圈自然收进雾里。 */
+        c.flags.edge = true;
       }
       made++;
     }
@@ -335,15 +341,24 @@
 
   function opSun(card) {
     W.sun = Math.min(3, W.sun + 1);
+    /* 卡面写「温度 +0.5（只加一次）」，而这里原来只加光照——于是「第二次升太阳只会让
+       阴影更硬，温度不再涨」这句设定在代码里找不到任何依据。现在两次都真加。 */
+    if (!W.sunTemp) W.sunTemp = 0.5;
     S.log('太阳升起 · 光照 ' + W.sun);
     return { ok: true };
   }
 
   function opSpring(card, cell) {
     if (cell.ents.some(e => e.tags.includes('watersource'))) return { ok: false, msg: '这一格已经有水源' };
+    /* 「水为 0 的地块无法形成瀑布」——卡面写死的限制，之前没有任何地方判它 */
+    if (card.sim.needW && cell.W <= 0) return { ok: false, msg: '干地成不了水——先给水或下一场雨' };
     const e = S.spawn(card, cell, { ground: true });
     e.tags = e.tags.slice();
     cell.W = Math.min(3, cell.W + (card.sim.strong || 1));
+    /* 瀑布与溅水的四邻供水。原来只有本格那一下，卡面承诺的「四邻 +0.8」是空的。 */
+    if (card.sim.spill) for (const n of S.nb(cell)) n.W = Math.min(3, n.W + card.sim.spill);
+    /* 「本格抬高」：写 cell.h 而不是 mods —— 抬高是地形，会改变方块高度与界缘线 */
+    if (card.sim.rise) cell.h = Math.min(0.9, cell.h + card.sim.rise);
     return { ok: true };
   }
 
@@ -435,8 +450,10 @@
     if (m.l) cell.mods.l += m.l;
     if (m.evap) cell.mods.evap *= m.evap;
     if (m.flag) cell.flags[m.flag] = true;
+    /* 邻格两个通道分开写。原来 neighbors 只有「邻格光照」一条路，而引流卡写的是
+       `neighbors:0.4` 想加水量——于是它一直在改邻格的光照，水一格没多。 */
     if (m.neighbors) for (const n of S.nb(cell)) n.mods.l += m.neighbors;
-    if (m.flag === 'wetland') for (const n of S.nb(cell)) n.W = Math.min(3, n.W + 0.3);
+    if (m.nbW) for (const n of S.nb(cell)) n.W = Math.min(3, n.W + m.nbW);
     return { ok: true };
   }
 

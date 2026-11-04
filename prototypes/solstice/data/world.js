@@ -30,6 +30,23 @@ SOL.data.world = {
 
   climates: ['热带雨林','热带季风','沙漠','地中海','温带海洋','温带大陆','寒温带针叶','极地苔原','高原'],
 
+  /* 气候 → 结算通道。九种气候本来是九个纯字符串，选哪个世界跑起来一模一样
+     （只有剖面图上的一行字不同）。这里给每种气候一套乘子，由 time.js 的 startWorld
+     写进 W.effects，eco.js 读它算温度 / 生长 / 繁殖 / 降水 / 蒸发 / 光照。
+     温带海洋是全 1 / 全 0 的基准值——它就是「没有气候加成」的那一种。
+     数值刻意做得温和：气候是背景条件，不该压过卡的效果。 */
+  climateFx: {
+    '热带雨林':   { temp: 8,  grow: 1.35, propag: 1.20, rain: 1.50, evap: 1.00, light: 0 },
+    '热带季风':   { temp: 6,  grow: 1.20, propag: 1.10, rain: 1.30, evap: 1.15, light: 0 },
+    '沙漠':       { temp: 10, grow: 0.55, propag: 0.70, rain: 0.25, evap: 1.80, light: 0.1 },
+    '地中海':     { temp: 4,  grow: 0.90, propag: 1.00, rain: 0.85, evap: 1.25, light: 0.05 },
+    '温带海洋':   { temp: 0,  grow: 1.00, propag: 1.00, rain: 1.00, evap: 1.00, light: 0 },
+    '温带大陆':   { temp: -2, grow: 0.90, propag: 0.95, rain: 0.80, evap: 1.05, light: 0 },
+    '寒温带针叶': { temp: -8, grow: 0.70, propag: 0.85, rain: 0.90, evap: 0.70, light: -0.05 },
+    '极地苔原':   { temp: -16,grow: 0.40, propag: 0.50, rain: 0.60, evap: 0.40, light: 0 },
+    '高原':       { temp: -6, grow: 0.65, propag: 0.80, rain: 0.70, evap: 1.30, light: 0.15 }
+  },
+
   /* 特征：一条特征必须能被世界读到，否则不进列表。
      `wired:true` = 有结算消费者（time.js 的 W.effects 或 cast.js 的 op）；
      `wired:false` = 只在剖面图里出现，UI 必须明写「仅剖面」，不能假装生效。

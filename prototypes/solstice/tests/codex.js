@@ -82,15 +82,16 @@ function ok(name, cond, note) {
   ok('只有泉不算旱涝同界', !S.codex.on.has('aqua.split'));
 }
 
-/* ── 4 旱涝同界：泉在一头，另一头烧两次 ── */
+/* ── 4 旱涝同界：泉在一头，另一头烧到见底 ── */
 {
   const { S, D } = boot();
   CAST(S, D, 'terrain.earth.0.matter.land');
   CAST(S, D, 'terrain.mineral.0.matter.water');
   for (let i = 0; i < 6; i++) S.tick();
   ok('全湿还不算同界', !S.codex.on.has('aqua.split'));
-  CAST(S, D, 'rite.fire.1.rite.fire', 2, 2);
-  CAST(S, D, 'rite.fire.1.rite.fire', 2, 2);
+  /* 烧到见底为止，不写死次数：基础降水是会调的（0.12 → 0.24 就让「两把火烧干」失效了），
+     剧本应该按「达成条件」写，而不是按「当时的调节参数」写。 */
+  for (let i = 0; i < 5 && S.at(2, 2).W > 0.05; i++) CAST(S, D, 'rite.fire.1.rite.fire', 2, 2);
   ok('旱涝同界', S.codex.on.has('aqua.split'),
     'W ' + S.at(2, 2).W.toFixed(2) + ' ↔ ' + S.at(0, 0).W.toFixed(2));
 }

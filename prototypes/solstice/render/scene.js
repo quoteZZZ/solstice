@@ -173,6 +173,7 @@ SOL.render = SOL.render || {};
     R.sync();
     SOL.render.trace.sync();
     SOL.render.trace.fade();
+    SOL.render.marks.frame(now);
     SOL.render.cam.frame(now);
 
     R.renderer.render(R.scene, R.camera);

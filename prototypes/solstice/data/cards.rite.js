@@ -277,7 +277,7 @@ SOL.data.rite = [
     flavor:{zh:'水不认路，人给它修一条。'},
     art:{sigil:'水',palette:['#071620','#3f7fa8','#0a1a22']},
     runtime:{tags:[]},
-    sim:{op:'field', w:0.8, neighbors:0.4, flag:'wetland'}
+    sim:{op:'field', w:0.8, nbW:0.8, flag:'wetland'}
   },
   {
     id:'rite.dark.7.rite.darktide', name:{zh:'暗潮',en:'Dark Tide'}, title:'遮住一片',

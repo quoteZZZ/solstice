@@ -14,6 +14,9 @@
     const box = document.getElementById('hand');
     if (!box) return;
     const n = W.hand.length, mid = (n - 1) / 2;
+    /* 手牌一次要问八张「现在能不能打」，每次 playable 都从头扫一遍世界。
+       统计一次传进去：八张卡共用同一份读数，也保证同一帧里八张卡的判断不会互相矛盾。 */
+    const life = S.lifeStats();
     const wrap = document.getElementById('handwrap');
     const avail = ((wrap && wrap.clientWidth) || 900) - 24;
     const sp = n > 1
@@ -27,7 +30,7 @@
       return `<div class="handslot ${i === W.sel ? 'sel' : ''}" data-i="${i}" tabindex="0" role="button"
         style="left:calc(50% + ${(d * sp).toFixed(1)}px - ${CW / 2}px);bottom:${6 + lift}px;z-index:${z}">
         <div class="cardwrap" style="transform:rotate(${ang}deg)">
-          ${UI.cardFace(card, 'h' + i, 'h')}
+          ${UI.cardFace(card, 'h' + i, 'h', life)}
         </div>
       </div>`;
     }).join('');

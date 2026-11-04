@@ -25,7 +25,9 @@
       const cell = S.at(t.x, t.y);
       if (!cell) continue;
       const col = new THREE.Color(D.elColor(t.el));
-      const base = cell.h + 0.012;
+      /* 贴地高度取「看得见的那个面」——原来读 sim 的 cell.h（一律 0.30），
+         地形一抬高，环就埋进方块里了。 */
+      const base = (R.hOf ? R.hOf(cell) : cell.h) + 0.012;
       const r = 0.14 + Math.min(4, t.count || 1) * 0.018 + t.tier * 0.006;
 
       /* 环：贴地、细、低透。它是"被写过的印子"，不是靶心。 */

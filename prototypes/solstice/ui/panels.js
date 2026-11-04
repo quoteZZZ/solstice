@@ -18,7 +18,10 @@
     if (p === 'help') { p = 'settings'; U.setGroup = 'input'; }
     if (!['pack', 'codex', 'chron', 'settings'].includes(p)) return;
     U.panel = p;
-    if (p === 'pack') UI.packStage = 0;
+    /* 已经撕开、还没挑的那一包不能被「关掉再打开」洗掉：
+       时素在撕开的那一刻就扣了，重开面板把 packStage 归 0 等于把包和钱一起吞了。
+       只有在没有待挑的牌时才回到封口状态。 */
+    if (p === 'pack' && !(UI.packCards && UI.packCards.length)) UI.packStage = 0;
     UI.renderOverlay();
     UI.log('打开：' + (UI.PANEL_LABEL[p] || p), true);
   };
