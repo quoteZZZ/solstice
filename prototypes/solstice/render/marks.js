@@ -4,7 +4,7 @@
    判据来自 sim（SOL.sim.castRange），这里只负责画 —— 规则不写在渲染层。 */
 (function (R, S) {
   const M = R.marks = {};
-  let mesh = null, ghost = null;
+  let mesh = null, ghost = null, ring = null;
   const dummy = new THREE.Object3D();
 
   function make(geo, color, opacity) {
@@ -30,6 +30,25 @@
     g2.rotateX(-Math.PI / 2);
     ghost = make(g2, 0x8fd2e8, 0.12);
     ghost.renderOrder = 2;
+
+    /* 键盘游标：鼠标有指针本身作指示，键盘没有，只靠 cam 那根 1px 线框
+       在蓝图上几乎看不见。这里给游标脚下垫一层白，光标去哪一眼就知道。 */
+    const g3 = new THREE.PlaneGeometry(1.02, 1.02);
+    g3.rotateX(-Math.PI / 2);
+    ring = make(g3, 0xf4f9ff, 0.2);
+    ring.renderOrder = 4;
+  };
+
+  /* 游标：cell = {x, y, h}；传 null 收起 */
+  M.cursor = function (cell) {
+    M.init();
+    if (!cell) { ring.count = 0; ring.visible = false; return; }
+    dummy.position.set(cell.x, (cell.h || 0.3) + 0.016, cell.y);
+    dummy.updateMatrix();
+    ring.setMatrixAt(0, dummy.matrix);
+    ring.count = 1;
+    ring.instanceMatrix.needsUpdate = true;
+    ring.visible = true;
   };
 
   /* list: [{x, y, h, fresh}] */

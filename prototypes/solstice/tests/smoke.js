@@ -146,7 +146,30 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
   const hand = await page.$('#handwrap');
   if (hand) await hand.screenshot({ path: path.join(__dirname, 'shot-hand.png') });
 
-  const report = { table, world, sim, panels, cards, errors };
+  /* 6. 键盘全路径：WASD 走游标，Enter 在游标处落卡。全程不碰鼠标（REVIEW-DEMO F-3）。 */
+  await page.evaluate(() => {
+    const { W, UI } = window.__dbg;
+    W.hand = [window.SOL.data.byId.get('terrain.earth.0.matter.land')];
+    W.sel = 0; UI.renderHand(); UI.updateHud();
+  });
+  const before = await page.evaluate(() => window.__dbg.S.W.cells.size);
+  await page.keyboard.press('d');
+  await page.keyboard.press('d');
+  await page.waitForTimeout(150);
+  const cursor = await page.evaluate(() => {
+    const { R } = window.__dbg;
+    return {
+      box: R.cam.hoverBox.visible,
+      keep: !!R.cam.keepHover,
+      at: R.cam.hover ? [R.cam.hover.x, R.cam.hover.y] : null
+    };
+  });
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+  const after = await page.evaluate(() => window.__dbg.S.W.cells.size);
+  const keyboard = { before, after, landed: after - before, ...cursor };
+
+  const report = { table, world, sim, panels, cards, keyboard, errors };
   fs.writeFileSync(path.join(__dirname, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 1));
 

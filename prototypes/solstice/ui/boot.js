@@ -29,6 +29,67 @@
     return null;
   }
 
+  /* ── 格子游标：WASD / 方向键移动，Enter 在游标处施卡 ──
+     相机可以绕着世界转，所以「按 W」不能直接当成「世界 −y」：
+     先把屏幕上想去的方向投到世界 XZ，再吸到最近的 8 个格子方向之一。
+     这样无论从哪个方位看，W 都是屏幕上的「向里」。 */
+  const DIRS = {
+    w: [0, -1], a: [-1, 0], s: [0, 1], d: [1, 0],
+    ArrowUp: [0, -1], ArrowLeft: [-1, 0], ArrowDown: [0, 1], ArrowRight: [1, 0]
+  };
+
+  let cursor = null;   // {x, y}，键盘游标所在格；null = 还没动过键盘
+
+  function screenToGrid(sx, sy) {
+    const yaw = R.cam.yaw;
+    const vx = Math.sin(yaw) * sx + Math.cos(yaw) * sy;
+    const vy = -Math.cos(yaw) * sx + Math.sin(yaw) * sy;
+    const k = Math.round(Math.atan2(vy, vx) / (Math.PI / 4));
+    return [Math.round(Math.cos(k * Math.PI / 4)), Math.round(Math.sin(k * Math.PI / 4))];
+  }
+
+  /* 游标停在哪就画哪：高亮框 + 落点预览 + 该格读数，与鼠标悬停同一套 */
+  function syncCursor(anchor) {
+    const cell = S.at(cursor.x, cursor.y);
+    const spot = cell || { x: cursor.x, y: cursor.y, h: 0.30 };
+    R.cam.setHover(spot, true);
+    R.marks.cursor(spot);
+    const card = W.hand[W.sel];
+    if (card) R.marks.set(S.castRange(card, spot));
+    else R.marks.clear();
+    /* 读数框固定在左上角，不跟着光标跑——键盘没有指针位置可跟 */
+    UI.hoverInfo(cell, anchor || { clientX: 128, clientY: 96 });
+    follow();
+  }
+
+  /* 游标走远就把镜头带过去。键盘没有「看着哪里」这层反馈，
+     游标一旦走到手牌或右栏底下，屏幕上就什么都没发生。
+     安全区按真实面板量：左栏右边、右栏左边、手牌上边——写死百分比会随窗口变。 */
+  function follow() {
+    const s = R.cam.screenOf(cursor.x, cursor.y, 0.32);
+    const r = R.canvas.getBoundingClientRect();
+    const rect = id => {
+      const el = document.getElementById(id);
+      if (!el) return null;
+      const b = el.getBoundingClientRect();
+      return b.width > 0 && b.height > 0 ? b : null;
+    };
+    const left = rect('leftrail'), right = rect('rightpanel'), hand = rect('handwrap');
+    const x0 = left ? left.right + 24 : r.left + 60;
+    const x1 = right ? right.left - 24 : r.right - 60;
+    const y1 = hand ? hand.top - 16 : r.bottom - 40;
+    if (s.x > x0 && s.x < x1 && s.y > r.top + 56 && s.y < y1) return;
+    R.cam.target.set(cursor.x, 0.22, cursor.y);
+    R.cam.place();
+  }
+
+  function moveCursor(sx, sy) {
+    if (!cursor) cursor = { x: Math.round(R.cam.target.x), y: Math.round(R.cam.target.z) };
+    const g = screenToGrid(sx, sy);
+    cursor.x += g[0]; cursor.y += g[1];
+    syncCursor();
+  }
+
   function onKey(ev) {
     if (UI.captureKey(ev)) { ev.preventDefault(); return; }
 
@@ -77,6 +138,17 @@
       return;
     }
 
+    /* 游标：WASD 与方向键同一套。移动之后按 Enter 就把选中的卡打在游标那一格，
+       不用鼠标也能走完「选卡 → 指格 → 落卡」整条路（REVIEW-DEMO F-3 / 排期 8）。
+       面板/事件开着的时候不动游标——世界被盖住了，动了也看不见。 */
+    const dir = DIRS[ev.key] || DIRS[String(ev.key).toLowerCase()];
+    const blocked = !!(UI.state.panel || UI.state.event);
+    if (dir && !blocked) { ev.preventDefault(); return moveCursor(dir[0], dir[1]); }
+    if (ev.key === 'Enter' && cursor && !blocked) {
+      ev.preventDefault();
+      return UI.cast(W.sel, S.at(cursor.x, cursor.y), cursor);
+    }
+
     const act = actOf(ev);
     if (!act) return;
     if (act === 'random') { ev.preventDefault(); return UI.castRandom(); }
@@ -112,6 +184,9 @@
       },
       onHover: (cell, ev, pt) => {
         UI.hoverInfo(cell, ev);
+        /* 鼠标扫过哪一格，游标就跟到哪一格：这样「指到哪、Enter 打哪」两种输入是同一条路 */
+        if (cell) cursor = { x: cell.x, y: cell.y };
+        R.marks.cursor(null);
         /* 落点预览：选中一张卡后，鼠标经过世界就把「这张卡会动到哪些格」画出来。
            这个游戏的主要施卡手势是「点世界」而不是「拖过去」（cam.onClick → UI.cast），
            所以预览必须挂在 hover 上，挂在 drag 上等于只覆盖一半（REVIEW-DEMO R-1 / #11）。 */

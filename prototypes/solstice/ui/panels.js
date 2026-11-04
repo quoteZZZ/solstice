@@ -376,6 +376,8 @@
     { act: 'keys', name: '键位', group: '面板', key: 'K', ed: true },
     { act: 'help', name: '帮助', group: '面板', key: 'H', ed: true },
     { act: 'select', name: '选卡 1–8', group: '手牌', key: '1 … 8', ed: false },
+    { act: 'cursor', name: '移动格子游标', group: '世界', key: 'WASD', ed: false },
+    { act: 'castAt', name: '在游标处施卡', group: '世界', key: 'Enter', ed: false },
     { act: 'esc', name: '关闭 / 退出', group: '界面', key: 'Esc', ed: false }
   ];
 
@@ -397,7 +399,7 @@
 
   /* 键位表：现在是「设置 → 操作」里的一段，不是独立面板了 */
   function keysBody() {
-    const tabs = ['全部', '手牌', '视角', '时间', '界面', '面板'];
+    const tabs = ['全部', '手牌', '世界', '视角', '时间', '界面', '面板'];
     const tab = U.keyTab;
     const dup = keyConflicts();
     const rows = UI.KEYS.filter(k => tab === '全部' || k.group === tab);

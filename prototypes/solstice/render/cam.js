@@ -98,8 +98,11 @@
     return { x: Math.round(p.x), y: Math.round(p.z) };
   };
 
-  C.setHover = function (cell) {
+  /* 指针跟着鼠标时高亮会自己淡掉（它只是一次经过）；键盘游标不同——
+     游标是「我现在指着这一格」，人要想两秒，淡掉就等于没有。 */
+  C.setHover = function (cell, keep) {
     C.hover = cell;
+    C.keepHover = !!keep;
     if (!cell) { C.hoverBox.visible = false; return; }
     C.hoverBox.position.set(cell.x, cell.h + 0.012, cell.y);
     C.hoverBox.material.opacity = 0.85;
@@ -109,7 +112,8 @@
 
   C.frame = function (now) {
     R.faceCam(now);
-    if (C.hoverBox && C.hoverBox.visible) C.hoverBox.material.opacity *= 0.985;
+    if (!C.hoverBox || !C.hoverBox.visible) return;
+    C.hoverBox.material.opacity = C.keepHover ? 0.85 : C.hoverBox.material.opacity * 0.985;
   };
 
   /* 指针：拖拽转相机；不拖拽时悬停高亮；点击交给 UI */
