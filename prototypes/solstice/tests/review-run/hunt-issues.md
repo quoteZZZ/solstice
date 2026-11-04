@@ -232,6 +232,14 @@
 - **建议**：在 `resize` 时也跑一次日志裁剪（把 `UI.log` 的裁剪抽成 `UI.trimLog()`，监听 resize）；或改成 CSS `max-height` + `overflow:hidden` 的硬约束（配合最新的“最新在下”顺序）。
 - **新引入（未提交的 1080 log 修复）**
 
+### X25 · 界面 · 抽卡面板开着时时素涨到够买，封印卡/底部文案/“撕开”按钮仍停在旧值
+- **触发场景**：时素 0 时打开抽卡面板（封印卡 0/12、按钮禁用、底部“时素 0 · 每 10 秒 +1”），等时素自然涨到 12（或直接从 0 改到 12）。
+- **现象**：顶栏的时素从 0 变 12、顶栏“抽包 12”也可用了，但面板是打开那一刻的静态 HTML：封印卡仍 `0 / 12`、底部仍“时素 0”、`[data-act=packNext]` 仍 disabled。玩家会以为“够了还是买不了”，只能关面板再开。`updateHud` 每帧跑，但它只改顶栏，不重绘 `#overlay`；`S.on('tick')` 也只重绘年表。
+- **证据**：`hunt-shots/p4-22-pack-stale-essence.png`（顶栏 12 时素，面板 0/12 + 底部 0 + 按钮灰）；读数 `before {ess 0, btn disabled true, seal "0 / 12", foot "时素 0"}` → `after {ess 12, btn disabled true, seal "0 / 12", foot "时素 0", top "抽包 12"}`。
+- **严重度**：P2（面板最核心的购买条件不跟随实时时素；等 120 秒也买不了）
+- **建议**：时素变化时若 `UI.state.panel==='pack'` 就轻量更新封印条/`psNum`/footer/按钮 `disabled`（不要整块 `renderOverlay`，以免洗掉 chip 和滚动）；或在 `essenceTick` 的 `S.on` 里做同样的事。
+- **遗留（面板静态渲染；本轮的“每 10 秒 +1”让这个等待变得显眼）**
+
 ---
 
 ## 压过、没问题的
