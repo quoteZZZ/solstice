@@ -106,7 +106,7 @@
 
 ### X09 · 界面 · 年表左栏筛选没有“纪年”，六类合计比“全部”少 1
 - **触发场景**：跑够 12 个月让 `S.addChron('纪年',…)` 落一条，打开年表。
-- **现象**：中间“50 条”，左栏 `干涉 49 + 气候 1 + 生态 0 + 灾变 0 + 文明 0 + 图鉴 0 = 50?` 实测 `total 50 / sum 49`：`kinds` 数组里没有“纪年”，那一条只在“全部”里出现，点任何分类都看不到它。
+- **现象**：中间“50 条”，左栏六类（干涉/气候/生态/灾变/文明/图鉴）合计 **49**；`kinds` 数组里没有“纪年”，那 1 条只在“全部”里出现，点任何分类都看不到它，四项数字加起来对不上“全部”。
 - **证据**：`hunt-shots/p4-seeded.json` → `chron`：`total 50 / sum 49 / hasYear false`；`hunt-full-1080/19-panel-chron.png`（左栏 7 项、顶部“年表 · 54 条”）。
 - **严重度**：P3
 - **建议**：`kinds` 加“纪年”，并给它 `CHRON_ICON/COLOR`（见 X10）。
@@ -131,7 +131,7 @@
 ### X12 · 界面 · 滚动渐隐滚到底仍压暗最后一行；`.cdscroll` 与 `#pbody` 两层叠加
 - **触发场景**：打开卡库，右列 `.cdscroll` 滚到底；设置页右列滚到底；抽卡面板底部。
 - **现象**：`.cdscroll::after` 是 `position:sticky;bottom:0` 的 20px 渐变，滚到底也不消失；`#pbody::after` 在同一底边再叠 20px；设置页又多一个 `.setpane::after`。卡库最后一行 `id terrain.mineral.0.matter.water` 被压到近黑（`p4-10`），而它已经是最后一行，“还有内容”的暗示变成假信号。
-- **证据**：`hunt-shots/p4-10-codex-bottom-current.png`（最后一行 id 明显比上一行暗）；`p4-report.json` → `scroll-fade`：`sh 863 / ch 485 / st 378 / max 378 / atEnd true`；`p3-07`/`p4-18` 设置列底部。
+- **证据**：`hunt-shots/p4-10-codex-bottom-current.png`（最后一行 id 明显比上一行暗）；`p4-report.json` → `scroll-fade`：`sh 863 / ch 485 / st 378 / max 378 / atEnd true`；同一组 `::after` 规则还挂了 `#rightpanel .rp.grow`、`#pbody`、`.setpane`（89216f8 新增），设置列/抽卡面板底部同样叠。
 - **严重度**：P3
 - **建议**：给滚动容器加 `scroll` 监听，到底时给 `::after` 加 `.end` 隐藏；或把渐隐高度收到 12px，且只保留最内层那一条（去掉 `#pbody::after` / `.setpane::after` 的叠加）。
 - **新引入（本轮渐隐；`.setpane` 是 89216f8 新增）**
@@ -160,7 +160,7 @@
 - **建议**：把 `#deck` 提到 `z-index:301`（和 actbar 同级），或在满手时把它移到左上；至少要保证数字可读。
 - **遗留（`-34` 只让出了 10px）**
 
-### X16 · 界面 · 手牌扇面整体右偏 8px，左右留白 10px / −3px
+### X16 · 界面 · 手牌扇面整体右偏 8px，左右留白 14px / −3px
 - **触发场景**：1080 满 8 张，量首/末卡与容器。
 - **现象**：`#handwrap 52..812`（中心 432），扇面 `66..815`（中心 440.5）；首卡左留 14px，末卡右 **超出 3px**。原因是 `left:calc(50% + d*sp - cw/2)` 用的是缩放后的 `cw=119.68`，而槽位布局宽仍是 136，`transform-origin:50% 100%` 把视觉盒再右移 `(136-119.68)/2≈8px`。`.88` 时 8px，`.82` 时 12px。
 - **证据**：`hunt-shots/evidence-1080.json` → `fresh.first 89 / last 791 / firstCard 66 / lastCard 815`，`hw 52..812`；`p3-11` 可见左边留白明显大于右边。

@@ -530,8 +530,13 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
       if (t) t.focus();
       return { tab: UI.state.codexTab, sun: S.W.sun };
     });
+    /* 直接数 UI.cast 调用：S25 第一版「只放行不 return」时，空格会落到随机施卡分支，
+       现象是页签没切 + 世界多一张牌。只看 sun 会漏掉不涨 sun 的卡。 */
+    await page.evaluate(() => { window.__casts = 0; });
     await page.keyboard.press(' '); await page.waitForTimeout(220);
-    const after = await page.evaluate(() => ({ tab: window.__dbg.UI.state.codexTab, sun: window.__dbg.S.W.sun }));
+    const after = await page.evaluate(() => ({
+      tab: window.__dbg.UI.state.codexTab, sun: window.__dbg.S.W.sun, casts: window.__casts
+    }));
     await page.evaluate(() => { document.activeElement.blur(); });
     const sunBefore = await page.evaluate(() => window.__dbg.S.W.sun);
     await page.keyboard.press(' '); await page.waitForTimeout(220);
@@ -556,6 +561,9 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
   if (dragCast.ghosts) errors.push('[assert] 松手后还留着 ' + dragCast.ghosts + ' 张拖影');
   if (spaceInPanel.after.tab === spaceInPanel.setup.tab) {
     errors.push('[assert] 面板里按空格没有激活按钮（页签没切）');
+  }
+  if (spaceInPanel.after.casts) {
+    errors.push('[assert] 面板里按空格触发了 ' + spaceInPanel.after.casts + ' 次 UI.cast');
   }
   if (spaceInPanel.after.sun !== spaceInPanel.setup.sun) {
     errors.push('[assert] 面板里按空格穿透到世界施了卡：sun ' + spaceInPanel.setup.sun + '→' + spaceInPanel.after.sun);

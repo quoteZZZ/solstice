@@ -1,7 +1,7 @@
 # 状态机审计 · Solstice 原型
 
-- 审计对象：`E:/solstice/prototypes/solstice`，起始 HEAD `334b2d8`；最终复核于工作区 17:08（HEAD `0cfbe56` + 未提交的 `boot.js`/`creator.js` 第三轮改动）
-- 复核：`89216f8` 修掉 S01–S04/S07/S08/S20（S05 被按键守卫顺带堵死）；工作区第三轮又修掉 S06、S25、S26。已用 `state-probe7/8/9` 逐条复测（对应 `.txt`）。**共 11 条已收掉**；未修 15 条读数对应 `334b2d8`（S09 在两版上一致复现）。
+- 审计对象：`E:/solstice/prototypes/solstice`，起始 HEAD `334b2d8`；最终复核于 `3d80e61`（第三轮修复在 `83b53c6`）
+- 复核：`89216f8` 修掉 S01–S04/S07/S08/S20（S05 被按键守卫顺带堵死）；`83b53c6` 又修掉 S06、S25、S26。已用 `state-probe7/8/9` 逐条复测（对应 `.txt`）。**共 11 条已收掉**；未修 15 条读数对应 `334b2d8`（S09 在两版上一致复现）。
 - 视口：1680×1000，msedge headless，`file://` 直开
 - 取证脚本（均在 `tests/review-run/`，未改任何源码）：`state-probe.js`（A–E 28 场景）、`state-probe2.js`（F 面板/焦点）、`state-probe3.js`（G 拖拽交叉）、`state-probe4.js`（H 调用栈）、`state-probe5.js`（I 跨世界/撤销）、`state-probe6.js`（拖放两次 cast 的栈）、`state-probe7.js`（工作树复核）、`state-probe8.js`（第二轮提交复核）、`state-probe9.js`（第三轮复核）
 - 读数：`state-probe*.json` / `state-probe6.txt` / `state-probe7.txt` / `state-probe8.txt` / `state-probe9.txt`；截图：`state-shots/`
@@ -57,7 +57,7 @@
 - **期望**：能回到当前界；至少 Esc 可退。
 - **实际**：`openCreator` 用 `cells.size` 判 `fromWorld`，空世界直接 false → 底部没有「← 返回当前界」，Esc 分支 `if (UI.creator.fromWorld) closeCreator()` 也不执行。两次 Esc 后创世仍在。唯一出口是「进入这一界 ▸」＝放弃当前界的界名/气候/坐标。
 - **证据**：`state-shots/19-creator-emptyworld.png`（无返回按钮，主按钮「进入这一界 ▸」）；`state-probe.json` C4：`{cells:0, fromWorld:false, hasBack:false, creatorAfterEsc:true, creatorAfterEsc2:true}`
-- **严重度**：P1（工作树已修复）
+- **严重度**：P1（已修复）
 - **建议**：用「本局是否已开局」的标志判可退（boot 时置位），不要用 `cells.size`；或让 Esc 在任何时候都能关创世，「第一次不许退」只绑在 boot 的首次。
 - **状态**：工作树已按此修（`ui/creator.js` 改用 `UI.state.started`）。`state-probe7.txt` S01：`fromWorld:true, hasBack:true, creatorAfterEsc:false`。
 
@@ -73,7 +73,7 @@
 - **期望**：取消本次拖拽，不施卡、不消耗。
 - **实际**：`drag.esc` 调 `endDrag(null)`，但 `endDrag` 不读参数，`d.mode === 'cast'` 时照样 `UI.cast(d.i,…)`。Esc 当场施出拖着的牌；松手时画布 `pointerup` 又走 `cam.onClick`，再施一张。实测一次「取消」两次成功施卡：`fertile@(-1,3)`、`rowan@(-1,-1)`，手牌首位从 fertile 变 rowan。
 - **证据**：`state-shots/p4-2-drag-esc.png`；`state-probe4.json` H2：`slots` 两条 `ok:true`，栈分别为 `endDrag (hand.js:183) << esc (hand.js:90)` 与 `onClick (boot.js:184)`
-- **严重度**：P1（工作树已修复）
+- **严重度**：P1（已修复）
 - **建议**：`endDrag` 增加真正的取消分支（`endDrag(ev, {cancel:true})`），Esc 先 `drag=null` 再清理；同时修掉画布 `pointerup` 的重复施卡（见 S03）。
 - **状态**：工作树已修（`hand.js` 新增 `if (ev == null) return`，`cam.js` 新增 `downOnCv`）。`state-probe7.txt` S02：Esc 后 `casts:0`、`ghost:0`，随后 mouseup 仍 `casts:0`。
 
@@ -89,7 +89,7 @@
   - 虚空场景：第二张不能落在虚空 → 铺地成功的同时弹「要放在地块上 / 虚空承不住这张卡」；
   - 有格场景：第二次同样 `ok`，格子 25→94。
 - **证据**：`state-shots/p5-1-drag-void.png`（25 格 + 红 toast）；`state-probe6.txt` 两组都记录到两次 `UI.cast`，栈为 `onClick (boot.js:184)` 与 `endDrag (hand.js:183)`
-- **严重度**：P1（工作树已修复）
+- **严重度**：P1（已修复）
 - **建议**：二选一——拖拽结束后抑制画布 click（`drag.consumed=true`），或把 `cam.onClick` 只绑在「pointerdown 也发生在画布」的点击上；`endDrag` 成功后置一个短锁。
 - **状态**：工作树已修（`cam.js` 的 `downOnCv`）。`state-probe7.txt` S03b（虚空土地）：`casts` 1 条、`cells:25`、无「要放在地块上」的假 toast。
 
@@ -105,7 +105,7 @@
 - **期望**：关面板即取消改绑，W 移动游标。
 - **实际**：`waitingFor` 只在 `captureKey` 里清；`closePanel` 不清。`captureKey` 在 `onKey` 最前面，于是 W 被当成新键：toast「已改键『回收选中』→ W」，游标不动。变体：等待中点左侧「画面」→ 等待提示消失（`keysBody` 重绘）但 `waitingFor` 还在，按 B 又改一次键。W 后来又会被 WASD 分支抢走，等于把「回收」绑成了一个死键。
 - **证据**：`state-shots/13-rebind-leak.png`（面板已关，顶部「已改键『回收选中』→ W」）；`state-shots/p2-08-rebind-group-switch.png`；`state-probe.json` B5：`keysAfterW: recycle=W`、`cursorAfterW: null`；`state-probe2.json` F7：`waitingAfterSwitch: []` 但 `panelAfterB: settings` + 「已改键『抽卡』→ B」
-- **严重度**：P1（工作树已修复）
+- **严重度**：P1（已修复）
 - **建议**：`closePanel` / `openPanel` / 点 `[data-sg]` 时统一 `waitingFor=null`（最好把等待态放进 `UI.state`，随面板重建一起销毁）；`captureKey` 里对「没有 `[data-k].等待` 元素」的情况直接视为过期。
 - **状态**：工作树已按此修（`panels.js` 三处清 `waitingFor`）。`state-probe7.txt` S04：关面板后按 W 只移动游标（`cursor:[-1,-1]`），键位表 `recycle=X` 未变；等待中切分组后按 B 打开的是抽卡面板（`panel:"pack"`），不再改键。
 
