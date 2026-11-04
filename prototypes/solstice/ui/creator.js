@@ -117,7 +117,7 @@
       if (form.name === '环礁界' && i === 1) return '';
       return `<ellipse cx="${130 + cx * 11}" cy="${100 + cy * 15}" rx="${rx * 11}" ry="${ry * 15}"/>`;
     }).join('');
-    return `<svg viewBox="0 0 260 200" style="width:100%;height:auto;display:block;border:1px solid #1b222b;background:#08121a">
+    return `<svg viewBox="0 0 260 200" style="width:100%;height:auto;display:block;border:1px solid var(--line-1);background:var(--bg-0)">
       ${grid.join('')}
       <rect x="0.5" y="0.5" width="259" height="199" fill="none" stroke="#1b2a35"/>
       <g fill="#33513c" stroke="#4a6b52" stroke-width="1.3">${isles}</g>
@@ -265,8 +265,8 @@
     el.innerHTML = `
       <div id="cTop">
         <div class="col" style="line-height:1.25">
-          <span class="mono" style="font-size:12px;color:var(--ink3);letter-spacing:.18em">新的一界</span>
-          <span class="mono" style="font-size:22px;color:#fff">${CRE.name}</span>
+          <span class="mono" style="font-size:var(--fz-3);color:var(--ink-3);letter-spacing:.18em">新的一界</span>
+          <span class="mono" style="font-size:var(--fz-6);color:var(--ink-1);letter-spacing:.02em">${CRE.name}</span>
         </div>
         <div class="col gap4" style="margin-left:8px">
           <div class="row gap4"><span class="tag a">${form.name}</span>
@@ -274,10 +274,10 @@
           <span class="xs">${form.note}</span>
         </div>
         <span class="xs" style="margin-left:auto">已重掷 ${CRE.rolls} 次</span>
-        <div class="row gap6" style="border:1px solid var(--line2);padding:5px 9px;border-radius:3px">
+        <div class="row gap6" style="border:1px solid var(--line-2);padding:5px 9px;border-radius:var(--r-2);background:var(--bg-2)">
           <span class="xs">坐标</span>
-          <span class="mono" style="font-size:13px;color:var(--acc)">${CRE.seed.join(' - ')}</span>
-          <button class="btn ghost" data-c="copy" style="height:22px">复制</button>
+          <span class="mono" style="font-size:var(--fz-4);color:var(--acc)">${CRE.seed.join(' - ')}</span>
+          <button class="btn ghost sm" data-c="copy">复制</button>
         </div>
         <button class="btn ghost" data-c="reroll">重掷</button>
       </div>
@@ -285,11 +285,11 @@
       <div id="cMain">
         <div id="cLeft">
           <div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:6px">
-            <span class="xs">掷骰 · 7 组</span><span class="xs" style="color:#3f4b58">不可选 · 悬停看细节</span>
+            <span class="xs">掷骰 · 7 组</span><span class="xs" style="color:var(--ink-4)">不可选 · 悬停看细节</span>
           </div>
           ${rollStrip()}
           <div class="row" style="justify-content:space-between;align-items:baseline;margin:12px 0 6px">
-            <span class="xs">顶视</span><span class="mono xs" style="color:#3f4b58">1 : 1</span>
+            <span class="xs">顶视</span><span class="mono xs" style="color:var(--ink-4)">1 : 1</span>
           </div>
           ${miniMap(form)}
         </div>
@@ -297,7 +297,7 @@
         <div id="cCenter">
           <div id="cutaway">${cutaway(form, traits.map(t => t.name))}<div id="cvHint"></div></div>
           <div class="row gap6" style="align-items:baseline">
-            <span class="mono" style="font-size:17px;color:#fff">${CRE.name}</span>
+            <span class="mono" style="font-size:var(--fz-6);color:var(--ink-1)">${CRE.name}</span>
             <span class="tag a">${form.name}</span><span class="tag b">${CRE.climate}</span>
             <span class="tag ok">判据 ${WD.judge.length} / ${WD.judge.length}</span>
           </div>
@@ -310,7 +310,7 @@
         <div id="cRight">
           <div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:6px">
             <span class="xs">本界特征 · ${traits.length} 条</span>
-            <span class="xs" style="color:#3f4b58">悬停：亮图上 / 出说明</span>
+            <span class="xs" style="color:var(--ink-4)">悬停：亮图上 / 出说明</span>
           </div>
           <div class="tgrid">
             ${traits.map(t => `<div class="tchip on ${t.wired ? 'live' : 'ghost'}"
@@ -339,7 +339,7 @@
         ${CRE.fromWorld ? '<button class="btn ghost" data-c="back" style="margin-left:auto">← 返回当前界</button>'
           : '<span style="margin-left:auto"></span>'}
         <button class="btn ${CRE.fromWorld && CRE.armed ? 'warn' : 'on'}" data-c="enter"
-          style="height:34px;padding:0 22px">${
+          class="btn lg">${
             !CRE.fromWorld ? '进入这一界 ▸'
             : CRE.armed ? '再点一次，替换当前世界'
             : '换成这一界 ▸'}</button>

@@ -120,19 +120,19 @@
     const got = UI.packCards || [];
     const full = W.hand.length >= S.HAND_MAX;
     const swap = full ? W.hand[Math.max(0, Math.min(W.hand.length - 1, W.sel))] : null;
-    return `<div style="display:flex;gap:16px;height:100%">
-      <div style="width:230px;border-right:1px solid var(--line);padding-right:14px">
+    return `<div style="display:flex;gap:var(--s-6);height:100%">
+      <div style="width:230px;flex:0 0 230px;border-right:1px solid var(--line-1);padding-right:var(--s-5)">
         <div class="xs" style="margin-bottom:8px">包种</div>
         ${packRows()}
-        <div class="mono xs" style="margin-top:10px;color:#3f4b58">池 ${S.drawPool().length} / ${S.poolTotal()} · ${S.PACK_SIZE} 张 / 包</div>
-        ${swap ? `<div class="xs" style="margin-top:12px">手牌满 · 收下的那张换掉
-          <span class="mono" style="color:#e8eef4">${swap.name.zh}</span></div>` : ''}
+        <div class="mono xs" style="margin-top:10px;color:var(--ink-4)">池 ${S.drawPool().length} / ${S.poolTotal()} · ${S.PACK_SIZE} 张 / 包</div>
+        ${swap ? `<div class="xs" style="margin-top:12px;color:var(--ink-3)">手牌满 · 收下的那张换掉
+          <span class="mono" style="color:var(--ink-1)">${swap.name.zh}</span></div>` : ''}
       </div>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column">
-        <div class="row gap6" style="margin-bottom:10px">
+        <div class="row gap6" style="margin:0 auto var(--s-4);max-width:720px;width:100%">
           ${['封印', '翻牌', '挑选'].map((t, i) =>
             `<span class="tag ${i === UI.packStage ? 'a' : ''}">${i + 1}. ${t}</span>`).join('')}
-          <span class="xs" style="margin-left:auto">手牌 ${W.hand.length} / ${S.HAND_MAX}</span>
+          <span class="xs" style="margin-left:auto;color:var(--ink-3)">手牌 ${W.hand.length} / ${S.HAND_MAX}</span>
         </div>
         <div class="packframe" style="flex:1">
           ${UI.packStage === 0 ? sealFace() : ''}
@@ -277,7 +277,7 @@
       <div style="flex:1;min-width:0;overflow:auto">
         <div class="row gap8" style="margin-bottom:9px;align-items:center">
           <span class="mono xs" style="color:#8b99a6">已见 ${W.seen.size} / ${D.total}</span>
-          <button class="btn ${U.codexOwn ? 'on' : 'ghost'}" data-act="codexOwn" style="height:22px">只看已见</button>
+          <button class="btn sm ${U.codexOwn ? 'on' : 'ghost'}" data-act="codexOwn">只看已见</button>
           <span class="mono xs" style="color:#8b99a6">池 ${S.drawPool().length} / ${S.poolTotal()}</span>
         </div>
         ${grid}
@@ -293,7 +293,7 @@
         <div style="transform:scale(.86);transform-origin:top center;height:384px">${UI.cardFace(c, 'cx')}</div>
       </div>
       <div style="display:flex;justify-content:space-between;margin-top:2px;padding:9px 2px;
-        border-top:1px solid #1a212a;border-bottom:1px solid #1a212a">
+        border-top:1px solid var(--line-1);border-bottom:1px solid var(--line-1)">
         ${[['◔', '半径', c.radius_w.toFixed(3) + ' W'],
            ['⚠', '扰动', c.disturb == null ? '未定' : '+' + c.disturb],
            ['↩', '回收', c.reclaim ? '+' + c.reclaim : '—']]
@@ -496,7 +496,7 @@
           const bad = dup.has(k.key);
           return `<div class="keyRow" style="${bad ? 'box-shadow:inset 2px 0 0 #b4553f;padding-left:6px' : ''}">
             <span class="sm" style="flex:1">${k.name}${bad ? '<span class="tag warn" style="margin-left:6px">冲突</span>' : ''}</span>
-            <button class="btn ${k.ed ? '' : 'ghost'}" data-k="${k.act}" style="width:160px;height:26px"
+            <button class="btn wide ${k.ed ? '' : 'ghost'}" data-k="${k.act}"
               ${k.ed ? '' : 'disabled'}>${k.key}</button>
             <span style="width:64px;text-align:right">${k.ed ? '<span class="tag ok">可改</span>' : '<span class="tag">锁死</span>'}</span>
           </div>`;

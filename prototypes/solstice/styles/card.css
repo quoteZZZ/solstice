@@ -1,12 +1,20 @@
-/* Solstice · 卡面 A 版式（302×440）
+/* Solstice · 卡面（两档）
    版式与字符位置来自 specs/ui/CARD-LAYOUTS.html 的 A 案；字段全部来自 CARD-SCHEMA：
    顶条=elements/tier/class，名带=name.zh，环条=tier，画芯=art.sigil+palette，
-   说明条=line.fx/cond/num，底栏=number + ATK/DEF。 */
+   说明条=line.fx/cond/num，底栏=number + ATK/DEF。
+
+   2026-11-04 这一版只动**观感与节奏**，不动信息架构（哪个字段放哪是规格，不是样式）：
+   · 边框收到 0.38 —— 八张并排时，每张一圈金线会在扇面上连成锯齿；
+   · 名带 / 环条 / 画芯 / 说明 / 底栏 之间只留一种分隔语言：一条 1px 的极暗横线；
+   · 说明块左侧加一条 3px 元素色竖标——这是卡面上唯一一处「块」级结构，
+     原来正文和背景几乎同色，一大段字浮在卡上，读起来不知道从哪开始；
+   · 底栏从「两枚灰字」变成「元素 + 回收」两端对齐，中间留白，视线有落点。 */
 .card{width:302px;height:440px;position:relative;overflow:hidden;display:flex;flex-direction:column;
-  border:1px solid rgba(198,164,104,.55);border-radius:6px;background:#0c1218;
-  box-shadow:0 14px 30px rgba(0,0,0,.7),0 3px 8px rgba(0,0,0,.5)}
-.card:after{content:"";position:absolute;inset:4px;border-radius:4px;
-  border:1px solid rgba(255,255,255,.06);pointer-events:none;z-index:8}
+  border:1px solid rgba(198,164,104,.42);border-radius:var(--r-3);
+  background:linear-gradient(180deg,#0e151c,#080d12);
+  box-shadow:var(--sh-3)}
+.card:after{content:"";position:absolute;inset:4px;border-radius:var(--r-2);
+  border:1px solid rgba(255,255,255,.055);pointer-events:none;z-index:8}
 
 /* 类别：8px 通栏色条 + 骑缝徽（类别唯一信号，不写字） */
 .card:before{content:"";position:absolute;left:0;right:0;top:0;height:8px;z-index:9;
@@ -36,10 +44,11 @@
 /* 名带 50px：卡名居中，元素圆在右端 */
 .card .band{position:relative;z-index:5;flex:0 0 50px;height:50px;margin-top:8px;
   display:flex;align-items:center;justify-content:center;
-  background-image:linear-gradient(180deg,rgba(var(--el),.13),rgba(9,13,18,.94) 72%);
-  border-bottom:1px solid rgba(var(--el),.28)}
-.card .band h3{font-size:19px;font-weight:600;letter-spacing:.08em;color:#eef5fa;line-height:1;
-  max-width:188px;text-align:center;text-shadow:0 1px 0 #000,0 0 14px rgba(var(--el),.4)}
+  background-image:linear-gradient(180deg,rgba(var(--el),.14),rgba(9,13,18,.94) 72%);
+  border-bottom:1px solid rgba(var(--el),.26)}
+.card .band h3{font-size:19px;font-weight:600;letter-spacing:.06em;color:var(--ink-1);
+  line-height:1;max-width:188px;text-align:center;
+  text-shadow:0 1px 0 #000,0 0 14px rgba(var(--el),.38)}
 .card .elem{position:absolute;right:11px;top:50%;transform:translateY(-50%);
   width:26px;height:26px;border-radius:50%;z-index:7;display:flex;align-items:center;justify-content:center;
   background:radial-gradient(circle at 34% 26%,rgba(255,255,255,.3),rgba(var(--el),.95) 56%,#0b1218 100%);
@@ -53,121 +62,140 @@
 
 /* 环条 16px：12 格可数刻度（稀有度唯一信号，不写数字） */
 .card .ringbar{flex:0 0 16px;height:16px;z-index:5;display:flex;align-items:center;justify-content:center;
-  gap:3px;background:#0a0f14;border-bottom:1px solid rgba(255,255,255,.05)}
-.card .ringbar i{width:18px;height:5px;border-radius:1px;display:block;background:rgba(255,255,255,.06)}
+  gap:3px;background:rgba(0,0,0,.28);border-bottom:1px solid rgba(255,255,255,.045)}
+.card .ringbar i{width:18px;height:5px;border-radius:1px;display:block;background:rgba(255,255,255,.07)}
 .card .ringbar i.on{background:var(--ringc,#d6ad5c);box-shadow:0 0 6px var(--ringc,#d6ad5c)}
 
 /* 画芯 */
 .card .win{position:relative;z-index:4;flex:1;margin:0 10px;min-height:0;
-  border:1px solid rgba(var(--el),.34);border-radius:3px;overflow:hidden;
-  box-shadow:inset 0 0 30px rgba(0,0,0,.6)}
+  border:1px solid rgba(var(--el),.3);border-radius:var(--r-1);overflow:hidden;
+  box-shadow:inset 0 0 30px rgba(0,0,0,.55)}
 .card .win .pic,.card .win .pic svg{display:block;width:100%;height:100%}
 .card .win:before{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;
-  background:radial-gradient(125% 80% at 50% 0%,rgba(var(--el),.18),transparent 60%);
+  background:radial-gradient(125% 80% at 50% 0%,rgba(var(--el),.16),transparent 60%);
   mix-blend-mode:screen}
 
 /* 说明条：fx 两行 40 字 / cond 一行 24 字 / num 三个数 */
-.card .box{position:relative;z-index:5;flex:0 0 96px;height:96px;margin:8px 10px 0;padding:7px 12px;
-  border:1px solid rgba(var(--el),.16);border-radius:3px;background:rgba(10,14,19,.72);
-  display:flex;flex-direction:column;justify-content:center;gap:4px;overflow:hidden}
-.card .box .fx{font-size:13px;line-height:1.5;color:#d5e0e8;
+.card .box{position:relative;z-index:5;flex:0 0 96px;height:96px;margin:8px 10px 0;
+  padding:7px 12px 7px 14px;
+  border:1px solid rgba(var(--el),.14);border-left:2px solid rgba(var(--el),.62);
+  border-radius:0 var(--r-1) var(--r-1) 0;background:rgba(10,14,19,.72);
+  display:flex;flex-direction:column;justify-content:center;gap:5px;overflow:hidden}
+.card .box .fx{font-size:13px;line-height:1.5;color:var(--ink-2);
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.card .box .fx b{color:#fff;font-weight:600}
-.card .box .cond{font-size:11px;line-height:1.35;color:#7d8b99;
+.card .box .fx b{color:var(--ink-1);font-weight:600}
+.card .box .cond{font-size:11px;line-height:1.35;color:var(--ink-3);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.card .box .num{display:flex;gap:9px;font-family:var(--mono);font-size:11px;color:#9fb0bd;
-  white-space:nowrap;overflow:hidden}
+.card .box .num{display:flex;gap:9px;font-family:var(--mono);font-size:11px;
+  color:var(--ink-3);white-space:nowrap;overflow:hidden;padding-top:4px;
+  border-top:1px solid rgba(255,255,255,.055)}
 .card .box .num b{color:rgba(var(--el),1);font-weight:500}
 
 /* 底栏 22px：图鉴号 + 攻防 */
 .card .foot{flex:0 0 22px;height:22px;display:flex;align-items:center;justify-content:space-between;
-  padding:0 12px;font-family:var(--mono);font-size:11px;color:#6b7885;z-index:5;
-  border-top:1px solid rgba(255,255,255,.05);margin:6px 10px 0;background:rgba(6,10,14,.6)}
-.card .foot .atk{color:#9fb0bd}
-.card .foot .atk b{color:#e8eef4;font-weight:500}
+  padding:0 12px;margin:6px 10px 0;font-family:var(--mono);font-size:11px;
+  color:var(--ink-4);z-index:5;border-top:1px solid rgba(255,255,255,.055)}
+.card .foot .atk{color:var(--ink-3)}
+.card .foot .atk b{color:var(--ink-1);font-weight:500}
 
-/* ── 手牌版式（152×216，原生 1:1）──
+/* ── 手牌版式（136×216，原生 1:1）──
    同一份 schema，另一种取舍：手牌只回答「这是什么 / 大概做什么 / 能不能打」，
-   完整效果留给悬浮与图鉴。字号就是设计字号，不再是 302 卡缩放后的 6px。 */
-.card.h{width:136px;height:216px;border-radius:5px;
-  box-shadow:0 10px 22px rgba(0,0,0,.72),0 2px 6px rgba(0,0,0,.5)}
-.card.h:before{height:5px}
-.card.h:after{inset:3px;border-radius:3px}
+   完整效果留给悬浮与图鉴。字号就是设计字号，不再是 302 卡缩放后的 6px。
 
-.card.h .hband{position:relative;z-index:5;flex:0 0 30px;height:30px;margin-top:5px;
+   高度预算（总 216）：外框 2 / 名带 6+30 / 环条 9 / 画芯 flex / 说明 6+74 / 底栏 4+20+5。
+   固定项 154，画芯拿 60 —— 和上一版一样。这次改的是描边与分隔，不是比例：
+   比例一动，八张并排的扇形重心就跟着动，得不偿失。 */
+.card.h{width:136px;height:216px;border-radius:var(--r-3);
+  border-color:rgba(198,164,104,.38);
+  background:linear-gradient(180deg,#0f161d,#070c11);
+  box-shadow:var(--sh-3)}
+.card.h:before{height:5px}
+.card.h:after{inset:3px;border-radius:var(--r-2);border-color:rgba(255,255,255,.045)}
+
+.card.h .hband{position:relative;z-index:5;flex:0 0 30px;height:30px;margin-top:6px;
   display:flex;align-items:center;justify-content:center;
-  background-image:linear-gradient(180deg,rgba(var(--el),.16),rgba(9,13,18,.94) 78%);
-  border-bottom:1px solid rgba(var(--el),.3)}
+  background-image:linear-gradient(180deg,rgba(var(--el),.17),rgba(9,13,18,.94) 78%);
+  border-bottom:1px solid rgba(var(--el),.28)}
 /* 类别徽骑在左端（可被邻卡盖住，类别另由顶部 5px 通栏色条表达）。
    图标要背，字不用背：9px 的图形在扇面上只是一颗灰点，改成 10px 的字。 */
 .card.h .ctag{position:absolute;left:5px;top:50%;transform:translateY(-50%);
-  min-width:16px;height:15px;padding:0 3px;border-radius:3px;
+  min-width:16px;height:15px;padding:0 3px;border-radius:var(--r-1);
   display:flex;align-items:center;justify-content:center;
   font-size:10px;line-height:1;letter-spacing:0;color:#0b0f14;font-weight:600;
   background:rgba(var(--cls,107,116,128),.92);
   box-shadow:0 0 0 1px #05080b}
 /* 卡名居中：扇面上任意一张卡被邻卡盖住的是单侧 36px，只有居中位置一定露出来 */
-.card.h .hband h3{max-width:100%;padding:0 24px;font-size:13px;font-weight:600;letter-spacing:.06em;
-  color:#eef5fa;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  text-shadow:0 1px 0 #000,0 0 10px rgba(var(--el),.4)}
+.card.h .hband h3{max-width:100%;padding:0 24px;font-size:13px;font-weight:600;
+  letter-spacing:.04em;color:var(--ink-1);line-height:1;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;text-shadow:0 1px 0 #000,0 0 10px rgba(var(--el),.38)}
 
-.card.h .hringbar{flex:0 0 11px;height:11px;z-index:5;display:flex;align-items:center;justify-content:center;
-  gap:2px;background:#0a0f14;border-bottom:1px solid rgba(255,255,255,.05)}
-.card.h .hringbar i{width:8px;height:4px;border-radius:1px;display:block;background:rgba(255,255,255,.11)}
+.card.h .hringbar{flex:0 0 9px;height:9px;z-index:5;display:flex;align-items:center;justify-content:center;
+  gap:2px;background:rgba(0,0,0,.42);border-bottom:1px solid rgba(255,255,255,.04)}
+.card.h .hringbar i{width:8px;height:4px;border-radius:1px;display:block;background:rgba(255,255,255,.15)}
 .card.h .hringbar i.on{background:var(--ringc,#d6ad5c);box-shadow:0 0 4px var(--ringc,#d6ad5c)}
 
-.card.h .hwin{position:relative;z-index:4;flex:1;min-height:0;margin:0 6px;border-radius:2px;
-  overflow:hidden;border:1px solid rgba(var(--el),.3);box-shadow:inset 0 0 18px rgba(0,0,0,.55)}
+.card.h .hwin{position:relative;z-index:4;flex:1;min-height:0;margin:0 6px;border-radius:var(--r-1);
+  overflow:hidden;border:1px solid rgba(var(--el),.28);box-shadow:inset 0 0 18px rgba(0,0,0,.5)}
 .card.h .hwin svg{display:block;width:100%;height:100%}
 /* 落点 / 门槛：卡上唯一一件「不在效果句里」的事——这张卡能放在哪。
    八张牌摆在一条线上时，效果句要逐张读，这个徽只要扫一眼。 */
 .card.h .hreq{position:absolute;left:4px;bottom:3px;max-width:calc(100% - 8px);
-  padding:1px 4px;border-radius:2px;font-size:10px;line-height:1.5;letter-spacing:.02em;
-  color:#dbe6f0;background:rgba(7,11,16,.84);
-  box-shadow:0 0 0 1px rgba(255,255,255,.18),0 2px 6px rgba(0,0,0,.6);
+  padding:1px 5px;border-radius:var(--r-1);font-size:10px;
+  line-height:1.5;letter-spacing:.02em;color:var(--ink-1);
+  background:rgba(7,11,16,.88);border-left:2px solid rgba(var(--el),.85);
+  box-shadow:0 2px 6px rgba(0,0,0,.55);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* 效果句要能装下最长的一张（「树」34 字 = 4 行）。原来是 3 行 62px，
    「树」「鹰」的第二行之后被生切掉，看起来像文案写错——宁可让插画矮 14px，
    也不能让正文缺半句。 */
-.card.h .hsum{position:relative;z-index:5;flex:0 0 76px;height:76px;margin:5px 6px 0;padding:3px 6px;
-  border:1px solid rgba(var(--el),.14);border-radius:2px;background:rgba(9,13,18,.7);
-  font-size:12px;line-height:1.5;color:#cfdae4;overflow:hidden}
+.card.h .hsum{position:relative;z-index:5;flex:0 0 80px;height:80px;margin:5px 6px 0;
+  padding:4px 6px 4px 8px;border:1px solid rgba(var(--el),.12);border-left:2px solid rgba(var(--el),.55);
+  border-radius:0 var(--r-1) var(--r-1) 0;background:rgba(9,13,18,.72);
+  font-size:12px;line-height:1.5;color:var(--ink-2);overflow:hidden}
 .card.h .hsum span{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
-.card.h .hsum b{color:#fff;font-weight:600}
+.card.h .hsum b{color:var(--ink-1);font-weight:600}
 /* 截断处渐隐：硬切看起来像坏了，渐隐读作「还有，悬浮看全」（完整效果在 UI.showTip） */
 .card.h .hsum:after{content:"";position:absolute;left:0;right:0;bottom:0;height:10px;pointer-events:none;
   background:linear-gradient(180deg,rgba(9,13,18,0),rgba(9,13,18,.94))}
 
-.card.h .hfoot{flex:0 0 22px;height:22px;display:flex;align-items:center;justify-content:space-between;
-  margin:4px 6px 5px;padding:0 7px;border-top:1px solid rgba(255,255,255,.06);z-index:5;
-  font-family:var(--mono);font-size:11px;color:#8a97a4}
-.card.h .helem{width:13px;height:13px;display:flex;align-items:center;justify-content:center}
-.card.h .helem svg{width:12px;height:12px;color:rgba(var(--el),.95);filter:drop-shadow(0 0 3px rgba(var(--el),.5))}
+.card.h .hfoot{flex:0 0 20px;height:20px;display:flex;align-items:center;justify-content:space-between;
+  margin:3px 6px 4px;padding:0 4px;border-top:1px solid rgba(255,255,255,.055);z-index:5;
+  font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.card.h .hrec{letter-spacing:.02em}
+.card.h .helem{width:14px;height:14px;display:flex;align-items:center;justify-content:center}
+.card.h .helem svg{width:13px;height:13px;color:rgba(var(--el),.95);
+  filter:drop-shadow(0 0 3px rgba(var(--el),.45))}
 
 /* 不可打：只降这一张的饱和度，不动外发光 —— box-shadow 不受内部 filter 影响，
    不然选中的琥珀描边也会被一起抽干（REVIEW-DEMO R-5）。 */
-.card.h.cant{border-color:rgba(150,158,168,.32)}
+.card.h.cant{border-color:rgba(150,158,168,.3)}
 .card.h.cant:before{filter:saturate(.25)}
 .card.h.cant .ctag{opacity:.42}
 .card.h.cant .hband{background-image:none;background:#0b1017;border-bottom-color:rgba(255,255,255,.06)}
-.card.h.cant .hband h3{color:#93a0ac;text-shadow:0 1px 0 #000}
+.card.h.cant .hband h3{color:var(--ink-3);text-shadow:0 1px 0 #000}
 .card.h.cant .hringbar i.on{background:#5d666f;box-shadow:none}
 .card.h.cant .hwin{filter:grayscale(.78) brightness(.7);border-color:rgba(255,255,255,.09)}
-.card.h.cant .hreq{color:#8b96a3;box-shadow:0 0 0 1px rgba(255,255,255,.1)}
-.card.h.cant .hsum{color:#7f8c99;background:rgba(8,12,17,.62);border-color:rgba(255,255,255,.05)}
-.card.h.cant .hfoot{color:#6b7885}
+.card.h.cant .hreq{color:var(--ink-4);border-left-color:rgba(150,158,168,.4)}
+.card.h.cant .hsum{color:var(--ink-3);background:rgba(8,12,17,.62);
+  border-color:rgba(255,255,255,.05);border-left-color:rgba(150,158,168,.3)}
+.card.h.cant .hfoot{color:var(--ink-4)}
 .card.h.cant .helem{opacity:.4}
 
 /* 卡面悬浮详情（两层信息：卡上要点，悬浮全部要点） */
-#cardtip{position:fixed;z-index:90;display:none;width:288px;border:1px solid var(--line2);
-  background:rgba(8,12,17,.97);border-radius:3px;padding:11px 13px;
-  box-shadow:0 16px 40px rgba(0,0,0,.7);pointer-events:none}
-#cardtip .t1{font-size:15px;color:#fff}
-#cardtip .t2{font-family:var(--mono);font-size:11px;color:var(--ink2);margin-top:3px}
-#cardtip .t3{font-size:13px;line-height:1.7;color:#b6c2ce;margin-top:8px}
-#cardtip .t4{margin-top:7px;padding-top:7px;border-top:1px dashed #1e2731;
-  font-family:var(--mono);font-size:11px;color:var(--ink2);line-height:1.7}
-#cardtip .t5{margin-top:7px;font-size:12px;color:#8b96a3;line-height:1.7}
-#cardtip .t6{margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--ok)}
-#cardtip .t7{margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--acc);letter-spacing:.08em}
+#cardtip{position:fixed;z-index:90;display:none;width:292px;border:1px solid var(--line-2);
+  background:rgba(8,12,17,.98);border-radius:var(--r-3);padding:var(--s-5) var(--s-5);
+  box-shadow:var(--sh-4);pointer-events:none}
+#cardtip .t1{font-size:15px;color:var(--ink-1);letter-spacing:.02em}
+#cardtip .t2{font-family:var(--mono);font-size:11px;color:var(--ink-3);
+  margin-top:var(--s-1);letter-spacing:.03em}
+#cardtip .t3{font-size:13px;line-height:1.7;color:var(--ink-2);
+  margin-top:var(--s-4)}
+#cardtip .t4{margin-top:var(--s-3);padding-top:var(--s-3);border-top:1px solid var(--line-1);
+  font-family:var(--mono);font-size:11px;color:var(--ink-3);line-height:1.7}
+#cardtip .t5{margin-top:var(--s-3);font-size:12px;color:var(--ink-3);
+  line-height:1.7}
+#cardtip .t6{margin-top:var(--s-3);font-family:var(--mono);font-size:11px;
+  color:var(--ok)}
+#cardtip .t7{margin-top:var(--s-4);padding-top:var(--s-3);border-top:1px dashed var(--line-1);
+  font-family:var(--mono);font-size:11px;color:var(--acc);letter-spacing:.08em}

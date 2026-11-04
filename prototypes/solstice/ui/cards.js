@@ -27,26 +27,35 @@ SOL.ui = SOL.ui || {};
     const pal = (card.art && card.art.palette) || ['#0c1218', '#12303c', '#0a1016'];
     const sig = D.sigil(card.primary);
     const f = (card.art && card.art.focus) || { x: 0.5, y: 0.5 };
+    /* 画芯之前读起来是一块近黑的空框：palette 的三个色本来就都是暗值（#0d1712 / #3c7048 / #131c17），
+       再压一层 0.26 的黑底渐变，中间那一点元素色也被吃掉了。
+       这版加了三层，让它在 136×60 的手牌窗口里也看得出是「画」：
+       顶部受光（白 0.10 → 透明）、元素光晕提到 0.34、墨线放大到 1.02 并压一层极淡的影。 */
     return `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
       <defs>
         <linearGradient id="bg${uid}" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="${pal[0]}"/><stop offset=".55" stop-color="${pal[1]}"/><stop offset="1" stop-color="${pal[2]}"/>
+          <stop offset="0" stop-color="${pal[0]}"/><stop offset=".45" stop-color="${pal[1]}"/><stop offset="1" stop-color="${pal[2]}"/>
         </linearGradient>
-        <radialGradient id="gl${uid}" cx="${f.x}" cy="${f.y}" r=".7">
-          <stop offset="0" stop-color="${D.elColor(card.primary)}" stop-opacity=".22"/>
+        <radialGradient id="gl${uid}" cx="${f.x}" cy="${f.y}" r=".72">
+          <stop offset="0" stop-color="${D.elColor(card.primary)}" stop-opacity=".34"/>
           <stop offset="1" stop-color="${D.elColor(card.primary)}" stop-opacity="0"/>
         </radialGradient>
+        <linearGradient id="lt${uid}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fff" stop-opacity=".10"/>
+          <stop offset=".55" stop-color="#fff" stop-opacity="0"/>
+        </linearGradient>
       </defs>
       <rect width="100" height="100" fill="url(#bg${uid})"/>
-      <g opacity=".35" fill="#a8ccdd">
+      <g opacity=".30" fill="#a8ccdd">
         <circle cx="14" cy="12" r=".7"/><circle cx="32" cy="7" r=".5"/><circle cx="52" cy="15" r=".8"/>
         <circle cx="72" cy="9" r=".55"/><circle cx="88" cy="18" r=".6"/><circle cx="22" cy="24" r=".45"/>
       </g>
       <rect width="100" height="100" fill="url(#gl${uid})"/>
-      <g style="color:${D.elColor(card.primary)}" transform="translate(50 52) scale(.86) translate(-50 -50)"
-         opacity=".92">${sig}</g>
+      <g style="color:${D.elColor(card.primary)}" transform="translate(50 52) scale(1.02) translate(-50 -50)"
+         opacity=".95">${sig}</g>
+      <rect width="100" height="100" fill="url(#lt${uid})"/>
       <path d="M0 82 C22 76 44 86 66 80 C80 76 90 80 100 78 L100 100 L0 100 Z"
-        fill="#000" opacity=".26"/>
+        fill="#000" opacity=".18"/>
     </svg>`;
   }
 

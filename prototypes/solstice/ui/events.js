@@ -98,8 +98,8 @@
         <path d="M34,106 L60,80 L86,106" fill="none" stroke="#8a7448" stroke-width="4"/>
         <rect x="54" y="110" width="12" height="14" fill="#2a2118"/>`,
       wall: `<rect x="26" y="88" width="68" height="32" fill="#5b6673"/>
-        <rect x="26" y="82" width="10" height="10" fill="#6d7987"/><rect x="44" y="82" width="10" height="10" fill="#6d7987"/>
-        <rect x="62" y="82" width="10" height="10" fill="#6d7987"/><rect x="80" y="82" width="10" height="10" fill="#6d7987"/>`,
+        <rect x="26" y="82" width="10" height="10" fill="var(--ink-4)"/><rect x="44" y="82" width="10" height="10" fill="var(--ink-4)"/>
+        <rect x="62" y="82" width="10" height="10" fill="var(--ink-4)"/><rect x="80" y="82" width="10" height="10" fill="var(--ink-4)"/>`,
       script: `<rect x="30" y="46" width="60" height="76" fill="#6b7887"/>
         <path d="M40,62 L80,62 M40,74 L74,74 M40,86 L80,86 M40,98 L64,98" stroke="#cfd8e2" stroke-width="2" opacity=".35"/>
         <path d="M52,72 L60,60 L68,72 L64,84 L56,84 Z" fill="none" stroke="#e0a33e" stroke-width="2"/>`

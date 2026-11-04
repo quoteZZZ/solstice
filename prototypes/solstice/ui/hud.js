@@ -206,13 +206,13 @@
           ${Object.keys(kinds).map(k => `<div class="row" style="justify-content:space-between;padding:1px 0">
             <span class="xs"><i style="display:inline-block;width:6px;height:6px;border-radius:1px;
               background:${KIND_COL[k]};margin-right:5px"></i>${KIND_LABEL[k]}</span>
-            <span class="mono xs" style="color:#8b99a6">${Math.round(kinds[k] / total * 100)}%</span></div>`).join('')}
+            <span class="mono xs" style="color:var(--ink-3)">${Math.round(kinds[k] / total * 100)}%</span></div>`).join('')}
         </div>
-        <div class="row" style="justify-content:space-between;margin-top:8px;padding-top:7px;border-top:1px solid #171e27">
-          ${[['植物', life.flora, '#5e8f47'], ['动物', life.fauna, '#c8a94b'], ['智慧', life.sapient, '#e0d6b8']]
+        <div class="row" style="justify-content:space-between;margin-top:8px;padding-top:7px;border-top:1px solid var(--line-1)">
+          ${[['植物', life.flora, '#5e8f47'], ['动物', life.fauna, 'var(--gold)'], ['智慧', life.sapient, '#e0d6b8']]
             .map(([k, v, c]) => `<div style="text-align:center;flex:1">
               <div style="font-size:11px;color:${v ? c : '#59646f'}">●</div>
-              <div class="mono" style="font-size:11px;color:${v ? '#dfe7ee' : 'var(--ink4)'}">${v}</div>
+              <div class="mono" style="font-size:11px;color:${v ? 'var(--ink-1)' : 'var(--ink-4)'}">${v}</div>
               <div style="font-size:11px;color:var(--ink3)">${k}</div></div>`).join('')}
         </div>
         ${species.length ? `<div class="row" style="flex-wrap:wrap;gap:4px;margin-top:7px">
@@ -257,7 +257,7 @@
   };
 
   UI.CHRON_ICON = { 干涉: '✦', 气候: '☁', 生态: '✿', 灾变: '⚠', 文明: '⌂', 图鉴: '❖' };
-  UI.CHRON_COL = { 干涉: '#e0a33e', 气候: '#5f9fc0', 生态: '#6aa86a', 灾变: '#b4553f', 文明: '#c8a94b', 图鉴: '#c8a94b' };
+  UI.CHRON_COL = { 干涉: '#e0a33e', 气候: '#5f9fc0', 生态: '#6aa86a', 灾变: '#b4553f', 文明: 'var(--gold)', 图鉴: 'var(--gold)' };
 
   /* 悬停地块读数：真的读 sim 的格，不再用坐标哈希编 */
   UI.hoverInfo = function (cell, ev) {

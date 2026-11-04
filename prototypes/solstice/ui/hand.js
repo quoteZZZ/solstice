@@ -10,6 +10,14 @@
      邻卡盖住的那 20 多像素正好是文字被切掉的地方（REVIEW-DEMO T-3 / C-5）。 */
   const CW = 136;
 
+  /* 视觉尺寸的唯一真源是 CSS 的 --hand-scale（窄屏会把它调小）。
+     这里读同一个变量来算步长：两边各写一个数字的话，改断点时必然只改一边，
+     结果就是「牌缩小了但间距没缩」或者反过来。 */
+  UI.handScale = function () {
+    const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hand-scale'));
+    return v > 0 ? v : 1;
+  };
+
   UI.renderHand = function () {
     const box = document.getElementById('hand');
     if (!box) return;
@@ -19,16 +27,19 @@
     const life = S.lifeStats();
     const wrap = document.getElementById('handwrap');
     const avail = ((wrap && wrap.clientWidth) || 900) - 24;
+    const cw = CW * UI.handScale();
     const sp = n > 1
-      ? Math.max(88, Math.min(CW, (avail - CW) / (n - 1)))
+      ? Math.max(78, Math.min(cw, (avail - cw) / (n - 1)))
       : 0;
     box.innerHTML = W.hand.map((card, i) => {
       const d = i - mid;
       const ang = (d * 2.4).toFixed(2);
       const lift = Math.round(Math.abs(d) * Math.abs(d) * 2.2);
       const z = (i === W.sel ? 200 : 100 - Math.round(Math.abs(d) * 3));
+      /* 扇形的抬升走 --lift 变量，不写死 bottom：写死之后 `.handslot:hover{bottom:…}` 永远被
+         内联样式盖住，悬停只剩投影变化，卡本身不动。 */
       return `<div class="handslot ${i === W.sel ? 'sel' : ''}" data-i="${i}" tabindex="0" role="button"
-        style="left:calc(50% + ${(d * sp).toFixed(1)}px - ${CW / 2}px);bottom:${6 + lift}px;z-index:${z}">
+        style="left:calc(50% + ${(d * sp).toFixed(1)}px - ${cw / 2}px);--lift:${lift}px;z-index:${z}">
         <div class="cardwrap" style="transform:rotate(${ang}deg)">
           ${UI.cardFace(card, 'h' + i, 'h', life)}
         </div>

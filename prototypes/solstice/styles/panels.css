@@ -1,202 +1,266 @@
 /* Solstice · 面板 / 创世 / 世界事件
-   覆盖层占满「世界区域」（左栏到右栏之间也行，这里干脆占满 stage）：面板本身就是一屏。 */
+   覆盖层占满「世界区域」：面板本身就是一屏。
+
+   2026-11-04：面板从「铺满 88% × 88%」改成「有上限的一块」。
+   原来是一个 1600×900 的窗口里放一张 151×220 的包，四周全是空的——
+   尺寸随视口线性放大，内容却不跟着长，越大的屏越空。
+   现在宽高各有上限并居中，超出部分由内容自己滚动。 */
 
 #overlay{position:absolute;inset:0;z-index:60;display:none}
 #overlay.show{display:block}
-#ovbg{position:absolute;inset:0;background:rgba(5,8,11,.74);backdrop-filter:blur(3px)}
-#panel{position:absolute;left:6%;right:6%;top:6%;bottom:6%;display:flex;flex-direction:column;
-  border:1px solid var(--line2);background:#0a0f14;border-radius:4px;
-  box-shadow:0 30px 80px rgba(0,0,0,.7);animation:panelIn .16s both}
-@keyframes panelIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-#phead{flex:0 0 42px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;
-  border-bottom:1px solid var(--line);background:#0d131a}
-#phead .sm{color:#fff}
-#phead .close{cursor:pointer;font-family:var(--mono)}
-#phead .close:hover{color:var(--acc)}
-#pbody{flex:1;min-height:0;padding:14px 16px;overflow:hidden}
-#pfoot{flex:0 0 44px;display:flex;align-items:center;gap:8px;padding:0 16px;
-  border-top:1px solid var(--line);background:#0d131a}
+#ovbg{position:absolute;inset:0;background:rgba(5,8,11,.76);backdrop-filter:blur(3px)}
+#panel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:min(1160px, 92vw);height:min(860px, 90vh);
+  display:flex;flex-direction:column;
+  border:1px solid var(--line-2);background:var(--bg-1);border-radius:var(--r-4);
+  box-shadow:var(--sh-4);animation:panelIn var(--dur-2) var(--ease) both}
+@keyframes panelIn{from{opacity:0;transform:translate(-50%,-50%) scale(.985)}
+  to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+#phead{flex:0 0 46px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 var(--s-6);border-bottom:1px solid var(--line-1);background:#0c1219;
+  border-radius:var(--r-4) var(--r-4) 0 0}
+#phead .sm{color:var(--ink-1);letter-spacing:.02em}
+#phead .close{cursor:pointer;font-family:var(--mono);color:var(--ink-3);
+  padding:2px 6px;border-radius:var(--r-1);transition:color var(--dur-1),background var(--dur-1)}
+#phead .close:hover{color:var(--acc);background:var(--acc-soft)}
+#pbody{flex:1;min-height:0;padding:var(--s-5) var(--s-6);overflow:hidden}
+#pfoot{flex:0 0 46px;display:flex;align-items:center;gap:var(--s-4);padding:0 var(--s-6);
+  border-top:1px solid var(--line-1);background:#0c1219;border-radius:0 0 var(--r-4) var(--r-4)}
 
-.w{border:1px solid var(--line2);border-radius:3px;background:#0f151d}
+.w{border:1px solid var(--line-2);border-radius:var(--r-2);background:var(--bg-2)}
 .row{display:flex;align-items:center}
-.gap4{gap:4px}.gap6{gap:6px}.gap8{gap:8px}
+.gap4{gap:var(--s-2)}.gap6{gap:var(--s-3)}.gap8{gap:var(--s-4)}
 .col{display:flex;flex-direction:column}
 
 /* ── 抽卡 ── */
 /* 包种：一行说完价格、环区间、还差几条图鉴。买不到的整行压暗并写「图鉴 x / n」。 */
-.packrow{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;gap:2px 8px;
-  width:100%;text-align:left;padding:8px 10px;margin-bottom:5px;border-radius:2px;cursor:pointer;
-  border:1px solid transparent;background:rgba(255,255,255,.014);color:inherit;font:inherit}
-.packrow:hover{border-color:#2b3644}
-.packrow .prn{font-size:calc(13px * var(--fs));color:#dfe7ee}
-.packrow .prc{font-family:var(--mono);font-size:calc(13px * var(--fs));color:var(--ink3)}
-.packrow .prr{grid-column:1 / -1;font-family:var(--mono);font-size:calc(11px * var(--fs));color:var(--ink4)}
-.packrow.on{border-color:var(--acc);background:rgba(224,163,62,.06)}
+.packrow{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;gap:3px var(--s-4);
+  width:100%;text-align:left;padding:var(--s-4) var(--s-4);margin-bottom:var(--s-2);
+  border-radius:var(--r-2);cursor:pointer;
+  border:1px solid transparent;background:rgba(255,255,255,.014);color:inherit;font:inherit;
+  transition:border-color var(--dur-1),background var(--dur-1),box-shadow var(--dur-1)}
+.packrow:hover{border-color:var(--line-3);background:rgba(255,255,255,.035)}
+.packrow:active{background:rgba(255,255,255,.06)}
+.packrow .prn{font-size:13px;color:var(--ink-1)}
+.packrow .prc{font-family:var(--mono);font-size:13px;color:var(--ink-3)}
+.packrow .prr{grid-column:1 / -1;font-family:var(--mono);font-size:11px;color:var(--ink-4)}
+.packrow.on{border-color:var(--acc-line);background:rgba(224,163,62,.08);
+  box-shadow:inset 3px 0 0 var(--acc)}
 .packrow.on .prn,.packrow.on .prc{color:var(--acc)}
-.packrow.lock{cursor:not-allowed;opacity:.5}
-.packrow .prl{grid-column:1 / -1;font-family:var(--mono);font-size:calc(11px * var(--fs));color:#8a5a3a}
-.packframe{border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(ellipse at 50% 50%,#141b23,#0a0d12);height:100%}
+.packrow.lock{cursor:not-allowed;opacity:.48}
+.packrow .prl{grid-column:1 / -1;font-family:var(--mono);font-size:11px;color:#a4633c}
+/* 舞台的宽度要跟内容匹配：一张 214 宽的包放进 870 宽的框里，四周的空会被读成「缺东西」。
+   收窄到 720 并把光池做明显——空出来的部分就成了「打光」，不再像没填满。 */
+.packframe{border:1px solid var(--line-1);border-radius:var(--r-3);
+  display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse 46% 54% at 50% 46%,#18232e 0%,#0d141b 55%,#080c11 100%);
+  height:100%;width:100%;max-width:720px;margin:0 auto}
 /* 封印态：一张包 + 一条时素横条。开不了包时这里说「差多少」，不用在空框里写字。 */
-.packseal{width:151px;height:220px;border:1px dashed #3a4856;border-radius:3px;
-  background:linear-gradient(170deg,#141a22,#0b0f14 70%);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
-  padding:0 18px;position:relative}
-.packseal:before{content:"";position:absolute;inset:5px;border:1px solid rgba(255,255,255,.05);border-radius:2px}
-.packseal.ok{border-color:var(--acc);border-style:solid;
-  background:linear-gradient(170deg,#1d1a10,#0d1014 70%);
-  box-shadow:0 0 22px rgba(224,163,62,.18)}
-.packseal .psName{font-size:15px;color:#eef5fa;letter-spacing:.1em}
+/* 包是这块舞台的主角，尺寸跟着舞台走：原来写死 151×220（卡的实际足迹），
+   在 1160 宽的框里只是一个点，四周全是空的。aspect-ratio 锁住卡的比例。 */
+.packseal{width:clamp(151px, 15vw, 214px);height:auto;aspect-ratio:151/220;
+  border:1px dashed var(--line-3);border-radius:var(--r-3);
+  background:linear-gradient(170deg,#131a22,#0a0e13 70%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--s-3);
+  padding:0 18px;position:relative;box-shadow:var(--sh-2)}
+.packseal:before{content:"";position:absolute;inset:5px;border:1px solid rgba(255,255,255,.045);
+  border-radius:var(--r-2)}
+.packseal.ok{border-color:var(--acc-line);border-style:solid;
+  background:linear-gradient(170deg,#1d1a10,#0c1013 70%);
+  box-shadow:0 0 26px rgba(224,163,62,.18),var(--sh-2)}
+.packseal .psName{font-size:clamp(15px, 1.2vw, 18px);color:var(--ink-1);letter-spacing:.1em}
 .packseal.ok .psName{color:var(--acc)}
-.packseal .psSize{font-family:var(--mono);font-size:calc(11px * var(--fs));color:var(--ink4)}
+.packseal .psSize{font-family:var(--mono);font-size:clamp(11px, .85vw, 12px);color:var(--ink-4)}
 .packseal .psEss{width:100%;height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden}
 .packseal .psEss i{display:block;height:100%;background:#4a5c6e;border-radius:2px;
-  transition:width .3s ease}
+  transition:width .3s var(--ease)}
 .packseal.ok .psEss i{background:var(--acc);box-shadow:0 0 8px rgba(224,163,62,.6)}
-.packseal .psNum{font-family:var(--mono);font-size:calc(12px * var(--fs));color:var(--ink3)}
+.packseal .psNum{font-family:var(--mono);font-size:clamp(12px, .95vw, 14px);color:var(--ink-3)}
 .packseal.ok .psNum b{color:var(--acc)}
 .packseal.lock{border-color:#3a2a1e}
 .packseal.lock .psName{color:#7d6650}
 /* 翻牌：6 张暗牌摊开（张数跟包走，不再写死 5 个空位） */
-.dealcard{width:120px;height:176px;border:1px solid var(--line2);background:#161c25;margin-left:-38px}
+.dealcard{width:120px;height:176px;border:1px solid var(--line-2);background:#151c25;
+  margin-left:-38px;border-radius:var(--r-2)}
 .dealcard:first-child{margin-left:0}
 /* 摊开的一包：点一张收下（Balatro 的 booster / StS 的三选一） */
-.packpick{cursor:pointer;transition:transform .14s cubic-bezier(.2,.9,.3,1)}
+.packpick{cursor:pointer;transition:transform var(--dur-2) var(--ease)}
 .packpick:hover{transform:translateY(-7px)}
-.packpick:hover .card{box-shadow:0 0 0 2px rgba(224,163,62,.95),0 14px 30px rgba(0,0,0,.85)}
-.packpick .card{transition:box-shadow .14s}
-.packcard{width:151px;height:220px;border:1px solid var(--line2);background:#161c25;
-  display:flex;flex-direction:column;overflow:hidden;border-radius:2px}
-.packcard .top{height:18px;border-bottom:1px solid var(--line2);display:flex;justify-content:space-between;
-  padding:0 6px;font-family:var(--mono);font-size:calc(11px * var(--fs));color:var(--ink2);align-items:center}
+.packpick:hover .card{box-shadow:0 0 0 2px rgba(224,163,62,.95),var(--sh-3)}
+.packpick:active{transform:translateY(-3px)}
+.packpick .card{transition:box-shadow var(--dur-2) var(--ease)}
+.packcard{width:151px;height:220px;border:1px solid var(--line-2);background:#151c25;
+  display:flex;flex-direction:column;overflow:hidden;border-radius:var(--r-2)}
+.packcard .top{height:18px;border-bottom:1px solid var(--line-2);display:flex;justify-content:space-between;
+  padding:0 var(--s-3);font-family:var(--mono);font-size:11px;color:var(--ink-3);align-items:center}
 .packcard .mid{flex:1;display:flex;align-items:center;justify-content:center}
-.packcard .bot{height:26px;display:flex;align-items:center;padding:0 6px;font-size:calc(12px * var(--fs));
-  border-top:1px dashed var(--line)}
+.packcard .bot{height:26px;display:flex;align-items:center;padding:0 var(--s-3);font-size:12px;
+  border-top:1px dashed var(--line-1)}
 
 /* ── 卡库 ── */
-.codexEl{width:96px;display:flex;flex-direction:column;gap:5px}
+.codexEl{width:96px;display:flex;flex-direction:column;gap:var(--s-2)}
 /* 收藏格：插画 + 名 + 环/类。按可用宽自动铺列，空格不存在，所以不需要占位框。 */
-.cgWall{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px;align-content:start}
-.cgt{border:1px solid var(--line);border-radius:2px;overflow:hidden;cursor:pointer;
-  background:rgba(255,255,255,.012);display:flex;flex-direction:column}
-.cgt:hover{border-color:var(--acc)}
+.cgWall{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:var(--s-3);
+  align-content:start}
+.cgt{border:1px solid var(--line-1);border-radius:var(--r-2);overflow:hidden;cursor:pointer;
+  background:rgba(255,255,255,.012);display:flex;flex-direction:column;
+  transition:border-color var(--dur-1),transform var(--dur-1),background var(--dur-1)}
+.cgt:hover{border-color:var(--acc-line);background:rgba(224,163,62,.05);transform:translateY(-2px)}
+.cgt:active{transform:translateY(0)}
 /* 还没抽到的：留插画的形，抽掉颜色 —— 看得见轮廓，读得出「这里有一张」 */
 .cgt:not(.has) .cgtArt{opacity:.42;filter:grayscale(.85) brightness(.8)}
 .cgt .cgtArt{aspect-ratio:4/3;overflow:hidden;opacity:.5}
 .cgt .cgtArt svg{display:block;width:100%;height:100%}
-.cgt .cgtName{font-size:calc(12px * var(--fs));color:#cfd8e2;text-align:center;padding:4px 3px 0;
+.cgt .cgtName{font-size:12px;color:var(--ink-2);text-align:center;padding:5px 3px 0;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cgt .cgtMeta{font-size:calc(10px * var(--fs));color:var(--ink4);text-align:center;padding:1px 3px 5px}
+.cgt .cgtMeta{font-size:10px;color:var(--ink-4);text-align:center;padding:1px 3px 6px}
 .cgt.has .cgtArt{opacity:1}
-.cgt.has .cgtName{color:#eef5fa}
-.cgt.has{border-color:var(--line2);background:#161c25}
+.cgt.has .cgtName{color:var(--ink-1)}
+.cgt.has{border-color:var(--line-2);background:var(--bg-3)}
 /* 高于可抽环：虚线 + 压暗，跟「还没抽到」分清 */
-.cgt.lock{border-style:dashed;border-color:#1f2731;background:rgba(0,0,0,.16);cursor:default}
+.cgt.lock{border-style:dashed;border-color:var(--line-1);background:rgba(0,0,0,.16);cursor:default}
+.cgt.lock:hover{transform:none;border-color:var(--line-1);background:rgba(0,0,0,.16)}
 .cgt.lock .cgtArt{opacity:.16;filter:grayscale(1)}
 .cgt.lock .cgtName,.cgt.lock .cgtMeta{color:#3b4552}
 /* ── 图鉴：世界状态成就墙（点亮 = 有边有光） ── */
-.axWall{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.axc{border:1px dashed #232c36;border-radius:3px;
-  background:rgba(255,255,255,.012);padding:10px 12px;display:flex;flex-direction:column;gap:6px}
-.axc.on{border:1px solid var(--acc);background:#12181f;
-  box-shadow:inset 0 0 0 1px rgba(224,163,62,.12)}
-.axc .axh{display:flex;justify-content:space-between;font-family:var(--mono);font-size:calc(11px * var(--fs));
-  letter-spacing:.1em;color:var(--ink4)}
-.axc.on .axh{color:#8b99a6}
-.axc .axn{font-size:calc(15px * var(--fs));color:var(--ink3);letter-spacing:.06em}
-.axc.on .axn{color:#fff}
-.axc .axj{font-size:calc(12px * var(--fs));line-height:1.5;color:var(--ink2)}
-.axc.on .axj{color:#a9b5c2}
-.axc .axf{margin-top:auto;font-family:var(--mono);font-size:calc(11px * var(--fs));color:var(--ink4)}
+.axWall{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:var(--s-4)}
+.axc{border:1px dashed var(--line-2);border-radius:var(--r-2);
+  background:rgba(255,255,255,.012);padding:var(--s-4) var(--s-4);
+  display:flex;flex-direction:column;gap:var(--s-3);
+  transition:border-color var(--dur-1),background var(--dur-1)}
+.axc.on{border:1px solid var(--acc-line);background:var(--bg-3);
+  box-shadow:inset 0 0 0 1px rgba(224,163,62,.1),inset 3px 0 0 var(--acc)}
+.axc .axh{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;
+  letter-spacing:.1em;color:var(--ink-4)}
+.axc.on .axh{color:var(--ink-3)}
+.axc .axn{font-size:15px;color:var(--ink-3);letter-spacing:.06em}
+.axc.on .axn{color:var(--ink-1)}
+.axc .axj{font-size:12px;line-height:1.55;color:var(--ink-3)}
+.axc.on .axj{color:var(--ink-2)}
+.axc .axf{margin-top:auto;font-family:var(--mono);font-size:11px;color:var(--ink-4)}
 .axc.on .axf{color:var(--acc)}
 /* 条件类型做成一枚小徽章，不再每张卡刷一行正文；need 型另给一条进度 */
-.axb{border:1px solid #26303c;border-radius:2px;padding:0 5px;line-height:15px;
-  font-size:calc(10px * var(--fs));color:#6d7b89;letter-spacing:.04em}
-.axc.on .axb{border-color:rgba(224,163,62,.45);color:var(--acc)}
-.axp{height:2px;border-radius:1px;background:#1b232e;overflow:hidden}
-.axp i{display:block;height:100%;background:#4a5c6e;transition:width .3s ease}
+.axb{border:1px solid var(--line-2);border-radius:var(--r-1);padding:0 5px;line-height:15px;
+  font-size:10px;color:var(--ink-3);letter-spacing:.04em}
+.axc.on .axb{border-color:rgba(224,163,62,.4);color:var(--acc)}
+.axp{height:2px;border-radius:1px;background:var(--line-1);overflow:hidden}
+.axp i{display:block;height:100%;background:#4a5c6e;transition:width .3s var(--ease)}
 .axc.on .axp i{background:var(--acc)}
 
-.dex .stat{display:flex;align-items:center;gap:6px;padding:2px 0}
-.dex .sk{width:30px;font-family:var(--mono);font-size:calc(11px * var(--fs));color:var(--ink2);flex:0 0 30px}
-.dex .sbar{flex:1;height:4px;background:#1b232e;border:1px solid var(--line);position:relative}
+.dex .stat{display:flex;align-items:center;gap:var(--s-3);padding:3px 0}
+.dex .sk{width:30px;font-family:var(--mono);font-size:11px;color:var(--ink-2);flex:0 0 30px}
+.dex .sbar{flex:1;height:5px;background:var(--bg-2);border:1px solid var(--line-1);position:relative;
+  border-radius:var(--r-1);overflow:hidden}
 .dex .sbar i{position:absolute;left:0;top:0;bottom:0;display:block;opacity:.85}
-.dex .sv{width:64px;text-align:right;font-family:var(--mono);font-size:calc(11px * var(--fs));color:#dfe7ee}
-.dex .st{width:66px;font-family:var(--mono);font-size:calc(11px * var(--fs));color:var(--ink4);text-align:right}
-.dex .lore{display:flex;gap:6px;margin-top:6px;font-size:calc(12px * var(--fs));line-height:1.65;color:#a9b5c2}
-.dex .lore b{color:var(--acc2);font-weight:400;flex:0 0 28px;font-family:var(--mono);font-size:calc(11px * var(--fs))}
-.dex .rel{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
-.dex .rl{border:1px solid var(--line2);border-radius:2px;padding:0 5px;height:16px;display:inline-flex;
-  align-items:center;gap:4px;font-family:var(--mono);font-size:calc(11px * var(--fs));color:var(--ink2)}
+.dex .sv{width:64px;text-align:right;font-family:var(--mono);font-size:11px;color:var(--ink-1)}
+.dex .st{width:66px;font-family:var(--mono);font-size:11px;color:var(--ink-4);text-align:right}
+.dex .lore{display:flex;gap:var(--s-3);margin-top:var(--s-3);font-size:12px;line-height:1.7;
+  color:var(--ink-2)}
+.dex .lore b{color:var(--acc-2);font-weight:400;flex:0 0 28px;font-family:var(--mono);font-size:11px}
+.dex .rel{display:flex;flex-wrap:wrap;gap:var(--s-2);margin-top:var(--s-3)}
+.dex .rl{border:1px solid var(--line-2);border-radius:var(--r-1);padding:0 5px;height:17px;
+  display:inline-flex;align-items:center;gap:var(--s-2);font-family:var(--mono);font-size:11px;
+  color:var(--ink-3)}
 .dex .rl b{color:var(--acc);font-weight:400;cursor:pointer}
-.cdx{margin-top:9px;padding-top:8px;border-top:1px dashed #1e2731}
-.cdx .cdtxt{font-size:calc(12px * var(--fs));line-height:1.7;color:#b6c2ce;margin-top:5px}
-.cdx .cdfl{margin-top:7px;font-size:calc(12px * var(--fs));color:#8b96a3;line-height:1.6}
+.cdx{margin-top:var(--s-4);padding-top:var(--s-4);border-top:1px solid var(--line-1)}
+.cdx .cdtxt{font-size:12px;line-height:1.75;color:var(--ink-2);margin-top:var(--s-2)}
+.cdx .cdfl{margin-top:var(--s-3);font-size:12px;color:var(--ink-3);line-height:1.65}
 
 /* ── 年表 ── */
 .chronRow{display:flex;height:100%}
 
 /* ── 设置 ── */
-.setRow{display:flex;justify-content:space-between;align-items:center;padding:11px 0;
-  border-bottom:1px dashed var(--line)}
-.keyRow{display:flex;align-items:center;padding:7px 0;border-bottom:1px solid #1a212a}
+.setRow{display:flex;justify-content:space-between;align-items:center;padding:12px 0;
+  border-bottom:1px solid var(--line-1)}
+.setRow:last-child{border-bottom:0}
+.keyRow{display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--line-1)}
 /* 分组标题：替代原来那排 tab。分组是阅读结构，不是控件（C-3）。 */
-.keyGrp{margin:14px 0 4px;font-family:var(--mono);font-size:calc(11px * var(--fs));
-  letter-spacing:.12em;color:var(--ink4)}
-.keyGrp:first-of-type{margin-top:4px}
+.keyGrp{margin:var(--s-6) 0 var(--s-2);font-family:var(--mono);font-size:11px;
+  letter-spacing:.14em;color:var(--ink-4)}
+.keyGrp:first-of-type{margin-top:var(--s-1)}
 
 /* ── 创世 ── */
-#creator{position:absolute;inset:0;z-index:80;display:none;background:#080b0f;flex-direction:column}
+#creator{position:absolute;inset:0;z-index:80;display:none;background:var(--bg-0);flex-direction:column}
 #creator.on{display:flex}
-#cTop{flex:0 0 62px;display:flex;align-items:center;gap:14px;padding:0 22px;border-bottom:1px solid var(--line);
-  background:linear-gradient(180deg,#0d141c,#080b0f)}
-#cMain{flex:1;display:flex;gap:16px;padding:16px 22px;min-height:0}
-#cLeft{width:300px;display:flex;flex-direction:column;gap:6px;min-height:0}
-#cCenter{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
-#cRight{width:330px;display:flex;flex-direction:column;gap:6px;min-height:0;overflow:auto}
-#cFoot{flex:0 0 54px;display:flex;align-items:center;gap:8px;padding:0 22px;border-top:1px solid var(--line);
-  background:#0b1016}
-.stp{display:flex;align-items:center;gap:7px;padding:4px 8px;border:1px solid #1b222b;border-radius:2px;
-  background:#0c1218;font-family:var(--mono);font-size:calc(12px * var(--fs));animation:stpIn .3s both}
+#cTop{flex:0 0 64px;display:flex;align-items:center;gap:var(--s-5);padding:0 var(--s-6);
+  border-bottom:1px solid var(--line-1);background:linear-gradient(180deg,#0d141c,var(--bg-0))}
+#cMain{flex:1;display:flex;gap:var(--s-5);padding:var(--s-5) var(--s-6);min-height:0}
+#cLeft{width:clamp(260px, 22vw, 316px);display:flex;flex-direction:column;gap:var(--s-3);min-height:0}
+#cCenter{flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--s-4)}
+#cRight{width:clamp(288px, 24vw, 348px);display:flex;flex-direction:column;gap:var(--s-3);
+  min-height:0;overflow:auto}
+#cFoot{flex:0 0 56px;display:flex;align-items:center;gap:var(--s-4);padding:0 var(--s-6);
+  border-top:1px solid var(--line-1);background:#0b1016}
+.stp{display:flex;align-items:center;gap:var(--s-3);padding:5px var(--s-4);
+  border:1px solid var(--line-1);border-radius:var(--r-2);background:#0c1218;
+  font-family:var(--mono);font-size:12px;animation:stpIn .3s var(--ease) both}
 @keyframes stpIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
-.stp .sic{color:var(--acc2);width:12px;text-align:center}
-.stp .sl{color:var(--ink3);width:26px}
-.stp .sv{color:#cfd8e2;font-size:calc(12px * var(--fs));display:flex;gap:4px;flex-wrap:wrap;overflow:hidden}
-.stp .sv i{color:var(--ink4);font-style:normal}
-#cutaway{border:1px solid var(--line2);background:#0a1219;padding:6px;position:relative;
+.stp .sic{color:var(--acc-2);width:12px;text-align:center}
+.stp .sl{color:var(--ink-3);width:26px}
+.stp .sv{color:var(--ink-2);font-size:12px;display:flex;gap:var(--s-2);flex-wrap:wrap;overflow:hidden}
+.stp .sv i{color:var(--ink-4);font-style:normal}
+#cutaway{border:1px solid var(--line-2);border-radius:var(--r-2);background:#0a1219;
+  padding:var(--s-3);position:relative;
   /* 剖面图吃掉整列剩下的高度：原来内容顶到 450px 就结束，下面留一条空带 */
   flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
 #cutaway svg{display:block;width:100%;height:auto;max-height:100%}
-#cutaway .cvt{transition:opacity .2s}
+#cutaway .cvt{transition:opacity var(--dur-2)}
 #cutaway.dim .cvt{opacity:.25}
 #cutaway.dim .cvt.hl{opacity:1;filter:drop-shadow(0 0 6px rgba(224,163,62,.6))}
-#cvHint{position:absolute;left:10px;bottom:8px;font-family:var(--mono);font-size:calc(11px * var(--fs));color:var(--acc);
-  opacity:0;transition:opacity .2s}
+#cvHint{position:absolute;left:10px;bottom:8px;font-family:var(--mono);font-size:11px;color:var(--acc);
+  opacity:0;transition:opacity var(--dur-2)}
 #cvHint.on{opacity:1}
-.tgrid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
-.tchip{display:flex;align-items:center;gap:5px;border:1px solid var(--line2);border-radius:2px;
-  padding:4px 6px;background:#0e141b;cursor:default}
-.tchip.mapped{border-color:#4a5b6b}
-.tchip .ti{color:var(--acc2);font-family:var(--mono);font-size:calc(13px * var(--fs))}
-.tchip .tn{font-size:calc(12px * var(--fs));color:#cfd8e2}
-.tchip.live{border-color:#4a5b6b}
+/* minmax(0,1fr) 而不是 1fr：1fr 的隐式 min-width 是 auto，一个 5 字的名字就能把
+   格子顶宽、把旁边的徽挤到第二行——「贫瘠土壤 ×0.7 生长」在 2 列里会折成三行。
+   改成可收缩 + 省略号之后，窄列优先截名字，不破版。 */
+.tgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s-2)}
+.tchip{display:flex;align-items:center;gap:var(--s-2);border:1px solid var(--line-2);
+  border-radius:var(--r-1);padding:5px var(--s-3);background:var(--bg-2);cursor:default;
+  min-height:28px;min-width:0;white-space:nowrap}
+.tchip.mapped{border-color:var(--line-3)}
+.tchip .ti{color:var(--acc-2);font-family:var(--mono);font-size:13px}
+.tchip .tn{font-size:12px;color:var(--ink-2);flex:1;min-width:0;overflow:hidden;
+  text-overflow:ellipsis}
+.tchip.live{border-color:var(--line-3)}
 .tchip.ghost{opacity:.4;border-style:dashed}
-.tchip .tw{margin-left:auto;font-style:normal;font-size:calc(11px * var(--fs));letter-spacing:.08em;color:#6f9a7c}
-.chk{display:flex;gap:4px;flex-wrap:wrap}
-.chk i{width:15px;height:15px;border:1px solid var(--ok);border-radius:2px;position:relative;display:block}
-.chk i.on:after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-size:calc(11px * var(--fs));color:var(--ok)}
-.legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:auto}
-.legend .xs{display:flex;align-items:center;gap:4px}
+.tchip .tw{flex:0 0 auto;font-style:normal;font-size:10px;letter-spacing:.08em;color:#6f9a7c}
+.chk{display:flex;gap:var(--s-2);flex-wrap:wrap}
+.chk i{width:16px;height:16px;border:1px solid var(--ok);border-radius:var(--r-1);position:relative;
+  display:block}
+.chk i.on:after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;
+  justify-content:center;font-size:11px;color:var(--ok)}
+.legend{display:flex;gap:var(--s-4);flex-wrap:wrap;margin-top:auto}
+.legend .xs{display:flex;align-items:center;gap:var(--s-2)}
 .legend i{width:7px;height:7px;display:block;border-radius:1px}
 
 /* ── 世界事件 ── */
-#eventwrap{position:absolute;inset:0;z-index:82;background:rgba(6,9,13,.74);backdrop-filter:blur(3px);
+#eventwrap{position:absolute;inset:0;z-index:82;background:rgba(6,9,13,.76);backdrop-filter:blur(3px);
   display:none;align-items:center;justify-content:center}
-#eventwrap.on{display:flex;animation:panelIn .18s both}
-#eventcard{width:660px;border:1px solid #4a3a2a;border-radius:4px;padding:24px 28px;
-  background:linear-gradient(180deg,#171d25,#0d1319);box-shadow:0 24px 60px rgba(0,0,0,.65)}
-#eventcard .band{height:3px;background:linear-gradient(90deg,var(--warn),transparent);margin-bottom:14px}
-#eventcard .ttl{font-size:calc(22px * var(--fs));color:#fff;margin-bottom:9px}
-#eventcard .body{font-size:calc(13px * var(--fs));color:#b6c2ce;line-height:1.85}
-#eventcard .tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:11px}
+#eventwrap.on{display:flex;animation:panelIn var(--dur-2) var(--ease) both}
+#eventcard{width:min(660px, 92vw);border:1px solid #4a3a2a;border-radius:var(--r-4);
+  padding:var(--s-7) var(--s-7);
+  background:linear-gradient(180deg,#171d25,#0c1116);box-shadow:var(--sh-4)}
+#eventcard .band{height:3px;border-radius:2px;background:linear-gradient(90deg,var(--warn),transparent);
+  margin-bottom:var(--s-5)}
+#eventcard .ttl{font-size:22px;color:var(--ink-1);margin-bottom:var(--s-4);letter-spacing:.02em}
+#eventcard .body{font-size:13px;color:var(--ink-2);line-height:1.85}
+#eventcard .tags{display:flex;gap:var(--s-2);flex-wrap:wrap;margin-top:var(--s-4)}
+
+/* ── 响应式 ── */
+@media (max-width:1080px){
+  #pbody{padding:var(--s-4)}
+  #phead,#pfoot{padding:0 var(--s-4)}
+  #eventcard{padding:var(--s-6)}
+  /* 创世三列在窄屏上会互相挤：右列先收窄，左列再收 */
+  #cLeft{width:236px}
+  #cRight{width:264px}
+  #cMain{gap:var(--s-4);padding:var(--s-4)}
+}
+@media (max-width:900px){
+  /* 真的窄了：左右两列改成上下排，中间剖面图让出宽度 */
+  #cMain{flex-direction:column;overflow:auto}
+  #cLeft,#cRight{width:auto}
+  #cLeft{order:2}
+  #cCenter{order:1;min-height:280px}
+  #cRight{order:3}
+}
