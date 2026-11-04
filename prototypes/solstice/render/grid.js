@@ -51,7 +51,8 @@
     /* 水面顶要分段：1 段只有 4 个角，位移等于整块倾斜，看不出波纹。
        旋转不烘进几何——波纹 shader 用的是几何里的 position.y，
        烘掉 rotateX 之后 y 恒为 0，第二个正弦项就变成一个常数。 */
-    GEO.waterTop = shared(new THREE.PlaneGeometry(0.998, 0.998, 4, 4));
+    /* 比格子略大一点（1.01 vs 1.00）：两块水面之间原来留 0.002 的缝，远景下就是一条虚线接缝（第二轮 W11）。重叠是共面同材质，不会打架。 */
+    GEO.waterTop = shared(new THREE.PlaneGeometry(1.01, 1.01, 4, 4));
   }
 
   /* 纸纹：一张 256² 的近白噪点 + 几道纤维，全场地表共用。
@@ -103,8 +104,11 @@
       shader.vertexShader = ['uniform float uWave;', shader.vertexShader.replace(
         '#include <begin_vertex>',
         ['#include <begin_vertex>',
-         'float w1 = sin(uWave * 1.7 + position.x * 4.2 + position.y * 3.1);',
-         'float w2 = sin(uWave * 1.1 + position.y * 7.3 - position.x * 2.2);',
+         /* 波相按**世界坐标**算：原来用 plane 的局部坐标（±0.5，每格相同），
+            相邻两格在公共边上相位对不上，接缝 1px 内亮度差 31.6/255（第二轮 W11）。 */
+         'vec4 wpos = modelMatrix * vec4(position, 1.0);',
+         'float w1 = sin(uWave * 1.7 + wpos.x * 4.2 + wpos.z * 3.1);',
+         'float w2 = sin(uWave * 1.1 + wpos.z * 7.3 - wpos.x * 2.2);',
          'transformed.z += w1 * 0.024 + w2 * 0.011;'].join('\n')
       )].join('\n');
     };

@@ -45,7 +45,18 @@
   C.place = function () {
     const cam = R.camera, t = C.target;
     const y = Math.sin(C.pitch) * C.dist, r = Math.cos(C.pitch) * C.dist;
-    cam.position.set(t.x + Math.cos(C.yaw) * r, t.y + y, t.z + Math.sin(C.yaw) * r);
+    const px = t.x + Math.cos(C.yaw) * r, pz = t.z + Math.sin(C.yaw) * r;
+    let py = t.y + y;
+    /* 相机不许钻进地形：低俯角 + 近距离时，岩顶 0.986 会把镜头埋进去，
+       画面变成一整片暗色（第二轮 W28 实测 camY 0.698 vs 岩顶 0.986）。
+       抬到「机位下方与目标处地面较高者 + 0.22」——仍是原角度，只是不再穿进去。 */
+    if (S && S.at && R.hOf) {
+      const c1 = S.at(Math.round(px), Math.round(pz));
+      const c2 = S.at(Math.round(t.x), Math.round(t.z));
+      const g = Math.max(c1 ? R.hOf(c1) : 0.3, c2 ? R.hOf(c2) : 0.3);
+      if (py < g + 0.22) py = g + 0.22;
+    }
+    cam.position.set(px, py, pz);
     cam.lookAt(t);
   };
 

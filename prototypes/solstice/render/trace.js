@@ -35,7 +35,9 @@
         new THREE.RingGeometry(r * 0.78, r, 24),
         new THREE.MeshBasicMaterial({
           color: col, transparent: true, side: THREE.DoubleSide,
-          opacity: 0.16, depthWrite: false
+          /* 0.16 在草地上只有 0.66/255 的亮度差，等于看不见（第二轮 W21）。
+             提到 0.30 —— 仍然是「贴地的印子」而不是靶心，但开始读得出来。 */
+          opacity: 0.30, depthWrite: false
         })
       );
       ring.rotation.x = -Math.PI / 2;
