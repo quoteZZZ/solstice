@@ -137,8 +137,9 @@
 - **期望**：新世界抽卡状态归零。
 - **实际**：`enterWorld` 不重置 `UI.packStage / UI.packCards`。新世界 0 格、0 月、时素 0，但 B 打开后直接摊着上一界的 6 张，可免费挑一张，还能「换掉 土地」。
 - **证据**：`state-shots/20-creator-new-world-pack.png`（时素 0、0 格、却是 stage 2 的 6 张）；`state-probe.json` C5：`{monthAfter:0, cellsAfter:0, essenceAfter:0, stage2:2, cards2:6}`
-- **严重度**：P2
+- **严重度**：P2（已修复）
 - **建议**：`enterWorld` 里清 `packStage/packCards`（`packSel` 可选保留）；任何 `newWorld` 都把「UI 临时状态」列一张清单一起重置。
+- **状态**：工作区第三轮已在 `creator.js` 的 `enterWorld` 里清 `UI.packStage / packCards`。`state-probe9.txt` S06：新世界 `{month:0, cells:0, ess:0}` 后按 B 得到 `{stage:0, cards:0}`。
 
 ---
 
@@ -152,7 +153,7 @@
 - **证据**：`state-shots/p2-01-panel-keythrough.png`（卡库面板 + 顶部「回收 +1 时素 撤销」+ 右侧「+5 格」）；`state-probe2.json` F1：`castDelta:1`（空格）、`handChanged:true`（X/R）、`gear:3`（J）
 - **严重度**：P2（已修复）
 - **建议**：`onKey` 在 `UI.state.panel || UI.state.event` 时只放行 Esc 与「面板入口键 + 数字键（如果确实要做包内选牌）」，其余直接 return。
-- **状态**：`89216f8` 在 `boot.js` 加了面板守卫：面板开着时除 Esc / Tab / B / L / C / O 外全部吞掉。`state-probe8.txt` S07：Space/X/R/J 后 `castN:0`、`gear:2`、`essence:500`、`panel:"codex"`。（放行列表漏了 K/H，见 S26。）
+- **状态**：`89216f8` 加了面板/拖拽守卫；工作区第三轮把放行列表改成按 `UI.KEYS` 的「面板」组判定，并让焦点在 `#panel/#eventcard` 内的 Enter/Space 直接 `return` 给原生按钮。`state-probe9.txt`：卡库开着按 Space 时 `castDelta:0`、`cells` 不变；拖拽中 `spaceInPanel:0`、松手 1 次。
 
 ---
 
@@ -391,17 +392,16 @@
 
 ---
 
-### S25 · 面板 · 面板开着时 Enter / Space 被守卫吞掉，键盘无法操作面板按钮
+### S25 · 面板 · 面板内 Enter/Space 曾被守卫吞掉；只放行不 return 时 Space 又会穿透施卡
 
 - **路径**：
   1. L 打开卡库
-  2. Tab 到面板内第一个按钮（第 25 个焦点，「图鉴 0/6」）
-  3. 按 Enter（或 Space）
-- **期望**：触发聚焦的按钮（切到图鉴）；至少不要比修复前更差。
-- **实际**：`89216f8` 的面板守卫在原生 button 的默认激活之前执行；Enter / Space 都不在放行列表（只有 Esc / Tab / B / L / C / O），`preventDefault()` 取消了按钮的默认点击。实测焦点在 `[data-ctab="ach"]` 的 BUTTON 上，Enter 后 `codexTab` 仍是 `cards`、面板没变。Tab 能进面板、Esc 能关，但面板里所有按钮都只能鼠标点。
-- **证据**：`state-shots/p9-panel-enter.png`；读数：focus `{tag:"BUTTON", ctab:"ach"}`，before `{tab:"cards"}` → afterEnter `{tab:"cards", panel:"codex"}`。对照旧版（`git worktree add /tmp/solstice-old 334b2d8`，同一路径同一按键）：`cards → ach`，即 `89216f8` 是回归。
-- **严重度**：P2
-- **建议**：守卫里放行「焦点位于 `#panel` 内」的 Enter / Space（`if (document.activeElement.closest('#panel'))` 直接放行，交给原生按钮/已有的 `data-act` 分支）；或把守卫移到焦点输入分支之后。
+  2. 聚焦「图鉴 0/6」页签，按 Enter；再聚焦「卡 8/55」，按 Space
+- **期望**：两个键都激活聚焦的页签，且世界不变。
+- **实际**：`89216f8` 的守卫在原生 button 默认激活之前执行，Enter/Space 都被 `preventDefault`，按不动（对照 `334b2d8`：Enter 能 `cards → ach`）。第三轮第一个补丁改成「只放行、不 return」后，Space 又继续落到 `actOf(' ')` 的「随机释放」分支：页签没切、世界反而多施一张（cells 25→94、casts 1 张土地）。最终版 `if (inPanel && (k==='Enter'||k===' ')) return;` 才把两条都收掉。
+- **证据**：`state-shots/p9-panel-enter.png`（旧态：焦点在「图鉴」但页签仍是卡）；`state-probe9.txt` S25（最终态：`enter: cards→ach`，`space: ach→cards`，`castDelta:0`，`cells: 81→81`）
+- **严重度**：P2（已修复）
+- **建议**：保留「焦点在面板内 → Enter/Space 直接 return」的写法；回归里加一条「聚焦页签 + Space 后世界格子数不变」。
 
 ---
 
@@ -415,8 +415,9 @@
 - **期望**：K/H 和 B/L/C/O 一样能切到 设置→键位 / 操作（`UI.KEYS` 里它们同属「面板」组）。
 - **实际**：`89216f8` 的面板守卫放行列表是手写的 `['b','l','c','o']`，K/H 被 `preventDefault` 吞掉；O 照常把面板切成设置。结果同一类入口键里四个能用、两个静默失效。
 - **证据**：`state-probe8.txt` S15：`{afterK:"chron", afterH:"chron", afterO:"settings"}`（K 前是年表，K/H 后仍是年表）
-- **严重度**：P3
+- **严重度**：P3（已修复）
 - **建议**：放行列表改成「所有面板入口键」——直接读 `UI.KEYS` 里 act ∈ {pack, codex, chron, settings, keys, help, creator} 的键，避免下次再加面板又漏一个。
+- **状态**：工作区第三轮已按此改成 `UI.KEYS.some(x => x.group === '面板' && …)`。`state-probe9.txt` S26：年表开着按 K → `{panel:"settings", group:"keys"}`，按 H → `{panel:"settings", group:"input"}`。
 
 ---
 
