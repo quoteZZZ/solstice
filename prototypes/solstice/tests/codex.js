@@ -139,6 +139,21 @@ function ok(name, cond, note) {
   ok('新界不再算三阳', !again || !again.some(a => a.id === 'sky.three'));
 }
 
+/* ── 8 卡池：点亮一条就多一圈可抽 ── */
+{
+  const { S, D } = boot();
+  const base = S.drawPool().length, cap = S.poolCap();
+  ok('开局卡池不含高阶环', S.drawPool().every(c => c.tier <= cap), base + ' 张 / 上限 ' + cap + ' 环');
+  ok('高阶卡确实被挡在池外', base < S.poolTotal(), base + ' < ' + S.poolTotal());
+  CAST(S, D, 'terrain.earth.0.matter.land');
+  CAST(S, D, 'sky.light.0.matter.sun');
+  CAST(S, D, 'sky.light.0.matter.sun');
+  CAST(S, D, 'sky.light.0.matter.sun');
+  S.checkCodex();
+  ok('点亮后卡池上限 +1', S.poolCap() === cap + 1, cap + ' → ' + S.poolCap());
+  ok('点亮后卡池变大', S.drawPool().length > base, base + ' → ' + S.drawPool().length);
+}
+
 /* ── 汇总 ── */
 console.log('图鉴回归 · ' + boot().S.CODEX.length + ' 条判定，' + FILES.length + ' 个 sim/data 文件');
 rows.forEach(r => console.log(r));

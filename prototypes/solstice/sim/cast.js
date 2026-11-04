@@ -10,7 +10,14 @@
   const isGround = e => e.ground;
 
   /* ───────── 抽卡 ───────── */
-  S.drawPool = () => D.cards.filter(c => !(c.evolve && c.evolve.from));
+  /* 卡池分两段（SETTING §5.1.3「成就解锁卡池」）：低的恒开，高的等图鉴。
+     现在图鉴只有 6 条，按主题给每个组配一个扩展包等于凭空编一张 55 张卡的主题表，
+     所以用一条不编内容的规则顶上：**每点亮一条图鉴，可抽的最高环 +1**。
+     0 条时只能抽 ≤3 环（44 张），6 条全亮才放 tier 9 的大陆出来。 */
+  S.POOL_BASE_TIER = 3;
+  S.poolCap = () => Math.min(9, S.POOL_BASE_TIER + S.codexLit());
+  S.poolTotal = () => D.cards.filter(c => !(c.evolve && c.evolve.from)).length;
+  S.drawPool = () => D.cards.filter(c => !(c.evolve && c.evolve.from) && c.tier <= S.poolCap());
 
   S.drawOne = function (exclude) {
     const pool = S.drawPool().filter(c => !exclude.has(c.id));

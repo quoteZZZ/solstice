@@ -114,13 +114,43 @@
      玩家滚到「刚刚发生」想看条目，滚动位置每秒被清回顶部，点击也常被下一 tick 顶掉。
      现在先用一个便宜签名比一次，没变就不动 DOM；变了也只换内容、把滚动位置还回去。 */
   let rightSig = '';
+  /* 水 / 光 / 温 三条横条：绿带是 sim 真正用的宜居区间（植物要 W≥1 且 L≥1），
+     指针进带变绿、出带保持琥珀。温度没有生长阈值，只标 20 °C 基准刻度——
+     不编一个「舒适区间」出来，那是假的信息（REVIEW-DEMO S-6 / R-3）。 */
+  function fieldBars(f) {
+    const rows = [
+      { k: '水', v: f.w, lo: 0, hi: 3, good: [1, 3], fix: 2 },
+      { k: '光', v: f.l, lo: 0, hi: 3, good: [1, 3], fix: 2 },
+      { k: '温', v: f.t, lo: 10, hi: 30, mark: 20, fix: 1 }
+    ];
+    const pct = (v, lo, hi) => Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100));
+    return rows.map(r => {
+      /* 指针夹在轨道内：0.00 时 left:0% 会让 2px 指针有一半悬在圆头外面，像颗散落的点 */
+      const at = Math.max(1.2, Math.min(98.8, pct(r.v, r.lo, r.hi)));
+      const inBand = r.good ? r.v >= r.good[0] && r.v <= r.good[1] : null;
+      return `<div class="fb">
+        <span class="fbk">${r.k}</span>
+        <div class="fbar">
+          ${r.good ? `<i class="fband" style="left:${pct(r.good[0], r.lo, r.hi)}%;
+            width:${pct(r.good[1], r.lo, r.hi) - pct(r.good[0], r.lo, r.hi)}%"></i>` : ''}
+          ${r.mark != null ? `<i class="ftick" style="left:${pct(r.mark, r.lo, r.hi)}%"></i>` : ''}
+          <i class="fpt${inBand ? ' ok' : ''}" style="left:${at}%"></i>
+        </div>
+        <span class="fbv">${r.v.toFixed(r.fix)}</span>
+      </div>`;
+    }).join('');
+  }
+
   UI.renderRight = function (force) {
     const box = document.getElementById('rightpanel');
     if (!box) return;
     const w = W.world || {};
     const life = S.lifeStats();
 
-    const sig = [W.month, W.cells.size, W.essence, W.sun, W.traces.length,
+    /* 水/光/温均值也进签名：暂停时施一张引水卡，月份不变，横条得跟着动 */
+    const field = S.fieldStats();
+    const fsig = field ? [Math.round(field.w * 10), Math.round(field.l * 10), Math.round(field.t)].join(',') : '-';
+    const sig = [fsig, W.month, W.cells.size, W.essence, W.sun, W.traces.length,
       W.traces.length ? W.traces[W.traces.length - 1].id + ':' + W.traces[W.traces.length - 1].count : 0,
       life.flora, life.fauna, life.sapient, life.floraSet.size, life.faunaSet.size,
       w.name, UI.state.selCell ? UI.state.selCell.x + ',' + UI.state.selCell.y : ''].join('|');
@@ -152,6 +182,11 @@
         <div class="rowline"><span class="xs">太阳 / 世界律</span>
           <span class="mono xs">☀ ${W.sun} · 寿命 ×${W.law.lifeX} · 繁 ×${W.law.propX}</span></div>
       </div>
+
+      ${field ? `<div class="rp">
+        <div class="h">环境</div>
+        ${fieldBars(field)}
+      </div>` : ''}
 
       <div class="rp">
         <div class="row" style="justify-content:space-between;align-items:baseline">

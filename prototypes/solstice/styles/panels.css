@@ -69,6 +69,10 @@
   font-family:var(--mono);font-size:calc(11px * var(--fs));color:#cfd8e2;text-align:center;line-height:1.2}
 /* 空格只留一个近乎看不见的框，保住行列对齐，不再冒充内容 */
 .cgCell.empty{border:1px solid rgba(255,255,255,.055);background:rgba(255,255,255,.014)}
+/* 高于卡池上限的环：虚线 + 压暗。跟「还没抽到」分开——那一格是能抽到的，这一格还抽不到 */
+.cgCell.lock{border:1px dashed #1f2731;background:rgba(0,0,0,.16)}
+.cgCell.lock .cgBody{color:#3b4552}
+.cgCell.lock .cgTag{color:#333c47}
 
 /* ── 图鉴：世界状态成就墙（点亮 = 有边有光） ── */
 .axWall{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}

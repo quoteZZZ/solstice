@@ -59,6 +59,8 @@
   S.CODEX_GROUPS = ['天文', '水文', '生态'];
 
   S.codexCount = () => A.on.size;
+  /* 卡池上限读这个数（cast.js 的 poolCap）：图鉴点亮 → 能抽到更高环 */
+  S.codexLit = () => A.on.size;
   S.codexOf = grp => S.CODEX.filter(a => a.grp === grp);
 
   /* 换界：连续月计数归零，已点亮的页不撕 */
@@ -70,6 +72,7 @@
   S.checkCodex = function (fromTick) {
     const f = scan();
     const lit = [];
+    const poolBefore = S.drawPool().length;
     for (const a of S.CODEX) {
       if (A.on.has(a.id)) continue;
       const ok = a.test(f);
@@ -85,7 +88,12 @@
       S.addChron('图鉴', '「' + a.name + '」点亮（' + a.grp + '）');
       lit.push(a);
     }
-    if (lit.length) S.emit('codex', lit);
+    if (lit.length) {
+      /* 点亮涨的是可抽的最高环，年表得把这件事说出来，否则「解锁」只发生在数字里 */
+      const grew = S.drawPool().length - poolBefore;
+      if (grew > 0) S.addChron('图鉴', '卡池 +' + grew + ' 张，可抽到 ' + S.poolCap() + ' 环');
+      S.emit('codex', lit);
+    }
     return lit.length ? lit : null;
   };
 

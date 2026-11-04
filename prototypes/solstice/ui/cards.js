@@ -128,10 +128,14 @@ SOL.ui = SOL.ui || {};
     const tip = document.getElementById('cardtip');
     if (!tip || !card) return;
     const life = SOL.sim.traceLife(card);
+    /* disturb / cooldown_s 在 schema 里是必填，但 55 张卡一张都没写。
+       缺就先不印，别把 undefined 印到卡上（数值要不要补，等数据拍板）。 */
+    const dist = card.disturb == null ? '' : ' · ⚠ +' + card.disturb;
+    const cd = card.cooldown_s == null ? '' : ' · ⧗ ' + card.cooldown_s + ' 秒';
     tip.innerHTML = `<div class="t1">${esc(card.name.zh)}</div>
       <div class="t2">${card.elements.join(' + ')} · ${card.tier === 10 ? '超环' : card.tier + ' 环'} · ${D.clsName[card.class]} · ${esc(card.rarity_word)}</div>
       <div class="t3">${esc(card.line.fx)}</div>
-      <div class="t4">◔ ${card.radius_w.toFixed(3)} W · ⚠ +${card.disturb} · ⧗ ${card.cooldown_s || '—'} 秒
+      <div class="t4">◔ ${card.radius_w.toFixed(3)} W${dist}${cd}
         · 痕迹 ${life >= 999 ? '永久' : life + ' 月'}
         ${card.reclaim ? ' · 回收 +' + card.reclaim : ''}</div>
       ${card.evolve && card.evolve.to ? `<div class="t6">进化 ▸ ${esc((D.byId.get(card.evolve.to) || {}).name ? D.byId.get(card.evolve.to).name.zh : '')} · ${esc(card.evolve.req || '')}</div>` : ''}

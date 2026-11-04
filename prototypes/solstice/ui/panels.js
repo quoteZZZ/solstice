@@ -82,7 +82,7 @@
     const ok = W.essence >= S.PACK_COST;
     return `<div class="packseal${ok ? ' ok' : ''}">
       <div class="psName">主包</div>
-      <div class="psSize">${S.PACK_SIZE} 张</div>
+      <div class="psSize">${S.PACK_SIZE} 张 · 池 ${S.drawPool().length}/${S.poolTotal()}</div>
       <div class="psEss"><i style="width:${pct.toFixed(1)}%"></i></div>
       <div class="psNum"><b>${W.essence}</b> / ${S.PACK_COST}</div>
     </div>`;
@@ -99,7 +99,7 @@
           <div class="row" style="justify-content:space-between;align-items:baseline">
             <span class="sm" style="color:#fff">主包</span>
             <span class="mono" style="color:var(--acc)">${S.PACK_COST}</span></div>
-          <div class="mono xs" style="margin-top:6px;color:#3f4b58">池 ${D.total} 张 · ${S.PACK_SIZE} 张 / 包</div>
+          <div class="mono xs" style="margin-top:6px;color:#3f4b58">池 ${S.drawPool().length} / ${S.poolTotal()} · ${S.PACK_SIZE} 张 / 包</div>
         </div>
         ${swap ? `<div class="xs" style="margin-top:12px">手牌满 · 收下的那张换掉
           <span class="mono" style="color:#e8eef4">${swap.name.zh}</span></div>` : ''}
@@ -216,7 +216,9 @@
   function codexBody() {
     const els = D.elements.order;
     const el = U.codexEl;
-    const sel = U.codexSel ? D.byId.get(U.codexSel) : null;
+    /* 详情列默认落在当前元素的头一张上：空着一整列去写「点左侧任意卡格」，
+       既占了 400px 又只是在教人怎么点（守「界面不写说明句」）。 */
+    const sel = (U.codexSel && D.byId.get(U.codexSel)) || D.cards.find(x => x.primary === el) || null;
     const seenIn = e => D.cards.filter(c => c.primary === e && W.seen.has(c.id)).length;
     const totalIn = e => D.cards.filter(c => c.primary === e).length;
 
@@ -230,7 +232,9 @@
           if (!c) return `<div class="cgCell empty"></div>`;
           const seen = W.seen.has(c.id);
           if (U.codexOwn && !seen) return `<div class="cgCell empty"></div>`;
-          return `<div class="cgCell ${seen ? 'has' : ''}" data-card="${c.id}" title="${c.name.zh}">
+          /* 环数高于当前卡池上限 = 图鉴还没点亮到那儿。虚线格，和「还没抽到」的实心暗格分开。 */
+          const locked = c.tier > S.poolCap();
+          return `<div class="cgCell ${seen ? 'has' : ''}${locked ? ' lock' : ''}" data-card="${c.id}" title="${c.name.zh}">
             <div class="cgTag">${D.clsName[cls]}</div>
             <div class="cgBody">${seen ? c.name.zh : '·'}</div></div>`;
         }).join('')}
@@ -246,12 +250,12 @@
         <div class="row gap8" style="margin-bottom:9px;align-items:center">
           <span class="mono xs" style="color:#8b99a6">已见 ${W.seen.size} / ${D.total}</span>
           <button class="btn ${U.codexOwn ? 'on' : 'ghost'}" data-act="codexOwn" style="height:22px">只看已见</button>
-          <span class="xs">灰格 = 还没抽到 · 点开看详情</span>
+          <span class="mono xs" style="color:#8b99a6">池 ${S.drawPool().length} / ${S.poolTotal()}</span>
         </div>
         ${grid}
       </div>
       <div style="width:400px;border-left:1px solid var(--line);padding-left:16px;overflow:auto">
-        ${sel ? codexDetail(sel) : '<div class="xs">点左侧任意卡格 → 这里出详情</div>'}
+        ${sel ? codexDetail(sel) : ''}
       </div>
     </div>`;
   }
@@ -262,7 +266,8 @@
       </div>
       <div style="display:flex;justify-content:space-between;margin-top:2px;padding:9px 2px;
         border-top:1px solid #1a212a;border-bottom:1px solid #1a212a">
-        ${[['◔', '半径', c.radius_w.toFixed(3) + ' W'], ['⚠', '扰动', '+' + c.disturb],
+        ${[['◔', '半径', c.radius_w.toFixed(3) + ' W'],
+           ['⚠', '扰动', c.disturb == null ? '未定' : '+' + c.disturb],
            ['↩', '回收', c.reclaim ? '+' + c.reclaim : '—']]
           .map(([i, k, v]) => `<div style="text-align:center;flex:1">
             <div style="font-size:14px;color:var(--acc)">${i}</div>

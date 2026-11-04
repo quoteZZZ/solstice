@@ -188,3 +188,18 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
 #stage.ambient #hint{opacity:0 !important}
 
 /* ── 创世 / 覆盖层 / 事件：见 panels.css ── */
+
+/* ── 水 / 光 / 温 三条横条（右栏）──
+   数字换成形态：绿带是 sim 真正用的宜居区间，指针进带变绿。
+   温度没有生长阈值，只画一条 20 °C 基准刻度——宁可不画带，也不编一个区间。 */
+.fb{display:flex;align-items:center;gap:8px;padding:3px 0}
+.fbk{width:13px;font-family:var(--mono);font-size:calc(11px * var(--fs));color:var(--ink3)}
+.fbar{position:relative;flex:1;height:6px;border-radius:3px;background:#121a22;
+  box-shadow:inset 0 0 0 1px #1e2833}
+.fband{position:absolute;top:0;bottom:0;background:rgba(95,143,106,.34);border-radius:3px}
+.ftick{position:absolute;top:-2px;bottom:-2px;width:1px;background:#46536b}
+.fpt{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;border-radius:1px;
+  background:var(--acc);box-shadow:0 0 6px rgba(224,163,62,.75)}
+.fpt.ok{background:#6aa86a;box-shadow:0 0 7px rgba(106,168,106,.85)}
+.fbv{width:30px;text-align:right;font-family:var(--mono);font-size:calc(11px * var(--fs));color:#cfdae4;
+  font-variant-numeric:tabular-nums}

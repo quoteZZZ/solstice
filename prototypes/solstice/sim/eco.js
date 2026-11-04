@@ -49,6 +49,16 @@
     }
   };
 
+  /* 全界的水 / 光 / 温均值。右栏那三条横条读它。
+     只读，不改世界。「宜居带」的阈值不在这里定——它由 eco 真正用的判据决定
+     （植物生长要 `W >= 1 && L >= 1`，见下面的 entityTick），UI 照那个写，不另编一套。 */
+  S.fieldStats = function () {
+    let n = 0, sw = 0, sl = 0, st = 0;
+    for (const c of W.cells.values()) { n++; sw += c.W; sl += c.L; st += c.T; }
+    if (!n) return null;
+    return { n: n, w: sw / n, l: sl / n, t: st / n };
+  };
+
   /* ───────────────── 觅食 ───────────────── */
   S.findFood = function (cell, pred) {
     const wantPlant = pred.diet === '草';
