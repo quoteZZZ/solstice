@@ -276,6 +276,54 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     return { seq, afterFish, reset, castOk: !!castRes.ok };
   });
 
+  /* 10.4 拖拽主路径：从手牌拖进世界必须真的施卡。
+     这条是 H01 / U25 的守卫——手牌贴着屏幕底边，抬手去世界必然向上，
+     旧逻辑里「向上 = 随机落点」会抢在「指定落点」前面，主路径等于不存在。 */
+  const dragCast = await (async () => {
+    try {
+      await page.evaluate(() => {
+        const { S, UI } = window.__dbg;
+        S.W.hand[0] = window.SOL.data.byId.get('terrain.earth.0.matter.land');
+        UI.renderHand(); UI.updateHud();
+      });
+      const pt = await page.evaluate(() => {
+        const { R } = window.__dbg;
+        const rc = document.getElementById('cv').getBoundingClientRect();
+        const hand = document.getElementById('handwrap').getBoundingClientRect();
+        for (let gy = 0.2; gy < 0.7; gy += 0.05) {
+          for (let gx = 0.25; gx < 0.8; gx += 0.05) {
+            const x = rc.left + rc.width * gx, y = rc.top + rc.height * gy;
+            if (y > hand.top - 20) continue;
+            if (!R.cam.pickAt(x, y)) return { x, y };
+          }
+        }
+        return null;
+      });
+      if (!pt) return { skip: true };
+      const slot = await page.evaluate(() => {
+        const b = document.querySelector('.handslot').getBoundingClientRect();
+        return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+      });
+      const before = await page.evaluate(() => window.__dbg.S.W.cells.size);
+      await page.mouse.move(slot.x, slot.y);
+      await page.mouse.down();
+      for (let i = 1; i <= 8; i++) {
+        await page.mouse.move(slot.x + (pt.x - slot.x) * i / 8, slot.y + (pt.y - slot.y) * i / 8);
+        await page.waitForTimeout(20);
+      }
+      const tip = await page.evaluate(() => {
+        const g = document.getElementById('ghost');
+        const t = g && g.querySelector('.tip');
+        return t ? t.textContent : null;
+      });
+      await page.mouse.up();
+      await page.waitForTimeout(220);
+      const after = await page.evaluate(() => window.__dbg.S.W.cells.size);
+      const ghosts = await page.evaluate(() => document.querySelectorAll('#ghost').length);
+      return { before, after, tip, ghosts, grew: after > before };
+    } catch (e) { return { err: String(e && e.message) }; }
+  })();
+
   /* 10.5 本批修复的回归：价格来源 / 换包保护 / 空施不吃牌 / 跳过按钮 / 抽包文案 */
   const fixes = await page.evaluate(() => {
     const { S, W, D, UI } = window.__dbg;
@@ -335,6 +383,11 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
   if (rr.seq.join(',') !== '5,10,20,40,40') errors.push('[assert] 重抽梯价不对：' + rr.seq.join(','));
   if (rr.reset !== 5) errors.push('[assert] 施卡后重抽价没有归零：' + rr.reset);
   if (!rr.castOk) errors.push('[assert] 归零测试里那张卡根本没施成');
+  if (dragCast.skip) errors.push('[assert] 找不到虚空点，拖拽用例没跑');
+  if (dragCast.err) errors.push('[assert] 拖拽用例抛错：' + dragCast.err);
+  if (!dragCast.grew) errors.push('[assert] 拖到世界没有施卡（cells ' + dragCast.before + '→' + dragCast.after + '）：' + dragCast.tip);
+  if (dragCast.tip && /随机/.test(dragCast.tip)) errors.push('[assert] 拖到世界仍被判成随机落点：' + dragCast.tip);
+  if (dragCast.ghosts) errors.push('[assert] 松手后还留着 ' + dragCast.ghosts + ' 张拖影');
   if (!fixes.landRefused) errors.push('[assert] 空施没有被拒绝：' + fixes.landMsg);
   if (!fixes.landNoConsume) errors.push('[assert] 空施把牌吃掉了');
   if (!fixes.priceInTitle) errors.push('[assert] 抽卡标题价格没跟随选中包：' + fixes.priceInTitle);
@@ -349,7 +402,7 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     errors.push('[assert] 事件弹窗不在视口内：' + JSON.stringify(panels.eventBox));
   }
 
-  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, fixes, errors };
+  const report = { table, world, sim, panels, cards, keyboard, ess, undo, undoGuard, draw, rr, fixes, dragCast, errors };
   fs.writeFileSync(path.join(__dirname, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 1));
 

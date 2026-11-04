@@ -77,7 +77,7 @@
     const wrap = document.getElementById('ghostwrap');
     const g = document.createElement('div');
     g.id = 'ghost';
-    g.innerHTML = UI.cardFace(card, 'g', 'h') + '<div class="tip">拖到地面指定落点 · 向上随机 · 向下回收</div>';
+    g.innerHTML = UI.cardFace(card, 'g', 'h') + '<div class="tip">拖到世界 = 指定落点 · 拖回手牌带下端 = 回收</div>';
     wrap.appendChild(g);
     moveGhost(ev.clientX, ev.clientY);
 
@@ -85,6 +85,11 @@
     document.addEventListener('pointerup', endDrag, { once: true });
     /* 指针在窗口外松开 / 触控被系统取消时 pointerup 不会来。
        没有兜底，ghost 会留在屏幕上、document 上的 pointermove 永久驻留（REVIEW-DEMO X-11）。 */
+    /* Esc 也要能取消拖拽。原来按下去什么都不发生，ghost 一直跟着鼠标，
+       只能靠松手结束（UI 评审 U38）。 */
+    const esc = e => { if (e.key === 'Escape') { e.preventDefault(); endDrag(null); } };
+    drag.esc = esc;
+    document.addEventListener('keydown', esc);
     const cancel = () => endDrag(null);
     drag.cancel = cancel;
     document.addEventListener('pointercancel', cancel, { once: true });
@@ -108,24 +113,19 @@
     const tip = g && g.querySelector('.tip');
     const card = W.hand[drag.i];
     const cvRect = SOL.render.canvas.getBoundingClientRect();
+    const handRect = document.getElementById('handwrap').getBoundingClientRect();
     const overCanvas = ev.clientX > cvRect.left && ev.clientX < cvRect.right &&
       ev.clientY > cvRect.top && ev.clientY < cvRect.bottom;
+    /* 「在世界里」= 画布内、且在 handwrap 上沿以上。
+       手牌贴着屏幕底边，抬手去世界**必然是向上**——所以原来那条「向上拖 = 随机落点」
+       （dy < -40）会抢在「拖到指定格」之前把每一次真实拖拽都吃掉，施卡主路径等于不存在
+       （UI 评审 H01 / U25）。现在按**落点位置**分，不按方向：进了世界就是指定落点，
+       留在手牌带里只有回收。随机落点退回 ✦ 按钮与空格。 */
+    const inWorld = overCanvas && ev.clientY < handRect.top - 8;
 
     drag.cell = null; drag.pt = null;
 
-    if (dy > 90) {
-      drag.mode = 'recycle';
-      g && g.classList.add('rec');
-      if (tip) tip.textContent = card.reclaim ? '松手回收 +' + card.reclaim + ' 时素' : '松手回收（0 环不返还）';
-      SOL.render.cam.setHover(null);
-      SOL.render.marks.clear();
-    } else if (dy < -40 && drag.moved) {
-      drag.mode = 'random';
-      g && g.classList.remove('rec');
-      if (tip) tip.textContent = '松手释放（随机落点）';
-      SOL.render.cam.setHover(null);
-      SOL.render.marks.clear();
-    } else if (overCanvas && drag.moved) {
+    if (inWorld && drag.moved) {
       drag.mode = 'cast';
       g && g.classList.remove('rec');
       const cell = SOL.render.cam.pickAt(ev.clientX, ev.clientY);
@@ -136,13 +136,20 @@
       if (tip) {
         const op = card.sim.op;
         tip.textContent = op === 'land' ? '松手在这片虚空造陆'
-          : op === 'law' ? '松手生效（律作用于全图）'
-          : cell ? '松手放在 (' + cell.x + ', ' + cell.y + ')' : '要放在已有地块上';
+          : op === 'law' || op === 'sun' ? '松手生效（不必指格子）'
+          : cell ? '松手放在 (' + cell.x + ', ' + cell.y + ')'
+          : '要放在已有地块上';
       }
+    } else if (dy > 90) {
+      drag.mode = 'recycle';
+      g && g.classList.add('rec');
+      if (tip) tip.textContent = card.reclaim ? '松手回收 +' + card.reclaim + ' 时素' : '松手回收（0 环不返还）';
+      SOL.render.cam.setHover(null);
+      SOL.render.marks.clear();
     } else {
       drag.mode = 'idle';
       g && g.classList.remove('rec');
-      if (tip) tip.textContent = '拖到地面指定落点 · 向上随机 · 向下回收';
+      if (tip) tip.textContent = '拖到世界 = 指定落点 · 拖回手牌带下端 = 回收';
       SOL.render.cam.setHover(null);
       SOL.render.marks.clear();
     }
@@ -156,6 +163,7 @@
       document.removeEventListener('pointercancel', d.cancel);
       window.removeEventListener('blur', d.cancel);
     }
+    if (d && d.esc) document.removeEventListener('keydown', d.esc);
     /* 用 querySelectorAll 而不是 getElementById：同 id 的残影可能不止一张 */
     document.querySelectorAll('#ghost').forEach(g => g.remove());
     SOL.render.cam.setHover(null);
@@ -163,7 +171,8 @@
     if (!d) return;
     if (d.mode === 'recycle') return UI.recycle();
     if (d.mode === 'cast') return UI.cast(d.i, d.cell, d.pt);
-    if (d.mode === 'random') return UI.castRandom();
+    /* random 分支已取消：拖拽只按落点位置分「施卡 / 回收」两种，
+       随机落点走 ✦ 按钮与空格（见 onDrag 的注释）。 */
   }
 
   /* ── 落卡 ── */

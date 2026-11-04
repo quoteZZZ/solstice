@@ -498,9 +498,9 @@
         ${g.rows.map(k => {
           const bad = dup.has(k.key);
           return `<div class="keyRow" style="${bad ? 'box-shadow:inset 2px 0 0 #b4553f;padding-left:6px' : ''}">
-            <span class="sm" style="flex:1">${k.name}${bad ? '<span class="tag warn" style="margin-left:6px">冲突</span>' : ''}</span>
-            <button class="btn wide ${k.ed ? '' : 'ghost'}" data-k="${k.act}"
-              ${k.ed ? '' : 'disabled'}>${k.key}</button>
+            <span class="sm" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${k.name}${bad ? '<span class="tag warn" style="margin-left:6px">冲突</span>' : ''}</span>
+            <button class="btn ${k.ed ? '' : 'ghost'}" data-k="${k.act}" style="width:132px;justify-content:center"
+              ${k.ed ? '' : 'disabled'}>${k.key === ' ' ? '空格' : k.key}</button>
             <span style="width:64px;text-align:right">${k.ed ? '<span class="tag ok">可改</span>' : '<span class="tag">锁死</span>'}</span>
           </div>`;
         }).join('')}`).join('')}`;
