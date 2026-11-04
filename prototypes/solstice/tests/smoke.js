@@ -515,6 +515,21 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
           actbarOk: !!(hit && hit.closest('#actbar'))
         };
       });
+      /* 竖屏 900×1200：8 张牌曾挤进 580 的容器，首卡盖左栏、末卡压右栏（N09） */
+      await page.evaluate(() => { const { S, D, UI } = window.__dbg;
+        S.W.hand = new Array(8).fill(D.byId.get('terrain.earth.0.matter.land')); UI.renderHand(); });
+      await page.setViewportSize({ width: 900, height: 1200 });
+      await page.waitForTimeout(620);
+      r.portrait = await page.evaluate(() => {
+        const rail = document.getElementById('leftrail').getBoundingClientRect();
+        const rp = document.getElementById('rightpanel').getBoundingClientRect();
+        const slots = [...document.querySelectorAll('.handslot')];
+        return {
+          first: Math.round(slots[0].getBoundingClientRect().x),
+          last: Math.round(slots[slots.length - 1].getBoundingClientRect().right),
+          railRight: Math.round(rail.right), panelLeft: Math.round(rp.x)
+        };
+      });
       await page.setViewportSize({ width: 1680, height: 1000 });
       await page.waitForTimeout(220);
       return r;
@@ -626,6 +641,12 @@ const PAGE = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
     errors.push('[assert] 面板开着、焦点在背景时按空格仍然施卡');
   }
   if (narrowFit.err) errors.push('[assert] 窄屏用例抛错：' + narrowFit.err);
+  if (narrowFit.portrait && narrowFit.portrait.first < narrowFit.portrait.railRight) {
+    errors.push('[assert] 竖屏下手牌压到左栏：' + JSON.stringify(narrowFit.portrait));
+  }
+  if (narrowFit.portrait && narrowFit.portrait.last > narrowFit.portrait.panelLeft) {
+    errors.push('[assert] 竖屏下手牌压到右栏：' + JSON.stringify(narrowFit.portrait));
+  }
   if (narrowFit.firstLeft < 0) errors.push('[assert] 缩窗后首张手牌跑出左边界：x=' + narrowFit.firstLeft);
   if (narrowFit.lastOverlap > 0) errors.push('[assert] 1080 下末张手牌压进右栏 ' + narrowFit.lastOverlap + 'px');
   if (narrowFit.actbarOk === false) errors.push('[assert] 1080 下动作栏被手牌盖住');

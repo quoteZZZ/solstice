@@ -31,8 +31,12 @@
        把两端各让出一份溢出量，靠 sp 变窄把最外卡往内收。 */
     const avail = ((wrap && wrap.clientWidth) || 900) - 24 - 34;
     const cw = CW * UI.handScale();
+    /* 78px 的步长下限是为了「名字看得见」，但容器窄于 8×78 时它会撑爆容器：
+       900×1200 下手牌 658 挤进 580，首卡盖住左栏、末卡压住右栏（第二轮 N09）。
+       下限改成跟着牌宽走（最多半张），宽屏行为不变。 */
+    const floorSp = Math.min(78, cw * 0.5);
     const sp = n > 1
-      ? Math.max(78, Math.min(cw, (avail - cw) / (n - 1)))
+      ? Math.max(floorSp, Math.min(cw, (avail - cw) / (n - 1)))
       : 0;
     box.innerHTML = W.hand.map((card, i) => {
       const d = i - mid;
