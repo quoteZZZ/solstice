@@ -42,7 +42,9 @@
       </div>
       <div class="row gap8" style="margin-top:18px">
         <button class="btn on" data-ev="bear">承受</button>
-        <button class="btn ghost" data-ev="rewrite">改写 · ${UI.REWRITE_COST} 时素</button>
+        <button class="btn ghost" data-ev="rewrite"${W.essence < UI.REWRITE_COST ? ' disabled' : ''}
+          title="${W.essence < UI.REWRITE_COST ? '还差 ' + (UI.REWRITE_COST - W.essence) + ' 时素' : ''}"
+          >改写 · ${UI.REWRITE_COST} 时素</button>
         <span class="xs" style="align-self:center;margin-left:auto">时素 ${W.essence} · Esc 关闭</span>
       </div>
     </div>`;

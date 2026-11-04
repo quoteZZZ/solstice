@@ -22,6 +22,10 @@ const OUT = path.join(__dirname, 'review');
   page.on('pageerror', e => errors.push('[PAGEERROR] ' + e.message));
 
   const shot = async (name) => {
+    /* 先刷一次 HUD 再截：这段脚本常常绕过 UI 直接改 sim（造地形、跑月数），
+       而 #hint 的显隐、抽包按钮的可用性都挂在 updateHud 上。不刷就截，
+       会截到「世界里已经有 25 格了，中间还挂着『世界是空的』」这种假象。 */
+    await page.evaluate(() => window.__dbg && window.__dbg.UI.updateHud());
     await page.waitForTimeout(350);
     await page.screenshot({ path: path.join(OUT, name + '.png') });
     console.log('shot', name);

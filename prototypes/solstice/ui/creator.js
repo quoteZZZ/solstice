@@ -280,7 +280,6 @@
           <button class="btn ghost" data-c="copy" style="height:22px">复制</button>
         </div>
         <button class="btn ghost" data-c="reroll">重掷</button>
-        <button class="btn on" data-c="enter" style="height:36px;padding:0 18px">进入 ▸</button>
       </div>
 
       <div id="cMain">
@@ -345,7 +344,6 @@
         <span class="xs">你只能重掷——形制、气候、特征都不由你挑；同一坐标 = 同一个世界</span>
         ${CRE.fromWorld ? '<button class="btn ghost" data-c="back" style="margin-left:auto">← 返回当前界</button>'
           : '<span style="margin-left:auto"></span>'}
-        <button class="btn ghost" data-c="reroll">重掷一颗骰子 ⟳</button>
         <button class="btn ${CRE.fromWorld && CRE.armed ? 'warn' : 'on'}" data-c="enter"
           style="height:34px;padding:0 22px">${
             !CRE.fromWorld ? '进入这一界 ▸'
@@ -358,15 +356,7 @@
       if (!b) return;
       if (b.dataset.c === 'reroll') { CRE.armed = false; return UI.rerollCreator(); }
       if (b.dataset.c === 'back') return UI.closeCreator();
-      if (b.dataset.c === 'enter') {
-        /* 已有世界时两段式：先武装，再确认。裸点一次就清空世界是 X-2。 */
-        if (CRE.fromWorld && !CRE.armed) {
-          CRE.armed = true;
-          UI.renderCreator();
-          return;
-        }
-        return UI.enterWorld();
-      }
+      if (b.dataset.c === 'enter') return UI.enterFromCreator();
       if (b.dataset.c === 'copy') {
         const t = CRE.seed.join('-');
         if (navigator.clipboard) navigator.clipboard.writeText(t);
@@ -401,6 +391,17 @@
     UI.rollWorld();
     UI.renderCreator();
     UI.log('重掷：' + CRE.name + ' · ' + CRE.form.name + ' · ' + CRE.climate, true);
+  };
+
+  /* 进入要两步：已有世界时第一次只是「武装」，再点才真替换（X-2）。
+     键盘 Enter 以前直接调 enterWorld，绕过了这一步 —— 等于又一次裸点清空世界。 */
+  UI.enterFromCreator = function () {
+    if (CRE.fromWorld && !CRE.armed) {
+      CRE.armed = true;
+      UI.renderCreator();
+      return;
+    }
+    UI.enterWorld();
   };
 
   UI.enterWorld = function () {

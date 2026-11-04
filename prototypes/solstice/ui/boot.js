@@ -120,9 +120,9 @@
       return;
     }
 
-    /* 创世页只认 Enter */
+    /* 创世页只认 Enter；走和按钮同一条路（已有世界时要先武装，不会再裸清空一次） */
     if (document.getElementById('creator').classList.contains('on')) {
-      if (ev.key === 'Enter') UI.enterWorld();
+      if (ev.key === 'Enter') UI.enterFromCreator();
       return;
     }
 
